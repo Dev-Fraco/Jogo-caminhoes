@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { BRASILEIRAO } from '../src/data/brasileirao';
-import { newGame } from '../src/engine/game';
 import { loadGame, saveGame } from '../src/engine/save';
 import { t } from '../src/i18n/strings';
+import { makeCareer } from './helpers';
 import { createBackup, deleteBackup, listBackups, MAX_BACKUPS, restoreBackup } from '../src/settings/backups';
 import { DEFAULT_SETTINGS, loadSettings, sanitizeSettings, saveSettings } from '../src/settings/settings';
 
@@ -42,7 +41,7 @@ describe('backups', () => {
     expect(listBackups()).toEqual([]);
   });
   it('cria, restaura e exclui', () => {
-    const g = newGame(BRASILEIRAO, 'fla', 1);
+    const g = makeCareer('flamengo', 1);
     saveGame(g);
     const r = createBackup(1000);
     expect(r.ok).toBe(true);
@@ -50,14 +49,22 @@ describe('backups', () => {
     const [b] = listBackups();
     expect(b.clubName).toBe('Flamengo');
     expect(restoreBackup(b.id)).toBe(true);
-    expect(loadGame()!.season).toBe(1);
+    expect(loadGame()!.season).toBe(2026);
     deleteBackup(b.id);
     expect(listBackups()).toEqual([]);
     expect(restoreBackup('nao-existe')).toBe(false);
   });
   it('respeita o limite', () => {
-    saveGame(newGame(BRASILEIRAO, 'pal', 2));
+    saveGame(makeCareer('palmeiras', 2));
     for (let i = 0; i < MAX_BACKUPS; i++) expect(createBackup(i).ok).toBe(true);
     expect(createBackup(99)).toEqual({ ok: false, reason: 'limit' });
+  });
+});
+
+describe('saves de versões antigas', () => {
+  it('save v1 (carreira de uma liga só) é ignorado e não restaura', () => {
+    localStorage.setItem('caminhoes-save-v1', JSON.stringify({ version: 1, userClubId: 'fla', clubs: [], season: 1, round: 1 }));
+    expect(loadGame()).toBeNull();
+    expect(createBackup()).toEqual({ ok: false, reason: 'no-save' });
   });
 });

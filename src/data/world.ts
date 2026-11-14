@@ -11,8 +11,6 @@ export interface Division {
   /** Nome local da divisão, mostrado como apoio (ex.: "Championship"). */
   alias?: string;
   teams: number;
-  /** Pacote de dados com os clubes desta divisão, quando já existir (ver src/data/*.ts). */
-  packId?: string;
 }
 
 export interface League {
@@ -35,7 +33,7 @@ export const WORLD_DATA: Record<string, Country> = {
     leagues: [{
       id: 'brasileirao', name: 'Campeonato Brasileiro', description: 'Campeonato nacional de pontos corridos, com acesso e rebaixamento entre as séries.',
       divisions: [
-        { id: 'serie-a', name: 'Série A', teams: 20, packId: 'brasileirao-serie-a' },
+        { id: 'serie-a', name: 'Série A', teams: 20 },
         { id: 'serie-b', name: 'Série B', teams: 20 },
         { id: 'serie-c', name: 'Série C', teams: 20 },
         { id: 'serie-d', name: 'Série D', teams: 96 },

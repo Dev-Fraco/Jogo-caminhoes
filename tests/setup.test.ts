@@ -13,10 +13,10 @@ const full = (): NewGameState => ({
 });
 
 describe('Etapa 4 — opções', () => {
-  it('4 dificuldades e 3 modos; Dinheiro Infinito bloqueado', () => {
+  it('4 dificuldades e 3 modos; Desafio e Dinheiro Infinito são Premium (bloqueados)', () => {
     expect(DIFFICULTIES.map((d) => d.label)).toEqual(['Fácil', 'Normal', 'Difícil', 'Lendário']);
     expect(GAME_MODES.map((m) => m.label)).toEqual(['Carreira Normal', 'Desafio', 'Dinheiro Infinito']);
-    expect(GAME_MODES.filter((m) => m.locked).map((m) => m.id)).toEqual(['infinite-money']);
+    expect(GAME_MODES.filter((m) => m.locked).map((m) => m.id)).toEqual(['challenge', 'infinite-money']);
     expect(DIFFICULTIES.every((d) => d.description.length > 10)).toBe(true);
   });
   it('estado inicial: Normal + Carreira Normal, nome do save vazio', () => {
@@ -46,9 +46,12 @@ describe('nome do save', () => {
 });
 
 describe('validação da Etapa 4 e do assistente', () => {
-  const ok = { difficulty: 'hard' as const, mode: 'challenge' as const, saveName: 'Meu save', saveNameEdited: true };
+  const ok = { difficulty: 'hard' as const, mode: 'career' as const, saveName: 'Meu save', saveNameEdited: true };
   it('configuração válida', () => expect(validateSetup(ok)).toEqual({}));
-  it('modo bloqueado não vale', () => expect(validateSetup({ ...ok, mode: 'infinite-money' }).mode).toBeTruthy());
+  it('modos bloqueados não valem', () => {
+    expect(validateSetup({ ...ok, mode: 'infinite-money' }).mode).toBeTruthy();
+    expect(validateSetup({ ...ok, mode: 'challenge' }).mode).toBeTruthy();
+  });
   it('nome do save: obrigatório, 2–60', () => {
     expect(validateSetup({ ...ok, saveName: '   ' }).saveName).toBeTruthy();
     expect(validateSetup({ ...ok, saveName: 'A' }).saveName).toBeTruthy();

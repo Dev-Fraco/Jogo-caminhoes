@@ -93,7 +93,7 @@ export function SetupStep({ state, onChange }: Props) {
               </label>
             ))}
           </div>
-          <p id="sp-premium-note" className="sp-note">Dinheiro Infinito é um recurso Premium e ainda não está disponível.</p>
+          <p id="sp-premium-note" className="sp-note">Desafio e Dinheiro Infinito são recursos Premium e ainda não estão disponíveis.</p>
         </fieldset>
 
         <div className="nw-field sp-set">

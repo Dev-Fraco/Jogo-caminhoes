@@ -38,3 +38,8 @@ export function badgeColors(club: Pick<ClubData, 'primaryColor' | 'secondaryColo
   const ring = other && !isVeryDark(other) && contrastRatio(other, bg) >= 1.5 ? other : RING_DEFAULT;
   return { bg, fg, ring };
 }
+
+/** Cor de fundo do cabeçalho do jogo (texto branco): a cor do clube que contrasta com o branco; senão a outra; senão o verde do jogo. */
+export function headerColor(club: Pick<ClubData, 'primaryColor' | 'secondaryColor'>): string {
+  return [club.primaryColor, club.secondaryColor].find((c) => contrastRatio(c, '#FFFFFF') >= 4) ?? '#0B3D2E';
+}

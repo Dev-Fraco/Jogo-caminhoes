@@ -10,14 +10,14 @@ npm test         # testes do motor
 ```
 
 ## Estrutura
-- `src/engine/` — regras do jogo (calendário, simulação, tabela, salvamento). Sem dependência de interface.
-- `src/data/` — pacote de dados padrão (`brasileirao.ts`) e validação de pacotes importados (`pack.ts`).
+- `src/engine/` — regras do jogo (calendário, simulação, tabela, acesso/rebaixamento, salvamento). Sem dependência de interface.
+- `src/data/` — mundo (`world.ts`), clubes e elencos 2026 das Séries A–D (`clubs.ts`), pirâmide do Brasileirão (`pyramid.ts`) e formato de pacotes para mods (`pack.ts`).
 - `src/ui/` — telas (Escolha do clube, Elenco, Jogos, Tabela).
 - `tests/` — testes do motor.
 
-## Pacotes de dados
-O jogo é genérico: clubes/ligas vêm de um **pacote** (`format: "caminhoes-pack-v1"`). Na tela inicial há o botão
-"Importar pacote de dados (.json)". Clubes podem trazer `players` prontos; sem isso o jogo gera elencos fictícios.
+## Campeonato Brasileiro (Série A–D)
+Cada carreira simula as 4 divisões ao mesmo tempo (38 rodadas, pontos corridos). No fim da temporada os 4 últimos de A, B e C descem e os 4 primeiros de B, C e D sobem.
+O Modo Desafio (Premium) ainda não existe: ele sorteará um clube que joga só estadual, e depende de os estaduais serem criados.
 
 ## Gerar APK / AAB
 - **Sem instalar nada (pelo celular):** no GitHub, aba *Actions* → *Android (APK + AAB)* → *Run workflow*. Baixe o resultado em *Artifacts*.

@@ -19,10 +19,10 @@ describe('dados do mundo', () => {
       }
     }
   });
-  it('Brasil: Campeonato Brasileiro com Séries A–D; Série A liga ao pacote de clubes existente', () => {
+  it('Brasil: Campeonato Brasileiro com Séries A–D; Série A tem 20 times', () => {
     const l = getLeague('BR', 'brasileirao')!;
     expect(l.divisions.map((d) => d.name)).toEqual(['Série A', 'Série B', 'Série C', 'Série D']);
-    expect(getDivision('BR', 'brasileirao', 'serie-a')).toMatchObject({ teams: 20, packId: 'brasileirao-serie-a' });
+    expect(getDivision('BR', 'brasileirao', 'serie-a')).toMatchObject({ teams: 20 });
   });
   it('ids de países batem com as nacionalidades da Etapa 1 (reuso)', () => {
     const ids = new Set(NATIONALITIES.map((n) => n.id));

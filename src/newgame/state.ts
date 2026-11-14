@@ -60,9 +60,13 @@ export const DIFFICULTIES: Difficulty[] = [
   { id: 'legend', label: 'Lendário', description: 'Pouca margem de erro: demissão rápida, mercado caro e rivais impiedosos.', level: 4 },
 ];
 
+/**
+ * Desafio (Premium, futuro): o jogo sorteia um clube que joga SÓ campeonatos estaduais e o jogador o leva até a elite do Brasileirão.
+ * Clube que disputa estadual E uma das Séries A–D do Brasileirão não pode ser sorteado (nem escolhido). Depende de os estaduais existirem.
+ */
 export const GAME_MODES: GameMode[] = [
   { id: 'career', label: 'Carreira Normal', description: 'Assuma o clube escolhido e conduza a carreira temporada após temporada.' },
-  { id: 'challenge', label: 'Desafio', description: 'Suba da base/estadual até a elite do Brasileirão.' },
+  { id: 'challenge', label: 'Desafio', description: 'Receba um clube sorteado que só joga estadual e leve-o até a elite do Brasileirão.', locked: true },
   { id: 'infinite-money', label: 'Dinheiro Infinito', description: 'Sem limite de orçamento para montar o elenco dos sonhos.', locked: true },
 ];
 

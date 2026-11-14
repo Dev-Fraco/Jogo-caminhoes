@@ -1,4 +1,4 @@
-import { readRawSave, writeRawSave } from '../engine/save';
+import { isValidSave, readRawSave, writeRawSave } from '../engine/save';
 import type { GameState } from '../engine/types';
 
 export interface Backup {
@@ -33,12 +33,12 @@ export function createBackup(now = Date.now()): CreateResult {
   if (!raw) return { ok: false, reason: 'no-save' };
   let g: GameState;
   try { g = JSON.parse(raw) as GameState; } catch { return { ok: false, reason: 'no-save' }; }
+  if (!isValidSave(g)) return { ok: false, reason: 'no-save' };
   const list = listBackups();
   if (list.length >= MAX_BACKUPS) return { ok: false, reason: 'limit' };
-  const club = g.clubs?.find((c) => c.id === g.userClubId);
   const backup: Backup = {
     id: `${now}-${Math.random().toString(36).slice(2, 7)}`,
-    createdAt: now, clubName: club?.name ?? '?', season: g.season, round: g.round, data: raw,
+    createdAt: now, clubName: g.clubs[g.userClubId]?.name ?? '?', season: g.season, round: g.round, data: raw,
   };
   return write([backup, ...list]) ? { ok: true, backup } : { ok: false, reason: 'storage' };
 }
@@ -47,7 +47,7 @@ export function createBackup(now = Date.now()): CreateResult {
 export function restoreBackup(id: string): boolean {
   const b = listBackups().find((x) => x.id === id);
   if (!b) return false;
-  try { if ((JSON.parse(b.data) as GameState).version !== 1) return false; } catch { return false; }
+  try { if (!isValidSave(JSON.parse(b.data))) return false; } catch { return false; }
   return writeRawSave(b.data);
 }
 

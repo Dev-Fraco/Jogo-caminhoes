@@ -1,6 +1,6 @@
-import type { Club, MatchResult, TableRow } from './types';
+import type { MatchResult, TableRow } from './types';
 
-export function computeTable(clubs: Club[], results: MatchResult[]): TableRow[] {
+export function computeTable(clubs: { id: string; name: string }[], results: MatchResult[]): TableRow[] {
   const rows = new Map<string, TableRow>(
     clubs.map((c) => [c.id, { clubId: c.id, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, gd: 0, points: 0 }]),
   );

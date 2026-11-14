@@ -1,7 +1,7 @@
 import type { Fixture } from './types';
 
 /** Pontos corridos, ida e volta (método do círculo). 20 clubes => 38 rodadas. */
-export function buildFixtures(clubIds: string[]): { fixtures: Fixture[]; totalRounds: number } {
+export function buildFixtures(clubIds: string[], divisionId = ''): { fixtures: Fixture[]; totalRounds: number } {
   const ids = [...clubIds];
   if (ids.length % 2) ids.push('__bye__');
   const n = ids.length;
@@ -14,10 +14,10 @@ export function buildFixtures(clubIds: string[]): { fixtures: Fixture[]; totalRo
       if (home === '__bye__' || away === '__bye__') continue;
       // alterna mando para equilibrar casa/fora
       if ((r + i) % 2 === 1) [home, away] = [away, home];
-      first.push({ round: r + 1, homeId: home, awayId: away });
+      first.push({ divisionId, round: r + 1, homeId: home, awayId: away });
     }
     arr.splice(1, 0, arr.pop()!); // gira todos menos o primeiro
   }
-  const second = first.map((f) => ({ round: f.round + half, homeId: f.awayId, awayId: f.homeId }));
+  const second = first.map((f) => ({ divisionId, round: f.round + half, homeId: f.awayId, awayId: f.homeId }));
   return { fixtures: [...first, ...second], totalRounds: half * 2 };
 }

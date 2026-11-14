@@ -50,15 +50,18 @@ export interface MatchEvent {
 }
 
 export interface MatchResult {
+  divisionId: string;
   round: number;
   homeId: string;
   awayId: string;
   homeGoals: number;
   awayGoals: number;
+  /** Lances da partida. Só são guardados nos jogos do clube do jogador (nos demais fica vazio, para o save não crescer). */
   events: MatchEvent[];
 }
 
 export interface Fixture {
+  divisionId: string;
   round: number;
   homeId: string;
   awayId: string;
@@ -76,18 +79,49 @@ export interface TableRow {
   points: number;
 }
 
+/** Dados de exibição de um clube, copiados para o save (nomes, cores, estádio). */
+export interface ClubInfo {
+  id: string;
+  name: string;
+  shortName: string;
+  badge: string;
+  primaryColor: string;
+  secondaryColor: string;
+  stadium: string;
+  city: string;
+  reputation: number;
+}
+
+/** Uma divisão da pirâmide, da principal (índice 0) para as inferiores. */
+export interface DivisionState {
+  id: string;
+  name: string;
+  clubIds: string[];
+}
+
+/** Resumo de uma temporada encerrada. */
+export interface SeasonSummary {
+  season: number;
+  userDivisionId: string;
+  userPosition: number;
+  divisions: { id: string; championId: string; promoted: string[]; relegated: string[] }[];
+}
+
 export interface GameState {
-  version: 1;
-  packId: string;
-  packName: string;
-  leagueName: string;
-  clubs: Club[]; // cópia do pacote usado, para o save ser independente
+  version: 2;
+  saveName: string;
+  coach: { name: string; nationality: string; reputation: string };
+  difficulty: string;
+  mode: string;
   userClubId: string;
   seed: number;
   season: number;
   round: number; // próxima rodada a jogar (1-based); > totalRounds = temporada acabou
   totalRounds: number;
-  teams: Record<string, TeamState>;
-  fixtures: Fixture[];
-  results: MatchResult[];
+  clubs: Record<string, ClubInfo>;
+  divisions: DivisionState[]; // ordem: Série A, B, C, D
+  teams: Record<string, TeamState>; // todos os clubes
+  fixtures: Fixture[]; // da temporada atual, todas as divisões
+  results: MatchResult[]; // da temporada atual
+  history: SeasonSummary[];
 }

@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
-import { isSeasonOver, newGame, playRound } from '../engine/game';
+import { brazilPyramid } from '../data/pyramid';
+import { isSeasonOver, newCareer, playRound, startNextSeason, userDivision } from '../engine/game';
 import { loadGame, saveGame } from '../engine/save';
-import type { DataPack, GameState, MatchResult } from '../engine/types';
+import type { GameState, MatchResult } from '../engine/types';
+import { START_SEASON, type NewGameState } from '../newgame/state';
+import { headerColor } from './badge';
 import { MainMenu, MENU_OPTIONS, type MenuOptionId } from './MainMenu';
 import { NewGame } from './NewGame';
 import { Options } from './Options';
@@ -24,13 +27,23 @@ export function App() {
 
   const toMenu = () => setScreen('menu');
 
+  // Termina o assistente: cria a carreira no Campeonato Brasileiro (Série A–D) e abre o jogo.
+  const startCareer = (s: NewGameState) => {
+    const { name, nationality, reputation } = s.coach;
+    setGame(newCareer({
+      saveName: s.setup.saveName, coach: { name, nationality, reputation }, difficulty: s.setup.difficulty, mode: s.setup.mode,
+      season: START_SEASON, userClubId: s.club!.id, divisions: brazilPyramid(),
+    }));
+    setLast([]); setTab('matches'); setScreen('game');
+  };
+
   // Menu inicial. Só "Novo Jogo" e "Continuar" reaproveitam o que já existia (escolha de clube / carreira salva);
   // as outras 6 opções são placeholders até serem desenvolvidas uma a uma.
   const select = (id: MenuOptionId) => setScreen(id === 'continuar' && game ? 'game' : id);
 
   if (screen === 'menu') return <MainMenu onSelect={select} hasSave={!!game} />;
 
-  if (screen === 'novo-jogo') return <NewGame onBack={toMenu} />;
+  if (screen === 'novo-jogo') return <NewGame onBack={toMenu} onStart={startCareer} hasSave={!!game} />;
 
   if (screen === 'opcoes') return <Options onBack={toMenu} onRestored={() => setGame(loadGame())} />;
 
@@ -39,25 +52,22 @@ export function App() {
     return <Placeholder title={opt.label} note={screen === 'continuar' ? 'Nenhum jogo salvo ainda. Em breve' : 'Em breve'} onBack={toMenu} />;
   }
 
-  const club = game.clubs.find((c) => c.id === game.userClubId)!;
+  const club = game.clubs[game.userClubId];
   const play = () => { const r = playRound(game); setLast(r.results); setGame(r.state); };
-  const nextSeason = () => {
-    const pack: DataPack = { format: 'caminhoes-pack-v1', id: game.packId, name: game.packName, league: { name: game.leagueName, clubs: game.clubs } };
-    setLast([]); setTab('matches'); setGame(newGame(pack, game.userClubId, undefined, game.season + 1));
-  };
+  const nextSeason = () => { setLast([]); setGame(startNextSeason(game)); };
 
   return (
     <div className="app">
-      <header style={{ background: club.color }}>
+      <header style={{ background: headerColor(club) }}>
         <div>
           <strong>{club.name}</strong>
-          <small>{game.leagueName} · Temporada {game.season}</small>
+          <small>{userDivision(game).name} · Temporada {game.season}</small>
         </div>
         <button className="ghost" onClick={toMenu}>Menu</button>
       </header>
       <main>
         {tab === 'squad' && <Squad game={game} onChange={setGame} />}
-        {tab === 'matches' && <Matches game={game} last={last} onPlay={play} onNewSeason={nextSeason} over={isSeasonOver(game)} />}
+        {tab === 'matches' && <Matches game={game} last={last} onPlay={play} onNextSeason={nextSeason} over={isSeasonOver(game)} />}
         {tab === 'table' && <Table game={game} />}
       </main>
       <nav>

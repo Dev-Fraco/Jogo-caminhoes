@@ -93,7 +93,7 @@ function PlaceholderStep({ title, subtitle }: { title: string; subtitle?: string
   );
 }
 
-export function NewGame({ onBack }: { onBack: () => void }) {
+export function NewGame({ onBack, onStart, hasSave }: { onBack: () => void; onStart: (state: NewGameState) => void; hasSave: boolean }) {
   // Estado do assistente: guarda tudo que for preenchido e é preservado ao navegar entre etapas.
   const [state, setState] = useState<NewGameState>(createNewGameState);
   const [index, setIndex] = useState(0);
@@ -111,7 +111,8 @@ export function NewGame({ onBack }: { onBack: () => void }) {
   const canAdvance = step.implemented && (step.id !== 'club' || step.isValid(state)) && (step.id !== 'confirm' || isWizardComplete(state));
   const footNote = !step.implemented ? 'Em breve'
     : step.id === 'club' && !canAdvance ? 'Selecione um clube para continuar'
-    : step.id === 'confirm' && !canAdvance ? 'Preencha todos os campos para iniciar' : '';
+    : step.id === 'confirm' && !canAdvance ? 'Preencha todos os campos para iniciar'
+    : step.id === 'confirm' && hasSave ? 'Já existe uma carreira salva: ela será substituída (faça um backup em Opções para guardá-la)' : '';
 
   // Ao chegar na confirmação, preenche a sugestão do nome do save (se o jogador ainda não editou).
   useEffect(() => {
@@ -141,9 +142,7 @@ export function NewGame({ onBack }: { onBack: () => void }) {
     const clean: NewGameState = { ...state, coach: { ...state.coach, name: state.coach.name.trim() }, setup: { ...state.setup, saveName: state.setup.saveName.trim() } };
     setState(clean);
     if (last) {
-      // Por enquanto só registra o estado final e volta ao menu (a engine do jogo vem depois).
-      console.log('[Novo Jogo] estado final', clean);
-      onBack();
+      onStart(clean); // cria a carreira e abre o jogo
     } else setIndex(index + 1);
   };
   const back = () => (index === 0 ? onBack() : setIndex(index - 1));

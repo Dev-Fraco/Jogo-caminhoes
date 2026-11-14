@@ -80,3 +80,15 @@ select { font: inherit; padding: 10px; border-radius: 10px; border: 1px solid va
 .btn { flex: 1; min-height: 48px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font-weight: 600; font-size: 14px; padding: 0 6px; }
 .btn.main { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn:disabled { opacity: .45; cursor: default; }
+
+/* ---- Divisões (abas), acesso e rebaixamento ---- */
+.chips { display: flex; gap: 6px; margin-bottom: 10px; overflow-x: auto; }
+.chips button { flex: 1; white-space: nowrap; min-height: 40px; padding: 0 12px; border-radius: 20px; border: 1px solid var(--line); background: var(--card); color: var(--muted); font-weight: 600; }
+.chips button.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+.table tr.acc td:first-child { box-shadow: inset 4px 0 #12a150; }
+.legend { margin: 8px 4px 0; font-size: 12px; color: var(--muted); }
+.legend .k { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 4px 0 8px; vertical-align: -1px; }
+.legend .k:first-child { margin-left: 0; }
+.legend .k.lib { background: #1a73e8; } .legend .k.sul { background: #f5a623; } .legend .k.acc { background: #12a150; } .legend .k.rel { background: #d93025; }
+.outcome { font-weight: 700; font-size: 16px; } .outcome.promoted { color: #137a3f; } .outcome.relegated { color: #b3261e; }
+.moves p { margin: 6px 0; font-size: 14px; line-height: 1.4; }

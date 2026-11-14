@@ -48,6 +48,11 @@ export function buildTeam(club: Club, seed: number, formation: FormationId = '4-
   return { clubId: club.id, players, formation, lineup: autoLineup(players, formation) };
 }
 
+/** Time a partir de um elenco pronto (titulares escolhidos automaticamente). */
+export function teamFromPlayers(clubId: string, players: Player[], formation: FormationId = '4-4-2'): TeamState {
+  return { clubId, players, formation, lineup: autoLineup(players, formation) };
+}
+
 export interface Ratings { gk: number; def: number; mid: number; att: number; overall: number }
 
 export function teamRatings(team: TeamState): Ratings {
