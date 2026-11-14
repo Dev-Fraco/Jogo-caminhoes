@@ -1,0 +1,20 @@
+import type { GameState } from './types';
+
+const KEY = 'caminhoes-save-v1';
+
+export function saveGame(g: GameState) {
+  try { localStorage.setItem(KEY, JSON.stringify(g)); } catch { /* armazenamento cheio/bloqueado */ }
+}
+
+export function loadGame(): GameState | null {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return null;
+    const g = JSON.parse(raw) as GameState;
+    return g.version === 1 ? g : null;
+  } catch { return null; }
+}
+
+export function clearSave() {
+  try { localStorage.removeItem(KEY); } catch { /* ignore */ }
+}
