@@ -4,7 +4,7 @@ import { phoneOf } from '../src/engine/phone';
 import { makeCareer } from './helpers';
 import type { GameState } from '../src/engine/types';
 
-const withBank = (g = makeCareer('csa', 'pro'), money = 500_000): GameState => {
+const withBank = (g = makeCareer('csa'), money = 500_000): GameState => {
   const r = registerBank(g, 'Carlos Almeida', 'segredo1', 'segredo1');
   if (!r.ok) throw new Error(r.error);
   return { ...r.state, coachMoney: money };

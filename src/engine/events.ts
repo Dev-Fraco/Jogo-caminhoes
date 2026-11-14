@@ -1,5 +1,6 @@
 import { COPA_DO_BRASIL, cupMatchDue, playCupRound, userCupTie } from './cup';
 import { CONTINENTALS, matchDue, mundialMatchDue, mundialStepName, mundialUserMatch, playContStep, playMundialStep, stepName, userMatch, type Comp } from './continental';
+import { socialAfterMatch } from './social';
 import type { GameState, MatchResult } from './types';
 
 export type EventKind = 'cup' | 'lib' | 'ucl' | 'mundial';
@@ -18,5 +19,9 @@ export function pendingEvent(g: GameState): PendingEvent | undefined {
 
 /** Joga o evento pendente do seu clube. */
 export function playEvent(g: GameState, kind: EventKind): { state: GameState; results: MatchResult[] } {
-  return kind === 'cup' ? playCupRound(g) : kind === 'mundial' ? playMundialStep(g) : playContStep(g, kind);
+  const r = kind === 'cup' ? playCupRound(g) : kind === 'mundial' ? playMundialStep(g) : playContStep(g, kind);
+  const my = r.results.find((x) => x.homeId === g.userClubId || x.awayId === g.userClubId);
+  if (!my) return r;
+  const home = my.homeId === g.userClubId;
+  return { ...r, state: socialAfterMatch(r.state, home ? my.homeGoals : my.awayGoals, home ? my.awayGoals : my.homeGoals, 0.6) }; // copas pesam um pouco menos
 }

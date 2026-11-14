@@ -164,6 +164,11 @@ export interface OwnedAsset { id: string; price: number; season: number; contrac
 /** Bens do treinador: veículos, imóveis, aluguel atual e contratos. */
 export interface AssetsState { vehicles: OwnedAsset[]; houses: OwnedAsset[]; contracts: Contract[]; seq: number }
 
+export interface SocialPost { id: string; type: string; text: string; season: number; round: number; delta: number; likes: number; views: number; viral: boolean }
+export interface SocialProfile { followers: number; history: { season: number; round: number; followers: number }[]; posts: SocialPost[]; lastPost: string; adIncome: number }
+/** Redes sociais do treinador. */
+export interface SocialState { linstagra: SocialProfile; tikiteko: SocialProfile; lastMatch?: { season: number; round: number; result: 'win' | 'draw' | 'loss'; streak: number } }
+
 /** Mundial de Clubes: semifinais cruzadas entre os dois finalistas da Libertadores e da Champions, e final. */
 export interface MundialState {
   id: string;
@@ -254,6 +259,7 @@ export interface GameState {
   phone?: PhoneState;
   bank?: BankState;
   assets?: AssetsState;
+  social?: SocialState;
   mundial?: MundialState;
   /** Dinheiro pessoal do treinador (R$) e quanto da folha ele paga (0/25/50/100). */
   coachMoney?: number;

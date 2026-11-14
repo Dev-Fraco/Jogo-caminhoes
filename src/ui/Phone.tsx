@@ -5,6 +5,7 @@ import type { GameState } from '../engine/types';
 import { BankApp } from './BankApp';
 import { DealerApp } from './DealerApp';
 import { RealtorApp } from './RealtorApp';
+import { SocialApp } from './SocialApp';
 import './phone.css';
 
 interface Props { game: GameState; onChange: (g: GameState) => void; onClose: () => void }
@@ -99,7 +100,8 @@ export function Phone({ game, onChange, onClose }: Props) {
               {screen === 'banco' && <BankApp game={game} onChange={onChange} />}
               {screen === 'concessionaria' && <DealerApp game={game} onChange={onChange} onOpenApp={setScreen} />}
               {screen === 'corretor' && <RealtorApp game={game} onChange={onChange} onOpenApp={setScreen} />}
-              {!['home', 'loja', 'config', 'banco', 'concessionaria', 'corretor'].includes(screen) && <SoonApp id={screen} />}
+              {(screen === 'linstagra' || screen === 'tikiteko') && <SocialApp app={screen} game={game} onChange={onChange} />}
+              {!['home', 'loja', 'config', 'banco', 'concessionaria', 'corretor', 'linstagra', 'tikiteko'].includes(screen) && <SoonApp id={screen} />}
               <button className="ph-homebar" onClick={() => setScreen('home')} aria-label="Início do celular" />
             </>
           )}
