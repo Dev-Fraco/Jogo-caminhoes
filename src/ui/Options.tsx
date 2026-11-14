@@ -76,7 +76,7 @@ export function Options({ onBack, onRestored }: Props) {
 
   return (
     <div className="app">
-      <header style={{ background: '#0b3d2e' }}>
+      <header>
         <div><strong>{tr('options.title')}</strong></div>
         <button className="ghost" onClick={onBack}>{tr('options.back')}</button>
       </header>

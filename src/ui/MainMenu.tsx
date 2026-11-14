@@ -31,11 +31,10 @@ export type MenuOptionId = (typeof MENU_OPTIONS)[number]['id'];
 
 /**
  * >>> TROCAR O WALLPAPER AQUI <<<
- * Foto do painel inicial (treinador no estádio), em public/assets/. Se o arquivo não existir,
- * aparece o fundo desenhado em CSS. O assistente de Novo Jogo usa WALLPAPER_URL (opcional, ainda sem arquivo).
+ * Foto de fundo de TODAS as telas (treinador no estádio), em public/assets/. Se o arquivo não existir,
+ * aparece o fundo desenhado em CSS.
  */
 export const HOME_WALLPAPER_URL = 'assets/home-coach.jpg';
-export const WALLPAPER_URL = 'assets/wallpaper-menu.jpg';
 
 /** Opções com destaque visual maior. */
 const PRIMARY: ReadonlySet<MenuOptionId> = new Set(['novo-jogo']);

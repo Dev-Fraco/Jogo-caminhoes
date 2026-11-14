@@ -1,7 +1,7 @@
 /* =====================================================================
    NOVO JOGO — assistente em etapas. Reaproveita as variáveis e o fundo do menu (.menu).
    ===================================================================== */
-.nw .menu-overlay { background: linear-gradient(180deg, rgba(2, 9, 6, .60) 0%, rgba(2, 9, 6, .78) 100%); }
+
 
 .nw-shell {
   position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column;
@@ -12,10 +12,10 @@
 /* ---------- Topo: título + indicador de etapas ---------- */
 .nw-top { width: min(1000px, 100%); margin: 0 auto; }
 .nw-kicker {
-  display: flex; align-items: center; gap: 10px; color: var(--lime);
+  display: flex; align-items: center; gap: 10px; color: var(--gold);
   font: 700 clamp(12px, 1.6vh, 15px)/1 'Barlow Condensed', 'Arial Narrow', sans-serif; letter-spacing: .32em; text-transform: uppercase;
 }
-.nw-kicker::before { content: ''; width: 34px; height: 5px; background: var(--lime); transform: skewX(-30deg); }
+.nw-kicker::before { content: ''; width: 34px; height: 5px; background: var(--gold); transform: skewX(-30deg); }
 .nw-top h1 {
   margin: 8px 0 clamp(8px, 2vh, 18px);
   font: italic 800 clamp(26px, 4.6vh, 44px)/1 'Barlow Condensed', 'Arial Narrow', Impact, sans-serif;
@@ -25,7 +25,7 @@
 .nw-steps li { display: flex; align-items: center; flex: 1; min-width: 0; }
 .nw-steps li:last-child { flex: 0 0 auto; }
 .nw-steps li:not(:last-child)::after { content: ''; flex: 1; height: 2px; margin: 0 10px; background: rgba(255, 255, 255, .18); }
-.nw-steps li.done:not(:last-child)::after { background: var(--lime); }
+.nw-steps li.done:not(:last-child)::after { background: var(--gold); }
 .nw-steps button {
   display: flex; align-items: center; gap: 10px; padding: 4px 6px 4px 0; background: none; border: 0; color: var(--ink-dim); cursor: pointer; border-radius: 6px;
   font: 600 clamp(13px, 1.9vh, 16px)/1 'Barlow Condensed', 'Arial Narrow', sans-serif; letter-spacing: .1em; text-transform: uppercase;
@@ -39,15 +39,15 @@
   border: 2px solid rgba(255, 255, 255, .35); font-size: 15px; transition: background-color .18s ease, border-color .18s ease, color .18s ease;
 }
 .nw-steps li.current button { color: var(--ink); }
-.nw-steps li.current .nw-dot { background: var(--lime); border-color: var(--lime); color: var(--lime-ink); box-shadow: 0 0 16px rgba(184, 255, 60, .45); }
-.nw-steps li.done .nw-dot { border-color: var(--lime); color: var(--lime); }
+.nw-steps li.current .nw-dot { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); box-shadow: 0 0 16px rgba(240, 185, 43, .45); }
+.nw-steps li.done .nw-dot { border-color: var(--gold); color: var(--gold); }
 
 /* ---------- Cartão central ---------- */
 .nw-body { flex: 1; overflow-y: auto; display: flex; padding: clamp(10px, 2.2vh, 22px) 2px; }
 .nw-card {
   width: min(1000px, 100%); margin: auto; padding: clamp(16px, 3.2vh, 32px) clamp(16px, 2.4vw, 32px);
   background: linear-gradient(180deg, rgba(6, 18, 12, .74), rgba(6, 18, 12, .58));
-  border: 1px solid var(--glass-line); border-top: 3px solid var(--lime); border-radius: 6px;
+  border: 1px solid var(--glass-line); border-top: 3px solid var(--gold); border-radius: 6px;
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   box-shadow: 0 24px 60px rgba(0, 0, 0, .45);
 }
@@ -73,8 +73,8 @@
 }
 .nw-field select:invalid, .nw-field select:has(option[value=""]:checked) { color: rgba(244, 251, 246, .5); }
 .nw-field select option { background: #0b1f16; color: #f4fbf6; }
-.nw-field input:hover, .nw-field select:hover { border-color: rgba(184, 255, 60, .6); }
-.nw-field input:focus, .nw-field select:focus { outline: none; border-color: var(--lime); box-shadow: 0 0 0 3px rgba(184, 255, 60, .35); background-color: rgba(0, 0, 0, .5); }
+.nw-field input:hover, .nw-field select:hover { border-color: rgba(240, 185, 43, .6); }
+.nw-field input:focus, .nw-field select:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(240, 185, 43, .35); background-color: rgba(0, 0, 0, .5); }
 .nw-field input.bad, .nw-field select.bad { border-color: #ff7b7b; }
 .nw-field input.bad:focus, .nw-field select.bad:focus { box-shadow: 0 0 0 3px rgba(255, 123, 123, .35); }
 .nw-msg { display: flex; justify-content: space-between; gap: 10px; min-height: 22px; margin-top: 6px; font: 500 13px/1.3 'Barlow', system-ui, sans-serif; }
@@ -96,19 +96,19 @@
 .nw-rep-body small { font: 500 clamp(12.5px, 1.8vh, 14.5px)/1.35 'Barlow', system-ui, sans-serif; color: var(--ink-dim); }
 .nw-pips { display: flex; gap: 4px; margin-bottom: 4px; }
 .nw-pips i { width: 16px; height: 6px; background: rgba(255, 255, 255, .22); transform: skewX(-30deg); transition: background-color .18s ease; }
-.nw-pips i.on { background: var(--lime); }
-.nw-rep-card:hover .nw-rep-body { border-color: var(--lime); background: rgba(184, 255, 60, .10); transform: translateY(-2px); }
-.nw-rep-card input:checked + .nw-rep-body { background: var(--lime); color: var(--lime-ink); border-color: var(--lime); box-shadow: 0 0 0 1px rgba(184, 255, 60, .5), 0 8px 26px rgba(184, 255, 60, .30); }
+.nw-pips i.on { background: var(--gold); }
+.nw-rep-card:hover .nw-rep-body { border-color: var(--gold); background: rgba(240, 185, 43, .10); transform: translateY(-2px); }
+.nw-rep-card input:checked + .nw-rep-body { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); box-shadow: 0 0 0 1px rgba(240, 185, 43, .5), 0 8px 26px rgba(240, 185, 43, .30); }
 .nw-rep-card input:checked + .nw-rep-body small { color: rgba(7, 20, 12, .82); }
 .nw-rep-card input:checked + .nw-rep-body .nw-pips i { background: rgba(7, 20, 12, .25); }
-.nw-rep-card input:checked + .nw-rep-body .nw-pips i.on { background: var(--lime-ink); }
+.nw-rep-card input:checked + .nw-rep-body .nw-pips i.on { background: var(--gold-ink); }
 .nw-rep-card input:focus-visible + .nw-rep-body { outline: 3px solid #fff; outline-offset: 3px; }
 
 /* ---------- Placeholder das etapas 2–4 ---------- */
 .nw-soon { text-align: center; padding: clamp(24px, 8vh, 80px) 10px; }
 .nw-soon h2 { margin: 0; font: italic 800 clamp(28px, 5vh, 44px)/1 'Barlow Condensed', 'Arial Narrow', sans-serif; text-transform: uppercase; }
 .nw-soon-sub { margin: 10px 0 0; color: var(--ink-dim); font-size: 17px; }
-.nw-soon-tag { display: inline-block; margin: 22px 0 0; padding: 6px 16px; color: var(--lime-ink); background: var(--lime); border-radius: 3px; transform: skewX(-12deg); font: 700 15px/1 'Barlow Condensed', sans-serif; letter-spacing: .2em; text-transform: uppercase; }
+.nw-soon-tag { display: inline-block; margin: 22px 0 0; padding: 6px 16px; color: var(--gold-ink); background: var(--gold); border-radius: 3px; transform: skewX(-12deg); font: 700 15px/1 'Barlow Condensed', sans-serif; letter-spacing: .2em; text-transform: uppercase; }
 
 /* ---------- Rodapé ---------- */
 .nw-foot {
@@ -122,11 +122,11 @@
   font: 700 clamp(16px, 2.4vh, 20px)/1 'Barlow Condensed', 'Arial Narrow', sans-serif; letter-spacing: .14em; text-transform: uppercase;
   transition: background-color .18s ease, color .18s ease, border-color .18s ease, transform .18s ease, box-shadow .18s ease;
 }
-.nw-btn:hover:not(:disabled) { border-color: var(--lime); transform: translateY(-2px); }
+.nw-btn:hover:not(:disabled) { border-color: var(--gold); transform: translateY(-2px); }
 .nw-btn:active:not(:disabled) { transform: scale(.97); transition-duration: .08s; }
 .nw-btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
-.nw-btn.go { background: var(--lime); border-color: var(--lime); color: var(--lime-ink); box-shadow: 0 6px 24px rgba(184, 255, 60, .28); }
-.nw-btn.go:hover:not(:disabled) { box-shadow: 0 8px 30px rgba(184, 255, 60, .5); }
+.nw-btn.go { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); box-shadow: 0 6px 24px rgba(240, 185, 43, .28); }
+.nw-btn.go:hover:not(:disabled) { box-shadow: 0 8px 30px rgba(240, 185, 43, .5); }
 .nw-btn:disabled { cursor: not-allowed; color: rgba(244, 251, 246, .45); background: rgba(40, 48, 44, .55); border-color: rgba(255, 255, 255, .1); box-shadow: none; }
 
 /* ---------- Telas estreitas ---------- */

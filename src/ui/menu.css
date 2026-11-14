@@ -3,8 +3,8 @@
    Usada pelo assistente de Novo Jogo (.menu.nw) e pelo painel inicial (.menu.home, ver home.css).
    ===================================================================== */
 .menu {
-  --lime: #b8ff3c;        /* destaque (hover, foco, marcadores) */
-  --lime-ink: #07140c;    /* texto sobre o lime */
+  --gold: #f0b92b;        /* destaque (hover, foco, marcadores) */
+  --gold-ink: #1a1204;    /* texto sobre o dourado */
   --ink: #f4fbf6;
   --ink-dim: #a9bdb0;
   --glass: rgba(6, 18, 12, .52);
@@ -13,28 +13,19 @@
 
   position: relative; overflow: hidden; height: 100%;
   color: var(--ink);
-  background: #04110b;
+  background: #050505;
   font-family: 'Barlow', 'Segoe UI', Roboto, system-ui, sans-serif;
 }
 
 /* ---------- Fundo ---------- */
 .menu-bg, .menu-bg > * { position: absolute; inset: 0; pointer-events: none; }
 
-/* Foto de fundo. TROCAR O WALLPAPER: coloque public/assets/wallpaper-menu.jpg
-   (ou mude WALLPAPER_URL em MainMenu.tsx). Sem a imagem esta camada fica vazia
-   e a arte em CSS logo abaixo aparece. */
-.menu-photo {
-  background-size: cover;
-  background-position: 70% center;
-}
-
 /* Fallback desenhado em CSS: estádio à noite, refletores, arquibancada e gramado em perspectiva */
 .menu-art {
   background:
-    radial-gradient(55% 45% at 82% 6%,  rgba(200, 255, 215, .30), transparent 70%),
-    radial-gradient(35% 30% at 98% 10%, rgba(255, 255, 255, .22), transparent 70%),
-    radial-gradient(45% 40% at 58% 0%,  rgba(170, 255, 215, .16), transparent 70%),
-    linear-gradient(180deg, #04140d 0%, #0a3a27 44%, #06241a 68%, #03120b 100%);
+    radial-gradient(55% 45% at 82% 6%, rgba(255, 235, 170, .30), transparent 70%),
+    radial-gradient(45% 40% at 38% 0%, rgba(255, 255, 255, .14), transparent 70%),
+    linear-gradient(180deg, #0a0a0a 0%, #17120a 52%, #060606 100%);
   overflow: hidden;
 }
 .beam {
@@ -69,22 +60,12 @@
   box-shadow: inset 0 3px 0 rgba(255, 255, 255, .25);
 }
 
-/* Escurecimento: mais forte à esquerda e embaixo, para o menu ficar legível mesmo com foto clara */
-.menu-overlay {
-  background:
-    linear-gradient(90deg, rgba(2, 9, 6, .94) 0%, rgba(2, 9, 6, .80) 30%, rgba(2, 9, 6, .30) 62%, rgba(2, 9, 6, .08) 100%),
-    linear-gradient(0deg, rgba(2, 9, 6, .55) 0%, rgba(2, 9, 6, 0) 40%),
-    linear-gradient(180deg, rgba(2, 9, 6, .45) 0%, rgba(2, 9, 6, 0) 22%);
-}
+/* Escurecimento padrão das telas (o painel inicial usa .home-shade) */
+.menu-overlay { background: linear-gradient(180deg, rgba(2, 2, 2, .68) 0%, rgba(2, 2, 2, .82) 100%); }
 /* Vinheta nas bordas */
 .menu-vignette { background: radial-gradient(120% 100% at 62% 42%, transparent 55%, rgba(0, 0, 0, .55) 100%); }
 /* Granulado sutil */
 .menu-grain {
   opacity: .09; mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-/* Faixas diagonais da identidade visual */
-.menu-diagonal {
-  left: clamp(380px, 31vw, 600px);
-  background: linear-gradient(112deg, transparent 0 3%, rgba(184, 255, 60, .60) 3% 3.4%, transparent 3.4% 5.5%, rgba(184, 255, 60, .16) 5.5% 6.4%, transparent 6.4%);
 }

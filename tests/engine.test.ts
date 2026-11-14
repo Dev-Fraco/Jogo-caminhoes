@@ -58,7 +58,7 @@ describe('carreira no Campeonato Brasileiro', () => {
     expect(userDivision(g).id).toBe('serie-c');
     expect(g.totalRounds).toBe(38);
     expect(g.fixtures).toHaveLength(4 * 380);
-    expect(g.version).toBe(2);
+    expect(g.version).toBe(3);
   });
   it('rejeita clube que não existe', () => expect(() => makeCareer('nao-existe')).toThrow());
 

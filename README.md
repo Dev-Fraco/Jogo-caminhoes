@@ -1,4 +1,4 @@
-# Brasileirão Manager (MVP)
+# Vida Real FC (MVP)
 
 Jogo de carreira de treinador estilo Brasfoot, para celular. TypeScript + React + Vite, empacotado em Android com Capacitor.
 

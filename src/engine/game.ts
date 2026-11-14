@@ -6,6 +6,16 @@ import { autoLineup, teamFromPlayers } from './squad';
 import { computeTable } from './table';
 import type { ClubInfo, DivisionState, FormationId, Fixture, GameState, MatchResult, Position, SeasonSummary, TableRow } from './types';
 
+/** Receita de fim de temporada por divisão (A→D), em R$. Valores provisórios até existir um sistema de finanças. */
+export const DIVISION_INCOME = [40_000_000, 12_000_000, 5_000_000, 2_000_000];
+
+/** Receita do clube na temporada: base da divisão × reputação, com bônus pela posição final (até +40% para o campeão). */
+export function seasonIncome(divisionIndex: number, reputation: number, position: number, size: number): number {
+  const base = DIVISION_INCOME[Math.min(divisionIndex, DIVISION_INCOME.length - 1)] * (0.6 + 0.2 * reputation);
+  const bonus = 1 + 0.4 * (1 - (position - 1) / Math.max(1, size - 1));
+  return Math.round((base * bonus) / 100_000) * 100_000;
+}
+
 /** Quantos clubes sobem e descem entre divisões vizinhas (Série A↔B, B↔C, C↔D). */
 export const PROMOTION_SLOTS = 4;
 export const RELEGATION_SLOTS = 4;
@@ -42,15 +52,17 @@ export function newCareer(input: CareerInput, seed = Date.now() % 2147483647): G
   const divisions: DivisionState[] = input.divisions.map((d) => ({ id: d.id, name: d.name, clubIds: d.clubs.map((c) => c.id) }));
   const clubs: Record<string, ClubInfo> = {};
   const teams: GameState['teams'] = {};
+  const budgets: Record<string, number> = {};
   for (const c of all) {
+    budgets[c.id] = c.budget;
     clubs[c.id] = { id: c.id, name: c.name, shortName: c.shortName, badge: c.badge, primaryColor: c.primaryColor, secondaryColor: c.secondaryColor, stadium: c.stadium, city: c.city, reputation: c.reputation };
     teams[c.id] = teamFromPlayers(c.id, c.squad);
   }
   const { fixtures, totalRounds } = buildSeason(divisions);
   return {
-    version: 2, saveName: input.saveName, coach: input.coach, difficulty: input.difficulty, mode: input.mode,
+    version: 3, saveName: input.saveName, coach: input.coach, difficulty: input.difficulty, mode: input.mode,
     userClubId: input.userClubId, seed, season: input.season, round: 1, totalRounds,
-    clubs, divisions, teams, fixtures, results: [], history: [],
+    clubs, budgets, transfers: [], divisions, teams, fixtures, results: [], history: [],
   };
 }
 
@@ -143,7 +155,12 @@ export function startNextSeason(g: GameState): GameState {
     divisions: moves.map((m) => ({ id: m.divisionId, championId: m.table[0].clubId, promoted: m.promoted, relegated: m.relegated })),
   };
   const { fixtures, totalRounds } = buildSeason(divisions);
-  return { ...g, season: g.season + 1, round: 1, totalRounds, divisions, fixtures, results: [], history: [...g.history, summary] };
+  // receita da temporada para todos os clubes, conforme a divisão em que jogaram e a posição final
+  const budgets = { ...g.budgets };
+  moves.forEach((m, i) => m.table.forEach((r, idx) => {
+    budgets[r.clubId] = (budgets[r.clubId] ?? 0) + seasonIncome(i, g.clubs[r.clubId].reputation, idx + 1, m.table.length);
+  }));
+  return { ...g, season: g.season + 1, round: 1, totalRounds, divisions, fixtures, results: [], budgets, history: [...g.history, summary] };
 }
 
 export function setFormation(g: GameState, formation: FormationId): GameState {

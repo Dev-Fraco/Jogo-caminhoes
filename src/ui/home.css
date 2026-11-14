@@ -11,13 +11,6 @@
 }
 
 /* ---------- Fundo ---------- */
-/* Arte em CSS usada enquanto a foto não carrega / não existe */
-.home .menu-art {
-  background:
-    radial-gradient(55% 45% at 82% 6%, rgba(255, 235, 170, .30), transparent 70%),
-    radial-gradient(45% 40% at 38% 0%, rgba(255, 255, 255, .14), transparent 70%),
-    linear-gradient(180deg, #0a0a0a 0%, #17120a 52%, #060606 100%);
-}
 .home .menu-pitch { opacity: .45; }
 .home .beam { opacity: .5; }
 

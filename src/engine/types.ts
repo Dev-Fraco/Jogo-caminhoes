@@ -107,8 +107,21 @@ export interface SeasonSummary {
   divisions: { id: string; championId: string; promoted: string[]; relegated: string[] }[];
 }
 
+/** Registro de uma contratação (o jogador passa de um clube para outro). */
+export interface Transfer {
+  season: number;
+  round: number;
+  playerId: string;
+  playerName: string;
+  pos: Position;
+  strength: number;
+  fromClubId: string;
+  toClubId: string;
+  fee: number; // R$
+}
+
 export interface GameState {
-  version: 2;
+  version: 3;
   saveName: string;
   coach: { name: string; nationality: string; reputation: string };
   difficulty: string;
@@ -119,6 +132,8 @@ export interface GameState {
   round: number; // próxima rodada a jogar (1-based); > totalRounds = temporada acabou
   totalRounds: number;
   clubs: Record<string, ClubInfo>;
+  budgets: Record<string, number>; // saldo de cada clube em R$ (usado nas transferências)
+  transfers: Transfer[]; // histórico de contratações
   divisions: DivisionState[]; // ordem: Série A, B, C, D
   teams: Record<string, TeamState>; // todos os clubes
   fixtures: Fixture[]; // da temporada atual, todas as divisões

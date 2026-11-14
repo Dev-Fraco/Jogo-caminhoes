@@ -4,7 +4,10 @@ import { isSeasonOver, newCareer, playRound, startNextSeason, userDivision } fro
 import { loadGame, saveGame } from '../engine/save';
 import type { GameState, MatchResult } from '../engine/types';
 import { START_SEASON, type NewGameState } from '../newgame/state';
-import { headerColor } from './badge';
+import { formatBudget } from '../newgame/format';
+import { Backdrop } from './Backdrop';
+import { tintColor } from './badge';
+import { ClubBadge } from './ClubBadge';
 import { MainMenu, MENU_OPTIONS, type MenuOptionId } from './MainMenu';
 import { NewGame } from './NewGame';
 import { Options } from './Options';
@@ -12,8 +15,9 @@ import { Placeholder } from './Placeholder';
 import { Squad } from './Squad';
 import { Matches } from './Matches';
 import { Table } from './Table';
+import { Transfers } from './Transfers';
 
-type Tab = 'squad' | 'matches' | 'table';
+type Tab = 'squad' | 'matches' | 'table' | 'transfers';
 /** Telas do app: menu inicial, uma das 8 opções (placeholder) ou a partida em andamento. */
 type Screen = 'menu' | MenuOptionId | 'game';
 
@@ -48,11 +52,14 @@ export function App() {
 
   if (screen === 'novo-jogo') return <NewGame onBack={toMenu} onStart={startCareer} hasSave={!!game} />;
 
-  if (screen === 'opcoes') return <Options onBack={toMenu} onRestored={() => setGame(loadGame())} />;
+  // Telas internas: a foto de fundo fica fixa atrás do conteúdo
+  const bg = <div className="app-bg" aria-hidden="true"><Backdrop /></div>;
+
+  if (screen === 'opcoes') return <>{bg}<Options onBack={toMenu} onRestored={() => setGame(loadGame())} /></>;
 
   if (screen !== 'game' || !game) {
     const opt = MENU_OPTIONS.find((o) => o.id === screen)!;
-    return <Placeholder title={opt.label} note={screen === 'continuar' ? 'Nenhum jogo salvo ainda. Em breve' : 'Em breve'} onBack={toMenu} />;
+    return <>{bg}<Placeholder title={opt.label} note={screen === 'continuar' ? 'Nenhum jogo salvo ainda. Em breve' : 'Em breve'} onBack={toMenu} /></>;
   }
 
   const club = game.clubs[game.userClubId];
@@ -60,24 +67,34 @@ export function App() {
   const nextSeason = () => { setLast([]); setGame(startNextSeason(game)); };
 
   return (
-    <div className="app">
-      <header style={{ background: headerColor(club) }}>
-        <div>
-          <strong>{club.name}</strong>
-          <small>{userDivision(game).name} · Temporada {game.season}</small>
-        </div>
-        <button className="ghost" onClick={toMenu}>Menu</button>
-      </header>
-      <main>
-        {tab === 'squad' && <Squad game={game} onChange={setGame} />}
-        {tab === 'matches' && <Matches game={game} last={last} onPlay={play} onNextSeason={nextSeason} over={isSeasonOver(game)} />}
-        {tab === 'table' && <Table game={game} />}
-      </main>
-      <nav>
-        {([['squad', '👕', 'Elenco'], ['matches', '⚽', 'Jogos'], ['table', '📊', 'Tabela']] as const).map(([id, icon, label]) => (
-          <button key={id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}><span>{icon}</span>{label}</button>
-        ))}
-      </nav>
-    </div>
+    <>
+      {bg}
+      <div className="app">
+        <header style={{ '--club-tint': tintColor(club) } as React.CSSProperties}>
+          <div className="gh-id">
+            <ClubBadge club={club} size={42} />
+            <div>
+              <strong>{club.name}</strong>
+              <small>{userDivision(game).name} · Temporada {game.season}</small>
+            </div>
+          </div>
+          <div className="gh-right">
+            <span className="gh-money" title="Orçamento para transferências">{formatBudget(game.budgets[game.userClubId])}</span>
+            <button className="ghost" onClick={toMenu}>Menu</button>
+          </div>
+        </header>
+        <main>
+          {tab === 'squad' && <Squad game={game} onChange={setGame} />}
+          {tab === 'matches' && <Matches game={game} last={last} onPlay={play} onNextSeason={nextSeason} over={isSeasonOver(game)} />}
+          {tab === 'table' && <Table game={game} />}
+          {tab === 'transfers' && <Transfers game={game} onChange={setGame} />}
+        </main>
+        <nav>
+          {([['squad', '👕', 'Elenco'], ['matches', '⚽', 'Jogos'], ['table', '📊', 'Tabela'], ['transfers', '🔁', 'Transf.']] as const).map(([id, icon, label]) => (
+            <button key={id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)} aria-label={id === 'transfers' ? 'Transferências' : label}><span aria-hidden="true">{icon}</span>{label}</button>
+          ))}
+        </nav>
+      </div>
+    </>
   );
 }

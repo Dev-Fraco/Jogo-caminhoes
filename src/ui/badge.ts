@@ -43,3 +43,10 @@ export function badgeColors(club: Pick<ClubData, 'primaryColor' | 'secondaryColo
 export function headerColor(club: Pick<ClubData, 'primaryColor' | 'secondaryColor'>): string {
   return [club.primaryColor, club.secondaryColor].find((c) => contrastRatio(c, '#FFFFFF') >= 4) ?? '#0B3D2E';
 }
+
+/** Cor do clube com transparência, para tingir o cabeçalho (cores muito claras ficam mais suaves). */
+export function tintColor(club: Pick<ClubData, 'primaryColor' | 'secondaryColor'>): string {
+  const bg = badgeColors(club).bg;
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(bg.slice(i, i + 2), 16));
+  return `rgba(${r}, ${g}, ${b}, ${luminance(bg) > 0.5 ? 0.22 : 0.5})`;
+}

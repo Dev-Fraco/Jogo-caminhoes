@@ -1,6 +1,6 @@
-import { WALLPAPER_URL } from './MainMenu';
+import { HOME_WALLPAPER_URL } from './MainMenu';
 
-/** Fundo do menu (estádio à noite + escurecimento + vinheta + granulado), reaproveitando as classes de menu.css. */
+/** Fundo das telas (assistente de Novo Jogo, Opções, carreira...): estádio em CSS + foto do treinador + escurecimento + vinheta + granulado. */
 export function Backdrop() {
   return (
     <div className="menu-bg" aria-hidden="true">
@@ -9,7 +9,7 @@ export function Backdrop() {
         <div className="menu-crowd" />
         <div className="menu-pitch" />
       </div>
-      <div className="menu-photo" style={{ backgroundImage: `url(${WALLPAPER_URL})` }} />
+      <div className="home-photo" style={{ backgroundImage: `url(${HOME_WALLPAPER_URL})` }} />
       <div className="menu-overlay" />
       <div className="menu-vignette" />
       <div className="menu-grain" />
