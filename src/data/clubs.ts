@@ -14,6 +14,8 @@ export interface ClubData {
   /** Caminho do escudo. Os arquivos ainda não existem: a interface precisa de um visual reserva. */
   badge: string;
   primaryColor: string;
+  /** Tom de apoio legível em fundo escuro. Obrigatório na prática quando primaryColor é quase preto; usar no escudo reserva e em detalhes. */
+  secondaryColor?: string;
   stadium: string;
   city: string;
   /** Orçamento em reais (R$). */
@@ -29,15 +31,15 @@ const MI = 1_000_000;
 const SERIE_A: ClubData[] = [
   { id: 'flamengo', name: 'Flamengo', shortName: 'FLA', badge: 'assets/badges/flamengo.png', primaryColor: '#C52613', stadium: 'Maracanã', city: 'Rio de Janeiro', budget: 150 * MI, boardExpectation: 'title', reputation: 5 },
   { id: 'palmeiras', name: 'Palmeiras', shortName: 'PAL', badge: 'assets/badges/palmeiras.png', primaryColor: '#006437', stadium: 'Allianz Parque', city: 'São Paulo', budget: 140 * MI, boardExpectation: 'title', reputation: 5 },
-  { id: 'corinthians', name: 'Corinthians', shortName: 'COR', badge: 'assets/badges/corinthians.png', primaryColor: '#000000', stadium: 'Neo Química Arena', city: 'São Paulo', budget: 100 * MI, boardExpectation: 'top4', reputation: 4 },
+  { id: 'corinthians', name: 'Corinthians', shortName: 'COR', badge: 'assets/badges/corinthians.png', primaryColor: '#000000', secondaryColor: '#D9D9D9', stadium: 'Neo Química Arena', city: 'São Paulo', budget: 100 * MI, boardExpectation: 'top4', reputation: 4 },
   { id: 'sao-paulo', name: 'São Paulo', shortName: 'SAO', badge: 'assets/badges/sao-paulo.png', primaryColor: '#E30613', stadium: 'Morumbis', city: 'São Paulo', budget: 95 * MI, boardExpectation: 'top4', reputation: 4 },
   { id: 'fluminense', name: 'Fluminense', shortName: 'FLU', badge: 'assets/badges/fluminense.png', primaryColor: '#8B1E3F', stadium: 'Maracanã', city: 'Rio de Janeiro', budget: 70 * MI, boardExpectation: 'mid', reputation: 4 },
-  { id: 'botafogo', name: 'Botafogo', shortName: 'BOT', badge: 'assets/badges/botafogo.png', primaryColor: '#000000', stadium: 'Nilton Santos', city: 'Rio de Janeiro', budget: 90 * MI, boardExpectation: 'top4', reputation: 4 },
-  { id: 'vasco', name: 'Vasco da Gama', shortName: 'VAS', badge: 'assets/badges/vasco.png', primaryColor: '#000000', stadium: 'São Januário', city: 'Rio de Janeiro', budget: 65 * MI, boardExpectation: 'mid', reputation: 4 },
+  { id: 'botafogo', name: 'Botafogo', shortName: 'BOT', badge: 'assets/badges/botafogo.png', primaryColor: '#000000', secondaryColor: '#D9D9D9', stadium: 'Nilton Santos', city: 'Rio de Janeiro', budget: 90 * MI, boardExpectation: 'top4', reputation: 4 },
+  { id: 'vasco', name: 'Vasco da Gama', shortName: 'VAS', badge: 'assets/badges/vasco.png', primaryColor: '#000000', secondaryColor: '#E8574F', stadium: 'São Januário', city: 'Rio de Janeiro', budget: 65 * MI, boardExpectation: 'mid', reputation: 4 },
   { id: 'gremio', name: 'Grêmio', shortName: 'GRE', badge: 'assets/badges/gremio.png', primaryColor: '#0D80BF', stadium: 'Arena do Grêmio', city: 'Porto Alegre', budget: 70 * MI, boardExpectation: 'top4', reputation: 4 },
   { id: 'internacional', name: 'Internacional', shortName: 'INT', badge: 'assets/badges/internacional.png', primaryColor: '#E30613', stadium: 'Beira-Rio', city: 'Porto Alegre', budget: 75 * MI, boardExpectation: 'top4', reputation: 4 },
   { id: 'cruzeiro', name: 'Cruzeiro', shortName: 'CRU', badge: 'assets/badges/cruzeiro.png', primaryColor: '#0033A0', stadium: 'Mineirão', city: 'Belo Horizonte', budget: 80 * MI, boardExpectation: 'top4', reputation: 4 },
-  { id: 'atletico-mg', name: 'Atlético-MG', shortName: 'CAM', badge: 'assets/badges/atletico-mg.png', primaryColor: '#000000', stadium: 'Arena MRV', city: 'Belo Horizonte', budget: 85 * MI, boardExpectation: 'top4', reputation: 4 },
+  { id: 'atletico-mg', name: 'Atlético-MG', shortName: 'CAM', badge: 'assets/badges/atletico-mg.png', primaryColor: '#000000', secondaryColor: '#C9C9C9', stadium: 'Arena MRV', city: 'Belo Horizonte', budget: 85 * MI, boardExpectation: 'top4', reputation: 4 },
   { id: 'athletico-pr', name: 'Athletico-PR', shortName: 'CAP', badge: 'assets/badges/athletico-pr.png', primaryColor: '#C8102E', stadium: 'Ligga Arena', city: 'Curitiba', budget: 60 * MI, boardExpectation: 'mid', reputation: 3 },
   { id: 'bahia', name: 'Bahia', shortName: 'BAH', badge: 'assets/badges/bahia.png', primaryColor: '#005BAA', stadium: 'Arena Fonte Nova', city: 'Salvador', budget: 70 * MI, boardExpectation: 'mid', reputation: 3 },
   { id: 'fortaleza', name: 'Fortaleza', shortName: 'FOR', badge: 'assets/badges/fortaleza.png', primaryColor: '#003DA5', stadium: 'Arena Castelão', city: 'Fortaleza', budget: 55 * MI, boardExpectation: 'mid', reputation: 3 },

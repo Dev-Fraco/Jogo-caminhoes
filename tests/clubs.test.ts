@@ -43,6 +43,27 @@ describe('CLUBS_DATA — Série A', () => {
   });
 });
 
+// contraste WCAG contra o fundo escuro do jogo (#07140C)
+const lum = (hex: string) => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+const contrast = (a: string, b = '#07140C') => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+
+describe('cores dos clubes', () => {
+  it('clubes de cor quase preta têm secondaryColor legível em fundo escuro', () => {
+    const dark = serieA.filter((c) => contrast(c.primaryColor) < 1.5);
+    expect(dark.map((c) => c.id).sort()).toEqual(['atletico-mg', 'botafogo', 'corinthians', 'vasco']);
+    for (const c of dark) {
+      expect(c.secondaryColor, c.id).toMatch(/^#[0-9A-F]{6}$/i);
+      expect(contrast(c.secondaryColor!), c.id).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+  it('secondaryColor, quando existe, é um hex válido', () => {
+    for (const c of serieA) if (c.secondaryColor) expect(c.secondaryColor).toMatch(/^#[0-9A-F]{6}$/i);
+  });
+});
+
 describe('CLUBS_DATA — estrutura', () => {
   it('Séries B, C e D existem e estão vazias', () => {
     for (const k of ['serie-b', 'serie-c', 'serie-d']) expect(CLUBS_DATA[k]).toEqual([]);
