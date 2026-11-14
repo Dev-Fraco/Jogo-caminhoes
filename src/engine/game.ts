@@ -1,7 +1,9 @@
 import type { ClubData } from '../data/clubs';
+import { MORALE_START, moraleFactor, updateMorale } from './morale';
 import { simulateMatch } from './match';
 import { makeRng } from './rng';
 import { buildFixtures } from './schedule';
+import { generateOffers, returnLoans } from './roster';
 import { autoLineup, teamFromPlayers } from './squad';
 import { computeTable } from './table';
 import type { ClubInfo, DivisionState, FormationId, Fixture, GameState, MatchResult, Position, SeasonSummary, TableRow } from './types';
@@ -55,14 +57,14 @@ export function newCareer(input: CareerInput, seed = Date.now() % 2147483647): G
   const budgets: Record<string, number> = {};
   for (const c of all) {
     budgets[c.id] = c.budget;
-    clubs[c.id] = { id: c.id, name: c.name, shortName: c.shortName, badge: c.badge, primaryColor: c.primaryColor, secondaryColor: c.secondaryColor, stadium: c.stadium, city: c.city, reputation: c.reputation };
+    clubs[c.id] = { id: c.id, name: c.name, shortName: c.shortName, badge: c.badge, primaryColor: c.primaryColor, secondaryColor: c.secondaryColor, stadium: c.stadium, city: c.city, reputation: c.reputation, boardExpectation: c.boardExpectation };
     teams[c.id] = teamFromPlayers(c.id, c.squad);
   }
   const { fixtures, totalRounds } = buildSeason(divisions);
   return {
-    version: 3, saveName: input.saveName, coach: input.coach, difficulty: input.difficulty, mode: input.mode,
+    version: 4, saveName: input.saveName, coach: input.coach, difficulty: input.difficulty, mode: input.mode,
     userClubId: input.userClubId, seed, season: input.season, round: 1, totalRounds,
-    clubs, budgets, transfers: [], divisions, teams, fixtures, results: [], history: [],
+    clubs, budgets, transfers: [], morale: { ...MORALE_START }, transferList: [], loanList: [], offers: [], loans: [], divisions, teams, fixtures, results: [], history: [],
   };
 }
 
@@ -86,12 +88,29 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
     const t = teams[id];
     teams[id] = { ...t, lineup: autoLineup(t.players, t.formation) };
   }
+  const factor = moraleFactor(g.morale.team); // humor da equipe mexe um pouco na força do seu time
   const results: MatchResult[] = fixturesOfRound(g, g.round).map((f) => {
-    const out = simulateMatch(teams[f.homeId], teams[f.awayId], rng);
+    const mods = { home: f.homeId === g.userClubId ? factor : 1, away: f.awayId === g.userClubId ? factor : 1 };
+    const out = simulateMatch(teams[f.homeId], teams[f.awayId], rng, mods);
     const mine = f.homeId === g.userClubId || f.awayId === g.userClubId;
     return { divisionId: f.divisionId, round: f.round, homeId: f.homeId, awayId: f.awayId, homeGoals: out.homeGoals, awayGoals: out.awayGoals, events: mine ? out.events : [] };
   });
-  return { state: { ...g, teams, round: g.round + 1, results: [...g.results, ...results] }, results };
+  let state: GameState = { ...g, teams, round: g.round + 1, results: [...g.results, ...results] };
+
+  // humor: depois do jogo do seu clube
+  const my = results.find((r) => r.homeId === g.userClubId || r.awayId === g.userClubId);
+  if (my) {
+    const home = my.homeId === g.userClubId;
+    const div = userDivision(state);
+    const table = divisionTable(state, div.id);
+    state = { ...state, morale: updateMorale(g.morale, {
+      gf: home ? my.homeGoals : my.awayGoals, ga: home ? my.awayGoals : my.homeGoals, home,
+      position: table.findIndex((r) => r.clubId === g.userClubId) + 1, size: table.length, round: g.round, expectation: g.clubs[g.userClubId].boardExpectation,
+    }) };
+  }
+  // propostas dos outros clubes pelos jogadores listados
+  state = generateOffers(state, rng);
+  return { state, results };
 }
 
 export const resultsOfDivision = (g: GameState, divisionId: string) => g.results.filter((r) => r.divisionId === divisionId);
@@ -160,7 +179,8 @@ export function startNextSeason(g: GameState): GameState {
   moves.forEach((m, i) => m.table.forEach((r, idx) => {
     budgets[r.clubId] = (budgets[r.clubId] ?? 0) + seasonIncome(i, g.clubs[r.clubId].reputation, idx + 1, m.table.length);
   }));
-  return { ...g, season: g.season + 1, round: 1, totalRounds, divisions, fixtures, results: [], budgets, history: [...g.history, summary] };
+  const back = returnLoans(g);
+  return { ...back, season: g.season + 1, round: 1, totalRounds, divisions, fixtures, results: [], budgets, offers: [], history: [...g.history, summary] };
 }
 
 export function setFormation(g: GameState, formation: FormationId): GameState {

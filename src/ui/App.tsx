@@ -12,19 +12,21 @@ import { MainMenu, MENU_OPTIONS, type MenuOptionId } from './MainMenu';
 import { NewGame } from './NewGame';
 import { Options } from './Options';
 import { Placeholder } from './Placeholder';
+import { Home } from './Home';
+import { Lineup } from './Lineup';
 import { Squad } from './Squad';
-import { Matches } from './Matches';
 import { Table } from './Table';
 import { Transfers } from './Transfers';
 
-type Tab = 'squad' | 'matches' | 'table' | 'transfers';
+type Tab = 'home' | 'squad' | 'table' | 'transfers' | 'lineup'; // 'lineup' é uma tela dentro do Início
 /** Telas do app: menu inicial, uma das 8 opções (placeholder) ou a partida em andamento. */
 type Screen = 'menu' | MenuOptionId | 'game';
 
 export function App() {
   const [game, setGame] = useState<GameState | null>(() => loadGame());
   const [screen, setScreen] = useState<Screen>('menu');
-  const [tab, setTab] = useState<Tab>('matches');
+  const [tab, setTab] = useState<Tab>('home');
+  const [tfView, setTfView] = useState<'buy' | 'offers'>('buy');
   const [last, setLast] = useState<MatchResult[]>([]);
 
   useEffect(() => { if (game) saveGame(game); }, [game]);
@@ -38,13 +40,13 @@ export function App() {
       saveName: s.setup.saveName, coach: { name, nationality, reputation }, difficulty: s.setup.difficulty, mode: s.setup.mode,
       season: START_SEASON, userClubId: s.club!.id, divisions: brazilPyramid(),
     }));
-    setLast([]); setTab('matches'); setScreen('game');
+    setLast([]); setTab('home'); setScreen('game');
   };
 
   // Menu inicial. Só "Novo Jogo" e "Continuar" reaproveitam o que já existia (escolha de clube / carreira salva);
   // as outras 6 opções são placeholders até serem desenvolvidas uma a uma.
   const select = (id: MenuOptionId) => {
-    if (id === 'continuar' && game) { setTab('matches'); setScreen('game'); return; }
+    if (id === 'continuar' && game) { setTab('home'); setScreen('game'); return; }
     setScreen(id);
   };
 
@@ -84,15 +86,22 @@ export function App() {
           </div>
         </header>
         <main>
+          {tab === 'home' && <Home game={game} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onEditLineup={() => setTab('lineup')} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} />}
+          {tab === 'lineup' && <Lineup game={game} onChange={setGame} onBack={() => setTab('home')} />}
           {tab === 'squad' && <Squad game={game} onChange={setGame} />}
-          {tab === 'matches' && <Matches game={game} last={last} onPlay={play} onNextSeason={nextSeason} over={isSeasonOver(game)} />}
           {tab === 'table' && <Table game={game} />}
-          {tab === 'transfers' && <Transfers game={game} onChange={setGame} />}
+          {tab === 'transfers' && <Transfers game={game} onChange={setGame} view={tfView} onView={setTfView} />}
         </main>
         <nav>
-          {([['squad', '👕', 'Elenco'], ['matches', '⚽', 'Jogos'], ['table', '📊', 'Tabela'], ['transfers', '🔁', 'Transf.']] as const).map(([id, icon, label]) => (
-            <button key={id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)} aria-label={id === 'transfers' ? 'Transferências' : label}><span aria-hidden="true">{icon}</span>{label}</button>
-          ))}
+          {([['home', '🏠', 'Início'], ['squad', '👕', 'Elenco'], ['table', '📊', 'Tabela'], ['transfers', '🔁', 'Transf.']] as const).map(([id, icon, label]) => {
+            const on = tab === id || (id === 'home' && tab === 'lineup');
+            return (
+              <button key={id} className={on ? 'on' : ''} onClick={() => setTab(id)} aria-label={id === 'transfers' ? 'Transferências' : label} aria-current={on ? 'page' : undefined}>
+                <span aria-hidden="true">{icon}</span>{label}
+                {id === 'transfers' && game.offers.length > 0 && <i className="nav-badge" aria-label={`${game.offers.length} propostas`}>{game.offers.length}</i>}
+              </button>
+            );
+          })}
         </nav>
       </div>
     </>

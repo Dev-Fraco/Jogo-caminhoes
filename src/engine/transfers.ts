@@ -6,12 +6,23 @@ export const MAX_SQUAD = 30;
 export const MIN_SQUAD = 18;
 export const MIN_BY_POS: Record<Position, number> = { GK: 2, DEF: 5, MID: 5, ATT: 3 };
 
-/** Valor de mercado (R$): sobe rápido com o overall e cai com a idade. 60 ≈ R$ 1,4 mi, 70 ≈ 5,7 mi, 80 ≈ 23 mi, 90 ≈ 93 mi (jogador de 25–28 anos). */
-export function playerValue(p: Player): number {
-  const base = 350_000 * 1.15 ** (p.strength - 50);
+/** Quanto vale um jogador em cada divisão (A → D): jogador da Série D vale uma fração do mesmo overall na Série A. */
+export const DIVISION_VALUE = [1, 0.5, 0.25, 0.1];
+
+/**
+ * Valor de mercado (R$). Cresce com o overall, cai com a idade e depende da divisão do clube onde joga.
+ * Série A, 25–28 anos: overall 60 ≈ R$ 0,6 mi, 70 ≈ 2,6 mi, 80 ≈ 11 mi, 90 ≈ 47 mi. Série D: um décimo disso.
+ */
+export function playerValue(p: Player, divisionIndex = 0): number {
+  const base = 150_000 * 1.155 ** (p.strength - 50);
   const age = p.age <= 21 ? 1.5 : p.age <= 24 ? 1.25 : p.age <= 28 ? 1 : p.age <= 31 ? 0.7 : p.age <= 34 ? 0.4 : 0.25;
-  return Math.max(50_000, Math.round((base * age) / 50_000) * 50_000);
+  const v = base * age * DIVISION_VALUE[Math.min(Math.max(divisionIndex, 0), DIVISION_VALUE.length - 1)];
+  const step = v >= 10_000_000 ? 500_000 : v >= 1_000_000 ? 100_000 : v >= 200_000 ? 50_000 : 10_000;
+  return Math.max(10_000, Math.round(v / step) * step);
 }
+
+/** Índice (0 = Série A) da divisão em que o clube joga. */
+export const divisionIndexOf = (g: GameState, clubId: string) => Math.max(0, g.divisions.findIndex((d) => d.clubIds.includes(clubId)));
 
 export interface MarketEntry { player: Player; clubId: string; price: number }
 
@@ -20,7 +31,8 @@ export function marketEntries(g: GameState): MarketEntry[] {
   const out: MarketEntry[] = [];
   for (const [clubId, team] of Object.entries(g.teams)) {
     if (clubId === g.userClubId) continue;
-    for (const player of team.players) out.push({ player, clubId, price: playerValue(player) });
+    const di = divisionIndexOf(g, clubId);
+    for (const player of team.players) out.push({ player, clubId, price: playerValue(player, di) });
   }
   return out;
 }
@@ -44,7 +56,7 @@ export function checkBuy(g: GameState, playerId: string): BuyCheck {
   if (!fromClubId) return { ok: false, reason: 'not-found' };
   const seller = g.teams[fromClubId];
   const player = seller.players.find((p) => p.id === playerId)!;
-  const price = playerValue(player);
+  const price = playerValue(player, divisionIndexOf(g, fromClubId));
   if (user.players.length >= MAX_SQUAD) return { ok: false, reason: 'squad-full', price, fromClubId };
   if ((g.budgets[g.userClubId] ?? 0) < price) return { ok: false, reason: 'budget', price, fromClubId };
   const left = seller.players.filter((p) => p.id !== playerId);
@@ -70,7 +82,7 @@ export function buyPlayer(g: GameState, playerId: string): { state: GameState; c
       [g.userClubId]: { ...buyer, players: [...buyer.players, player] },
     },
     budgets: { ...g.budgets, [g.userClubId]: g.budgets[g.userClubId] - price, [fromClubId]: (g.budgets[fromClubId] ?? 0) + price },
-    transfers: [...g.transfers, { season: g.season, round: g.round, playerId, playerName: player.name, pos: player.pos, strength: player.strength, fromClubId, toClubId: g.userClubId, fee: price }],
+    transfers: [...g.transfers, { kind: 'buy', season: g.season, round: g.round, playerId, playerName: player.name, pos: player.pos, strength: player.strength, fromClubId, toClubId: g.userClubId, fee: price }],
   };
   return { state, check };
 }

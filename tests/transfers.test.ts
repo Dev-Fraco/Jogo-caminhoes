@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { CLUBS_DATA } from '../src/data/clubs';
 import { isSeasonOver, playRound, seasonIncome, startNextSeason } from '../src/engine/game';
 import { isValidSave, loadGame, migrateSave } from '../src/engine/save';
-import { BUY_BLOCK_TEXT, buyPlayer, checkBuy, marketEntries, MAX_SQUAD, MIN_BY_POS, MIN_SQUAD, playerValue } from '../src/engine/transfers';
+import { BUY_BLOCK_TEXT, buyPlayer, checkBuy, divisionIndexOf, marketEntries, MAX_SQUAD, MIN_BY_POS, MIN_SQUAD, playerValue } from '../src/engine/transfers';
 import type { GameState, Player } from '../src/engine/types';
 import { makeCareer } from './helpers';
 
@@ -16,12 +16,26 @@ describe('valor de mercado', () => {
     expect(playerValue(p(75, 20))).toBeGreaterThan(playerValue(p(75, 26)));
     expect(playerValue(p(75, 26))).toBeGreaterThan(playerValue(p(75, 33)));
   });
-  it('faixas coerentes (R$) e mínimo de 50 mil', () => {
-    expect(playerValue(p(60, 26))).toBeGreaterThan(1_000_000);
-    expect(playerValue(p(60, 26))).toBeLessThan(2_000_000);
-    expect(playerValue(p(80, 26))).toBeGreaterThan(20_000_000);
-    expect(playerValue(p(80, 26))).toBeLessThan(26_000_000);
-    expect(playerValue(p(25, 38))).toBe(50_000);
+  it('valores baixos (Série A, 25–28 anos): 60 ≈ R$ 0,6 mi, 70 ≈ 2,6 mi, 80 ≈ 11 mi, 90 ≈ 47 mi', () => {
+    expect(playerValue(p(60, 26))).toBeGreaterThan(550_000); expect(playerValue(p(60, 26))).toBeLessThan(700_000);
+    expect(playerValue(p(70, 26))).toBeGreaterThan(2_000_000); expect(playerValue(p(70, 26))).toBeLessThan(3_000_000);
+    expect(playerValue(p(80, 26))).toBeGreaterThan(9_000_000); expect(playerValue(p(80, 26))).toBeLessThan(13_000_000);
+    expect(playerValue(p(90, 26))).toBeGreaterThan(40_000_000); expect(playerValue(p(90, 26))).toBeLessThan(55_000_000);
+    expect(playerValue(p(25, 38), 3)).toBe(10_000); // piso
+  });
+  it('o mesmo jogador vale mais na Série A do que nas divisões de baixo', () => {
+    const v = [0, 1, 2, 3].map((d) => playerValue(p(70, 26), d));
+    expect(v[0]).toBeGreaterThan(v[1]); expect(v[1]).toBeGreaterThan(v[2]); expect(v[2]).toBeGreaterThan(v[3]);
+    expect(v[3]).toBeLessThan(v[0] / 5);
+  });
+  it('elencos da Série D valem pouco; da Série A, muito mais', () => {
+    const g = makeCareer('flamengo');
+    const avg = (clubId: string) => { const di = divisionIndexOf(g, clubId); const ps = g.teams[clubId].players; return ps.reduce((s, x) => s + playerValue(x, di), 0) / ps.length; };
+    expect(avg('abc')).toBeLessThan(200_000); // Série D
+    expect(avg('flamengo')).toBeGreaterThan(avg('abc') * 30);
+    expect(avg('palmeiras')).toBeGreaterThan(avg('sport')); // A > B
+    expect(avg('sport')).toBeGreaterThan(avg('guarani')); // B > C
+    expect(avg('guarani')).toBeGreaterThan(avg('abc')); // C > D
   });
 });
 
@@ -31,7 +45,7 @@ describe('mercado', () => {
     const m = marketEntries(g);
     expect(m).toHaveLength(79 * 24);
     expect(m.some((e) => e.clubId === 'palmeiras')).toBe(false);
-    expect(m.every((e) => e.price === playerValue(e.player))).toBe(true);
+    expect(m.every((e) => e.price === playerValue(e.player, divisionIndexOf(g, e.clubId)))).toBe(true);
   });
 });
 
@@ -45,7 +59,7 @@ describe('contratação', () => {
     const total = Object.values(g.budgets).reduce((s, v) => s + v, 0);
     const r = buyPlayer(g, target.id);
     expect(r.check.ok).toBe(true);
-    const s = r.state, price = playerValue(target);
+    const s = r.state, price = playerValue(target, 0);
     expect(s.teams.flamengo.players.some((x) => x.id === target.id)).toBe(true);
     expect(s.teams.palmeiras.players.some((x) => x.id === target.id)).toBe(false);
     expect(s.teams.flamengo.players).toHaveLength(25); expect(s.teams.palmeiras.players).toHaveLength(23);
@@ -53,7 +67,7 @@ describe('contratação', () => {
     expect(s.budgets.flamengo).toBe(g.budgets.flamengo - price);
     expect(s.budgets.palmeiras).toBe(g.budgets.palmeiras + price);
     expect(Object.values(s.budgets).reduce((a, v) => a + v, 0)).toBe(total); // dinheiro conservado
-    expect(s.transfers).toEqual([{ season: 2026, round: 1, playerId: target.id, playerName: target.name, pos: 'MID', strength: target.strength, fromClubId: 'palmeiras', toClubId: 'flamengo', fee: price }]);
+    expect(s.transfers).toEqual([{ kind: 'buy', season: 2026, round: 1, playerId: target.id, playerName: target.name, pos: 'MID', strength: target.strength, fromClubId: 'palmeiras', toClubId: 'flamengo', fee: price }]);
     expect(g.teams.palmeiras.players).toHaveLength(24); // estado antigo intocado (imutável)
   });
 
@@ -133,7 +147,7 @@ describe('saves', () => {
     expect(isValidSave(v2)).toBe(true);
     localStorage.setItem('caminhoes-save-v1', JSON.stringify(v2));
     const loaded = loadGame()!;
-    expect(loaded.version).toBe(3);
+    expect(loaded.version).toBe(4);
     expect(loaded.transfers).toEqual([]);
     expect(loaded.budgets.palmeiras).toBe(CLUBS_DATA['serie-a'].find((c) => c.id === 'palmeiras')!.budget);
     expect(Object.keys(loaded.budgets)).toHaveLength(80);

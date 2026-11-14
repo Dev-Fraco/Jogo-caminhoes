@@ -90,6 +90,8 @@ export interface ClubInfo {
   stadium: string;
   city: string;
   reputation: number;
+  /** Meta da diretoria (title | top4 | mid | survive), usada no humor dos dirigentes. */
+  boardExpectation: 'title' | 'top4' | 'mid' | 'survive';
 }
 
 /** Uma divisão da pirâmide, da principal (índice 0) para as inferiores. */
@@ -109,6 +111,8 @@ export interface SeasonSummary {
 
 /** Registro de uma contratação (o jogador passa de um clube para outro). */
 export interface Transfer {
+  /** buy = contratação, sale = venda, loan = empréstimo cedido, release = dispensa (toClubId vazio) */
+  kind: 'buy' | 'sale' | 'loan' | 'release';
   season: number;
   round: number;
   playerId: string;
@@ -120,8 +124,25 @@ export interface Transfer {
   fee: number; // R$
 }
 
+/** Humor (0–100) da equipe, dos dirigentes e da torcida. */
+export interface Morale { team: number; board: number; fans: number }
+
+/** Proposta de outro clube por um jogador da lista de transferência (buy) ou de empréstimo (loan). */
+export interface Offer {
+  id: string;
+  kind: 'buy' | 'loan';
+  playerId: string;
+  clubId: string; // clube que fez a proposta
+  fee: number; // R$ pagos ao seu clube
+  season: number;
+  expiresRound: number; // a proposta vale até o fim desta rodada
+}
+
+/** Jogador seu emprestado: volta no fim da temporada. */
+export interface Loan { playerId: string; hostClubId: string; season: number }
+
 export interface GameState {
-  version: 3;
+  version: 4;
   saveName: string;
   coach: { name: string; nationality: string; reputation: string };
   difficulty: string;
@@ -133,7 +154,12 @@ export interface GameState {
   totalRounds: number;
   clubs: Record<string, ClubInfo>;
   budgets: Record<string, number>; // saldo de cada clube em R$ (usado nas transferências)
-  transfers: Transfer[]; // histórico de contratações
+  transfers: Transfer[]; // histórico de contratações, vendas, empréstimos e dispensas
+  morale: Morale;
+  transferList: string[]; // jogadores do seu clube à venda
+  loanList: string[]; // jogadores do seu clube disponíveis para empréstimo
+  offers: Offer[]; // propostas recebidas
+  loans: Loan[]; // jogadores seus emprestados
   divisions: DivisionState[]; // ordem: Série A, B, C, D
   teams: Record<string, TeamState>; // todos os clubes
   fixtures: Fixture[]; // da temporada atual, todas as divisões

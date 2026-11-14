@@ -10,9 +10,13 @@ export interface SimOutput { homeGoals: number; awayGoals: number; events: Match
  * ataque x defesa decide se vira finalização, e ataque x (defesa+goleiro) se vira gol.
  * Calibrado para ~2,6 gols por jogo entre times iguais, com leve vantagem de jogar em casa.
  */
-export function simulateMatch(home: TeamState, away: TeamState, rng: Rng): SimOutput {
-  const H = teamRatings(home);
-  const A = teamRatings(away);
+export interface Mods { home?: number; away?: number }
+
+export function simulateMatch(home: TeamState, away: TeamState, rng: Rng, mods: Mods = {}): SimOutput {
+  /** `mods` multiplica a força do time (ex.: humor da equipe: 0,96 a 1,04). */
+  const scale = (r: ReturnType<typeof teamRatings>, k: number) => ({ ...r, gk: r.gk * k, def: r.def * k, mid: r.mid * k, att: r.att * k });
+  const H = scale(teamRatings(home), mods.home ?? 1);
+  const A = scale(teamRatings(away), mods.away ?? 1);
   const homeAdv = 1.08;
   const events: MatchEvent[] = [];
   let hg = 0, ag = 0;

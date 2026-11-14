@@ -1,42 +1,99 @@
-import { useState } from 'react';
-import { setFormation, swapPlayer, POS_ORDER } from '../engine/game';
-import { teamRatings } from '../engine/squad';
-import { FORMATIONS, type FormationId, type GameState, type Player } from '../engine/types';
+import { useEffect, useRef, useState } from 'react';
+import { POS_ORDER } from '../engine/game';
+import { checkRelease, myValue, releasePlayer, toggleLoanList, toggleTransferList } from '../engine/roster';
+import { MAX_SQUAD } from '../engine/transfers';
+import type { GameState, Player, Position } from '../engine/types';
+import { formatBudget } from '../newgame/format';
 
-const POS_LABEL = { GK: 'Goleiros', DEF: 'Defensores', MID: 'Meio-campistas', ATT: 'Atacantes' } as const;
+const POS_LABEL: Record<Position, string> = { GK: 'Goleiros', DEF: 'Defensores', MID: 'Meio-campistas', ATT: 'Atacantes' };
+const POS_ONE: Record<Position, string> = { GK: 'Goleiro', DEF: 'Defensor', MID: 'Meio-campista', ATT: 'Atacante' };
 
-export function Squad({ game, onChange }: { game: GameState; onChange: (g: GameState) => void }) {
+interface SheetProps { game: GameState; player: Player; onChange: (g: GameState) => void; onClose: () => void; onDone: (msg: string) => void }
+
+/** Opções de um jogador do seu elenco: listas de transferência e de empréstimo, e dispensa. */
+function PlayerSheet({ game, player: p, onChange, onClose, onDone }: SheetProps) {
+  const box = useRef<HTMLDivElement>(null);
+  const [asking, setAsking] = useState(false);
   const team = game.teams[game.userClubId];
-  const [sel, setSel] = useState<Player | null>(null);
-  const r = teamRatings(team);
+  const starter = team.lineup.includes(p.id);
+  const onSale = game.transferList.includes(p.id), onLoan = game.loanList.includes(p.id);
+  const value = myValue(game, p);
+  const release = checkRelease(game, p.id);
 
-  const tap = (p: Player) => {
-    const starter = team.lineup.includes(p.id);
-    if (!sel) return setSel(p);
-    if (sel.id === p.id) return setSel(null);
-    if (sel.pos === p.pos && starter !== team.lineup.includes(sel.id)) {
-      const [out, inn] = starter ? [p, sel] : [sel, p];
-      onChange(swapPlayer(game, out.id, inn.id));
-      return setSel(null);
-    }
-    setSel(p);
+  useEffect(() => { box.current?.focus(); }, []);
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') { e.stopPropagation(); onClose(); return; }
+    if (e.key !== 'Tab') return;
+    const f = Array.from(box.current!.querySelectorAll<HTMLElement>('button:not([disabled])'));
+    if (!f.length) return;
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && (document.activeElement === first || document.activeElement === box.current)) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   };
 
   return (
-    <>
-      <div className="card">
-        <label>Formação
-          <select value={team.formation} onChange={(e) => { setSel(null); onChange(setFormation(game, e.target.value as FormationId)); }}>
-            {(Object.keys(FORMATIONS) as FormationId[]).map((f) => <option key={f}>{f}</option>)}
-          </select>
-        </label>
-        <div className="ratings">
-          <span>GOL <b>{Math.round(r.gk)}</b></span><span>DEF <b>{Math.round(r.def)}</b></span>
-          <span>MEI <b>{Math.round(r.mid)}</b></span><span>ATA <b>{Math.round(r.att)}</b></span>
-          <span>GERAL <b>{r.overall}</b></span>
+    <div className="ps-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="ps" ref={box} role="dialog" aria-modal="true" aria-labelledby="ps-title" tabIndex={-1} onKeyDown={onKeyDown}>
+        <div className="ps-head">
+          <span className="ps-ovr">{p.strength}</span>
+          <div className="grow">
+            <h2 id="ps-title">{p.name}</h2>
+            <p>{POS_ONE[p.pos]} · {p.age} anos · {starter ? 'Titular' : 'Reserva'}</p>
+            <p>Valor de mercado: <b>{formatBudget(value)}</b></p>
+          </div>
+          <button className="ps-x" aria-label="Fechar" onClick={onClose}>✕</button>
         </div>
-        <small className="hint">{sel ? `Toque em um ${sel.pos === 'GK' ? 'goleiro' : 'jogador'} ${team.lineup.includes(sel.id) ? 'reserva' : 'titular'} da mesma posição para trocar.` : 'Toque em um jogador e depois em outro da mesma posição para trocar titular e reserva.'}</small>
+
+        <div className="ps-actions">
+          <button className={`ps-act ${onSale ? 'on' : ''}`} onClick={() => { onChange(toggleTransferList(game, p.id)); }}>
+            <strong>{onSale ? 'Retirar da lista de transferência' : 'Colocar na lista de transferência'}</strong>
+            <small>{onSale ? 'Os clubes deixam de fazer propostas de compra.' : `Outros clubes poderão fazer propostas de compra, em torno de ${formatBudget(value)}.`}</small>
+          </button>
+          <button className={`ps-act ${onLoan ? 'on' : ''}`} onClick={() => { onChange(toggleLoanList(game, p.id)); }}>
+            <strong>{onLoan ? 'Retirar da lista de empréstimo' : 'Colocar na lista de empréstimo'}</strong>
+            <small>{onLoan ? 'Os clubes deixam de pedir o jogador emprestado.' : 'Outros clubes pagam uma taxa pelo empréstimo; o jogador volta no fim da temporada.'}</small>
+          </button>
+          {!asking ? (
+            <button className="ps-act danger" disabled={!release.ok} onClick={() => setAsking(true)}>
+              <strong>Dispensar jogador</strong>
+              <small>{release.ok ? 'O jogador deixa o clube, sem custo e sem compensação.' : release.text}</small>
+            </button>
+          ) : (
+            <div className="ps-confirm" role="alertdialog" aria-label="Confirmar dispensa">
+              <p>Dispensar <b>{p.name}</b>? Isso não pode ser desfeito.</p>
+              <button className="ps-act danger solid" onClick={() => { onChange(releasePlayer(game, p.id)); onDone(`${p.name} foi dispensado.`); }}><strong>Sim, dispensar</strong></button>
+              <button className="btn" onClick={() => setAsking(false)}>Cancelar</button>
+            </div>
+          )}
+        </div>
+        <button className="btn ps-close" onClick={onClose}>Fechar</button>
       </div>
+    </div>
+  );
+}
+
+/** Elenco: todos os jogadores do clube; toque em um jogador para ver as opções. */
+export function Squad({ game, onChange }: { game: GameState; onChange: (g: GameState) => void }) {
+  const team = game.teams[game.userClubId];
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const opener = useRef<HTMLElement | null>(null);
+  const open = team.players.find((p) => p.id === openId) ?? null;
+  const loaned = game.loans.map((l) => ({ loan: l, player: game.teams[l.hostClubId]?.players.find((p) => p.id === l.playerId) })).filter((x) => x.player);
+
+  const close = () => { setOpenId(null); opener.current?.focus(); };
+
+  return (
+    <>
+      <div className="card sq-top">
+        <div><small>Jogadores</small><b>{team.players.length}/{MAX_SQUAD}</b></div>
+        <div><small>À venda</small><b>{game.transferList.length}</b></div>
+        <div><small>Empréstimo</small><b>{game.loanList.length}</b></div>
+        <div><small>Emprestados</small><b>{loaned.length}</b></div>
+      </div>
+      <p className="hint sq-hint">Toque em um jogador para vender, emprestar ou dispensar.</p>
+      <div role="status" aria-live="polite">{notice && <p className="tf-notice">{notice}</p>}</div>
+
       {POS_ORDER.map((pos) => (
         <section key={pos}>
           <h3>{POS_LABEL[pos]}</h3>
@@ -47,9 +104,14 @@ export function Squad({ game, onChange }: { game: GameState; onChange: (g: GameS
                 const starter = team.lineup.includes(p.id);
                 return (
                   <li key={p.id}>
-                    <button className={`row ${sel?.id === p.id ? 'sel' : ''} ${starter ? '' : 'bench'}`} onClick={() => tap(p)}>
+                    <button className={`row ${starter ? '' : 'bench'}`} aria-label={`${p.name}, overall ${p.strength}. Abrir opções`} onClick={(e) => { opener.current = e.currentTarget; setNotice(null); setOpenId(p.id); }}>
                       <span className={`tag ${starter ? 'on' : ''}`}>{starter ? 'T' : 'R'}</span>
-                      <span className="grow">{p.name}<small>{p.age} anos</small></span>
+                      <span className="grow">{p.name}
+                        <small>{p.age} anos · {formatBudget(myValue(game, p))}
+                          {game.transferList.includes(p.id) && <em className="pill sale">À venda</em>}
+                          {game.loanList.includes(p.id) && <em className="pill loan">Empréstimo</em>}
+                        </small>
+                      </span>
                       <b className="str">{p.strength}</b>
                     </button>
                   </li>
@@ -58,6 +120,19 @@ export function Squad({ game, onChange }: { game: GameState; onChange: (g: GameS
           </ul>
         </section>
       ))}
+
+      {loaned.length > 0 && (
+        <section>
+          <h3>Emprestados (voltam no fim da temporada)</h3>
+          <ul className="list">
+            {loaned.map(({ loan, player }) => (
+              <li key={loan.playerId}><div className="row"><span className="grow">{player!.name}<small>{POS_ONE[player!.pos]} · {game.clubs[loan.hostClubId].name}</small></span><b className="str">{player!.strength}</b></div></li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {open && <PlayerSheet game={game} player={open} onChange={onChange} onClose={close} onDone={(m) => { setOpenId(null); setNotice(`✔ ${m}`); }} />}
     </>
   );
 }
