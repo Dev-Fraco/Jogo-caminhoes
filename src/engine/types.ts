@@ -169,6 +169,12 @@ export interface SocialProfile { followers: number; history: { season: number; r
 /** Redes sociais do treinador. */
 export interface SocialState { linstagra: SocialProfile; tikiteko: SocialProfile; lastMatch?: { season: number; round: number; result: 'win' | 'draw' | 'loss'; streak: number } }
 
+export type CasinoColor = 'azul' | 'preto' | 'vermelho';
+export interface CasinoBet { id: string; color: CasinoColor; drawn: CasinoColor; stake: number; payout: number; season: number; round: number }
+/** Saldo do Cassino (separado do banco) e histórico de apostas. */
+export interface CasinoState { balance: number; bets: CasinoBet[]; deposited: number; wagered: number; won: number }
+export interface MarketDeal { season: number; round: number; text: string }
+
 /** Mundial de Clubes: semifinais cruzadas entre os dois finalistas da Libertadores e da Champions, e final. */
 export interface MundialState {
   id: string;
@@ -260,6 +266,9 @@ export interface GameState {
   bank?: BankState;
   assets?: AssetsState;
   social?: SocialState;
+  casino?: CasinoState;
+  /** Últimas transferências entre clubes (para o app Notícias). */
+  market?: MarketDeal[];
   mundial?: MundialState;
   /** Dinheiro pessoal do treinador (R$) e quanto da folha ele paga (0/25/50/100). */
   coachMoney?: number;

@@ -139,6 +139,7 @@ export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[
       s = move(s, deal.id, deal.from, buyerId, deal.price);
       if (p.strength >= 70 || deal.price >= 5_000_000) {
         s = news(s, `🔁 ${s.clubs[buyerId].name} contrata ${p.name} (${p.pos === 'GK' ? 'goleiro' : p.pos === 'DEF' ? 'defensor' : p.pos === 'MID' ? 'meia' : 'atacante'}, overall ${p.strength}) do ${s.clubs[deal.from].name} por ${fmtMoney(deal.price)}.`, 'info');
+        s = { ...s, market: [{ season: s.season, round: s.round, text: `${s.clubs[buyerId].name} contrata ${p.name} (overall ${p.strength}) do ${s.clubs[deal.from].name} por ${fmtMoney(deal.price)}.` }, ...(s.market ?? [])].slice(0, 60) };
       }
     }
   }

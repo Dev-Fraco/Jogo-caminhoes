@@ -3,7 +3,9 @@ import { audio } from '../audio/audio';
 import { changePin, checkPin, clearNotifications, hasPin, installApp, installedApps, isInstalled, markAllRead, phoneOf, PIN_LENGTH, registerPin, STORE_APPS, uninstallApp, updatePhoneSettings, WALLPAPERS, appById } from '../engine/phone';
 import type { GameState } from '../engine/types';
 import { BankApp } from './BankApp';
+import { CasinoApp } from './CasinoApp';
 import { DealerApp } from './DealerApp';
+import { NewsApp } from './NewsApp';
 import { RealtorApp } from './RealtorApp';
 import { SocialApp } from './SocialApp';
 import './phone.css';
@@ -100,8 +102,10 @@ export function Phone({ game, onChange, onClose }: Props) {
               {screen === 'banco' && <BankApp game={game} onChange={onChange} />}
               {screen === 'concessionaria' && <DealerApp game={game} onChange={onChange} onOpenApp={setScreen} />}
               {screen === 'corretor' && <RealtorApp game={game} onChange={onChange} onOpenApp={setScreen} />}
+              {screen === 'cassino' && <CasinoApp game={game} onChange={onChange} onOpenApp={setScreen} />}
+              {screen === 'noticias' && <NewsApp game={game} />}
               {(screen === 'linstagra' || screen === 'tikiteko') && <SocialApp app={screen} game={game} onChange={onChange} />}
-              {!['home', 'loja', 'config', 'banco', 'concessionaria', 'corretor', 'linstagra', 'tikiteko'].includes(screen) && <SoonApp id={screen} />}
+              {!['home', 'loja', 'config', 'banco', 'concessionaria', 'corretor', 'linstagra', 'tikiteko', 'cassino', 'noticias'].includes(screen) && <SoonApp id={screen} />}
               <button className="ph-homebar" onClick={() => setScreen('home')} aria-label="Início do celular" />
             </>
           )}
