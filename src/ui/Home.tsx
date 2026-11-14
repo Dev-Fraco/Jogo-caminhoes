@@ -12,12 +12,14 @@ import { acceptOffer, declineOffer, resign } from '../engine/jobs';
 import { firingWarning } from '../engine/game';
 import { ClubBadge } from './ClubBadge';
 import { stadiumOf } from '../engine/stadium';
+import { Avatar, FmCard, ovrClass, POS_ONE, QuickTabs, StatStrip } from './FmParts';
 import { brl } from './Stadium';
 import { EXPECTATION_LABEL, formatBudget } from '../newgame/format';
+import { myValue } from '../engine/roster';
 
 interface Props {
   game: GameState; onChange: (g: GameState) => void; last: MatchResult[]; over: boolean;
-  onPlay: () => void; onSkip: (years: number) => void; onSeeTables: () => void; onSeeResults: () => void; onNextSeason: () => void; onEditLineup: () => void; onFinance: () => void; onStadium: () => void; onSeeOffers: () => void;
+  onPlay: () => void; onSkip: (years: number) => void; onSeeTables: () => void; onSeeResults: () => void; onNextSeason: () => void; onEditLineup: () => void; onFinance: () => void; onStadium: () => void; onTab: (t: 'squad' | 'table' | 'transfers') => void; onNews: () => void; onSeeOffers: () => void;
 }
 
 function Meter({ label, value, note }: { label: string; value: number; note?: string }) {
@@ -42,7 +44,7 @@ function EstadualResult({ game }: { game: GameState }) {
 }
 
 /** Início: próxima partida, escalação, humor (equipe, dirigentes e torcida), propostas e resultados da rodada. */
-export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, onSeeResults, onNextSeason, onEditLineup, onFinance, onStadium, onSeeOffers }: Props) {
+export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, onSeeResults, onNextSeason, onEditLineup, onFinance, onStadium, onSeeOffers, onTab, onNews }: Props) {
   const name = (id: string) => clubOf(game, id).name;
   const [open, setOpen] = useState<string | null>(null);
   const [askSkip, setAskSkip] = useState(false);
@@ -104,6 +106,7 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
   const shown = last.filter((r) => r.divisionId === division.id || [game.cup?.id, game.lib?.id, game.sula?.id, game.ucl?.id, game.mundial?.id].includes(r.divisionId));
   const expectation = game.clubs[game.userClubId].boardExpectation;
   const m = game.morale;
+  const recent = game.results.filter((r) => r.homeId === game.userClubId || r.awayId === game.userClubId).slice(-3).reverse();
   const gate = stadiumOf(game).log[0];
   const gateNow = gate && gate.season === game.season && gate.round === game.round - 1 && last.length > 0 ? gate : undefined; // jogo em casa que acabou de acontecer
 
@@ -133,6 +136,25 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
         <button className="btn home-lineup" onClick={onFinance}>💰 Finanças e salários</button>
         <button className="btn home-lineup" onClick={onStadium}>🏟️ Estádio e ingressos</button>
       </div>
+
+      <StatStrip game={game} />
+      <QuickTabs items={[{ icon: '👕', label: 'Elenco', on: true, onClick: () => onTab('squad') }, { icon: '🏆', label: 'Competições', onClick: () => onTab('table') }, { icon: '🔁', label: 'Transferências', onClick: () => onTab('transfers') }, { icon: '📰', label: 'Notícias', onClick: onNews }]} />
+      <FmCard icon="👕" title="Seu elenco" action="Ver todos" onAction={() => onTab('squad')}>
+        <ul className="fm-rows">
+          {[...game.teams[game.userClubId].players].sort((a, b) => b.strength - a.strength).slice(0, 3).map((p) => (
+            <li key={p.id}><button onClick={() => onTab('squad')}><Avatar pos={p.pos} /><span className="grow"><b>{p.name}</b><small>{POS_ONE[p.pos]}</small></span><em className={`fm-ovr ${ovrClass(p.strength)}`}>{p.strength}</em><span className="fm-side">{p.age} anos<small>{formatBudget(myValue(game, p))}</small></span><i aria-hidden="true">›</i></button></li>
+          ))}
+        </ul>
+      </FmCard>
+      {recent.length > 0 && (
+        <FmCard icon="🏆" title="Últimos jogos" action="Ver tabela" onAction={() => onTab('table')}>
+          <ul className="fm-games">
+            {recent.map((r, i) => (
+              <li key={i}><span className="fm-team"><ClubBadge club={clubOf(game, r.homeId)} size={30} /><small>{name(r.homeId)}</small></span><b className="fm-score">{r.homeGoals} - {r.awayGoals}</b><span className="fm-team"><ClubBadge club={clubOf(game, r.awayId)} size={30} /><small>{name(r.awayId)}</small></span></li>
+            ))}
+          </ul>
+        </FmCard>
+      )}
 
       {game.offers.length > 0 && (
         <button className="home-offers" onClick={onSeeOffers}>

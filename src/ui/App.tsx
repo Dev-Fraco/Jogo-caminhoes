@@ -127,15 +127,15 @@ export function App() {
       <div className="app">
         <header style={{ '--club-tint': tintColor(club) } as React.CSSProperties}>
           <div className="gh-id">
-            <ClubBadge club={club} size={42} />
+            <ClubBadge club={club} size={54} />
             <div>
               <strong>{game.unemployed ? 'Sem clube' : club.name}</strong>
-              <small>{game.unemployed ? 'Sem clube' : userDivision(game).name} · Temporada {game.season}</small>
+              <small>{game.unemployed ? "Sem clube" : userDivision(game).name} · {game.season}</small>
             </div>
           </div>
           <div className="gh-right">
             <span className="gh-money" title={game.unemployed ? 'Seu saldo no banco' : 'Orçamento para transferências'}>{game.unemployed ? formatBudget(balanceOf(game)) : formatBudget(game.budgets[game.userClubId])}</span>
-            <button className="ghost" onClick={toMenu} disabled={!!live}>Menu</button>
+            <button className="ghost" onClick={toMenu} disabled={!!live}>☰ Menu</button>
           </div>
         </header>
         <main>
@@ -144,7 +144,7 @@ export function App() {
               userSide={liveResult.homeId === game.userClubId ? 'home' : 'away'} divisionName={liveLabel} stadium={clubOf(game, liveResult.homeId).stadium} onFinish={finishMatch} />
           )}
           {!live && game.unemployed && tab === 'home' && <Unemployed game={game} over={isSeasonOver(game)} onChange={setGame} onPlay={play} onSkip={() => skipSeason(1)} onNextSeason={nextSeason} onSeeTables={() => { setTableView('rounds'); setTab('table'); }} />}
-          {!live && !game.unemployed && tab === 'home' && <Home game={game} onChange={setGame} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onSkip={skipSeason} onSeeTables={() => { setTableView('div'); setTab('table'); }} onSeeResults={() => { setTableView('rounds'); setTab('table'); }} onEditLineup={() => setTab('lineup')} onFinance={() => setTab('finance')} onStadium={() => setTab('stadium')} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} />}
+          {!live && !game.unemployed && tab === 'home' && <Home game={game} onChange={setGame} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onSkip={skipSeason} onSeeTables={() => { setTableView('div'); setTab('table'); }} onSeeResults={() => { setTableView('rounds'); setTab('table'); }} onEditLineup={() => setTab('lineup')} onFinance={() => setTab('finance')} onStadium={() => setTab('stadium')} onTab={(t) => setTab(t)} onNews={() => setPhoneOpen(true)} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} />}
           {!live && !game.unemployed && tab === 'stadium' && <Stadium game={game} onChange={setGame} onBack={() => setTab('home')} />}
           {!live && !game.unemployed && tab === 'finance' && <Finance game={game} onChange={setGame} onBack={() => setTab('home')} />}
           {!live && !game.unemployed && tab === 'lineup' && <Lineup game={game} onChange={setGame} onBack={() => setTab('home')} />}
