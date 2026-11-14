@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { fixturesOfRound, leagueNameOf, seasonOutcome, slotsOf, userDivision } from '../engine/game';
 import { cupMatchDue, userCupTie, userInCup } from '../engine/cup';
+import { libMatchDue, libStepName, userInLib, userLibMatch } from '../engine/libertadores';
+import { clubOf } from '../engine/lookup';
 import { moodLabel } from '../engine/morale';
 import type { GameState, MatchResult } from '../engine/types';
 import { PROMOTED_STRONG_CHANCE } from '../engine/ai';
@@ -26,7 +28,7 @@ function Meter({ label, value, note }: { label: string; value: number; note?: st
 
 /** Início: próxima partida, escalação, humor (equipe, dirigentes e torcida), propostas e resultados da rodada. */
 export function Home({ game, last, over, onPlay, onNextSeason, onEditLineup, onSeeOffers }: Props) {
-  const name = (id: string) => game.clubs[id].name;
+  const name = (id: string) => clubOf(game, id).name;
   const [open, setOpen] = useState<string | null>(null);
   const division = userDivision(game);
 
@@ -67,17 +69,19 @@ export function Home({ game, last, over, onPlay, onNextSeason, onEditLineup, onS
 
   const cupDue = cupMatchDue(game);
   const cupTie = userCupTie(game);
-  const next = cupDue && cupTie ? cupTie : fixturesOfRound(game, game.round, division.id).find((f) => f.homeId === game.userClubId || f.awayId === game.userClubId);
-  const shown = last.filter((r) => r.divisionId === division.id || r.divisionId === game.cup?.id);
+  const libDue = !cupDue && libMatchDue(game);
+  const next = cupDue && cupTie ? cupTie : libDue ? userLibMatch(game) : fixturesOfRound(game, game.round, division.id).find((f) => f.homeId === game.userClubId || f.awayId === game.userClubId);
+  const shown = last.filter((r) => r.divisionId === division.id || r.divisionId === game.cup?.id || r.divisionId === game.lib?.id);
   const expectation = game.clubs[game.userClubId].boardExpectation;
   const m = game.morale;
 
   return (
     <>
       <div className="card center">
-        <small>{cupDue && game.cup ? `🏆 ${game.cup.name} · ${game.cup.rounds[game.cup.roundIndex].name}` : `${division.name} · Rodada ${game.round} de ${game.totalRounds}`}</small>
+        <small>{libDue && game.lib ? `🌎 ${game.lib.name} · ${libStepName(game.lib)}` : cupDue && game.cup ? `🏆 ${game.cup.name} · ${game.cup.rounds[game.cup.roundIndex].name}` : `${division.name} · Rodada ${game.round} de ${game.totalRounds}`}</small>
         {next && <h2>{name(next.homeId)} <span className="vs">x</span> {name(next.awayId)}</h2>}
         <button className="primary" onClick={() => { setOpen(null); onPlay(); }}>▶ Iniciar partida</button>
+        {game.lib && !libDue && <small className="cup-line">{game.lib.championId ? `🌎 ${game.lib.name}: campeão ${name(game.lib.championId)}` : userInLib(game) ? `🌎 ${game.lib.name}: ${libStepName(game.lib)} em breve` : game.lib.alive.length ? `🌎 ${game.lib.name}: seu clube ${game.lib.groups.some((gr) => gr.clubIds.includes(game.userClubId)) ? 'foi eliminado' : 'não participa'}` : ''}</small>}
         {game.cup && !cupDue && <small className="cup-line">{game.cup.championId ? `🏆 ${game.cup.name}: campeão ${name(game.cup.championId)}` : userInCup(game) ? `🏆 ${game.cup.name}: você está na ${game.cup.rounds[game.cup.roundIndex].name}` : `🏆 ${game.cup.name}: seu clube já foi eliminado`}</small>}
         <button className="btn home-lineup" onClick={onEditLineup}>Editar escalação</button>
       </div>
@@ -110,7 +114,7 @@ export function Home({ game, last, over, onPlay, onNextSeason, onEditLineup, onS
 
       {shown.length > 0 && (
         <section>
-          <h3>{shown[0].divisionId === game.cup?.id ? `${game.cup.name} — resultados` : `Resultados da rodada ${shown[0].round}`}</h3>
+          <h3>{shown[0].divisionId === game.lib?.id && game.lib ? `${game.lib.name} — resultados` : shown[0].divisionId === game.cup?.id && game.cup ? `${game.cup.name} — resultados` : `Resultados da rodada ${shown[0].round}`}</h3>
           <ul className="list">
             {shown.map((r) => {
               const key = `${r.round}-${r.homeId}`;

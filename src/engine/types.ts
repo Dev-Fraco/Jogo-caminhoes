@@ -130,7 +130,23 @@ export interface CupState {
   championId?: string;
 }
 
+export interface LibMatch { round: number; homeId: string; awayId: string; homeGoals?: number; awayGoals?: number }
+export interface LibGroup { id: string; clubIds: string[]; matches: LibMatch[] }
+/** Copa Libertadores: 8 grupos de 4 (6 rodadas) e mata-mata (oitavas, quartas, semi e final). */
+export interface LibState {
+  id: string;
+  name: string;
+  groups: LibGroup[];
+  ko: CupRound[];
+  step: number; // 0–5 rodadas da fase de grupos; 6–9 oitavas, quartas, semifinal, final
+  dueAfter: number[];
+  due: boolean;
+  alive: string[];
+  championId?: string;
+}
+
 export interface SeasonSummary {
+  libChampionId?: string;
   cupChampionId?: string;
   season: number;
   userDivisionId: string;
@@ -201,4 +217,7 @@ export interface GameState {
   results: MatchResult[]; // da temporada atual
   history: SeasonSummary[];
   cup?: CupState;
+  lib?: LibState;
+  /** Clubes de outros países que disputam a Libertadores (ficam fora do campeonato e do mercado). */
+  foreign?: { clubs: Record<string, ClubInfo>; teams: Record<string, TeamState> };
 }

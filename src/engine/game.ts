@@ -1,5 +1,6 @@
 import type { ClubData } from '../data/clubs';
 import { aiWindow, offseason } from './ai';
+import { brazilQualifiers, createLibertadores, libAfterLeagueRound, libMatchDue, playLibStep } from './libertadores';
 import { createCup, cupAfterLeagueRound, cupMatchDue, playCupRound } from './cup';
 import { MORALE_START, moraleFactor, updateMorale } from './morale';
 import { simulateMatch } from './match';
@@ -70,7 +71,9 @@ export function newCareer(input: CareerInput, seed = Date.now() % 2147483647): G
     userClubId: input.userClubId, seed, season: input.season, round: 1, totalRounds,
     clubs, budgets, transfers: [], morale: { ...MORALE_START }, transferList: [], loanList: [], offers: [], loans: [], news: [], divisions, teams, fixtures, results: [], history: [],
   };
-  return input.cup ? { ...career, cup: createCup(career) } : career;
+  if (!input.cup) return career;
+  const withCup = { ...career, cup: createCup(career) };
+  return createLibertadores(withCup, brazilQualifiers(withCup));
 }
 
 export const isSeasonOver = (g: GameState) => g.round > g.totalRounds;
@@ -85,7 +88,8 @@ export function fixturesOfRound(g: GameState, round: number, divisionId?: string
 /** Joga a próxima rodada em TODAS as divisões. Retorna o novo estado e os resultados da rodada. */
 export function playRound(g: GameState): { state: GameState; results: MatchResult[] } {
   if (isSeasonOver(g)) return { state: g, results: [] };
-  if (g.cup?.due) g = playCupRound(g).state; // fase da copa pendente: simulada automaticamente
+  if (g.cup?.due) g = playCupRound(g).state; // fases pendentes das copas: simuladas automaticamente
+  if (g.lib?.due) g = playLibStep(g).state;
   const rng = makeRng(g.seed * 1000 + g.round + g.season * 100003);
   const teams = { ...g.teams };
   // clubes controlados pela IA sempre escalam o melhor time
@@ -114,7 +118,7 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
       position: table.findIndex((r) => r.clubId === g.userClubId) + 1, size: table.length, round: g.round, expectation: g.clubs[g.userClubId].boardExpectation,
     }) };
   }
-  state = cupAfterLeagueRound(state);
+  state = libAfterLeagueRound(cupAfterLeagueRound(state));
   // propostas dos outros clubes pelos jogadores listados
   state = generateOffers(state, rng);
   // meio da temporada: janela pequena de transferências da IA
@@ -123,7 +127,7 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
 }
 
 /** Próximo jogo do seu clube: a fase da copa (se for a data) ou a rodada do campeonato. */
-export const playNext = (g: GameState) => (cupMatchDue(g) ? playCupRound(g) : playRound(g));
+export const playNext = (g: GameState) => (cupMatchDue(g) ? playCupRound(g) : libMatchDue(g) ? playLibStep(g) : playRound(g));
 
 export const resultsOfDivision = (g: GameState, divisionId: string) => g.results.filter((r) => r.divisionId === divisionId);
 
@@ -183,7 +187,7 @@ export function startNextSeason(g: GameState): GameState {
   });
 
   const summary: SeasonSummary = {
-    season: g.season, cupChampionId: g.cup?.championId, userDivisionId: out.userDivisionId, userPosition: out.userPosition,
+    season: g.season, cupChampionId: g.cup?.championId, libChampionId: g.lib?.championId, userDivisionId: out.userDivisionId, userPosition: out.userPosition,
     divisions: moves.map((m) => ({ id: m.divisionId, championId: m.table[0].clubId, promoted: m.promoted, relegated: m.relegated })),
   };
   const { fixtures, totalRounds } = buildSeason(divisions);
@@ -198,7 +202,8 @@ export function startNextSeason(g: GameState): GameState {
   const arrivals = (list: 'promoted' | 'relegated', delta: number) => moves.flatMap((m, i) => m[list].map((clubId) => ({ clubId, to: i + delta })));
   const rng = makeRng(g.seed * 977 + g.season * 31 + 5);
   const { state, promotion } = offseason(next, rng, { promoted: arrivals('promoted', -1), relegated: arrivals('relegated', 1) });
-  const withCup: GameState = g.cup ? { ...state, cup: createCup(state) } : state;
+  const cupped: GameState = g.cup ? { ...state, cup: createCup(state) } : state;
+  const withCup: GameState = g.lib ? createLibertadores(cupped, brazilQualifiers(cupped, moves[0].table.map((r) => r.clubId), g.cup?.championId)) : cupped;
   return { ...withCup, history: withCup.history.map((h, i) => (i === withCup.history.length - 1 ? { ...h, promotion } : h)) };
 }
 
