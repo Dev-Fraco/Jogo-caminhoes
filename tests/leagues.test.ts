@@ -4,7 +4,7 @@ import { pyramidOf, slotsOfLeague } from '../src/data/pyramid';
 import { getLeague } from '../src/data/world';
 import { isSeasonOver, newCareer, playRound, startNextSeason, divisionTable } from '../src/engine/game';
 
-const LEAGUES: [string, string][] = [['AR', 'liga-profesional'], ['EN', 'premier-league'], ['IT', 'serie-a-it'], ['ES', 'la-liga']];
+const LEAGUES: [string, string][] = [['AR', 'liga-profesional'], ['EN', 'premier-league'], ['IT', 'serie-a-it'], ['ES', 'la-liga'], ['DE', 'bundesliga'], ['FR', 'ligue-1'], ['PT', 'primeira-liga']];
 
 describe('ligas estrangeiras', () => {
   it('cada divisão tem clubes e sigla única', () => {

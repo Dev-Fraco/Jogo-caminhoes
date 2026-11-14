@@ -99,7 +99,7 @@ describe('elencos', () => {
 describe('CLUBS_DATA — estrutura', () => {
   it('as quatro divisões brasileiras existem e divisão sem dados não quebra', () => {
     for (const d of DIVS) expect(CLUBS_DATA[d].length).toBeGreaterThan(0);
-    expect(getClubs('bundesliga')).toEqual([]);
+    expect(getClubs('inexistente')).toEqual([]);
   });
   it('toda chave é um divisionId existente na Etapa 2', () => {
     const ids = new Set(COUNTRY_ORDER.flatMap((id) => WORLD_DATA[id].leagues.flatMap((l) => l.divisions.map((d) => d.id))));

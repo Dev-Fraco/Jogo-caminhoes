@@ -9,7 +9,7 @@ export function pyramidOf(countryId: string, leagueId: string) {
 }
 
 /** Quantos clubes sobem/descem entre divisões vizinhas em cada liga (padrão: 4). */
-const SLOTS: Record<string, number> = { 'premier-league': 3, 'serie-a-it': 3, 'la-liga': 3, 'liga-profesional': 2 };
+const SLOTS: Record<string, number> = { 'premier-league': 3, bundesliga: 2, 'ligue-1': 3, 'primeira-liga': 2, 'serie-a-it': 3, 'la-liga': 3, 'liga-profesional': 2 };
 export const slotsOfLeague = (leagueId: string) => SLOTS[leagueId] ?? 4;
 
 /** A pirâmide do Campeonato Brasileiro (Série A → D). */
