@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { audio } from '../audio/audio';
 import { changePin, checkPin, clearNotifications, hasPin, installApp, installedApps, isInstalled, markAllRead, phoneOf, PIN_LENGTH, registerPin, STORE_APPS, uninstallApp, updatePhoneSettings, WALLPAPERS, appById } from '../engine/phone';
 import type { GameState } from '../engine/types';
+import { BankApp } from './BankApp';
 import './phone.css';
 
 interface Props { game: GameState; onChange: (g: GameState) => void; onClose: () => void }
@@ -93,7 +94,8 @@ export function Phone({ game, onChange, onClose }: Props) {
               {screen === 'home' && <HomeScreen game={game} onOpen={setScreen} />}
               {screen === 'loja' && <Store game={game} onChange={onChange} onOpen={setScreen} />}
               {screen === 'config' && <Settings game={game} onChange={onChange} />}
-              {screen !== 'home' && screen !== 'loja' && screen !== 'config' && <SoonApp id={screen} />}
+              {screen === 'banco' && <BankApp game={game} onChange={onChange} />}
+              {!['home', 'loja', 'config', 'banco'].includes(screen) && <SoonApp id={screen} />}
               <button className="ph-homebar" onClick={() => setScreen('home')} aria-label="Início do celular" />
             </>
           )}

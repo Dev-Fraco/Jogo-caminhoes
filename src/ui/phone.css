@@ -74,3 +74,29 @@
 @keyframes ph-fade-out { to { background: rgba(0, 0, 0, 0); } }
 @keyframes ph-shake { 20%, 60% { transform: translateX(-9px); } 40%, 80% { transform: translateX(9px); } }
 @media (prefers-reduced-motion: reduce) { .ph-device, .ph-overlay, .ph-dots.shake { animation: none !important; } }
+
+.bk-logo { font-size: 54px; text-align: center; margin-top: 10px; }
+.bk-sub { font-size: 13px; opacity: .8; margin: 4px 0 10px; }
+.bk-back { background: none; border: 0; color: inherit; opacity: .8; cursor: pointer; padding: 4px 0; font: 600 14px system-ui; }
+.bk-balance { background: linear-gradient(135deg, #5b1fa8, #8e3fe0); color: #fff; border-radius: 16px; padding: 14px 16px; display: grid; gap: 4px; }
+.bk-balance b { font: 700 28px system-ui; }
+.bk-balance .ph-link { justify-self: start; font-size: 12px; margin: 0; }
+.bk-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 14px 0; }
+.bk-actions button { position: relative; display: grid; gap: 4px; justify-items: center; padding: 10px 2px; border: 0; border-radius: 12px; background: rgba(255, 255, 255, .1); color: inherit; font: 600 11.5px system-ui; cursor: pointer; text-align: center; }
+.bk-actions span { font-size: 24px; }
+.bk-actions em { position: absolute; top: 3px; right: 6px; background: #e53935; color: #fff; font-size: 10px; padding: 1px 5px; border-radius: 8px; }
+.bk-tx { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.bk-tx li { display: flex; gap: 8px; align-items: center; }
+.bk-tx .grow { flex: 1; min-width: 0; }
+.bk-tx small { display: block; opacity: .7; font-size: 11.5px; }
+.bk-tx .out, .out { color: #ff7a7a; }
+.bk-tx .in { color: #4be08a; }
+.bk-r { display: grid; gap: 4px; justify-items: end; }
+.bk-key, .bk-id { font: 12px ui-monospace, monospace; word-break: break-all; }
+.bk-big { font-size: 20px; }
+.bk-wide { width: 100%; margin-top: 10px; }
+.bk-ok { width: 64px; height: 64px; margin: 8px auto; border-radius: 50%; background: #2fbf6b; color: #fff; display: grid; place-items: center; font-size: 34px; animation: ph-pop .5s both; }
+.bk-receipt { margin-top: 10px; }
+.bk-receipt .ph-row b { text-align: right; }
+.ph-app-screen h2.center { text-align: center; }
+@keyframes ph-pop { from { transform: scale(0); } 70% { transform: scale(1.15); } to { transform: scale(1); } }

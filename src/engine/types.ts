@@ -150,6 +150,14 @@ export interface PhoneNotification { id: string; app: string; text: string; seas
 /** Celular do treinador: PIN, apps instalados, configurações e notificações. */
 export interface PhoneState { pinHash?: string; installed: string[]; settings: PhoneSettings; notifications: PhoneNotification[] }
 
+/** O que acontece quando uma cobrança/boleto é pago (cada app define o seu). */
+export interface PayPurpose { type: string; ref?: string; data?: Record<string, number | string> }
+export interface PixCharge { id: string; key: string; merchant: string; description: string; amount: number; purpose: PayPurpose; status: 'open' | 'paid'; season: number; round: number }
+export interface Boleto { id: string; code: string; merchant: string; description: string; amount: number; dueSeason: number; dueRound: number; status: 'open' | 'paid' | 'late'; fine: number; notified: boolean; purpose: PayPurpose; paidTxId?: string }
+export interface BankTx { id: string; kind: 'pix' | 'boleto' | 'income'; title: string; detail: string; /** negativo = saiu da conta */ amount: number; season: number; round: number }
+/** Conta bancária do treinador (o saldo é o dinheiro pessoal dele, `coachMoney`). */
+export interface BankState { name: string; passHash: string; txs: BankTx[]; charges: PixCharge[]; boletos: Boleto[]; seq: number }
+
 /** Mundial de Clubes: semifinais cruzadas entre os dois finalistas da Libertadores e da Champions, e final. */
 export interface MundialState {
   id: string;
@@ -238,6 +246,7 @@ export interface GameState {
   lib?: LibState;
   ucl?: LibState;
   phone?: PhoneState;
+  bank?: BankState;
   mundial?: MundialState;
   /** Dinheiro pessoal do treinador (R$) e quanto da folha ele paga (0/25/50/100). */
   coachMoney?: number;
