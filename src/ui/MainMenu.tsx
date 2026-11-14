@@ -17,8 +17,8 @@ export const MENU_OPTIONS = [
   { id: 'sair', label: 'Sair', hint: 'Fechar o jogo' },
 ] as const;
 
-/** Atalhos da faixa inferior. Elenco e Competições abrem a carreira em andamento; os demais ainda são "Em breve". */
-export const SHORTCUTS = [
+/** Faixa inferior: apenas vitrine dos recursos do jogo (não são botões e não levam a lugar nenhum). */
+export const FEATURES = [
   { id: 'competicoes', label: 'Competições', hint: 'Séries A–D, Copa e estaduais' },
   { id: 'transferencias', label: 'Transferências', hint: 'Contratações e vendas' },
   { id: 'elenco', label: 'Elenco', hint: 'Gerenciar jogadores' },
@@ -27,7 +27,7 @@ export const SHORTCUTS = [
   { id: 'base', label: 'Categorias de Base', hint: 'Revelar novos talentos' },
 ] as const;
 
-export type MenuOptionId = (typeof MENU_OPTIONS)[number]['id'] | (typeof SHORTCUTS)[number]['id'];
+export type MenuOptionId = (typeof MENU_OPTIONS)[number]['id'];
 
 /**
  * >>> TROCAR O WALLPAPER AQUI <<<
@@ -105,15 +105,16 @@ export function MainMenu({ onSelect, hasSave = true }: Props) {
           })}
         </div>
 
-        <div className="home-tiles" role="group" aria-label="Atalhos">
-          {SHORTCUTS.map((s, i) => (
-            <button key={s.id} className="home-tile" style={{ '--i': i } as CSSProperties} onClick={() => onSelect(s.id)}>
-              <span className="home-tile-ico"><HomeIcon id={s.id} /></span>
-              <strong>{s.label}</strong>
-              <small>{s.hint}</small>
-            </button>
+        {/* vitrine dos recursos do jogo: só informativa, sem clique */}
+        <ul className="home-tiles" aria-label="Recursos do jogo">
+          {FEATURES.map((f, i) => (
+            <li key={f.id} className="home-tile" style={{ '--i': i } as CSSProperties}>
+              <span className="home-tile-ico"><HomeIcon id={f.id} /></span>
+              <strong>{f.label}</strong>
+              <small>{f.hint}</small>
+            </li>
           ))}
-        </div>
+        </ul>
         <p className="home-foot">{COMMUNITY_LINK}</p>
       </div>
     </div>
