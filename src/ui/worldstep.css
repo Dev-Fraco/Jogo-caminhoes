@@ -1,0 +1,51 @@
+/* Etapa 2 do assistente de Novo Jogo (país › liga › divisão). Reaproveita variáveis e campos de newgame.css. */
+.nw-ws-set { margin: 0 0 clamp(8px, 1.6vh, 16px); }
+.nw-ws-set:disabled { opacity: .55; }
+.nw-ws-two { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(14px, 2.4vw, 28px); }
+.nw-ws-list { display: flex; flex-direction: column; gap: clamp(6px, 1vh, 10px); }
+.nw-ws-hint { margin: 0; color: var(--ink-dim); font: 500 15px/1.4 'Barlow', system-ui, sans-serif; }
+.nw-ws-set.locked .nw-ws-hint { padding: 14px 4px; }
+
+/* Cartões selecionáveis (rádios): mesmo visual dos cards de reputação */
+.nw-field .nw-pick { position: relative; display: block; margin: 0; padding: 0; cursor: pointer; letter-spacing: normal; text-transform: none; }
+.nw-pick input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.nw-pick-body {
+  display: flex; flex-direction: column; justify-content: center; gap: 4px; height: 100%; padding: 12px 14px; color: var(--ink);
+  background: rgba(0, 0, 0, .34); border: 1px solid rgba(255, 255, 255, .18); border-left: 3px solid rgba(255, 255, 255, .25); border-radius: 4px;
+  transition: background-color .18s ease, color .18s ease, border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+.nw-pick-body.nw-row { flex-direction: row; align-items: center; gap: 12px; }
+.nw-grow { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.nw-pick-body strong { font: 700 clamp(17px, 2.4vh, 21px)/1.05 'Barlow Condensed', 'Arial Narrow', sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+.nw-pick-body small { font: 500 clamp(12.5px, 1.8vh, 14.5px)/1.35 'Barlow', system-ui, sans-serif; color: var(--ink-dim); }
+.nw-pick:hover .nw-pick-body { border-color: var(--lime); background: rgba(184, 255, 60, .10); transform: translateY(-2px); }
+.nw-pick input:checked + .nw-pick-body { background: var(--lime); color: var(--lime-ink); border-color: var(--lime); box-shadow: 0 0 0 1px rgba(184, 255, 60, .5), 0 8px 26px rgba(184, 255, 60, .30); }
+.nw-pick input:checked + .nw-pick-body small { color: rgba(7, 20, 12, .82); }
+.nw-pick input:focus-visible + .nw-pick-body { outline: 3px solid #fff; outline-offset: 3px; }
+.nw-ws-set:disabled .nw-pick:hover .nw-pick-body { transform: none; }
+
+/* Países: grade de bandeiras */
+.nw-countries { display: grid; grid-template-columns: repeat(8, 1fr); gap: clamp(6px, 1vw, 12px); }
+.nw-country .nw-pick-body { align-items: center; text-align: center; gap: 6px; padding: 12px 6px; border-left-width: 1px; }
+.nw-country strong { font-size: clamp(14px, 2vh, 17px); letter-spacing: .06em; }
+.nw-flag { font-size: clamp(26px, 4.2vh, 38px); line-height: 1; }
+
+/* Divisões: selo "Principal" e número de times */
+.nw-badge { padding: 4px 8px 3px; color: var(--lime-ink); background: var(--lime); border-radius: 3px; transform: skewX(-12deg); font: 700 12px/1 'Barlow Condensed', sans-serif; letter-spacing: .16em; text-transform: uppercase; }
+.nw-pick input:checked + .nw-pick-body .nw-badge { background: var(--lime-ink); color: var(--lime); }
+.nw-teams { min-width: 62px; text-align: right; font: 600 clamp(14px, 2vh, 17px)/1 'Barlow Condensed', 'Arial Narrow', sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); }
+.nw-pick input:checked + .nw-pick-body .nw-teams { color: var(--lime-ink); }
+
+/* Resumo da seleção */
+.nw-summary {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: clamp(8px, 1.6vh, 16px); padding: 12px 16px; min-height: 52px;
+  background: rgba(0, 0, 0, .34); border: 1px dashed rgba(255, 255, 255, .22); border-radius: 4px;
+  font: 700 clamp(16px, 2.3vh, 20px)/1.2 'Barlow Condensed', 'Arial Narrow', sans-serif; letter-spacing: .08em; text-transform: uppercase;
+}
+.nw-summary i { color: var(--lime); font-style: normal; font-size: 1.2em; }
+.nw-summary.ok { border-style: solid; border-color: var(--lime); background: rgba(184, 255, 60, .10); }
+.nw-summary .nw-flag { font-size: 1.6em; }
+
+@media (max-width: 900px) { .nw-countries { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 760px) { .nw-ws-two { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .nw-pick:hover .nw-pick-body { transform: none; } }

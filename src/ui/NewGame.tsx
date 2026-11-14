@@ -1,6 +1,7 @@
 import { useRef, useState, type CSSProperties } from 'react';
 import { createNewGameState, NAME_MAX, NATIONALITIES, REPUTATIONS, STEPS, validateCoach, type CoachProfile, type NewGameState } from '../newgame/state';
 import { Backdrop } from './Backdrop';
+import { WorldStep } from './WorldStep';
 import { WALLPAPER_URL } from './MainMenu';
 import './newgame.css';
 
@@ -93,6 +94,8 @@ export function NewGame({ onBack }: { onBack: () => void }) {
   const [state, setState] = useState<NewGameState>(createNewGameState);
   const [index, setIndex] = useState(0);
   const [touched, setTouched] = useState<Touched>({});
+  const [worldAttempted, setWorldAttempted] = useState(false);
+  const [worldFocus, setWorldFocus] = useState(0);
   const refs = { name: useRef<HTMLInputElement>(null), nat: useRef<HTMLSelectElement>(null), rep: useRef<HTMLDivElement>(null) };
 
   const step = STEPS[index];
@@ -109,8 +112,13 @@ export function NewGame({ onBack }: { onBack: () => void }) {
   const next = () => {
     if (!canAdvance) return;
     if (!step.isValid(state)) {
-      setTouched({ name: true, nationality: true, reputation: true });
-      focusFirstError();
+      if (step.id === 'coach') {
+        setTouched({ name: true, nationality: true, reputation: true });
+        focusFirstError();
+      } else if (step.id === 'world') {
+        setWorldAttempted(true);
+        setWorldFocus((n) => n + 1);
+      }
       return;
     }
     const clean: NewGameState = { ...state, coach: { ...state.coach, name: state.coach.name.trim() } };
@@ -148,9 +156,13 @@ export function NewGame({ onBack }: { onBack: () => void }) {
         <main className="nw-body">
           <section className="nw-card" aria-labelledby="nw-title">
             <h2 id="nw-title" className="nw-sr">{step.title}</h2>
-            {step.id === 'coach'
-              ? <CoachStep coach={state.coach} onChange={(coach) => setState({ ...state, coach })} touched={touched} setTouched={setTouched} refs={refs} />
-              : <PlaceholderStep title={step.title} subtitle={step.subtitle} />}
+            {step.id === 'coach' ? (
+              <CoachStep coach={state.coach} onChange={(coach) => setState({ ...state, coach })} touched={touched} setTouched={setTouched} refs={refs} />
+            ) : step.id === 'world' ? (
+              <WorldStep world={state.world} onChange={(world) => setState({ ...state, world })} attempted={worldAttempted} focusTick={worldFocus} />
+            ) : (
+              <PlaceholderStep title={step.title} subtitle={step.subtitle} />
+            )}
           </section>
         </main>
 

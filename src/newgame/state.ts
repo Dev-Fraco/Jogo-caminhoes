@@ -1,3 +1,5 @@
+import { getCountry, getDivision, getLeague } from '../data/world';
+
 /**
  * Estado e regras do assistente "Novo Jogo".
  * As próximas etapas (mundo, clube, confirmação) entram como novos campos de NewGameState
@@ -41,15 +43,19 @@ export interface CoachProfile {
   reputation: ReputationId | ''; // '' = não escolhido
 }
 
+/** Etapa 2: ids de data/world.ts ('' = ainda não escolhido). */
+export interface WorldSelection { countryId: string; leagueId: string; divisionId: string }
+
 export interface NewGameState {
   coach: CoachProfile; // Etapa 1
-  // Etapa 2 (mundo):        world?: { country, leagues, divisions }
+  world: WorldSelection; // Etapa 2
   // Etapa 3 (clube):        club?: { clubId }
   // Etapa 4 (confirmação):  setup?: { difficulty, mode, saveName }
 }
 
 export const createNewGameState = (): NewGameState => ({
   coach: { name: '', nationality: '', reputation: '' },
+  world: { countryId: '', leagueId: '', divisionId: '' },
 });
 
 export const NAME_MIN = 2;
@@ -68,6 +74,16 @@ export function validateCoach(c: CoachProfile): CoachErrors {
   return errors;
 }
 
+export interface WorldErrors { country?: string; league?: string; division?: string }
+
+/** Mostra só o erro do primeiro nível que falta: país, depois liga, depois divisão. */
+export function validateWorld(w: WorldSelection): WorldErrors {
+  if (!getCountry(w.countryId)) return { country: 'Selecione um país.' };
+  if (!getLeague(w.countryId, w.leagueId)) return { league: 'Selecione uma liga.' };
+  if (!getDivision(w.countryId, w.leagueId, w.divisionId)) return { division: 'Selecione uma divisão.' };
+  return {};
+}
+
 export type StepId = 'coach' | 'world' | 'club' | 'confirm';
 
 export interface StepDef {
@@ -82,7 +98,7 @@ export interface StepDef {
 
 export const STEPS: StepDef[] = [
   { id: 'coach', title: 'Perfil do Treinador', implemented: true, isValid: (s) => Object.keys(validateCoach(s.coach)).length === 0 },
-  { id: 'world', title: 'Mundo', subtitle: 'País, Ligas, Divisões', implemented: false, isValid: () => false },
+  { id: 'world', title: 'Mundo', subtitle: 'País, Ligas, Divisões', implemented: true, isValid: (s) => Object.keys(validateWorld(s.world)).length === 0 },
   { id: 'club', title: 'Escolha do Clube', implemented: false, isValid: () => false },
   { id: 'confirm', title: 'Confirmação', subtitle: 'Dificuldade, Modo de Jogo, Nome do Save', implemented: false, isValid: () => false },
 ];
