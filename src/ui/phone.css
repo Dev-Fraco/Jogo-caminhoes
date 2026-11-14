@@ -4,7 +4,7 @@
 .ph-device { position: relative; width: min(94vw, 380px); height: min(92dvh, 760px); border-radius: 42px; padding: 11px; background: #0b0b0d; border: 2px solid #3a3a40; box-shadow: 0 0 0 3px #17171a, 0 30px 80px rgba(0, 0, 0, .7); transform-origin: 50% 100%; animation: ph-open .7s cubic-bezier(.2, .9, .25, 1.05) both; }
 .ph-notch { position: absolute; top: 18px; left: 50%; width: 92px; height: 22px; margin-left: -46px; border-radius: 14px; background: #000; z-index: 6; }
 .ph-power { position: absolute; right: -7px; top: 120px; width: 6px; height: 56px; border: 0; border-radius: 0 4px 4px 0; background: #3a3a40; color: transparent; font-size: 0; cursor: pointer; }
-.ph-power:focus-visible { outline: 3px solid var(--gold-hi, #fff6a8); }
+.ph-power:focus-visible { outline: 3px solid var(--gold-hi, #9fcbff); }
 .ph-screen { position: relative; height: 100%; border-radius: 32px; overflow: hidden; color: #fff; display: flex; flex-direction: column; }
 .ph-wall { position: absolute; inset: 0; z-index: 0; }
 .ph-device.light .ph-screen { color: #101015; }
@@ -46,7 +46,7 @@
 .ph-label { margin: 8px 0 4px; font-size: 13px; opacity: .8; }
 .ph-walls { display: flex; gap: 10px; }
 .ph-walls button { width: 48px; height: 66px; border-radius: 10px; border: 2px solid transparent; cursor: pointer; }
-.ph-walls button.on { border-color: #fff; box-shadow: 0 0 0 2px var(--gold, #ffe21a); }
+.ph-walls button.on { border-color: #fff; box-shadow: 0 0 0 2px var(--gold, #4da3ff); }
 .ph-row { display: flex; align-items: center; gap: 10px; width: 100%; background: none; border: 0; color: inherit; padding: 9px 0; text-align: left; cursor: pointer; font: 14px system-ui; }
 .ph-row.static { cursor: default; }
 .ph-row small { display: block; opacity: .7; font-size: 12px; }
@@ -56,7 +56,7 @@
 .ph-sw.on::after { transform: translateX(18px); }
 .ph-btn { border: 0; border-radius: 10px; padding: 9px 14px; background: rgba(255, 255, 255, .16); color: inherit; font: 600 13px system-ui; cursor: pointer; }
 .ph-device.light .ph-btn { background: rgba(0, 0, 0, .1); }
-.ph-btn.pri { background: var(--gold, #ffe21a); color: #1a1400; }
+.ph-btn.pri { background: var(--gold, #4da3ff); color: #ffffff; }
 .ph-btn.ghost { background: transparent; border: 1px solid currentColor; opacity: .75; }
 .ph-btn:disabled { opacity: .4; }
 .ph-btns { display: flex; gap: 6px; }
@@ -104,7 +104,7 @@
 .ap-chips { margin: 8px 0; }
 .ap-kinds { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0 8px; }
 .ap-kinds button { flex: none; border: 1px solid rgba(255, 255, 255, .25); background: transparent; color: inherit; border-radius: 16px; padding: 5px 12px; font: 600 12px system-ui; cursor: pointer; }
-.ap-kinds button.on { background: var(--gold, #ffe21a); color: #1a1400; border-color: transparent; }
+.ap-kinds button.on { background: var(--gold, #4da3ff); color: #ffffff; border-color: transparent; }
 .ap-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .ap-list > li > button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 12px; border: 0; background: rgba(255, 255, 255, .07); color: inherit; text-align: left; cursor: pointer; font: 13px system-ui; }
 .ap-list .grow { flex: 1; min-width: 0; }
@@ -114,7 +114,7 @@
 .ap-hero > span { font-size: 64px; }
 .ap-hero h2 { margin: 0; }
 .ap-hero b { font-size: 22px; margin-top: 4px; }
-.ap-stars { color: var(--gold, #ffe21a); letter-spacing: 1px; }
+.ap-stars { color: var(--gold, #4da3ff); letter-spacing: 1px; }
 .bk-steps { font-size: 13px; opacity: .9; padding-left: 18px; display: grid; gap: 4px; }
 .bk-sub.center { text-align: center; }
 
@@ -142,7 +142,7 @@
 .so-result { text-align: center; display: grid; justify-items: center; gap: 6px; padding: 14px 0; animation: ph-pop .5s both; }
 .so-big { font-size: 64px; }
 .so-spark { display: flex; align-items: flex-end; gap: 3px; height: 90px; padding: 6px; background: rgba(255, 255, 255, .06); border-radius: 12px; }
-.so-spark i { flex: 1; background: var(--gold, #ffe21a); border-radius: 3px 3px 0 0; min-height: 4px; }
+.so-spark i { flex: 1; background: var(--gold, #4da3ff); border-radius: 3px 3px 0 0; min-height: 4px; }
 .in { color: #4be08a; } 
 
 .cs-bal { background: linear-gradient(135deg, #0d3b1f, #1d8a4a); border-radius: 14px; padding: 10px 14px; display: grid; gap: 2px; color: #fff; margin-bottom: 6px; }
@@ -150,16 +150,16 @@
 .cs-wheel { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
 .cs-slot { height: 84px; border-radius: 14px; display: grid; place-items: center; color: #fff; font: 700 14px system-ui; border: 3px solid transparent; opacity: .45; transition: transform .1s, opacity .1s; }
 .cs-slot.lit { opacity: 1; transform: scale(1.06); border-color: #fff; box-shadow: 0 0 18px rgba(255, 255, 255, .6); }
-.cs-slot.win { animation: ph-pop .6s both; box-shadow: 0 0 26px var(--gold, #ffe21a); border-color: var(--gold, #ffe21a); }
+.cs-slot.win { animation: ph-pop .6s both; box-shadow: 0 0 26px var(--gold, #4da3ff); border-color: var(--gold, #4da3ff); }
 .cs-msg { text-align: center; font: 700 15px system-ui; margin: 4px 0 8px; min-height: 22px; }
 .cs-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
 .cs-pick button { height: 46px; border-radius: 12px; border: 3px solid transparent; color: #fff; font: 700 14px system-ui; cursor: pointer; opacity: .6; }
-.cs-pick button.on { opacity: 1; border-color: #fff; box-shadow: 0 0 0 2px var(--gold, #ffe21a); }
+.cs-pick button.on { opacity: 1; border-color: #fff; box-shadow: 0 0 0 2px var(--gold, #4da3ff); }
 .cs-pick button:disabled { cursor: default; }
 .cs-dot { width: 18px; height: 18px; border-radius: 50%; flex: none; border: 2px solid rgba(255, 255, 255, .5); }
 .nw-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .nw-list li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: 12px; background: rgba(255, 255, 255, .07); }
-.nw-list li.mine { border-left: 3px solid var(--gold, #ffe21a); }
+.nw-list li.mine { border-left: 3px solid var(--gold, #4da3ff); }
 .nw-list li.quote.good { border-left: 3px solid #2fbf6b; }
 .nw-list li.quote.bad { border-left: 3px solid #e5262d; }
 .nw-list .grow { flex: 1; min-width: 0; font-size: 13px; }

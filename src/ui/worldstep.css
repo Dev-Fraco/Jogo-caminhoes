@@ -18,8 +18,8 @@
 .nw-grow { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .nw-pick-body strong { font: 700 clamp(17px, 2.4vh, 21px)/1.05 'Inter', system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
 .nw-pick-body small { font: 500 clamp(12.5px, 1.8vh, 14.5px)/1.35 'Inter', system-ui, sans-serif; color: var(--ink-dim); }
-.nw-pick:hover .nw-pick-body { border-color: var(--gold); background: rgba(255, 226, 26, .10); transform: translateY(-2px); }
-.nw-pick input:checked + .nw-pick-body { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); box-shadow: 0 0 0 1px rgba(255, 226, 26, .5), 0 8px 26px rgba(255, 226, 26, .30); }
+.nw-pick:hover .nw-pick-body { border-color: var(--gold); background: rgba(77, 163, 255, .10); transform: translateY(-2px); }
+.nw-pick input:checked + .nw-pick-body { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); box-shadow: 0 0 0 1px rgba(77, 163, 255, .5), 0 8px 26px rgba(77, 163, 255, .30); }
 .nw-pick input:checked + .nw-pick-body small { color: rgba(7, 20, 12, .82); }
 .nw-pick input:focus-visible + .nw-pick-body { outline: 3px solid #fff; outline-offset: 3px; }
 .nw-ws-set:disabled .nw-pick:hover .nw-pick-body { transform: none; }
@@ -43,7 +43,7 @@
   font: 700 clamp(16px, 2.3vh, 20px)/1.2 'Inter', system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase;
 }
 .nw-summary i { color: var(--gold); font-style: normal; font-size: 1.2em; }
-.nw-summary.ok { border-style: solid; border-color: var(--gold); background: rgba(255, 226, 26, .10); }
+.nw-summary.ok { border-style: solid; border-color: var(--gold); background: rgba(77, 163, 255, .10); }
 .nw-summary .nw-flag { font-size: 1.6em; }
 
 @media (max-width: 900px) { .nw-countries { grid-template-columns: repeat(4, 1fr); } }

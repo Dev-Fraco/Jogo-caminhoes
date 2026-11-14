@@ -39,7 +39,7 @@
 
 /* Meta da diretoria, com cor por severidade */
 .cc-exp { padding: 5px 10px 4px; border: 1px solid currentColor; border-radius: 3px; font: 700 13px/1 'Inter', system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; }
-.cc-exp.title { color: var(--gold); background: rgba(255, 226, 26, .12); }
+.cc-exp.title { color: var(--gold); background: rgba(77, 163, 255, .12); }
 .cc-exp.top4 { color: #5fd7ff; background: rgba(95, 215, 255, .12); }
 .cc-exp.mid { color: #ffd23f; background: rgba(255, 210, 63, .12); }
 .cc-exp.survive { color: #ff7a52; background: rgba(255, 122, 82, .13); }
@@ -54,8 +54,8 @@
 }
 
 /* Estados */
-.cc:hover .cc-body { border-color: var(--gold); transform: translateY(-2px); box-shadow: 0 8px 26px rgba(255, 226, 26, .20); }
-.cc input:checked + .cc-body { border-color: var(--gold); background: rgba(255, 226, 26, .14); box-shadow: inset 0 0 0 2px var(--gold), 0 8px 28px rgba(255, 226, 26, .28); }
+.cc:hover .cc-body { border-color: var(--gold); transform: translateY(-2px); box-shadow: 0 8px 26px rgba(77, 163, 255, .20); }
+.cc input:checked + .cc-body { border-color: var(--gold); background: rgba(77, 163, 255, .14); box-shadow: inset 0 0 0 2px var(--gold), 0 8px 28px rgba(77, 163, 255, .28); }
 .cc input:checked + .cc-body .cc-check { opacity: 1; transform: none; }
 .cc input:focus-visible + .cc-body { outline: 3px solid var(--gold); outline-offset: 3px; }
 
@@ -81,7 +81,7 @@
 }
 
 /* ---------- Rolagem suave dentro do painel do assistente ---------- */
-.nw-body { scroll-behavior: smooth; scrollbar-width: thin; scrollbar-color: rgba(255, 226, 26, .55) transparent; }
+.nw-body { scroll-behavior: smooth; scrollbar-width: thin; scrollbar-color: rgba(77, 163, 255, .55) transparent; }
 @media (prefers-reduced-motion: reduce) { .nw-body { scroll-behavior: auto; } }
 
 /* ---------- Botão "Ver elenco", cores do time e overall no cartão ---------- */
@@ -94,7 +94,7 @@
   font: 700 14px/1 'Inter', system-ui, sans-serif; letter-spacing: .16em; text-transform: uppercase;
   transition: background-color .18s ease, border-color .18s ease, color .18s ease;
 }
-.cc-squad-btn:hover { border-color: var(--gold); color: var(--gold); background: rgba(255, 226, 26, .08); }
+.cc-squad-btn:hover { border-color: var(--gold); color: var(--gold); background: rgba(77, 163, 255, .08); }
 .cc-squad-btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 .cc-swatch { display: inline-flex; margin-left: 10px; vertical-align: middle; }
 .cc-swatch i { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, .6); }
@@ -118,7 +118,7 @@
 .ss-x { align-self: flex-start; width: 40px; height: 40px; cursor: pointer; color: var(--ink); background: transparent; border: 1px solid var(--glass-line); border-radius: 4px; font-size: 16px; }
 .ss-x:hover { border-color: var(--gold); color: var(--gold); }
 .ss-x:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
-.ss-body { flex: 1; overflow-y: auto; padding: 8px 20px 14px; scrollbar-width: thin; scrollbar-color: rgba(255, 226, 26, .55) transparent; }
+.ss-body { flex: 1; overflow-y: auto; padding: 8px 20px 14px; scrollbar-width: thin; scrollbar-color: rgba(77, 163, 255, .55) transparent; }
 .ss-legend { margin: 8px 0 0; color: var(--ink-dim); font: 500 13px 'Inter', system-ui, sans-serif; }
 .ss-group h3 { margin: 16px 0 6px; color: var(--gold); font: 700 15px/1 'Inter', system-ui, sans-serif; letter-spacing: .2em; text-transform: uppercase; }
 .ss-group h3 small { color: var(--ink-dim); font-size: 14px; letter-spacing: .1em; }
