@@ -13,7 +13,6 @@ export const MENU_OPTIONS = [
   { id: 'opcoes', label: 'Opções', hint: 'Idioma, áudio e backups' },
   { id: 'mods', label: 'Mods da Comunidade', hint: 'Ligas, elencos, escudos e mais' },
   { id: 'creditos', label: 'Créditos', hint: 'Equipe e desenvolvimento' },
-  { id: 'simular-anos', label: 'Simular Anos', hint: 'Avançar temporadas rapidamente' },
   { id: 'sair', label: 'Sair', hint: 'Fechar o jogo' },
 ] as const;
 

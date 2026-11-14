@@ -14,7 +14,6 @@ export const ICONS: Record<string, ReactNode> = {
   opcoes: <g><circle cx="12" cy="12" r="6.2" fill="none" stroke="currentColor" strokeWidth="3" />{gearTeeth}<circle cx="12" cy="12" r="2.3" fill="currentColor" /></g>,
   mods: <path d="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7 1.49 0 2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5S21.88 11 20.5 11z" fill="currentColor" />,
   creditos: <g fill="currentColor"><circle cx="12" cy="8" r="3.2" /><circle cx="5.2" cy="9.6" r="2.4" /><circle cx="18.8" cy="9.6" r="2.4" /><path d="M6.2 20v-3.2a5.8 5.8 0 0 1 11.6 0V20z" /><path d="M1.5 18.4v-2a3.7 3.7 0 0 1 4.7-3.5 7 7 0 0 0-1.9 4.6v.9zM22.5 18.4v-2a3.7 3.7 0 0 0-4.7-3.5 7 7 0 0 1 1.9 4.6v.9z" /></g>,
-  'simular-anos': <g {...S}><rect x="3.5" y="5" width="17" height="15" rx="2" /><path d="M3.5 10h17M8 3v4M16 3v4" /><g fill="currentColor" stroke="none"><circle cx="8" cy="13.5" r="1" /><circle cx="12" cy="13.5" r="1" /><circle cx="16" cy="13.5" r="1" /><circle cx="8" cy="17" r="1" /><circle cx="12" cy="17" r="1" /></g></g>,
   sair: <g {...S} strokeWidth={2.2}><path d="M12 3v8.5" /><path d="M6.6 6.6a8 8 0 1 0 10.8 0" /></g>,
   // atalhos da faixa inferior
   competicoes: <g {...S}><path d="M7.5 4h9v5a4.5 4.5 0 0 1-9 0zM7.5 6H4.5c0 3 1.2 4.5 3.3 4.8M16.5 6h3c0 3-1.2 4.5-3.3 4.8M12 13.5V17M8.5 20h7M9.5 17h5" /></g>,

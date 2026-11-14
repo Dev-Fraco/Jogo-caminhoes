@@ -27,7 +27,6 @@ import { Lineup } from './Lineup';
 import { LiveMatch } from './LiveMatch';
 import { recordHall } from '../engine/hall';
 import { Credits, ExitScreen, HallScreen, LoadGame, Mods } from './MenuScreens';
-import { SimYears } from './SimYears';
 import { Squad } from './Squad';
 import { Unemployed } from './Unemployed';
 import { Table } from './Table';
@@ -99,7 +98,6 @@ export function App() {
   if (screen === 'carregar-jogo') return <LoadGame onBack={toMenu} onLoaded={() => { setGame(loadGame()); setLast([]); setTab('home'); setScreen('game'); }} />;
   if (screen === 'mods') return <Mods onBack={toMenu} />;
   if (screen === 'creditos') return <Credits onBack={toMenu} />;
-  if (screen === 'simular-anos') return <SimYears onBack={toMenu} onHall={() => setScreen('hall')} />;
   if (screen === 'hall') return <HallScreen onBack={toMenu} />;
   if (screen === 'sair') return <ExitScreen onBack={toMenu} />;
 

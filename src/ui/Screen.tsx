@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Backdrop } from './Backdrop';
 
-/** Moldura das telas do menu (Carregar, Mods, Créditos, Simular Anos, Sair, Salão de campeões): fundo, cabeçalho e botão de voltar. */
+/** Moldura das telas do menu (Carregar, Mods, Créditos, Sair, Salão de campeões): fundo, cabeçalho e botão de voltar. */
 export function Screen({ title, onBack, children }: { title: string; onBack: () => void; children: ReactNode }) {
   return (
     <>

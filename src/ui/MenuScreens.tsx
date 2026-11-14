@@ -202,7 +202,7 @@ export function HallScreen({ onBack }: { onBack: () => void }) {
       <div className="chips" role="tablist" aria-label="Modo">
         {([['todos', 'Todos'], ['carreira', 'Carreira'], ['simulacao', 'Simulação']] as const).map(([id, l]) => <button key={id} role="tab" aria-selected={mode === id} className={mode === id ? 'on' : ''} onClick={() => setMode(id)}>{l}</button>)}
       </div>
-      {shown.length === 0 && <div className="card center"><p className="hint">Nenhum campeão guardado ainda. Termine temporadas na carreira ou use "Simular Anos".</p></div>}
+      {shown.length === 0 && <div className="card center"><p className="hint">Nenhum campeão guardado ainda. Termine temporadas na carreira.</p></div>}
       {worlds.map((w) => (
         <section key={w}>
           <h3>{w}</h3>
