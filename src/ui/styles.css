@@ -92,3 +92,13 @@ select { font: inherit; padding: 10px; border-radius: 10px; border: 1px solid va
 .legend .k.lib { background: #1a73e8; } .legend .k.sul { background: #f5a623; } .legend .k.acc { background: #12a150; } .legend .k.rel { background: #d93025; }
 .outcome { font-weight: 700; font-size: 16px; } .outcome.promoted { color: #137a3f; } .outcome.relegated { color: #b3261e; }
 .moves p { margin: 6px 0; font-size: 14px; line-height: 1.4; }
+
+/* Nome completo do clube na tabela: quebra em duas linhas quando não cabe (ex.: Red Bull Bragantino) */
+.table .l { display: table-cell; }
+.table .l .dot { float: left; margin: 3px 6px 0 0; }
+.table .cname { display: block; overflow: hidden; line-height: 1.2; }
+@media (max-width: 480px) {
+  .table { font-size: 13px; }
+  .table th, .table td { padding: 8px 2px; }
+  .table .l { padding-left: 6px; }
+}

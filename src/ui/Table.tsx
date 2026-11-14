@@ -34,7 +34,7 @@ export function Table({ game }: { game: GameState }) {
             return (
               <tr key={r.clubId} className={`${r.clubId === game.userClubId ? 'mine' : ''} ${zone(idx, count, i, n)}`}>
                 <td>{i + 1}</td>
-                <td className="l"><span className="dot" style={{ background: c.primaryColor }} />{c.shortName}</td>
+                <td className="l"><span className="dot" style={{ background: c.primaryColor }} /><span className="cname">{c.name}</span></td>
                 <td><b>{r.points}</b></td><td>{r.played}</td><td>{r.won}</td><td>{r.drawn}</td><td>{r.lost}</td><td>{r.gd}</td>
               </tr>
             );
