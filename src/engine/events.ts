@@ -1,5 +1,5 @@
 import { estadualOfUser, estadualTable, playEstadualStep, userEstadualMatch } from './estadual';
-import { gateOf } from './finance';
+import { playHomeGate } from './stadium';
 import { updateMorale } from './morale';
 import { COPA_DO_BRASIL, cupMatchDue, playCupRound, userCupTie } from './cup';
 import { CONTINENTALS, matchDue, mundialMatchDue, mundialStepName, mundialUserMatch, playContStep, playMundialStep, stepName, userMatch, type Comp } from './continental';
@@ -35,7 +35,7 @@ export function playEvent(g: GameState, kind: EventKind): { state: GameState; re
     if (mine) {
       const rows = estadualTable(state, mine.div, my.round);
       state = { ...state, morale: updateMorale(g.morale, { gf, ga, home, position: rows.findIndex((x) => x.clubId === g.userClubId) + 1, size: Math.max(20, rows.length), round: Math.max(4, my.round), expectation: g.clubs[g.userClubId].boardExpectation }) };
-      if (home && state.budgets[g.userClubId] !== undefined) state = { ...state, budgets: { ...state.budgets, [g.userClubId]: state.budgets[g.userClubId] + gateOf(state, g.userClubId) } }; // bilheteria do jogo em casa
+      if (home && state.budgets[g.userClubId] !== undefined) state = playHomeGate(state, my.awayId, 'Estadual').state; // público e bilheteria do jogo em casa
     }
   }
   return { ...r, state };

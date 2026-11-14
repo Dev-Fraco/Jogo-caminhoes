@@ -53,7 +53,7 @@ export function setWageCover(g: GameState, pct: WageCover): GameState {
 }
 
 /** Depois de cada rodada do campeonato: salários de todos os clubes, bilheteria de quem jogou em casa e o salário do treinador. */
-export function roundFinance(g: GameState, homeIds: Set<string>): GameState {
+export function roundFinance(g: GameState, homeIds: Set<string>, userGateSeparate = false): GameState {
   const budgets = { ...g.budgets };
   const ledger = g.ledger && g.ledger.season === g.season ? { ...g.ledger } : emptyLedger(g.season);
   let wallet = coachMoneyOf(g);
@@ -76,7 +76,7 @@ export function roundFinance(g: GameState, homeIds: Set<string>): GameState {
       ledger.wages += wages;
     }
     budgets[id] -= wages;
-    if (homeIds.has(id)) { const gate = gateOf(g, id); budgets[id] += gate; if (managed(g, id)) ledger.gate += gate; }
+    if (homeIds.has(id) && !(userGateSeparate && id === g.userClubId)) { const gate = gateOf(g, id); budgets[id] += gate; if (managed(g, id)) ledger.gate += gate; }
     budgets[id] = Math.round(budgets[id]);
   }
 

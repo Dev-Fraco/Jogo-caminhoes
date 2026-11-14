@@ -325,6 +325,8 @@ export interface GameState {
   /** Dinheiro pessoal do treinador (R$) e quanto da folha ele paga (0/25/50/100). */
   coachMoney?: number;
   wageCover?: number;
+  /** Estádio do seu clube: capacidade, conforto, preço do ingresso e público dos últimos jogos. */
+  stadium?: import('./stadium').StadiumState;
   /** Balanço da temporada do seu clube. */
   ledger?: { season: number; gate: number; wages: number; coachCover: number; coachSalary: number };
   /** Clubes de outros países que disputam a Libertadores (ficam fora do campeonato e do mercado). */
