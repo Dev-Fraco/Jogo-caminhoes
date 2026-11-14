@@ -1,4 +1,4 @@
-import { DIVISION_INCOME } from './economy';
+import { DIVISION_INCOME, GATE_SHARE, priceIndex, WAGE_SHARE } from './economy';
 import { managed } from './lookup';
 import { divisionIndexOf } from './transfers';
 import type { GameState, Morale, NewsItem, Player } from './types';
@@ -13,21 +13,21 @@ export interface Ledger { season: number; gate: number; wages: number; coachCove
 export const emptyLedger = (season: number): Ledger => ({ season, gate: 0, wages: 0, coachCover: 0, coachSalary: 0 });
 
 /** Receita-base anual de um clube (a mesma lógica da receita de fim de temporada, com a posição no meio da tabela). */
-export const baseIncome = (divisionIndex: number, reputation: number) =>
-  DIVISION_INCOME[Math.min(divisionIndex, DIVISION_INCOME.length - 1)] * (0.6 + 0.2 * reputation);
+export const baseIncome = (divisionIndex: number, reputation: number, infl = 1) =>
+  DIVISION_INCOME[Math.min(divisionIndex, DIVISION_INCOME.length - 1)] * (0.6 + 0.2 * reputation) * infl;
 
 /** Overall típico de um elenco do clube (reputação e divisão): salários crescem para quem está acima disso. */
 const refStrength = (divisionIndex: number, reputation: number) => [59, 64, 69, 75, 82][Math.min(Math.max(reputation, 1), 5) - 1] - 5 * Math.min(divisionIndex, 3);
 
 const ageFactor = (age: number) => (age <= 20 ? 0.7 : age <= 31 ? 1 : age <= 34 ? 0.85 : 0.6);
 
-/** Salário anual do jogador no clube (R$). Um elenco típico de 24 jogadores custa ~55% da receita-base do clube. */
+/** Salário anual do jogador no clube (R$). Um elenco típico de 24 jogadores custa ~90% da receita-base do clube (corrigida pela inflação). */
 /** Salário que o clube pagaria pela fórmula (sem contrato negociado). */
 export function baseWage(g: GameState, clubId: string, p: Player): number {
   const idx = divisionIndexOf(g, clubId);
   const rep = g.clubs[clubId].reputation;
-  const unit = (0.55 * baseIncome(idx, rep)) / 24;
-  const w = unit * 1.12 ** (p.strength - refStrength(idx, rep)) * ageFactor(p.age);
+  const unit = (WAGE_SHARE * baseIncome(idx, rep, priceIndex(g))) / 24;
+  const w = unit * 1.1 ** Math.max(-12, Math.min(12, p.strength - refStrength(idx, rep))) * ageFactor(p.age); // o salário sobe com o overall, mas com teto (senão a folha dispara quando o elenco melhora)
   return Math.max(6_000, Math.round(w / 1_000) * 1_000);
 }
 
@@ -39,10 +39,10 @@ export const payrollOf = (g: GameState, clubId: string) => g.teams[clubId].playe
 export function gateOf(g: GameState, clubId: string): number {
   const idx = divisionIndexOf(g, clubId);
   const fans = clubId === g.userClubId ? g.morale.fans : 60;
-  return Math.round((0.25 * baseIncome(idx, g.clubs[clubId].reputation) * (0.8 + fans / 250)) / (g.totalRounds / 2) / 1_000) * 1_000;
+  return Math.round((GATE_SHARE * baseIncome(idx, g.clubs[clubId].reputation, priceIndex(g)) * (0.8 + fans / 250)) / (g.totalRounds / 2) / 1_000) * 1_000;
 }
 /** Salário anual do treinador, pago pelo clube. */
-export const coachSalary = (g: GameState) => Math.max(60_000, Math.round(0.04 * baseIncome(divisionIndexOf(g, g.userClubId), g.clubs[g.userClubId].reputation) / 1_000) * 1_000);
+export const coachSalary = (g: GameState) => Math.max(60_000, Math.round(0.04 * baseIncome(divisionIndexOf(g, g.userClubId), g.clubs[g.userClubId].reputation, priceIndex(g)) / 1_000) * 1_000);
 
 export const coachMoneyOf = (g: Pick<GameState, 'coachMoney' | 'coach'>) => g.coachMoney ?? COACH_WALLET[g.coach.reputation] ?? 100_000;
 export const wageCoverOf = (g: Pick<GameState, 'wageCover'>) => g.wageCover ?? 0;

@@ -1,7 +1,7 @@
 import { clamp, type Rng } from './rng';
 import { managed } from './lookup';
 import { repairLineup, rosterOk } from './roster';
-import { DIVISION_INCOME } from './economy';
+import { DIVISION_INCOME, inflate, priceIndex, SEASON_INCOME_FACTOR } from './economy';
 import { autoLineup, randomName } from './squad';
 import { divisionIndexOf, playerValue } from './transfers';
 import type { GameState, NewsItem, Player, Position, RetiredPlayer, TeamState } from './types';
@@ -138,7 +138,7 @@ export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[
           for (const p of seller.players) {
             if (p.pos !== pos || p.strength < w + 4 || p.age > 33) continue;
             if (sxi.has(p.id) && !(bdi < sdi)) continue; // titular só sai para clube de divisão mais alta
-            const price = playerValue(p, sdi);
+            const price = inflate(s, playerValue(p, sdi));
             if (price > cap || (best && p.strength <= best.strength)) continue;
             if (!rosterOk(seller.players.filter((x) => x.id !== p.id))) continue;
             best = { id: p.id, from: sellerId, price, strength: p.strength };
@@ -186,7 +186,7 @@ export function offseason(g: GameState, rng: Rng, input: OffseasonInput): { stat
   const promotion: { clubId: string; strong: boolean; bonus: number }[] = [];
   for (const { clubId, to } of input.promoted) {
     const strong = rng() < PROMOTED_STRONG_CHANCE;
-    const base = DIVISION_INCOME[Math.min(to, DIVISION_INCOME.length - 1)];
+    const base = DIVISION_INCOME[Math.min(to, DIVISION_INCOME.length - 1)] * SEASON_INCOME_FACTOR * priceIndex(s);
     const bonus = Math.max(100_000, round100k(base * (strong ? 1 + rng() : 0.1 + 0.3 * rng())));
     s = { ...s, budgets: { ...s.budgets, [clubId]: (s.budgets[clubId] ?? 0) + bonus } };
     promotion.push({ clubId, strong, bonus });
@@ -201,7 +201,7 @@ export function offseason(g: GameState, rng: Rng, input: OffseasonInput): { stat
     const stars = [...s.teams[clubId].players].sort((a, b) => b.strength - a.strength).slice(0, 2);
     const sold: string[] = [];
     for (const p of stars) {
-      const fee = playerValue(p, divisionIndexOf(s, clubId));
+      const fee = inflate(s, playerValue(p, divisionIndexOf(s, clubId)));
       const buyers = Object.keys(s.teams).filter((id) => id !== clubId && !managed(s, id) && s.teams[id].players.length < AI_MAX_SQUAD && (s.budgets[id] ?? 0) >= fee);
       const left = s.teams[clubId].players.filter((x) => x.id !== p.id);
       if (!buyers.length || !rosterOk(left)) continue;

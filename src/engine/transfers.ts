@@ -1,3 +1,4 @@
+import { inflate } from './economy';
 import { autoLineup } from './squad';
 import type { GameState, Player, Position } from './types';
 
@@ -32,7 +33,7 @@ export function marketEntries(g: GameState): MarketEntry[] {
   for (const [clubId, team] of Object.entries(g.teams)) {
     if (clubId === g.userClubId) continue;
     const di = divisionIndexOf(g, clubId);
-    for (const player of team.players) out.push({ player, clubId, price: playerValue(player, di) });
+    for (const player of team.players) out.push({ player, clubId, price: inflate(g, playerValue(player, di)) });
   }
   return out;
 }
@@ -56,7 +57,7 @@ export function checkBuy(g: GameState, playerId: string): BuyCheck {
   if (!fromClubId) return { ok: false, reason: 'not-found' };
   const seller = g.teams[fromClubId];
   const player = seller.players.find((p) => p.id === playerId)!;
-  const price = playerValue(player, divisionIndexOf(g, fromClubId));
+  const price = inflate(g, playerValue(player, divisionIndexOf(g, fromClubId)));
   if (user.players.length >= MAX_SQUAD) return { ok: false, reason: 'squad-full', price, fromClubId };
   if ((g.budgets[g.userClubId] ?? 0) < price) return { ok: false, reason: 'budget', price, fromClubId };
   const left = seller.players.filter((p) => p.id !== playerId);

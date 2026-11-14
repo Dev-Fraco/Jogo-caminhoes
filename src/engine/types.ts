@@ -296,6 +296,8 @@ export interface GameState {
   casino?: CasinoState;
   /** Sem clube (demitido ou pediu demissão): o clube antigo passa a ser controlado pela IA. */
   unemployed?: boolean;
+  /** Inflação acumulada (índice de preços, 1,00 no início da carreira) e a taxa de cada ano. */
+  inflation?: { index: number; rate: number; history: { season: number; rate: number }[] };
   /** Mundo só para assistir (Simular Anos): ninguém é o treinador. */
   observer?: boolean;
   /** Pagar boletos sozinho com o saldo (usado ao pular temporadas). */

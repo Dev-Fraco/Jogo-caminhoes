@@ -1,3 +1,4 @@
+import { prize } from './economy';
 import { moraleFactor } from './morale';
 import { simulateMatch } from './match';
 import { makeRng, type Rng } from './rng';
@@ -111,7 +112,7 @@ export function playCupRound(g: GameState): { state: GameState; results: MatchRe
 
   const winners = ties.map((t) => t.winnerId!);
   const budgets = { ...g.budgets };
-  for (const w of winners) budgets[w] = (budgets[w] ?? 0) + CUP_PRIZE[CUP_PRIZE.length - cup.totalRounds + cup.roundIndex];
+  for (const w of winners) budgets[w] = (budgets[w] ?? 0) + prize(g, CUP_PRIZE[CUP_PRIZE.length - cup.totalRounds + cup.roundIndex]);
   const rounds = [...cup.rounds.slice(0, cup.roundIndex), { ...round, ties }];
   const finished = winners.length === 1;
   if (!finished) rounds.push({ name: CUP_ROUND_NAMES[CUP_ROUND_NAMES.length - cup.totalRounds + cup.roundIndex + 1], ties: pair(rng, winners) });

@@ -1,4 +1,5 @@
 import { CLUBS_DATA, type ClubData } from '../data/clubs';
+import { prize } from './economy';
 import { clubOf, teamOf } from './lookup';
 import { moraleFactor } from './morale';
 import { simulateMatch } from './match';
@@ -169,7 +170,7 @@ export function playContStep(g: GameState, key: Comp): { state: GameState; resul
   const results: MatchResult[] = [];
   const news: NewsItem[] = [];
   const budgets = { ...g.budgets };
-  const pay = (id: string, v: number) => { if (id in budgets) budgets[id] += v; };
+  const pay = (id: string, v: number) => { if (id in budgets) budgets[id] += prize(g, v); };
   const say = (text: string, tone: NewsItem['tone']) => news.push({ season: g.season, round: g.round, text, tone });
   let next: LibState;
 
@@ -265,7 +266,7 @@ export function playMundialStep(g: GameState): { state: GameState; results: Matc
   const ties = round.ties.map((t) => {
     const r = playTie(g, rng, t, MUNDIAL_ID, m.step + 1, results);
     const loser = r.winnerId === t.homeId ? t.awayId : t.homeId;
-    if (r.winnerId! in budgets) budgets[r.winnerId!] += final ? MUNDIAL_PRIZE.champion : MUNDIAL_PRIZE.semi;
+    if (r.winnerId! in budgets) budgets[r.winnerId!] += prize(g, final ? MUNDIAL_PRIZE.champion : MUNDIAL_PRIZE.semi);
     if (isMine(g)(t)) {
       const rival = clubOf(g, r.winnerId === g.userClubId ? loser : r.winnerId!).name;
       const text = r.winnerId !== g.userClubId ? `🌍 Mundial: eliminado pelo ${rival} (${round.name}).` : final ? '🏆 CAMPEÃO MUNDIAL DE CLUBES!' : `🌍 Mundial: você eliminou o ${rival} e está na final!`;

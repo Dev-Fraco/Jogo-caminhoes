@@ -1,4 +1,5 @@
 import { creditAccount } from './bank';
+import { priceIndex } from './economy';
 import { prestigeScore } from './assets';
 import { notifyPhone } from './phone';
 import { makeRng } from './rng';
@@ -136,7 +137,7 @@ export function socialAds(g: GameState): GameState {
   for (const app of ['linstagra', 'tikiteko'] as SocialApp[]) {
     const p = s[app];
     if (p.followers < 1_000) continue;
-    const pay = Math.round((p.followers * APP_INFO[app].adPerFollower) / 100) * 100;
+    const pay = Math.round((p.followers * APP_INFO[app].adPerFollower * priceIndex(g)) / 100) * 100;
     sum += pay;
     next[app] = { ...p, adIncome: p.adIncome + pay };
   }

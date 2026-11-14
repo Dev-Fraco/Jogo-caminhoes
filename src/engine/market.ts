@@ -2,6 +2,7 @@ import { CLUBS_DATA, type ClubData } from '../data/clubs';
 import { estadualClub } from '../data/estaduais_clubs';
 import { COUNTRY_ORDER, WORLD_DATA } from '../data/world';
 import { developPlayer } from './ai';
+import { inflate } from './economy';
 import { baseWage } from './finance';
 import { clubOf } from './lookup';
 import { clamp, hashString, makeRng } from './rng';
@@ -104,7 +105,7 @@ export function quote(g: GameState, clubId: string, playerId: string): Quote | n
   const ranked = [...squad].sort((a, b) => b.strength - a.strength);
   const idx = ranked.findIndex((p) => p.id === playerId);
   const role = idx === 0 ? 'best' : idx < 11 ? 'starter' : 'reserve';
-  const price = Math.round(playerValue(player, club.divIndex) * (international ? 1.1 : 1) / 10_000) * 10_000;
+  const price = Math.round(inflate(g, playerValue(player, club.divIndex)) * (international ? 1.1 : 1) / 10_000) * 10_000;
   const askFee = Math.round(price * (role === 'best' ? 1.25 : role === 'starter' ? 1.05 : 1) / 10_000) * 10_000;
   const minFee = Math.round(price * (role === 'best' ? 1.1 : role === 'starter' ? 0.97 : 0.88) / 10_000) * 10_000;
   const myScore = leagueScore(mine.countryId, divisionIndexOf(g, g.userClubId));

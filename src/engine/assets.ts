@@ -1,3 +1,4 @@
+import { inflate } from './economy';
 import { balanceOf, brl, createBoleto, createCharge, creditAccount, registerPurpose } from './bank';
 import { notifyPhone } from './phone';
 import type { AssetsState, Contract, GameState, NewsItem, OwnedAsset, PayPurpose, PixCharge } from './types';
@@ -90,9 +91,10 @@ export function buyVehicle(g: GameState, id: string, mode: PayMode): Started | F
   if (!v) return { ok: false, error: 'Veículo não encontrado.' };
   if (assetsOf(g).vehicles.some((x) => x.id === id)) return { ok: false, error: 'Você já tem esse veículo.' };
   if (mode.type === 'finance' && !VEHICLE_LOAN.options.includes(mode.installments)) return { ok: false, error: 'Número de parcelas inválido.' };
-  const q = mode.type === 'finance' ? vehicleQuote(v.price, mode.installments) : null;
-  const amount = q ? q.entry : v.price;
-  const purpose: PayPurpose = { type: 'buy-vehicle', ref: id, data: { installments: q?.installments ?? 0, monthly: q?.monthly ?? 0, price: v.price } };
+  const price = inflate(g, v.price); // preço de hoje (com a inflação)
+  const q = mode.type === 'finance' ? vehicleQuote(price, mode.installments) : null;
+  const amount = q ? q.entry : price;
+  const purpose: PayPurpose = { type: 'buy-vehicle', ref: id, data: { installments: q?.installments ?? 0, monthly: q?.monthly ?? 0, price } };
   const { state, charge } = createCharge(g, { merchant: 'Concessionária', description: q ? `${v.name} — entrada (financiado em ${q.installments}x de ${brl(q.monthly)})` : `${v.name} — à vista`, amount, purpose });
   return { ok: true, state, charge };
 }
@@ -102,9 +104,10 @@ export function buyHome(g: GameState, id: string, mode: PayMode): Started | Fail
   if (!h) return { ok: false, error: 'Imóvel não encontrado.' };
   if (assetsOf(g).houses.some((x) => x.id === id)) return { ok: false, error: 'Você já tem esse imóvel.' };
   if (mode.type === 'finance' && !HOUSE_LOAN.options.includes(mode.installments)) return { ok: false, error: 'Número de parcelas inválido.' };
-  const q = mode.type === 'finance' ? houseQuote(h.price!, mode.installments) : null;
-  const amount = q ? q.entry : h.price!;
-  const purpose: PayPurpose = { type: 'buy-house', ref: id, data: { installments: q?.installments ?? 0, monthly: q?.monthly ?? 0, price: h.price! } };
+  const price = inflate(g, h.price!);
+  const q = mode.type === 'finance' ? houseQuote(price, mode.installments) : null;
+  const amount = q ? q.entry : price;
+  const purpose: PayPurpose = { type: 'buy-house', ref: id, data: { installments: q?.installments ?? 0, monthly: q?.monthly ?? 0, price } };
   const { state, charge } = createCharge(g, { merchant: 'Corretor de Imóveis', description: q ? `${h.name} — entrada (financiado em ${q.installments}x de ${brl(q.monthly)})` : `${h.name} — à vista`, amount, purpose });
   return { ok: true, state, charge };
 }
@@ -116,7 +119,7 @@ export function rentHome(g: GameState, id: string): Started | Fail {
   const h = HOUSES_RENT.find((x) => x.id === id);
   if (!h) return { ok: false, error: 'Imóvel não encontrado.' };
   if (currentRental(g)) return { ok: false, error: 'Você já tem um aluguel. Encerre o atual antes.' };
-  const { state, charge } = createCharge(g, { merchant: 'Corretor de Imóveis', description: `${h.name} — 1º mês de aluguel`, amount: h.rent!, purpose: { type: 'rent-start', ref: id, data: { rent: h.rent! } } });
+  const { state, charge } = createCharge(g, { merchant: 'Corretor de Imóveis', description: `${h.name} — 1º mês de aluguel`, amount: inflate(g, h.rent!), purpose: { type: 'rent-start', ref: id, data: { rent: inflate(g, h.rent!) } } });
   return { ok: true, state, charge };
 }
 
@@ -254,4 +257,6 @@ export function prestigeScore(g: Pick<GameState, 'assets'>): number {
   const best = (xs: OwnedAsset[], f: (id: string) => number) => xs.reduce((m, x) => Math.max(m, f(x.id)), 0);
   return best(a.vehicles, (id) => vehicleById(id)?.prestige ?? 0) + best(a.houses, (id) => homeById(id)?.prestige ?? 0) + (currentRental(g) ? (homeById(currentRental(g)!.assetId)?.prestige ?? 0) : 0);
 }
+/** Preço de hoje (base × inflação) de um veículo, imóvel ou aluguel. */
+export const priceOf = (g: GameState, base: number) => inflate(g, base);
 export const canAfford = (g: GameState, amount: number) => balanceOf(g) >= amount;

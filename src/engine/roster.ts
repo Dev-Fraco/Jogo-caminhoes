@@ -1,4 +1,5 @@
 import type { Rng } from './rng';
+import { inflate } from './economy';
 import { autoLineup } from './squad';
 import { divisionIndexOf, MAX_SQUAD, MIN_BY_POS, MIN_SQUAD, playerValue } from './transfers';
 import { FORMATIONS, type GameState, type Offer, type Player, type Position, type TeamState, type Transfer } from './types';
@@ -27,7 +28,7 @@ const mine = (g: GameState, id: string) => g.teams[g.userClubId].players.find((p
 const log = (g: GameState, t: Omit<Transfer, 'season' | 'round'>): Transfer[] => [...g.transfers, { season: g.season, round: g.round, ...t }];
 
 /** Valor do jogador pela divisão do clube do jogador (é por quanto ele costuma ser vendido). */
-export const myValue = (g: GameState, p: Player) => playerValue(p, divisionIndexOf(g, g.userClubId));
+export const myValue = (g: GameState, p: Player) => inflate(g, playerValue(p, divisionIndexOf(g, g.userClubId)));
 
 /* ---------------- listas de transferência e de empréstimo ---------------- */
 

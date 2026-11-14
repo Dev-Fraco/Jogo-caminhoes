@@ -1,5 +1,6 @@
 import { ESTADUAIS } from '../data/br_estaduais';
 import { ESTADUAL_SPLIT, estadualClub, estadualClubsOf } from '../data/estaduais_clubs';
+import { prize } from './economy';
 import { clubOf, managed, teamOf } from './lookup';
 import { moraleFactor } from './morale';
 import { simulateMatch } from './match';
@@ -124,7 +125,7 @@ export function playEstadualStep(g: GameState): { state: GameState; results: Mat
     const news = [...state.news];
     for (const c of comps) {
       const champ = estadualTable(state, c.divisions[0])[0].clubId;
-      if (champ in budgets) budgets[champ] += ESTADUAL_PRIZE;
+      if (champ in budgets) budgets[champ] += prize(g, ESTADUAL_PRIZE);
       if (!g.unemployed && !g.observer && c.divisions.some((d) => d.clubIds.includes(g.userClubId))) {
         const mineDiv = c.divisions.find((d) => d.clubIds.includes(g.userClubId))!;
         const pos = estadualTable(state, mineDiv).findIndex((r) => r.clubId === g.userClubId) + 1;

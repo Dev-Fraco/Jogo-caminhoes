@@ -1,3 +1,4 @@
+import { priceIndex } from '../engine/economy';
 import { coachMoneyOf, coachSalary, gateOf, payrollOf, setWageCover, WAGE_COVER_OPTIONS, wageCoverOf, wageOf } from '../engine/finance';
 import type { GameState, Position } from '../engine/types';
 import { formatBudget } from '../newgame/format';
@@ -26,6 +27,15 @@ export function Finance({ game, onChange, onBack }: Props) {
         <h2 className={budget < 0 ? 'neg' : ''}>{budget < 0 ? '−' : ''}{formatBudget(Math.abs(budget))}</h2>
         {budget < 0 && <p className="hint">⚠️ No vermelho: diretoria e elenco ficam insatisfeitos e você não consegue contratar.</p>}
       </div>
+
+      <section>
+        <h3>Inflação</h3>
+        <div className="card">
+          <div className="row"><span className="grow">Preços acumulados desde o início</span><b>{priceIndex(game) <= 1 ? '0%' : `+${((priceIndex(game) - 1) * 100).toFixed(1).replace('.', ',')}%`}</b></div>
+          <div className="row"><span className="grow">Inflação do último ano</span><b>{game.inflation ? `${(game.inflation.rate * 100).toFixed(1).replace('.', ',')}%` : '—'}</b></div>
+          <p className="hint">Todo ano os preços de jogadores, salários, bilheteria, receitas e bens (carros, casas, aluguéis) sobem. Contratos, financiamentos e aluguéis já assinados mantêm o valor combinado.</p>
+        </div>
+      </section>
 
       <section>
         <h3>Folha de pagamento</h3>

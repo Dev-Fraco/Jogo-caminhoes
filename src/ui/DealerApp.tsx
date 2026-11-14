@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { audio } from '../audio/audio';
-import { assetsOf, buyVehicle, resaleValue, sellAsset, vehicleById, vehicleQuote, VEHICLES, VEHICLE_LOAN, type Vehicle, type VehicleKind } from '../engine/assets';
+import { assetsOf, buyVehicle, priceOf, resaleValue, sellAsset, vehicleById, vehicleQuote, VEHICLES, VEHICLE_LOAN, type Vehicle, type VehicleKind } from '../engine/assets';
 import { balanceOf, brl } from '../engine/bank';
 import type { GameState } from '../engine/types';
 import { ChargeView, getPending, setPending, Stars } from './AppKit';
@@ -44,7 +44,7 @@ export function DealerApp({ game, onChange, onOpenApp }: Props) {
               <li key={v.id}><button onClick={() => { setSel(v); setMsg(undefined); }}>
                 <span className="ph-ico big">{v.icon}</span>
                 <span className="grow"><b>{v.name}</b><small>{v.kind} · <Stars n={v.prestige} /></small></span>
-                <b>{brl(v.price)}</b>
+                <b>{brl(priceOf(game, v.price))}</b>
               </button></li>
             ))}
           </ul>
@@ -75,12 +75,13 @@ export function DealerApp({ game, onChange, onOpenApp }: Props) {
 function VehicleDetail({ game, v, back, onStart, msg }: { game: GameState; v: Vehicle; back: () => void; onStart: (m: { type: 'cash' } | { type: 'finance'; installments: number }) => void; msg?: string }) {
   const [mode, setMode] = useState<'cash' | 'finance'>('cash');
   const [n, setN] = useState(VEHICLE_LOAN.options[1]);
-  const q = vehicleQuote(v.price, n);
-  const need = mode === 'cash' ? v.price : q.entry;
+  const price = priceOf(game, v.price);
+  const q = vehicleQuote(price, n);
+  const need = mode === 'cash' ? price : q.entry;
   return (
     <>
       <button className="bk-back" onClick={back}>‹ Voltar</button>
-      <div className="ap-hero"><span>{v.icon}</span><h2>{v.name}</h2><small>{v.kind} · <Stars n={v.prestige} /></small><b>{brl(v.price)}</b></div>
+      <div className="ap-hero"><span>{v.icon}</span><h2>{v.name}</h2><small>{v.kind} · <Stars n={v.prestige} /></small><b>{brl(price)}</b></div>
       <div className="chips ap-chips" role="radiogroup" aria-label="Forma de pagamento">
         <button role="radio" aria-checked={mode === 'cash'} className={mode === 'cash' ? 'on' : ''} onClick={() => setMode('cash')}>À vista</button>
         <button role="radio" aria-checked={mode === 'finance'} className={mode === 'finance' ? 'on' : ''} onClick={() => setMode('finance')}>Financiar</button>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { audio } from '../audio/audio';
-import { assetsOf, buyHome, currentRental, endRent, HOUSES_BUY, HOUSES_RENT, homeById, HOUSE_LOAN, houseQuote, rentHome, resaleValue, sellAsset, type Home } from '../engine/assets';
+import { assetsOf, buyHome, priceOf, currentRental, endRent, HOUSES_BUY, HOUSES_RENT, homeById, HOUSE_LOAN, houseQuote, rentHome, resaleValue, sellAsset, type Home } from '../engine/assets';
 import { balanceOf, brl } from '../engine/bank';
 import type { GameState } from '../engine/types';
 import { ChargeView, getPending, setPending, Stars } from './AppKit';
@@ -27,7 +27,7 @@ export function RealtorApp({ game, onChange, onOpenApp }: Props) {
     <li><button onClick={() => { setSel(h); setMsg(undefined); }}>
       <span className="ph-ico big">{h.icon}</span>
       <span className="grow"><b>{h.name}</b><small>{h.blurb} <Stars n={h.prestige} /></small></span>
-      <b>{h.rent ? `${brl(h.rent)}/mês` : brl(h.price!)}</b>
+      <b>{h.rent ? `${brl(priceOf(game, h.rent))}/mês` : brl(priceOf(game, h.price!))}</b>
     </button></li>
   );
 
@@ -77,14 +77,15 @@ function HomeDetail({ game, h, back, onStart, msg }: { game: GameState; h: Home;
   const [mode, setMode] = useState<'cash' | 'finance'>('cash');
   const [n, setN] = useState(HOUSE_LOAN.options[1]);
   const rent = !!h.rent;
-  const q = rent ? null : houseQuote(h.price!, n);
-  const need = rent ? h.rent! : mode === 'cash' ? h.price! : q!.entry;
+  const price = priceOf(game, rent ? h.rent! : h.price!);
+  const q = rent ? null : houseQuote(price, n);
+  const need = rent ? price : mode === 'cash' ? price : q!.entry;
   return (
     <>
       <button className="bk-back" onClick={back}>‹ Voltar</button>
-      <div className="ap-hero"><span>{h.icon}</span><h2>{h.name}</h2><small>{h.blurb} <Stars n={h.prestige} /></small><b>{rent ? `${brl(h.rent!)}/mês` : brl(h.price!)}</b></div>
+      <div className="ap-hero"><span>{h.icon}</span><h2>{h.name}</h2><small>{h.blurb} <Stars n={h.prestige} /></small><b>{rent ? `${brl(price)}/mês` : brl(price)}</b></div>
       {rent ? (
-        <div className="ph-card"><p className="bk-sub">Você paga o 1º mês agora por Pix. Depois, um boleto de {brl(h.rent!)} chega todo mês (a cada 3 rodadas), com aviso no celular. Atrasar 2 boletos causa despejo.</p></div>
+        <div className="ph-card"><p className="bk-sub">Você paga o 1º mês agora por Pix. Depois, um boleto de {brl(price)} chega todo mês (a cada 3 rodadas), com aviso no celular. Atrasar 2 boletos causa despejo.</p></div>
       ) : (
         <>
           <div className="chips ap-chips" role="radiogroup" aria-label="Forma de pagamento">

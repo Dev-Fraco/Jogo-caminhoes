@@ -22,7 +22,8 @@ import { computeTable } from './table';
 import type { ClubInfo, DivisionState, FormationId, Fixture, GameState, MatchResult, Position, SeasonSummary, TableRow } from './types';
 
 export { DIVISION_INCOME, seasonIncome } from './economy';
-import { seasonIncome } from './economy';
+import { baseIncome } from './finance';
+import { nextInflation, priceIndex, seasonIncome } from './economy';
 
 /** Quantos clubes sobem e descem entre divisões vizinhas (Série A↔B, B↔C, C↔D). */
 export const PROMOTION_SLOTS = 4;
@@ -234,7 +235,14 @@ export function startNextSeason(g: GameState): GameState {
   // receita da temporada para todos os clubes, conforme a divisão em que jogaram e a posição final
   const budgets = { ...g.budgets };
   moves.forEach((m, i) => m.table.forEach((r, idx) => {
-    budgets[r.clubId] = (budgets[r.clubId] ?? 0) + seasonIncome(i, g.clubs[r.clubId].reputation, idx + 1, m.table.length);
+    const id = r.clubId;
+    budgets[id] = (budgets[id] ?? 0) + seasonIncome(i, g.clubs[id].reputation, idx + 1, m.table.length, priceIndex(g));
+    if (!managed(g, id)) {
+      // clubes da IA: o excesso de caixa vira obras e infraestrutura; dívida é renegociada (sem espiral de falência)
+      const cap = 5 * baseIncome(i, g.clubs[id].reputation, priceIndex(g));
+      if (budgets[id] > cap) budgets[id] = Math.round(cap + (budgets[id] - cap) * 0.5);
+      if (budgets[id] < 0) budgets[id] = 0;
+    }
   }));
   const back = expireContracts(returnLoans(g));
   // títulos do treinador nesta temporada
@@ -251,7 +259,8 @@ export function startNextSeason(g: GameState): GameState {
     if (g.ucl?.championId === mine) add(g.ucl.name, 'continental');
     if (g.mundial?.championId === mine) add(g.mundial.name, 'mundial');
   }
-  const next: GameState = { ...back, titles, season: g.season + 1, round: 1, totalRounds, divisions, fixtures, results: [], budgets, offers: [], history: [...g.history, summary] };
+  const inflation = nextInflation(g, makeRng(g.seed * 37 + g.season * 5 + 1)); // a inflação do ano que começa
+  const next: GameState = { ...back, titles, inflation, news: [{ season: g.season + 1, round: 1, text: `📈 Inflação de ${(inflation.rate * 100).toFixed(1).replace('.', ',')}%: preços, salários e receitas sobem.`, tone: 'info' as const }, ...back.news].slice(0, 80), season: g.season + 1, round: 1, totalRounds, divisions, fixtures, results: [], budgets, offers: [], history: [...g.history, summary] };
   // a IA entra em ação: evolução dos jogadores, investimento dos promovidos, crises dos rebaixados e janela de transferências
   const arrivals = (list: 'promoted' | 'relegated', delta: number) => moves.flatMap((m, i) => m[list].map((clubId) => ({ clubId, to: i + delta })));
   const rng = makeRng(g.seed * 977 + g.season * 31 + 5);
