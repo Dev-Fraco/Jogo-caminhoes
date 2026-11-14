@@ -111,10 +111,66 @@ export const WORLD_DATA: Record<string, Country> = {
       ],
     }],
   },
+  BO: {
+    name: 'Bolívia', flag: '🇧🇴',
+    leagues: [{
+      id: 'liga-boliviana', name: 'Liga Boliviana', description: 'Campeonato nacional de pontos corridos — Bolívia (1ª divisão).',
+      divisions: [{ id: 'bo-primera', name: '1ª Divisão', alias: 'Liga Boliviana', teams: 16 }],
+    }],
+  },
+  CL: {
+    name: 'Chile', flag: '🇨🇱',
+    leagues: [{
+      id: 'primera-chile', name: 'Primera División', description: 'Campeonato nacional de pontos corridos — Chile (1ª divisão).',
+      divisions: [{ id: 'cl-primera', name: '1ª Divisão', alias: 'Primera División', teams: 16 }],
+    }],
+  },
+  CO: {
+    name: 'Colômbia', flag: '🇨🇴',
+    leagues: [{
+      id: 'liga-colombiana', name: 'Liga Colombiana', description: 'Campeonato nacional de pontos corridos — Colômbia (1ª divisão).',
+      divisions: [{ id: 'co-primera', name: '1ª Divisão', alias: 'Liga BetPlay', teams: 20 }],
+    }],
+  },
+  EC: {
+    name: 'Equador', flag: '🇪🇨',
+    leagues: [{
+      id: 'liga-pro', name: 'Liga Pro', description: 'Campeonato nacional de pontos corridos — Equador (1ª divisão).',
+      divisions: [{ id: 'ec-primera', name: '1ª Divisão', alias: 'Liga Pro', teams: 16 }],
+    }],
+  },
+  PY: {
+    name: 'Paraguai', flag: '🇵🇾',
+    leagues: [{
+      id: 'primera-paraguay', name: 'Primera División', description: 'Campeonato nacional de pontos corridos — Paraguai (1ª divisão).',
+      divisions: [{ id: 'py-primera', name: '1ª Divisão', alias: 'Primera División', teams: 12 }],
+    }],
+  },
+  PE: {
+    name: 'Peru', flag: '🇵🇪',
+    leagues: [{
+      id: 'liga-1-peru', name: 'Liga 1', description: 'Campeonato nacional de pontos corridos — Peru (1ª divisão).',
+      divisions: [{ id: 'pe-primera', name: '1ª Divisão', alias: 'Liga 1', teams: 18 }],
+    }],
+  },
+  UY: {
+    name: 'Uruguai', flag: '🇺🇾',
+    leagues: [{
+      id: 'primera-uruguay', name: 'Primera División', description: 'Campeonato nacional de pontos corridos — Uruguai (1ª divisão).',
+      divisions: [{ id: 'uy-primera', name: '1ª Divisão', alias: 'Primera División', teams: 16 }],
+    }],
+  },
+  VE: {
+    name: 'Venezuela', flag: '🇻🇪',
+    leagues: [{
+      id: 'liga-futve', name: 'Liga FUTVE', description: 'Campeonato nacional de pontos corridos — Venezuela (1ª divisão).',
+      divisions: [{ id: 've-primera', name: '1ª Divisão', alias: 'Liga FUTVE', teams: 14 }],
+    }],
+  },
 };
 
 /** Ordem de exibição dos países. */
-export const COUNTRY_ORDER = ['BR', 'AR', 'EN', 'ES', 'IT', 'DE', 'FR', 'PT'] as const;
+export const COUNTRY_ORDER = ['BR', 'AR', 'EN', 'ES', 'IT', 'DE', 'FR', 'PT', 'BO', 'CL', 'CO', 'EC', 'PY', 'PE', 'UY', 'VE'] as const;
 
 export const getCountry = (id: string): Country | undefined => WORLD_DATA[id];
 export const getLeague = (countryId: string, leagueId: string): League | undefined =>

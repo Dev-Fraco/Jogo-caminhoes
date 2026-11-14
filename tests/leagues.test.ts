@@ -4,11 +4,12 @@ import { pyramidOf, slotsOfLeague } from '../src/data/pyramid';
 import { getLeague } from '../src/data/world';
 import { isSeasonOver, newCareer, playRound, startNextSeason, divisionTable } from '../src/engine/game';
 
-const LEAGUES: [string, string][] = [['AR', 'liga-profesional'], ['EN', 'premier-league'], ['IT', 'serie-a-it'], ['ES', 'la-liga'], ['DE', 'bundesliga'], ['FR', 'ligue-1'], ['PT', 'primeira-liga']];
+const LEAGUES: [string, string][] = [['AR', 'liga-profesional'], ['EN', 'premier-league'], ['IT', 'serie-a-it'], ['ES', 'la-liga'], ['DE', 'bundesliga'], ['FR', 'ligue-1'], ['PT', 'primeira-liga']]
+const ONE_DIV: [string, string][] = [['BO', 'liga-boliviana'], ['CL', 'primera-chile'], ['CO', 'liga-colombiana'], ['EC', 'liga-pro'], ['PY', 'primera-paraguay'], ['PE', 'liga-1-peru'], ['UY', 'primera-uruguay'], ['VE', 'liga-futve']];;
 
 describe('ligas estrangeiras', () => {
   it('cada divisão tem clubes e sigla única', () => {
-    for (const [c, l] of LEAGUES) for (const d of getLeague(c, l)!.divisions) {
+    for (const [c, l] of [...LEAGUES, ...ONE_DIV]) for (const d of getLeague(c, l)!.divisions) {
       const clubs = CLUBS_DATA[d.id];
       expect(clubs?.length, d.id).toBe(d.teams);
       expect(new Set(clubs.map((x) => x.shortName)).size, d.id).toBe(clubs.length);
@@ -29,5 +30,12 @@ describe('ligas estrangeiras', () => {
     expect(n.season).toBe(2027);
     n.divisions.forEach((d, i) => expect(d.clubIds.length).toBe(divisions[i].clubs.length));
     expect(new Set(n.divisions.flatMap((d) => d.clubIds)).size).toBe(Object.keys(n.clubs).length);
+  });
+  it.each(ONE_DIV)('liga de divisão única %s/%s: temporadas seguidas sem acesso/rebaixamento', (c, l) => {
+    const divisions = pyramidOf(c, l);
+    let g = newCareer({ saveName: 't', coach: { name: 'Teste Silva', nationality: 'BR', reputation: 'pro' }, difficulty: 'normal', mode: 'career', season: 2026, userClubId: divisions[0].clubs[3].id, divisions, slots: slotsOfLeague(l), leagueName: l }, 9);
+    for (let s = 0; s < 2; s++) { while (!isSeasonOver(g)) g = playRound(g).state; g = startNextSeason(g); }
+    expect(g.season).toBe(2028);
+    expect(g.divisions[0].clubIds.length).toBe(divisions[0].clubs.length);
   });
 });

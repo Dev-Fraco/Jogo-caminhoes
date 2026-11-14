@@ -10,6 +10,7 @@ import { generateSquad } from '../engine/squad';
 import type { Player } from '../engine/types';
 import { AR_NACIONAL, AR_PRIMERA, EN_CHAMPIONSHIP, EN_LEAGUE_ONE, EN_PREMIER, ES_LALIGA, ES_SEGUNDA, IT_SERIE_A, IT_SERIE_B } from './clubs_world';
 import { DE_BUNDESLIGA, DE_BUNDESLIGA_2, FR_LIGUE_1, FR_LIGUE_2, PT_PRIMEIRA, PT_SEGUNDA } from './clubs_europe2';
+import { BO_PRIMERA, CL_PRIMERA, CO_PRIMERA, EC_PRIMERA, PE_PRIMERA, PY_PRIMERA, UY_PRIMERA, VE_PRIMERA } from './clubs_sulamerica';
 
 /** O que a diretoria espera da temporada. */
 export type BoardExpectation = 'title' | 'top4' | 'mid' | 'survive';
@@ -168,6 +169,14 @@ export const CLUBS_DATA: Record<string, ClubData[]> = {
   'ligue-2': build(FR_LIGUE_2, -6),
   'pt-primeira': build(PT_PRIMEIRA, -2),
   'pt-segunda': build(PT_SEGUNDA, -9),
+  'bo-primera': build(BO_PRIMERA, -9),
+  'cl-primera': build(CL_PRIMERA, -6),
+  'co-primera': build(CO_PRIMERA, -5),
+  'ec-primera': build(EC_PRIMERA, -7),
+  'py-primera': build(PY_PRIMERA, -7),
+  'pe-primera': build(PE_PRIMERA, -9),
+  'uy-primera': build(UY_PRIMERA, -6),
+  've-primera': build(VE_PRIMERA, -10),
 };
 
 /** Clubes de uma divisão (lista vazia se ainda não houver dados). */

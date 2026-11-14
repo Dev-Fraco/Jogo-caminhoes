@@ -3,19 +3,19 @@ import { COUNTRY_ORDER, getDivision, getLeague, isPrincipal, WORLD_DATA } from '
 import { createNewGameState, NATIONALITIES, STEPS, validateWorld } from '../src/newgame/state';
 
 describe('dados do mundo', () => {
-  it('8 países na ordem pedida, cada um com liga e 2+ divisões', () => {
-    expect(COUNTRY_ORDER.map((id) => WORLD_DATA[id].name)).toEqual(['Brasil', 'Argentina', 'Inglaterra', 'Espanha', 'Itália', 'Alemanha', 'França', 'Portugal']);
+  it('16 países na ordem pedida, cada um com liga e divisões', () => {
+    expect(COUNTRY_ORDER.map((id) => WORLD_DATA[id].name)).toEqual(['Brasil', 'Argentina', 'Inglaterra', 'Espanha', 'Itália', 'Alemanha', 'França', 'Portugal', 'Bolívia', 'Chile', 'Colômbia', 'Equador', 'Paraguai', 'Peru', 'Uruguai', 'Venezuela']);
     for (const id of COUNTRY_ORDER) {
       const c = WORLD_DATA[id];
       expect(c.flag).toBeTruthy();
       expect(c.leagues.length).toBeGreaterThanOrEqual(1);
       for (const l of c.leagues) {
         expect(l.description).toBeTruthy();
-        expect(l.divisions.length).toBeGreaterThanOrEqual(2);
+        expect(l.divisions.length).toBeGreaterThanOrEqual(1);
         expect(new Set(l.divisions.map((d) => d.id)).size).toBe(l.divisions.length); // ids únicos
         expect(l.divisions.every((d) => d.teams > 0)).toBe(true);
         expect(isPrincipal(l, l.divisions[0])).toBe(true);
-        expect(isPrincipal(l, l.divisions[1])).toBe(false);
+        if (l.divisions[1]) expect(isPrincipal(l, l.divisions[1])).toBe(false);
       }
     }
   });
