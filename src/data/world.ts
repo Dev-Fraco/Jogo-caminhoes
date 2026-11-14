@@ -5,6 +5,7 @@
  */
 
 export interface Division {
+  /** Único no mundo todo (ex.: 'it-serie-a'), pois CLUBS_DATA é indexado só por este id. */
   id: string;
   name: string;
   /** Nome local da divisão, mostrado como apoio (ex.: "Championship"). */
@@ -46,8 +47,8 @@ export const WORLD_DATA: Record<string, Country> = {
     leagues: [{
       id: 'liga-profesional', name: 'Liga Profesional', description: 'Campeonato nacional de pontos corridos da Argentina.',
       divisions: [
-        { id: 'primera', name: '1ª Divisão', alias: 'Primera División', teams: 30 },
-        { id: 'nacional', name: '2ª Divisão', alias: 'Primera Nacional', teams: 36 },
+        { id: 'ar-primera', name: '1ª Divisão', alias: 'Primera División', teams: 30 },
+        { id: 'ar-nacional', name: '2ª Divisão', alias: 'Primera Nacional', teams: 36 },
       ],
     }],
   },
@@ -66,8 +67,8 @@ export const WORLD_DATA: Record<string, Country> = {
     leagues: [{
       id: 'la-liga', name: 'La Liga', description: 'Campeonato nacional de pontos corridos da Espanha.',
       divisions: [
-        { id: 'primera', name: '1ª Divisão', alias: 'La Liga', teams: 20 },
-        { id: 'segunda', name: '2ª Divisão', alias: 'Segunda División', teams: 22 },
+        { id: 'es-primera', name: '1ª Divisão', alias: 'La Liga', teams: 20 },
+        { id: 'es-segunda', name: '2ª Divisão', alias: 'Segunda División', teams: 22 },
       ],
     }],
   },
@@ -76,8 +77,8 @@ export const WORLD_DATA: Record<string, Country> = {
     leagues: [{
       id: 'serie-a-it', name: 'Serie A', description: 'Campeonato nacional de pontos corridos da Itália.',
       divisions: [
-        { id: 'serie-a', name: '1ª Divisão', alias: 'Serie A', teams: 20 },
-        { id: 'serie-b', name: '2ª Divisão', alias: 'Serie B', teams: 20 },
+        { id: 'it-serie-a', name: '1ª Divisão', alias: 'Serie A', teams: 20 },
+        { id: 'it-serie-b', name: '2ª Divisão', alias: 'Serie B', teams: 20 },
       ],
     }],
   },
@@ -106,8 +107,8 @@ export const WORLD_DATA: Record<string, Country> = {
     leagues: [{
       id: 'primeira-liga', name: 'Primeira Liga', description: 'Campeonato nacional de pontos corridos de Portugal.',
       divisions: [
-        { id: 'primeira', name: '1ª Divisão', alias: 'Primeira Liga', teams: 18 },
-        { id: 'segunda', name: '2ª Divisão', alias: 'Liga Portugal 2', teams: 18 },
+        { id: 'pt-primeira', name: '1ª Divisão', alias: 'Primeira Liga', teams: 18 },
+        { id: 'pt-segunda', name: '2ª Divisão', alias: 'Liga Portugal 2', teams: 18 },
       ],
     }],
   },
