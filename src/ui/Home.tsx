@@ -14,7 +14,7 @@ import { EXPECTATION_LABEL } from '../newgame/format';
 
 interface Props {
   game: GameState; onChange: (g: GameState) => void; last: MatchResult[]; over: boolean;
-  onPlay: () => void; onSkip: () => void; onSeeTables: () => void; onSeeResults: () => void; onNextSeason: () => void; onEditLineup: () => void; onFinance: () => void; onSeeOffers: () => void;
+  onPlay: () => void; onSkip: (years: number) => void; onSeeTables: () => void; onSeeResults: () => void; onNextSeason: () => void; onEditLineup: () => void; onFinance: () => void; onSeeOffers: () => void;
 }
 
 function Meter({ label, value, note }: { label: string; value: number; note?: string }) {
@@ -35,6 +35,7 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
   const name = (id: string) => clubOf(game, id).name;
   const [open, setOpen] = useState<string | null>(null);
   const [askSkip, setAskSkip] = useState(false);
+  const [skipYears, setSkipYears] = useState(1);
   const [askLeave, setAskLeave] = useState(false);
   const [askJob, setAskJob] = useState<string | null>(null);
   const division = userDivision(game);
@@ -106,8 +107,12 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
         {!askSkip && <button className="btn home-lineup" onClick={() => setAskSkip(true)}>⏭ Pular temporada</button>}
         {askSkip && (
           <div className="skip-ask" role="alert">
-            <p>Simular todos os jogos até a rodada {game.totalRounds}, inclusive os do seu clube e as copas? Você verá todos os resultados e tabelas no fim.</p>
-            <button className="primary" onClick={() => { setAskSkip(false); onSkip(); }}>Sim, pular</button>
+            <p>Quantos anos pular? Todos os jogos de todas as divisões, as copas e o Mundial serão simulados, inclusive os do seu clube. No fim você vê os campeões de cada ano.</p>
+            <div className="chips" role="radiogroup" aria-label="Anos para pular">
+              {[1, 2, 3, 4, 5].map((n) => <button key={n} role="radio" aria-checked={skipYears === n} className={skipYears === n ? 'on' : ''} onClick={() => setSkipYears(n)}>{n} {n === 1 ? 'ano' : 'anos'}</button>)}
+            </div>
+            <p className="hint">Boletos em aberto serão pagos automaticamente com o seu saldo do banco, se houver. Contratos de jogadores que terminarem no período serão encerrados.</p>
+            <button className="primary" onClick={() => { setAskSkip(false); onSkip(skipYears); }}>Pular {skipYears} {skipYears === 1 ? 'ano' : 'anos'}</button>
             <button className="btn" onClick={() => setAskSkip(false)}>Cancelar</button>
           </div>
         )}

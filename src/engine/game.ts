@@ -195,6 +195,15 @@ export function seasonOutcome(g: GameState): SeasonOutcome {
   return { moves, userDivisionId: g.divisions[i].id, userPosition: m.table.findIndex((r) => r.clubId === g.userClubId) + 1, movement, nextDivisionId: g.divisions[next].id };
 }
 
+/** Resumo da temporada que acabou de terminar (campeões, classificações, copas). */
+export function seasonSummary(g: GameState, out: SeasonOutcome = seasonOutcome(g)): SeasonSummary {
+  const moves = out.moves;
+  return {
+    season: g.season, tables: moves.map((m) => ({ id: m.divisionId, rows: m.table.map((r) => [r.clubId, r.points, r.played, r.gd] as [string, number, number, number]) })), cupChampionId: g.cup?.championId, libChampionId: g.lib?.championId, uclChampionId: g.ucl?.championId, mundialChampionId: g.mundial?.championId, userDivisionId: out.userDivisionId, userPosition: out.userPosition,
+    divisions: moves.map((m) => ({ id: m.divisionId, championId: m.table[0].clubId, promoted: m.promoted, relegated: m.relegated })),
+  };
+}
+
 /** Encerra a temporada: aplica acesso e rebaixamento, guarda o resumo e monta o calendário da próxima. */
 export function startNextSeason(g: GameState): GameState {
   if (!isSeasonOver(g)) return g;
@@ -208,10 +217,7 @@ export function startNextSeason(g: GameState): GameState {
     return { id: d.id, name: d.name, clubIds: [...fromBelow, ...stay, ...fromAbove] };
   });
 
-  const summary: SeasonSummary = {
-    season: g.season, cupChampionId: g.cup?.championId, libChampionId: g.lib?.championId, uclChampionId: g.ucl?.championId, mundialChampionId: g.mundial?.championId, userDivisionId: out.userDivisionId, userPosition: out.userPosition,
-    divisions: moves.map((m) => ({ id: m.divisionId, championId: m.table[0].clubId, promoted: m.promoted, relegated: m.relegated })),
-  };
+  const summary = seasonSummary(g, out);
   const { fixtures, totalRounds } = buildSeason(divisions);
   // receita da temporada para todos os clubes, conforme a divisão em que jogaram e a posição final
   const budgets = { ...g.budgets };
@@ -219,7 +225,18 @@ export function startNextSeason(g: GameState): GameState {
     budgets[r.clubId] = (budgets[r.clubId] ?? 0) + seasonIncome(i, g.clubs[r.clubId].reputation, idx + 1, m.table.length);
   }));
   const back = expireContracts(returnLoans(g));
-  const next: GameState = { ...back, season: g.season + 1, round: 1, totalRounds, divisions, fixtures, results: [], budgets, offers: [], history: [...g.history, summary] };
+  // títulos do treinador nesta temporada
+  const titles = [...(g.titles ?? [])];
+  if (!g.unemployed && !g.observer) {
+    const mine = g.userClubId, clubName = g.clubs[mine].name;
+    const add = (competition: string, kind: 'liga' | 'copa' | 'continental' | 'mundial') => titles.push({ season: g.season, clubId: mine, clubName, competition, kind });
+    moves.forEach((m, i) => { if (m.table[0].clubId === mine) add(g.divisions[i].name, 'liga'); });
+    if (g.cup?.championId === mine) add(g.cup.name, 'copa');
+    if (g.lib?.championId === mine) add(g.lib.name, 'continental');
+    if (g.ucl?.championId === mine) add(g.ucl.name, 'continental');
+    if (g.mundial?.championId === mine) add(g.mundial.name, 'mundial');
+  }
+  const next: GameState = { ...back, titles, season: g.season + 1, round: 1, totalRounds, divisions, fixtures, results: [], budgets, offers: [], history: [...g.history, summary] };
   // a IA entra em ação: evolução dos jogadores, investimento dos promovidos, crises dos rebaixados e janela de transferências
   const arrivals = (list: 'promoted' | 'relegated', delta: number) => moves.flatMap((m, i) => m[list].map((clubId) => ({ clubId, to: i + delta })));
   const rng = makeRng(g.seed * 977 + g.season * 31 + 5);
@@ -235,6 +252,17 @@ export function startNextSeason(g: GameState): GameState {
 }
 
 /** Aviso antes de virar a temporada: o treinador será demitido? (motivo ou null) */
+/** Pula de 1 a 5 temporadas: simula tudo (campeonatos, copas, Mundial) e termina no fim da última temporada pulada. Com `autoPay`, boletos são pagos sozinhos. */
+export function skipSeasons(g: GameState, years: number, autoPay = true): GameState {
+  const n = Math.max(1, Math.min(5, Math.round(years)));
+  let s: GameState = { ...g, autoPay: autoPay || g.autoPay };
+  for (let i = 0; i < n; i++) {
+    s = simulateToEnd(s);
+    if (i < n - 1) s = startNextSeason(s);
+  }
+  return { ...s, autoPay: g.autoPay };
+}
+
 export const firingWarning = (g: GameState): string | null => {
   if (!isSeasonOver(g) || g.unemployed) return null;
   const out = seasonOutcome(g);

@@ -69,6 +69,7 @@ export function resign(g: GameState): GameState {
 
 /** Depois de cada rodada: acompanha a paciência da diretoria (3 rodadas no limite = demissão) e, sem clube, procura propostas. */
 export function boardTick(g: GameState, rng: Rng): GameState {
+  if (g.observer) return g;
   if (g.unemployed) return generateJobOffers(g, rng);
   const low = g.morale.board <= 10 + patience(g) && g.round >= 15 && g.round <= g.totalRounds - 3;
   const boardLow = low ? (g.boardLow ?? 0) + 1 : 0;
@@ -106,6 +107,7 @@ export function generateJobOffers(g: GameState, rng: Rng, force = 0): GameState 
 
 /** Fim de temporada: quem foi bem (título, G4 ou acesso) recebe propostas de clubes maiores. */
 export function seasonEndOffers(g: GameState, position: number, promoted: boolean): GameState {
+  if (g.observer) return g;
   if (g.unemployed) return generateJobOffers(g, makeRng(g.seed * 41 + g.season * 7), 2);
   if (!(position <= 3 || promoted)) return g;
   const rng = makeRng(g.seed * 43 + g.season * 11);

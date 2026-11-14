@@ -117,10 +117,10 @@ export function createBoleto(g: GameState, b: { merchant: string; description: s
 export const boletoTotal = (b: Boleto) => b.amount + b.fine;
 export const openBoletos = (g: Pick<GameState, 'bank'>) => (g.bank?.boletos ?? []).filter((b) => b.status !== 'paid');
 
-export function payBoleto(g: GameState, id: string, password: string): Result<{ tx: BankTx; boleto: Boleto }> {
+/** Paga o boleto sem pedir senha (pagamento automático autorizado pelo jogador ao pular temporadas). */
+function settleBoleto(g: GameState, id: string): Result<{ tx: BankTx; boleto: Boleto }> {
   const b = g.bank?.boletos.find((x) => x.id === id);
   if (!hasBank(g) || !b || b.status === 'paid') return { ok: false, error: 'Boleto não encontrado.' };
-  if (!checkPassword(g, password)) return { ok: false, error: 'Senha incorreta.' };
   const total = boletoTotal(b);
   if (balanceOf(g) < total) return { ok: false, error: 'Saldo insuficiente.' };
   const { bank, tx } = addTx(g.bank!, g, 'boleto', `Boleto pago — ${b.merchant}`, b.description, -total);
@@ -130,8 +130,23 @@ export function payBoleto(g: GameState, id: string, password: string): Result<{ 
   return { ok: true, state: s, tx, boleto: paid };
 }
 
+export function payBoleto(g: GameState, id: string, password: string): Result<{ tx: BankTx; boleto: Boleto }> {
+  if (!hasBank(g) || !g.bank?.boletos.some((x) => x.id === id && x.status !== 'paid')) return { ok: false, error: 'Boleto não encontrado.' };
+  if (!checkPassword(g, password)) return { ok: false, error: 'Senha incorreta.' };
+  return settleBoleto(g, id);
+}
+
+/** Com o pagamento automático ligado, os boletos em aberto são pagos com o saldo (se houver). */
+export function autoPayBoletos(g: GameState): GameState {
+  if (!g.autoPay || !hasBank(g)) return g;
+  let s = g;
+  for (const b of g.bank!.boletos.filter((x) => x.status !== 'paid')) { const r = settleBoleto(s, b.id); if (r.ok) s = r.state; }
+  return s;
+}
+
 /** A cada rodada: avisa boletos que vencem em até 2 rodadas e aplica multa nos vencidos. */
 export function tickBoletos(g: GameState): GameState {
+  g = autoPayBoletos(g);
   if (!g.bank || !g.bank.boletos.some((b) => b.status !== 'paid')) return g;
   const now = abs(g.season, g.round);
   let s = g;

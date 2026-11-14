@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { COMPS, CONTINENTALS, groupTable, type Comp } from '../engine/continental';
 import { clubOf } from '../engine/lookup';
+import { HistoryView, TrophyRoom } from './HistoryView';
 import { divisionTable, slotsOf, userDivisionIndex } from '../engine/game';
 import type { GameState } from '../engine/types';
 
@@ -22,10 +23,10 @@ function formOf(game: GameState, divisionId: string, clubId: string): ('W' | 'D'
   return out.slice(-5);
 }
 
-export function Table({ game, initialView = 'div' }: { game: GameState; initialView?: 'div' | 'rounds' }) {
+export function Table({ game, initialView = 'div' }: { game: GameState; initialView?: 'div' | 'rounds' | 'hist' }) {
   const mineIndex = userDivisionIndex(game);
   const [idx, setIdx] = useState(mineIndex);
-  const [view, setView] = useState<'div' | 'cup' | Comp | 'mundial' | 'rounds'>(initialView);
+  const [view, setView] = useState<'div' | 'cup' | Comp | 'mundial' | 'rounds' | 'hist' | 'titles'>(initialView);
   const division = game.divisions[idx];
   const rows = divisionTable(game, division.id);
   const n = rows.length;
@@ -41,12 +42,16 @@ export function Table({ game, initialView = 'div' }: { game: GameState; initialV
             {d.name}{i === mineIndex ? ' ★' : ''}
           </button>
         ))}
+        <button role="tab" aria-selected={view === 'hist'} className={view === 'hist' ? 'on' : ''} onClick={() => setView('hist')}>🏅 Campeões</button>
+        <button role="tab" aria-selected={view === 'titles'} className={view === 'titles' ? 'on' : ''} onClick={() => setView('titles')}>🥇 Meus títulos</button>
         <button role="tab" aria-selected={view === 'rounds'} className={view === 'rounds' ? 'on' : ''} onClick={() => setView('rounds')}>📋 Jogos</button>
         {game.cup && <button role="tab" aria-selected={view === 'cup'} className={view === 'cup' ? 'on' : ''} onClick={() => setView('cup')}>🏆 Copa</button>}
         {COMPS.map((k) => game[k] && <button key={k} role="tab" aria-selected={view === k} className={view === k ? 'on' : ''} onClick={() => setView(k)}>{CONTINENTALS[k].icon} {k === 'lib' ? 'Liberta' : 'Champions'}</button>)}
         {game.mundial && <button role="tab" aria-selected={view === 'mundial'} className={view === 'mundial' ? 'on' : ''} onClick={() => setView('mundial')}>🌍 Mundial</button>}
       </div>
       {view === 'rounds' && <RoundsView game={game} />}
+      {view === 'hist' && <HistoryView game={game} />}
+      {view === 'titles' && <TrophyRoom game={game} />}
       {view === 'cup' && game.cup && <CupView game={game} />}
       {(view === 'lib' || view === 'ucl') && game[view] && <LibView game={game} comp={view} />}
       {view === 'mundial' && game.mundial && <MundialView game={game} />}

@@ -192,7 +192,11 @@ export interface JobOffer { clubId: string; season: number; round: number; /** v
 export interface JobSpell { clubId: string; fromSeason: number; toSeason?: number; ended?: 'demitido' | 'pediu demissão' | 'contratado por outro clube' }
 export interface RetiredPlayer { name: string; age: number; pos: Position; strength: number; clubId: string; season: number }
 
+export interface CoachTitle { season: number; clubId: string; clubName: string; competition: string; kind: 'liga' | 'copa' | 'continental' | 'mundial' }
+
 export interface SeasonSummary {
+  /** Classificação final de cada divisão: [clube, pontos, jogos, saldo de gols]. */
+  tables?: { id: string; rows: [string, number, number, number][] }[];
   uclChampionId?: string;
   mundialChampionId?: string;
   libChampionId?: string;
@@ -275,6 +279,12 @@ export interface GameState {
   casino?: CasinoState;
   /** Sem clube (demitido ou pediu demissão): o clube antigo passa a ser controlado pela IA. */
   unemployed?: boolean;
+  /** Mundo só para assistir (Simular Anos): ninguém é o treinador. */
+  observer?: boolean;
+  /** Pagar boletos sozinho com o saldo (usado ao pular temporadas). */
+  autoPay?: boolean;
+  /** Títulos conquistados pelo treinador. */
+  titles?: CoachTitle[];
   /** Jogadores de clubes de outras ligas que saíram (out) ou chegaram (in) — esses elencos vêm dos dados do jogo. */
   foreignDeals?: Record<string, { out: string[]; in: Player[] }>;
   /** Rodadas de negociação por jogador (limite de tentativas por rodada). */

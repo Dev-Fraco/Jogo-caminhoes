@@ -175,3 +175,27 @@ select, input[type=text], input[type=search] { border-radius: 0; border-color: v
 .ng-input input { width: 100%; }
 .ng-input button { flex: none; }
 .ng-say { word-break: break-word; }
+
+/* ---------- Histórico, títulos e telas do menu ---------- */
+.hv { display: grid; gap: 10px; }
+.hv-year { background: rgba(7, 18, 36, .86); box-shadow: inset 0 0 0 1px var(--line); clip-path: var(--chamfer); --cut: 12px; padding: 10px 12px; }
+.hv-head { width: 100%; display: flex; justify-content: space-between; align-items: center; background: none; border: 0; color: var(--gold-hi); font: 800 15px var(--font-tech); padding: 2px 0 8px; }
+.hv-champs { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.hv-champs li { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; border-bottom: 1px solid rgba(34, 230, 255, .12); padding: 3px 0; }
+.hv-champs li span { color: var(--muted); } .hv-champs li b { text-align: right; }
+.hv-champs li.cup b { color: var(--gold-hi); }
+.hv-table { margin-top: 8px; }
+.hv-n { font: 700 12px var(--font-tech); font-style: normal; color: var(--gold-hi); margin-left: 6px; }
+.ld-row { display: flex; align-items: center; gap: 10px; }
+.ld-row small { display: block; color: var(--muted); }
+.md-text { width: 100%; font: 12px ui-monospace, monospace; color: var(--ink); background: rgba(2, 10, 22, .9); border: 1px solid var(--line); padding: 8px; box-sizing: border-box; }
+.cr-list p { margin: 0 0 12px; line-height: 1.4; } .cr-list p:last-child { margin: 0; }
+.cr-list b { color: var(--gold-hi); }
+.hv, .hv > *, .hv-year, .hv-table { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.hv-year { overflow: hidden; }
+.hv-champs li { min-width: 0; }
+.hv-champs li span { flex: none; max-width: 48%; }
+.hv-champs li b { min-width: 0; overflow-wrap: anywhere; }
+.hv-table { overflow-x: auto; }
+.hv-table .tb { min-width: 0; }
+.hv .chips { max-width: 100%; }

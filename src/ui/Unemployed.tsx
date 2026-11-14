@@ -4,7 +4,7 @@ import type { GameState } from '../engine/types';
 import { EXPECTATION_LABEL } from '../newgame/format';
 import { ClubBadge } from './ClubBadge';
 
-interface Props { game: GameState; over: boolean; onChange: (g: GameState) => void; onPlay: () => void; onSkip: () => void; onNextSeason: () => void; onSeeTables: () => void }
+interface Props { game: GameState; over: boolean; onChange: (g: GameState) => void; onPlay: () => void; onSkip: (years: number) => void; onNextSeason: () => void; onSeeTables: () => void }
 
 const ODDS_CLASS = { Alta: 'good', Média: 'mid', Baixa: 'bad', 'Muito baixa': 'bad' } as const;
 const stars = (n: number) => '★'.repeat(n) + '☆'.repeat(5 - n);
@@ -41,7 +41,7 @@ export function Unemployed({ game, over, onChange, onPlay, onSkip, onNextSeason,
           <>
             <small>Temporada {game.season} · Rodada {Math.min(game.round, game.totalRounds)} de {game.totalRounds}</small>
             <button className="primary" onClick={onPlay}>▶ Avançar rodada</button>
-            <button className="btn home-lineup" onClick={onSkip}>⏭ Pular temporada</button>
+            <button className="btn home-lineup" onClick={() => onSkip(1)}>⏭ Pular temporada</button>
           </>
         ) : (
           <>

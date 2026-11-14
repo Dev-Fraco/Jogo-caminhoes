@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { pyramidOf, slotsOfLeague } from '../data/pyramid';
 import { getLeague } from '../data/world';
 import { audio } from '../audio/audio';
-import { isSeasonOver, newCareer, playNext, simulateToEnd, startNextSeason, userDivision } from '../engine/game';
+import { isSeasonOver, newCareer, playNext, skipSeasons, startNextSeason, userDivision } from '../engine/game';
 import { pendingEvent } from '../engine/events';
 import { balanceOf } from '../engine/bank';
 import { clubOf } from '../engine/lookup';
@@ -23,6 +23,9 @@ import { Phone } from './Phone';
 import { unreadCount } from '../engine/phone';
 import { Lineup } from './Lineup';
 import { LiveMatch } from './LiveMatch';
+import { recordHall } from '../engine/hall';
+import { Credits, ExitScreen, HallScreen, LoadGame, Mods } from './MenuScreens';
+import { SimYears } from './SimYears';
 import { Squad } from './Squad';
 import { Unemployed } from './Unemployed';
 import { Table } from './Table';
@@ -30,20 +33,22 @@ import { Transfers } from './Transfers';
 
 type Tab = 'home' | 'squad' | 'table' | 'transfers' | 'lineup' | 'finance'; // 'lineup' é uma tela dentro do Início
 /** Telas do app: menu inicial, uma das 8 opções (placeholder) ou a partida em andamento. */
-type Screen = 'menu' | MenuOptionId | 'game';
+type Screen = 'menu' | MenuOptionId | 'game' | 'hall';
 
 export function App() {
   const [game, setGame] = useState<GameState | null>(() => loadGame());
   const [screen, setScreen] = useState<Screen>('menu');
   const [tab, setTab] = useState<Tab>('home');
   const [phoneOpen, setPhoneOpen] = useState(false);
-  const [tableView, setTableView] = useState<'div' | 'rounds'>('div');
+  const [tableView, setTableView] = useState<'div' | 'rounds' | 'hist'>('div');
   const [tfView, setTfView] = useState<'clubs' | 'buy' | 'offers' | 'news'>('clubs');
   // partida em andamento: o resultado já foi calculado, mas só entra no jogo quando a partida termina
   const [live, setLive] = useState<{ state: GameState; results: MatchResult[] } | null>(null);
   const [last, setLast] = useState<MatchResult[]>([]);
 
   useEffect(() => { if (game) saveGame(game); }, [game]);
+  // salão de campeões: guarda os campeões de cada temporada encerrada
+  useEffect(() => { if (game) recordHall(game); }, [game?.history.length]); // eslint-disable-line react-hooks/exhaustive-deps
   // sem clube: some Elenco, Transferências, Finanças e Escalação
   useEffect(() => { if (game?.unemployed && ['squad', 'transfers', 'lineup', 'finance'].includes(tab)) setTab('home'); }, [game?.unemployed, tab]);
 
@@ -87,11 +92,18 @@ export function App() {
   // Telas internas: a foto de fundo fica fixa atrás do conteúdo
   const bg = <div className="app-bg" aria-hidden="true"><Backdrop /></div>;
 
+  if (screen === 'carregar-jogo') return <LoadGame onBack={toMenu} onLoaded={() => { setGame(loadGame()); setLast([]); setTab('home'); setScreen('game'); }} />;
+  if (screen === 'mods') return <Mods onBack={toMenu} />;
+  if (screen === 'creditos') return <Credits onBack={toMenu} />;
+  if (screen === 'simular-anos') return <SimYears onBack={toMenu} onHall={() => setScreen('hall')} />;
+  if (screen === 'hall') return <HallScreen onBack={toMenu} />;
+  if (screen === 'sair') return <ExitScreen onBack={toMenu} />;
+
   if (screen === 'opcoes') return <>{bg}<Options onBack={toMenu} onRestored={() => setGame(loadGame())} /></>;
 
   if (screen !== 'game' || !game) {
     const opt = MENU_OPTIONS.find((o) => o.id === screen)!;
-    return <>{bg}<Placeholder title={opt.label} note={screen === 'continuar' ? 'Nenhum jogo salvo ainda. Em breve' : 'Em breve'} onBack={toMenu} /></>;
+    return <>{bg}<Placeholder title={opt.label} note={screen === 'continuar' ? 'Nenhum jogo salvo ainda. Comece em Novo Jogo.' : 'Em breve'} onBack={toMenu} /></>;
   }
 
   const club = game.clubs[game.userClubId];
@@ -100,7 +112,7 @@ export function App() {
   const liveResult = live?.results.find((r) => r.homeId === game.userClubId || r.awayId === game.userClubId);
   const ev = live ? pendingEvent(game) : undefined;
   const liveLabel = ev ? ev.label : userDivision(game).name;
-  const skipSeason = () => { audio.sfx('whoosh'); setLast([]); setGame(simulateToEnd(game)); setTab('home'); };
+  const skipSeason = (years = 1) => { audio.sfx('whoosh'); setLast([]); setGame(skipSeasons(game, years)); setTableView('hist'); setTab('table'); };
   const nextSeason = () => { setLast([]); setGame(startNextSeason(game)); };
 
   return (
@@ -125,7 +137,7 @@ export function App() {
             <LiveMatch key={`${game.season}-${game.round}-${ev?.kind ?? 'l'}`} home={clubOf(game, liveResult.homeId)} away={clubOf(game, liveResult.awayId)} result={liveResult}
               userSide={liveResult.homeId === game.userClubId ? 'home' : 'away'} divisionName={liveLabel} stadium={clubOf(game, liveResult.homeId).stadium} onFinish={finishMatch} />
           )}
-          {!live && game.unemployed && tab === 'home' && <Unemployed game={game} over={isSeasonOver(game)} onChange={setGame} onPlay={play} onSkip={skipSeason} onNextSeason={nextSeason} onSeeTables={() => { setTableView('rounds'); setTab('table'); }} />}
+          {!live && game.unemployed && tab === 'home' && <Unemployed game={game} over={isSeasonOver(game)} onChange={setGame} onPlay={play} onSkip={() => skipSeason(1)} onNextSeason={nextSeason} onSeeTables={() => { setTableView('rounds'); setTab('table'); }} />}
           {!live && !game.unemployed && tab === 'home' && <Home game={game} onChange={setGame} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onSkip={skipSeason} onSeeTables={() => { setTableView('div'); setTab('table'); }} onSeeResults={() => { setTableView('rounds'); setTab('table'); }} onEditLineup={() => setTab('lineup')} onFinance={() => setTab('finance')} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} />}
           {!live && !game.unemployed && tab === 'finance' && <Finance game={game} onChange={setGame} onBack={() => setTab('home')} />}
           {!live && !game.unemployed && tab === 'lineup' && <Lineup game={game} onChange={setGame} onBack={() => setTab('home')} />}
