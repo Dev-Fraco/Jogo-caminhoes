@@ -6,6 +6,8 @@ import { BankApp } from './BankApp';
 import { CasinoApp } from './CasinoApp';
 import { DealerApp } from './DealerApp';
 import { NewsApp } from './NewsApp';
+import { MessagesApp } from './MessagesApp';
+import { pendingCount } from '../engine/inbox';
 import { RealtorApp } from './RealtorApp';
 import { SocialApp } from './SocialApp';
 import './phone.css';
@@ -106,8 +108,9 @@ export function Phone({ game, onChange, onClose }: Props) {
               {screen === 'corretor' && <RealtorApp game={game} onChange={onChange} onOpenApp={setScreen} />}
               {screen === 'cassino' && <CasinoApp game={game} onChange={onChange} onOpenApp={setScreen} />}
               {screen === 'noticias' && <NewsApp game={game} />}
+              {screen === 'mensagens' && <MessagesApp game={game} onChange={onChange} />}
               {(screen === 'linstagra' || screen === 'tikiteko') && <SocialApp app={screen} game={game} onChange={onChange} />}
-              {!['home', 'loja', 'config', 'banco', 'concessionaria', 'corretor', 'linstagra', 'tikiteko', 'cassino', 'noticias'].includes(screen) && <SoonApp id={screen} />}
+              {!['home', 'loja', 'config', 'banco', 'concessionaria', 'corretor', 'linstagra', 'tikiteko', 'cassino', 'noticias', 'mensagens'].includes(screen) && <SoonApp id={screen} />}
               <button className="ph-homebar" onClick={() => setScreen('home')} aria-label="Início do celular" />
             </>
           )}
@@ -193,12 +196,12 @@ function HomeScreen({ game, onOpen }: { game: GameState; onOpen: (id: string) =>
       <div className="ph-grid">
         {apps.map((a) => (
           <button key={a.id} className="ph-app" onClick={() => onOpen(a.id)}>
-            <span className="ph-ico">{a.icon}{a.id === 'banco' && unread > 0 && <em>{unread}</em>}</span>
+            <span className="ph-ico">{a.icon}{a.id === 'banco' && unread > 0 && <em>{unread}</em>}{a.id === 'mensagens' && pendingCount(game) > 0 && <em>{pendingCount(game)}</em>}</span>
             <small>{a.name}</small>
           </button>
         ))}
       </div>
-      {apps.length === 2 && <p className="ph-tip">Abra a Loja de Apps para baixar novos aplicativos.</p>}
+      {apps.length === 3 && <p className="ph-tip">Abra a Loja de Apps para baixar novos aplicativos.</p>}
     </div>
   );
 }

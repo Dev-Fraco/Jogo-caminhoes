@@ -20,9 +20,9 @@ describe('celular', () => {
     expect(c.ok && checkPin(c.state, '1357') && !checkPin(c.state, '2580')).toBe(true);
     expect(hashPin('1357')).not.toBe(hashPin('1358'));
   });
-  it('vem só com Loja e Configurações; a loja instala e remove os 7 apps', () => {
+  it('vem só com Loja, Mensagens e Configurações; a loja instala e remove os 7 apps', () => {
     let g = makeCareer();
-    expect(installedApps(g).map((a) => a.id)).toEqual(['loja', 'config']);
+    expect(installedApps(g).map((a) => a.id)).toEqual(['loja', 'mensagens', 'config']);
     expect(STORE_APPS.map((a) => a.name)).toEqual(expect.arrayContaining(['LinstaGrã', 'TikiTeko', 'Cassino', 'Concessionária', 'Corretor de Imóveis', 'Notícias', 'Banco']));
     expect(STORE_APPS.length).toBe(7);
     g = installApp(g, 'banco');

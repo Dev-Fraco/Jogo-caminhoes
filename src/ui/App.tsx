@@ -22,6 +22,7 @@ import { Finance } from './Finance';
 import { Stadium } from './Stadium';
 import { Phone } from './Phone';
 import { unreadCount } from '../engine/phone';
+import { absRound, pendingCount, urgentMessages } from '../engine/inbox';
 import { Lineup } from './Lineup';
 import { LiveMatch } from './LiveMatch';
 import { recordHall } from '../engine/hall';
@@ -41,6 +42,8 @@ export function App() {
   const [screen, setScreen] = useState<Screen>('menu');
   const [tab, setTab] = useState<Tab>('home');
   const [phoneOpen, setPhoneOpen] = useState(false);
+  const [gateAt, setGateAt] = useState(0);
+  const [phoneGate, setPhoneGate] = useState(false);
   const [tableView, setTableView] = useState<'div' | 'rounds' | 'hist'>('div');
   const [tfView, setTfView] = useState<'clubs' | 'buy' | 'offers' | 'news'>('clubs');
   // partida em andamento: o resultado já foi calculado, mas só entra no jogo quando a partida termina
@@ -108,7 +111,11 @@ export function App() {
   }
 
   const club = game.clubs[game.userClubId];
-  const play = () => { const r = playNext(game); const mine = r.results.some((x) => x.homeId === game.userClubId || x.awayId === game.userClubId); if (game.unemployed || !mine) { setLast(r.results); setGame(r.state); } else setLive(r); }; // sem clube (ou sem jogo seu nesta rodada, como na Série D eliminada): nada para assistir
+  const play = () => { // antes do jogo: avisa de mensagens que vencem e só se resolvem pelo celular
+    if (!game.unemployed && urgentMessages(game).length > 0 && gateAt !== absRound(game)) { setGateAt(absRound(game)); setPhoneGate(true); return; }
+    doPlay();
+  };
+  const doPlay = () => { const r = playNext(game); const mine = r.results.some((x) => x.homeId === game.userClubId || x.awayId === game.userClubId); if (game.unemployed || !mine) { setLast(r.results); setGame(r.state); } else setLive(r); }; // sem clube (ou sem jogo seu nesta rodada, como na Série D eliminada): nada para assistir
   const finishMatch = () => { if (live) { setLast(live.results); setGame(live.state); } setLive(null); };
   const liveResult = live?.results.find((r) => r.homeId === game.userClubId || r.awayId === game.userClubId);
   const ev = live ? pendingEvent(game) : undefined;
@@ -153,12 +160,22 @@ export function App() {
             return (
               <button key={id} className={on ? 'on' : ''} disabled={!!live || (!!game.unemployed && (id === 'squad' || id === 'transfers' || id === 'stadium' || id === 'finance'))} onClick={() => (id === 'phone' ? setPhoneOpen(true) : setTab(id))} aria-label={id === 'transfers' ? 'Transferências' : label} aria-current={on ? 'page' : undefined}>
                 <span aria-hidden="true">{icon}</span>{label}
-                {id === 'phone' && unreadCount(game) > 0 && <i className="nav-badge" aria-label={`${unreadCount(game)} notificações`}>{unreadCount(game)}</i>}
+                {id === 'phone' && unreadCount(game) + pendingCount(game) > 0 && <i className="nav-badge" aria-label={`${unreadCount(game) + pendingCount(game)} pendências`}>{unreadCount(game) + pendingCount(game)}</i>}
                 {id === 'transfers' && game.offers.length > 0 && <i className="nav-badge" aria-label={`${game.offers.length} propostas`}>{game.offers.length}</i>}
               </button>
             );
           })}
         </nav>
+        {phoneGate && (
+          <div className="phone-gate" role="dialog" aria-modal="true" aria-label="Pendências no celular">
+            <div>
+              <h2>📱 Você tem {urgentMessages(game).length} {urgentMessages(game).length === 1 ? 'pendência' : 'pendências'} no celular</h2>
+              <p>{urgentMessages(game).map((m) => m.title).join(' · ')}. Vencem no próximo jogo.</p>
+              <button className="primary" onClick={() => { setPhoneGate(false); setPhoneOpen(true); }}>Abrir o celular</button>
+              <button className="btn" onClick={() => { setPhoneGate(false); doPlay(); }}>Jogar mesmo assim</button>
+            </div>
+          </div>
+        )}
         {phoneOpen && <Phone game={game} onChange={setGame} onClose={() => setPhoneOpen(false)} />}
       </div>
     </>

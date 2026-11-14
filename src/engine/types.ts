@@ -325,6 +325,8 @@ export interface GameState {
   /** Dinheiro pessoal do treinador (R$) e quanto da folha ele paga (0/25/50/100). */
   coachMoney?: number;
   wageCover?: number;
+  /** Mensagens (patrocínios, coletivas, diretoria, torcida) e metas do celular. */
+  inbox?: import('./inbox').InboxState;
   /** Estádio do seu clube: capacidade, conforto, preço do ingresso e público dos últimos jogos. */
   stadium?: import('./stadium').StadiumState;
   /** Balanço da temporada do seu clube. */

@@ -5,6 +5,7 @@ export interface PhoneApp { id: string; name: string; icon: string; blurb: strin
 /** Apps que vêm no celular (não podem ser removidos). */
 export const SYSTEM_APPS: PhoneApp[] = [
   { id: 'loja', name: 'Loja de Apps', icon: '🛍️', blurb: 'Baixe novos aplicativos.', category: 'Sistema', size: '—', rating: 5 },
+  { id: 'mensagens', name: 'Mensagens', icon: '💬', blurb: 'Patrocínios, imprensa, diretoria e metas.', category: 'Sistema', size: '—', rating: 5 },
   { id: 'config', name: 'Configurações', icon: '⚙️', blurb: 'Ajuste o seu celular.', category: 'Sistema', size: '—', rating: 5 },
 ];
 

@@ -362,3 +362,27 @@ select:focus, input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgb
 .st-price b { font: 800 24px var(--font-head); color: #fff; }
 .st-price .btn { border-radius: 50%; width: 46px; height: 46px; padding: 0; }
 .st-last { font-size: 14px; }
+
+/* Mensagens do celular */
+.ms-list { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 10px; }
+.ms-msg { background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .12); border-radius: 12px; padding: 10px 12px; }
+.ms-head { display: flex; gap: 10px; align-items: flex-start; }
+.ms-head > span:first-child { font-size: 22px; }
+.ms-head b { display: block; font-size: 14px; } .ms-head small { opacity: .75; }
+.ms-head em { font: 600 11px var(--font-head); font-style: normal; padding: 3px 8px; border-radius: 10px; background: rgba(255, 255, 255, .12); white-space: nowrap; }
+.ms-head em.hot { background: #ff5d5d; color: #fff; }
+.ms-msg p { margin: 8px 0; font-size: 13.5px; line-height: 1.4; }
+.ms-opts { display: grid; gap: 6px; }
+.ms-opts .btn { text-align: left; display: grid; gap: 2px; padding: 8px 12px; min-height: 0; }
+.ms-opts .btn small { opacity: .7; font-weight: 400; }
+.ms-list.old .ms-msg { opacity: .7; }
+.ms-goal { display: flex; gap: 10px; align-items: center; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .12); border-radius: 12px; padding: 10px 12px; }
+.ms-goal.claimed { opacity: .55; }
+.ms-goal b { display: block; font-size: 14px; } .ms-goal small { opacity: .75; display: block; }
+.ms-goal .primary, .ms-goal .btn { flex: none; min-height: 38px; padding: 0 12px; font-size: 12px; }
+.ms-bar { display: block; height: 6px; background: rgba(255, 255, 255, .15); border-radius: 3px; margin-top: 6px; overflow: hidden; }
+.ms-bar i { display: block; height: 100%; background: #3ddc84; }
+.phone-gate { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgba(0, 0, 0, .6); padding: 16px; }
+.phone-gate > div { max-width: 340px; width: 100%; background: #1a202a; border: 1px solid var(--line); border-radius: 14px; padding: 18px; text-align: center; display: grid; gap: 10px; }
+.phone-gate h2 { margin: 0; font: 700 17px var(--font-head); }
+.phone-gate p { margin: 0; color: var(--muted); font-size: 14px; }

@@ -1,5 +1,6 @@
 import { estadualOfUser, estadualTable, playEstadualStep, userEstadualMatch } from './estadual';
 import { playHomeGate } from './stadium';
+import { inboxTick } from './inbox';
 import { updateMorale } from './morale';
 import { COPA_DO_BRASIL, cupMatchDue, playCupRound, userCupTie } from './cup';
 import { CONTINENTALS, matchDue, mundialMatchDue, mundialStepName, mundialUserMatch, playContStep, playMundialStep, stepName, userMatch, type Comp } from './continental';
@@ -38,5 +39,5 @@ export function playEvent(g: GameState, kind: EventKind): { state: GameState; re
       if (home && state.budgets[g.userClubId] !== undefined) state = playHomeGate(state, my.awayId, 'Estadual').state; // público e bilheteria do jogo em casa
     }
   }
-  return { ...r, state };
+  return { ...r, state: g.unemployed ? state : inboxTick(state) };
 }

@@ -12,6 +12,7 @@ import { socialAds, socialAfterMatch } from './social';
 import { tickBoletos } from './bank';
 import { roundFinance } from './finance';
 import { playHomeGate } from './stadium';
+import { inboxTick } from './inbox';
 import { createCup, cupAfterLeagueRound, playCupRound, shootout } from './cup';
 import { MORALE_START, moraleFactor, updateMorale } from './morale';
 import { simulateMatch } from './match';
@@ -143,6 +144,7 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
   const myHome = my && !g.unemployed && my.homeId === g.userClubId ? my : undefined;
   state = socialAds(tickContracts(tickBoletos(roundFinance(state, new Set(results.map((r) => r.homeId)), !!myHome))));
   if (myHome) state = playHomeGate(state, myHome.awayId).state; // público e bilheteria do seu jogo em casa (preço do ingresso)
+  state = inboxTick(state); // mensagens, metas e fatura do celular
   state = boardTick(state, makeRng(g.seed * 19 + g.season * 7 + g.round)); // diretoria (demissão) ou, sem clube, propostas de emprego
   state = mundialAfterLeagueRound(contAfterLeagueRound(cupAfterLeagueRound(state)));
   // propostas dos outros clubes pelos jogadores listados
