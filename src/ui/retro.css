@@ -235,3 +235,11 @@ select:focus, input:focus { border-color: var(--gold); box-shadow: 0 0 0 2px #00
 .hv-table .tb { min-width: 0; }
 .hv .chips { max-width: 100%; }
 .hv-est { margin: 8px 0 0; } .hv-est summary { cursor: pointer; font: 700 13px var(--font-head); color: var(--gold); padding: 6px 0; }
+
+/* Estádio */
+.st-hero h2 { margin: 4px 0 8px; }
+.st-meter { height: 12px; border: 2px solid #000; background: #0a1a3a; margin: 6px 0; }
+.st-meter i { display: block; height: 100%; background: linear-gradient(#7dff5a, #2fa82a); }
+.st-price { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 6px; }
+.st-price b { font: 20px var(--font-tech); min-width: 120px; text-align: center; color: var(--gold); }
+.st-price .btn { width: 52px; font-size: 22px; }

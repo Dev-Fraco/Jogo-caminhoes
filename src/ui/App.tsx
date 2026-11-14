@@ -19,6 +19,7 @@ import { Options } from './Options';
 import { Placeholder } from './Placeholder';
 import { Home } from './Home';
 import { Finance } from './Finance';
+import { Stadium } from './Stadium';
 import { Phone } from './Phone';
 import { unreadCount } from '../engine/phone';
 import { Lineup } from './Lineup';
@@ -31,7 +32,7 @@ import { Unemployed } from './Unemployed';
 import { Table } from './Table';
 import { Transfers } from './Transfers';
 
-type Tab = 'home' | 'squad' | 'table' | 'transfers' | 'lineup' | 'finance'; // 'lineup' é uma tela dentro do Início
+type Tab = 'home' | 'squad' | 'table' | 'transfers' | 'lineup' | 'finance' | 'stadium'; // 'lineup' é uma tela dentro do Início
 /** Telas do app: menu inicial, uma das 8 opções (placeholder) ou a partida em andamento. */
 type Screen = 'menu' | MenuOptionId | 'game' | 'hall';
 
@@ -50,7 +51,7 @@ export function App() {
   // salão de campeões: guarda os campeões de cada temporada encerrada
   useEffect(() => { if (game) recordHall(game); }, [game?.history.length]); // eslint-disable-line react-hooks/exhaustive-deps
   // sem clube: some Elenco, Transferências, Finanças e Escalação
-  useEffect(() => { if (game?.unemployed && ['squad', 'transfers', 'lineup', 'finance'].includes(tab)) setTab('home'); }, [game?.unemployed, tab]);
+  useEffect(() => { if (game?.unemployed && ['squad', 'transfers', 'lineup', 'finance', 'stadium'].includes(tab)) setTab('home'); }, [game?.unemployed, tab]);
 
   // som: o navegador só libera o áudio depois de um toque; a música toca em todas as telas
   useEffect(() => {
@@ -138,7 +139,8 @@ export function App() {
               userSide={liveResult.homeId === game.userClubId ? 'home' : 'away'} divisionName={liveLabel} stadium={clubOf(game, liveResult.homeId).stadium} onFinish={finishMatch} />
           )}
           {!live && game.unemployed && tab === 'home' && <Unemployed game={game} over={isSeasonOver(game)} onChange={setGame} onPlay={play} onSkip={() => skipSeason(1)} onNextSeason={nextSeason} onSeeTables={() => { setTableView('rounds'); setTab('table'); }} />}
-          {!live && !game.unemployed && tab === 'home' && <Home game={game} onChange={setGame} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onSkip={skipSeason} onSeeTables={() => { setTableView('div'); setTab('table'); }} onSeeResults={() => { setTableView('rounds'); setTab('table'); }} onEditLineup={() => setTab('lineup')} onFinance={() => setTab('finance')} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} />}
+          {!live && !game.unemployed && tab === 'home' && <Home game={game} onChange={setGame} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onSkip={skipSeason} onSeeTables={() => { setTableView('div'); setTab('table'); }} onSeeResults={() => { setTableView('rounds'); setTab('table'); }} onEditLineup={() => setTab('lineup')} onFinance={() => setTab('finance')} onStadium={() => setTab('stadium')} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} />}
+          {!live && !game.unemployed && tab === 'stadium' && <Stadium game={game} onChange={setGame} onBack={() => setTab('home')} />}
           {!live && !game.unemployed && tab === 'finance' && <Finance game={game} onChange={setGame} onBack={() => setTab('home')} />}
           {!live && !game.unemployed && tab === 'lineup' && <Lineup game={game} onChange={setGame} onBack={() => setTab('home')} />}
           {!live && !game.unemployed && tab === 'squad' && <Squad game={game} onChange={setGame} />}
@@ -147,7 +149,7 @@ export function App() {
         </main>
         <nav>
           {([['home', '🏠', 'Início'], ['squad', '👕', 'Elenco'], ['table', '📊', 'Tabela'], ['transfers', '🔁', 'Transf.'], ['phone', '📱', 'Celular']] as const).map(([id, icon, label]) => {
-            const on = tab === id || (id === 'home' && (tab === 'lineup' || tab === 'finance'));
+            const on = tab === id || (id === 'home' && (tab === 'lineup' || tab === 'finance' || tab === 'stadium'));
             return (
               <button key={id} className={on ? 'on' : ''} disabled={!!live || (!!game.unemployed && (id === 'squad' || id === 'transfers'))} onClick={() => (id === 'phone' ? setPhoneOpen(true) : setTab(id))} aria-label={id === 'transfers' ? 'Transferências' : label} aria-current={on ? 'page' : undefined}>
                 <span aria-hidden="true">{icon}</span>{label}

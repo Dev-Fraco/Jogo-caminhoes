@@ -11,11 +11,13 @@ import { PROMOTED_STRONG_CHANCE } from '../engine/ai';
 import { acceptOffer, declineOffer, resign } from '../engine/jobs';
 import { firingWarning } from '../engine/game';
 import { ClubBadge } from './ClubBadge';
-import { EXPECTATION_LABEL } from '../newgame/format';
+import { stadiumOf } from '../engine/stadium';
+import { brl } from './Stadium';
+import { EXPECTATION_LABEL, formatBudget } from '../newgame/format';
 
 interface Props {
   game: GameState; onChange: (g: GameState) => void; last: MatchResult[]; over: boolean;
-  onPlay: () => void; onSkip: (years: number) => void; onSeeTables: () => void; onSeeResults: () => void; onNextSeason: () => void; onEditLineup: () => void; onFinance: () => void; onSeeOffers: () => void;
+  onPlay: () => void; onSkip: (years: number) => void; onSeeTables: () => void; onSeeResults: () => void; onNextSeason: () => void; onEditLineup: () => void; onFinance: () => void; onStadium: () => void; onSeeOffers: () => void;
 }
 
 function Meter({ label, value, note }: { label: string; value: number; note?: string }) {
@@ -40,7 +42,7 @@ function EstadualResult({ game }: { game: GameState }) {
 }
 
 /** Início: próxima partida, escalação, humor (equipe, dirigentes e torcida), propostas e resultados da rodada. */
-export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, onSeeResults, onNextSeason, onEditLineup, onFinance, onSeeOffers }: Props) {
+export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, onSeeResults, onNextSeason, onEditLineup, onFinance, onStadium, onSeeOffers }: Props) {
   const name = (id: string) => clubOf(game, id).name;
   const [open, setOpen] = useState<string | null>(null);
   const [askSkip, setAskSkip] = useState(false);
@@ -102,6 +104,8 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
   const shown = last.filter((r) => r.divisionId === division.id || [game.cup?.id, game.lib?.id, game.sula?.id, game.ucl?.id, game.mundial?.id].includes(r.divisionId));
   const expectation = game.clubs[game.userClubId].boardExpectation;
   const m = game.morale;
+  const gate = stadiumOf(game).log[0];
+  const gateNow = gate && gate.season === game.season && gate.round === game.round - 1 && last.length > 0 ? gate : undefined; // jogo em casa que acabou de acontecer
 
   return (
     <>
@@ -127,6 +131,7 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
           </div>
         )}
         <button className="btn home-lineup" onClick={onFinance}>💰 Finanças e salários</button>
+        <button className="btn home-lineup" onClick={onStadium}>🏟️ Estádio e ingressos</button>
       </div>
 
       {game.offers.length > 0 && (
@@ -177,6 +182,9 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
         </section>
       )}
 
+      {gateNow && (
+        <div className="card center st-last">🏟️ Público: <b>{gateNow.attendance.toLocaleString('pt-BR')}</b> de {gateNow.capacity.toLocaleString('pt-BR')} · ingresso {brl(gateNow.price)} · renda <b>{formatBudget(gateNow.revenue)}</b></div>
+      )}
       {shown.length > 0 && (
         <section>
           <h3>{shown[0].divisionId === division.id ? `Resultados da rodada ${shown[0].round}` : `${[game.cup, game.lib, game.sula, game.ucl, game.mundial].find((c) => c?.id === shown[0].divisionId)?.name ?? 'Copa'} — resultados`}</h3>
