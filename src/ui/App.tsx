@@ -17,13 +17,14 @@ import { NewGame } from './NewGame';
 import { Options } from './Options';
 import { Placeholder } from './Placeholder';
 import { Home } from './Home';
+import { Finance } from './Finance';
 import { Lineup } from './Lineup';
 import { LiveMatch } from './LiveMatch';
 import { Squad } from './Squad';
 import { Table } from './Table';
 import { Transfers } from './Transfers';
 
-type Tab = 'home' | 'squad' | 'table' | 'transfers' | 'lineup'; // 'lineup' é uma tela dentro do Início
+type Tab = 'home' | 'squad' | 'table' | 'transfers' | 'lineup' | 'finance'; // 'lineup' é uma tela dentro do Início
 /** Telas do app: menu inicial, uma das 8 opções (placeholder) ou a partida em andamento. */
 type Screen = 'menu' | MenuOptionId | 'game';
 
@@ -103,7 +104,8 @@ export function App() {
             <LiveMatch key={`${game.season}-${game.round}-${liveCup ? 'c' : liveLib ? 'b' : 'l'}`} home={clubOf(game, liveResult.homeId)} away={clubOf(game, liveResult.awayId)} result={liveResult}
               userSide={liveResult.homeId === game.userClubId ? 'home' : 'away'} divisionName={liveLabel} stadium={clubOf(game, liveResult.homeId).stadium} onFinish={finishMatch} />
           )}
-          {!live && tab === 'home' && <Home game={game} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onEditLineup={() => setTab('lineup')} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} />}
+          {!live && tab === 'home' && <Home game={game} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onEditLineup={() => setTab('lineup')} onFinance={() => setTab('finance')} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} />}
+          {!live && tab === 'finance' && <Finance game={game} onChange={setGame} onBack={() => setTab('home')} />}
           {!live && tab === 'lineup' && <Lineup game={game} onChange={setGame} onBack={() => setTab('home')} />}
           {!live && tab === 'squad' && <Squad game={game} onChange={setGame} />}
           {!live && tab === 'table' && <Table game={game} />}
@@ -111,7 +113,7 @@ export function App() {
         </main>
         <nav>
           {([['home', '🏠', 'Início'], ['squad', '👕', 'Elenco'], ['table', '📊', 'Tabela'], ['transfers', '🔁', 'Transf.']] as const).map(([id, icon, label]) => {
-            const on = tab === id || (id === 'home' && tab === 'lineup');
+            const on = tab === id || (id === 'home' && (tab === 'lineup' || tab === 'finance'));
             return (
               <button key={id} className={on ? 'on' : ''} disabled={!!live} onClick={() => setTab(id)} aria-label={id === 'transfers' ? 'Transferências' : label} aria-current={on ? 'page' : undefined}>
                 <span aria-hidden="true">{icon}</span>{label}

@@ -306,3 +306,4 @@ select option { background: #15110a; color: var(--ink); }
 
 .cup-line{display:block;margin-top:.6rem;opacity:.85}
 .cup-view section{margin-top:.8rem}
+.fin-cash h2.neg,.neg{color:#ff6b6b}.pos{color:#5fd38d}

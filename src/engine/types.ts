@@ -218,6 +218,11 @@ export interface GameState {
   history: SeasonSummary[];
   cup?: CupState;
   lib?: LibState;
+  /** Dinheiro pessoal do treinador (R$) e quanto da folha ele paga (0/25/50/100). */
+  coachMoney?: number;
+  wageCover?: number;
+  /** Balanço da temporada do seu clube. */
+  ledger?: { season: number; gate: number; wages: number; coachCover: number; coachSalary: number };
   /** Clubes de outros países que disputam a Libertadores (ficam fora do campeonato e do mercado). */
   foreign?: { clubs: Record<string, ClubInfo>; teams: Record<string, TeamState> };
 }

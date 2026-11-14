@@ -10,7 +10,7 @@ import { EXPECTATION_LABEL } from '../newgame/format';
 
 interface Props {
   game: GameState; last: MatchResult[]; over: boolean;
-  onPlay: () => void; onNextSeason: () => void; onEditLineup: () => void; onSeeOffers: () => void;
+  onPlay: () => void; onNextSeason: () => void; onEditLineup: () => void; onFinance: () => void; onSeeOffers: () => void;
 }
 
 function Meter({ label, value, note }: { label: string; value: number; note?: string }) {
@@ -27,7 +27,7 @@ function Meter({ label, value, note }: { label: string; value: number; note?: st
 }
 
 /** Início: próxima partida, escalação, humor (equipe, dirigentes e torcida), propostas e resultados da rodada. */
-export function Home({ game, last, over, onPlay, onNextSeason, onEditLineup, onSeeOffers }: Props) {
+export function Home({ game, last, over, onPlay, onNextSeason, onEditLineup, onFinance, onSeeOffers }: Props) {
   const name = (id: string) => clubOf(game, id).name;
   const [open, setOpen] = useState<string | null>(null);
   const division = userDivision(game);
@@ -84,6 +84,7 @@ export function Home({ game, last, over, onPlay, onNextSeason, onEditLineup, onS
         {game.lib && !libDue && <small className="cup-line">{game.lib.championId ? `🌎 ${game.lib.name}: campeão ${name(game.lib.championId)}` : userInLib(game) ? `🌎 ${game.lib.name}: ${libStepName(game.lib)} em breve` : game.lib.alive.length ? `🌎 ${game.lib.name}: seu clube ${game.lib.groups.some((gr) => gr.clubIds.includes(game.userClubId)) ? 'foi eliminado' : 'não participa'}` : ''}</small>}
         {game.cup && !cupDue && <small className="cup-line">{game.cup.championId ? `🏆 ${game.cup.name}: campeão ${name(game.cup.championId)}` : userInCup(game) ? `🏆 ${game.cup.name}: você está na ${game.cup.rounds[game.cup.roundIndex].name}` : `🏆 ${game.cup.name}: seu clube já foi eliminado`}</small>}
         <button className="btn home-lineup" onClick={onEditLineup}>Editar escalação</button>
+        <button className="btn home-lineup" onClick={onFinance}>💰 Finanças e salários</button>
       </div>
 
       {game.offers.length > 0 && (
