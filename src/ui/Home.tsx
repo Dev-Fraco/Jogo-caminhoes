@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { fixturesOfRound, leagueNameOf, seasonOutcome, slotsOf, userDivision } from '../engine/game';
-import { cupMatchDue, userCupTie, userInCup } from '../engine/cup';
-import { libMatchDue, libStepName, userInLib, userLibMatch } from '../engine/libertadores';
+import { userInCup } from '../engine/cup';
+import { pendingEvent } from '../engine/events';
+import { CONTINENTALS, COMPS, mundialStepName, stepName, userIn } from '../engine/continental';
 import { clubOf } from '../engine/lookup';
 import { moodLabel } from '../engine/morale';
 import type { GameState, MatchResult } from '../engine/types';
@@ -67,22 +68,21 @@ export function Home({ game, last, over, onPlay, onNextSeason, onEditLineup, onF
     );
   }
 
-  const cupDue = cupMatchDue(game);
-  const cupTie = userCupTie(game);
-  const libDue = !cupDue && libMatchDue(game);
-  const next = cupDue && cupTie ? cupTie : libDue ? userLibMatch(game) : fixturesOfRound(game, game.round, division.id).find((f) => f.homeId === game.userClubId || f.awayId === game.userClubId);
-  const shown = last.filter((r) => r.divisionId === division.id || r.divisionId === game.cup?.id || r.divisionId === game.lib?.id);
+  const ev = pendingEvent(game);
+  const next = ev ? ev.match : fixturesOfRound(game, game.round, division.id).find((f) => f.homeId === game.userClubId || f.awayId === game.userClubId);
+  const shown = last.filter((r) => r.divisionId === division.id || [game.cup?.id, game.lib?.id, game.ucl?.id, game.mundial?.id].includes(r.divisionId));
   const expectation = game.clubs[game.userClubId].boardExpectation;
   const m = game.morale;
 
   return (
     <>
       <div className="card center">
-        <small>{libDue && game.lib ? `🌎 ${game.lib.name} · ${libStepName(game.lib)}` : cupDue && game.cup ? `🏆 ${game.cup.name} · ${game.cup.rounds[game.cup.roundIndex].name}` : `${division.name} · Rodada ${game.round} de ${game.totalRounds}`}</small>
+        <small>{ev ? ev.label : `${division.name} · Rodada ${Math.min(game.round, game.totalRounds)} de ${game.totalRounds}`}</small>
         {next && <h2>{name(next.homeId)} <span className="vs">x</span> {name(next.awayId)}</h2>}
         <button className="primary" onClick={() => { setOpen(null); onPlay(); }}>▶ Iniciar partida</button>
-        {game.lib && !libDue && <small className="cup-line">{game.lib.championId ? `🌎 ${game.lib.name}: campeão ${name(game.lib.championId)}` : userInLib(game) ? `🌎 ${game.lib.name}: ${libStepName(game.lib)} em breve` : game.lib.alive.length ? `🌎 ${game.lib.name}: seu clube ${game.lib.groups.some((gr) => gr.clubIds.includes(game.userClubId)) ? 'foi eliminado' : 'não participa'}` : ''}</small>}
-        {game.cup && !cupDue && <small className="cup-line">{game.cup.championId ? `🏆 ${game.cup.name}: campeão ${name(game.cup.championId)}` : userInCup(game) ? `🏆 ${game.cup.name}: você está na ${game.cup.rounds[game.cup.roundIndex].name}` : `🏆 ${game.cup.name}: seu clube já foi eliminado`}</small>}
+        {!ev && COMPS.map((k) => { const c = game[k], cfg = CONTINENTALS[k]; if (!c) return null; const mine = c.groups.some((gr) => gr.clubIds.includes(game.userClubId)); return mine || c.championId ? <small key={k} className="cup-line">{c.championId ? `${cfg.icon} ${c.name}: campeão ${name(c.championId)}` : userIn(game, k) ? `${cfg.icon} ${c.name}: ${stepName(k, c)} em breve` : `${cfg.icon} ${c.name}: seu clube foi eliminado`}</small> : null; })}
+        {!ev && game.mundial && <small className="cup-line">{game.mundial.championId ? `🌍 ${game.mundial.name}: campeão ${name(game.mundial.championId)}` : `🌍 ${game.mundial.name}: ${mundialStepName(game.mundial)}`}</small>}
+        {game.cup && !ev && <small className="cup-line">{game.cup.championId ? `🏆 ${game.cup.name}: campeão ${name(game.cup.championId)}` : userInCup(game) ? `🏆 ${game.cup.name}: você está na ${game.cup.rounds[game.cup.roundIndex].name}` : `🏆 ${game.cup.name}: seu clube já foi eliminado`}</small>}
         <button className="btn home-lineup" onClick={onEditLineup}>Editar escalação</button>
         <button className="btn home-lineup" onClick={onFinance}>💰 Finanças e salários</button>
       </div>
@@ -115,7 +115,7 @@ export function Home({ game, last, over, onPlay, onNextSeason, onEditLineup, onF
 
       {shown.length > 0 && (
         <section>
-          <h3>{shown[0].divisionId === game.lib?.id && game.lib ? `${game.lib.name} — resultados` : shown[0].divisionId === game.cup?.id && game.cup ? `${game.cup.name} — resultados` : `Resultados da rodada ${shown[0].round}`}</h3>
+          <h3>{shown[0].divisionId === division.id ? `Resultados da rodada ${shown[0].round}` : `${[game.cup, game.lib, game.ucl, game.mundial].find((c) => c?.id === shown[0].divisionId)?.name ?? 'Copa'} — resultados`}</h3>
           <ul className="list">
             {shown.map((r) => {
               const key = `${r.round}-${r.homeId}`;

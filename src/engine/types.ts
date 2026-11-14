@@ -145,7 +145,20 @@ export interface LibState {
   championId?: string;
 }
 
+/** Mundial de Clubes: semifinais cruzadas entre os dois finalistas da Libertadores e da Champions, e final. */
+export interface MundialState {
+  id: string;
+  name: string;
+  ko: CupRound[];
+  step: number; // 0 = semifinais, 1 = final
+  due: boolean;
+  alive: string[];
+  championId?: string;
+}
+
 export interface SeasonSummary {
+  uclChampionId?: string;
+  mundialChampionId?: string;
   libChampionId?: string;
   cupChampionId?: string;
   season: number;
@@ -218,6 +231,8 @@ export interface GameState {
   history: SeasonSummary[];
   cup?: CupState;
   lib?: LibState;
+  ucl?: LibState;
+  mundial?: MundialState;
   /** Dinheiro pessoal do treinador (R$) e quanto da folha ele paga (0/25/50/100). */
   coachMoney?: number;
   wageCover?: number;

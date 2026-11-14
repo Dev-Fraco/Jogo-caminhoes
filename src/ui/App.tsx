@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { pyramidOf, slotsOfLeague } from '../data/pyramid';
 import { getLeague } from '../data/world';
 import { isSeasonOver, newCareer, playNext, startNextSeason, userDivision } from '../engine/game';
-import { cupMatchDue } from '../engine/cup';
-import { libMatchDue, libStepName } from '../engine/libertadores';
+import { pendingEvent } from '../engine/events';
 import { clubOf } from '../engine/lookup';
 import { loadGame, saveGame } from '../engine/save';
 import type { GameState, MatchResult } from '../engine/types';
@@ -77,9 +76,8 @@ export function App() {
   const play = () => setLive(playNext(game));
   const finishMatch = () => { if (live) { setLast(live.results); setGame(live.state); } setLive(null); };
   const liveResult = live?.results.find((r) => r.homeId === game.userClubId || r.awayId === game.userClubId);
-  const liveCup = !!live && cupMatchDue(game);
-  const liveLib = !!live && !liveCup && libMatchDue(game);
-  const liveLabel = liveCup && game.cup ? `${game.cup.name} · ${game.cup.rounds[game.cup.roundIndex].name}` : liveLib && game.lib ? `🌎 ${game.lib.name} · ${libStepName(game.lib)}` : userDivision(game).name;
+  const ev = live ? pendingEvent(game) : undefined;
+  const liveLabel = ev ? ev.label : userDivision(game).name;
   const nextSeason = () => { setLast([]); setGame(startNextSeason(game)); };
 
   return (
@@ -101,7 +99,7 @@ export function App() {
         </header>
         <main>
           {live && liveResult && (
-            <LiveMatch key={`${game.season}-${game.round}-${liveCup ? 'c' : liveLib ? 'b' : 'l'}`} home={clubOf(game, liveResult.homeId)} away={clubOf(game, liveResult.awayId)} result={liveResult}
+            <LiveMatch key={`${game.season}-${game.round}-${ev?.kind ?? 'l'}`} home={clubOf(game, liveResult.homeId)} away={clubOf(game, liveResult.awayId)} result={liveResult}
               userSide={liveResult.homeId === game.userClubId ? 'home' : 'away'} divisionName={liveLabel} stadium={clubOf(game, liveResult.homeId).stadium} onFinish={finishMatch} />
           )}
           {!live && tab === 'home' && <Home game={game} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onEditLineup={() => setTab('lineup')} onFinance={() => setTab('finance')} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} />}

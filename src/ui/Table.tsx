@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { groupTable } from '../engine/libertadores';
+import { COMPS, CONTINENTALS, groupTable, type Comp } from '../engine/continental';
 import { clubOf } from '../engine/lookup';
 import { divisionTable, slotsOf, userDivisionIndex } from '../engine/game';
 import type { GameState } from '../engine/types';
@@ -14,8 +14,7 @@ function zone(divIndex: number, divCount: number, pos: number, size: number, slo
 export function Table({ game }: { game: GameState }) {
   const mineIndex = userDivisionIndex(game);
   const [idx, setIdx] = useState(mineIndex);
-  const [showCup, setShowCup] = useState(false);
-  const [showLib, setShowLib] = useState(false);
+  const [view, setView] = useState<'div' | 'cup' | Comp | 'mundial'>('div');
   const division = game.divisions[idx];
   const rows = divisionTable(game, division.id);
   const n = rows.length;
@@ -27,16 +26,18 @@ export function Table({ game }: { game: GameState }) {
     <>
       <div className="chips" role="tablist" aria-label="Divisão">
         {game.divisions.map((d, i) => (
-          <button key={d.id} role="tab" aria-selected={!showCup && !showLib && i === idx} className={!showCup && !showLib && i === idx ? 'on' : ''} onClick={() => { setIdx(i); setShowCup(false); setShowLib(false); }}>
+          <button key={d.id} role="tab" aria-selected={view === 'div' && i === idx} className={view === 'div' && i === idx ? 'on' : ''} onClick={() => { setIdx(i); setView('div'); }}>
             {d.name}{i === mineIndex ? ' ★' : ''}
           </button>
         ))}
-        {game.cup && <button role="tab" aria-selected={showCup} className={showCup ? 'on' : ''} onClick={() => { setShowCup(true); setShowLib(false); }}>🏆 Copa</button>}
-        {game.lib && <button role="tab" aria-selected={showLib} className={showLib ? 'on' : ''} onClick={() => { setShowLib(true); setShowCup(false); }}>🌎 Liberta</button>}
+        {game.cup && <button role="tab" aria-selected={view === 'cup'} className={view === 'cup' ? 'on' : ''} onClick={() => setView('cup')}>🏆 Copa</button>}
+        {COMPS.map((k) => game[k] && <button key={k} role="tab" aria-selected={view === k} className={view === k ? 'on' : ''} onClick={() => setView(k)}>{CONTINENTALS[k].icon} {k === 'lib' ? 'Liberta' : 'Champions'}</button>)}
+        {game.mundial && <button role="tab" aria-selected={view === 'mundial'} className={view === 'mundial' ? 'on' : ''} onClick={() => setView('mundial')}>🌍 Mundial</button>}
       </div>
-      {showCup && game.cup && <CupView game={game} />}
-      {showLib && game.lib && <LibView game={game} />}
-      {!showCup && !showLib && <>
+      {view === 'cup' && game.cup && <CupView game={game} />}
+      {(view === 'lib' || view === 'ucl') && game[view] && <LibView game={game} comp={view} />}
+      {view === 'mundial' && game.mundial && <MundialView game={game} />}
+      {view === 'div' && <>
       <table className="table">
         <thead><tr><th>#</th><th className="l">Clube</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr></thead>
         <tbody>
@@ -88,8 +89,8 @@ function CupView({ game }: { game: GameState }) {
 }
 
 /** Libertadores: o seu grupo primeiro, depois os outros, e o mata-mata. */
-function LibView({ game }: { game: GameState }) {
-  const lib = game.lib!;
+function LibView({ game, comp }: { game: GameState; comp: Comp }) {
+  const lib = game[comp]!;
   const name = (id: string) => clubOf(game, id).name;
   const groups = [...lib.groups].sort((a, b) => Number(b.clubIds.includes(game.userClubId)) - Number(a.clubIds.includes(game.userClubId)));
   return (
@@ -123,6 +124,31 @@ function LibView({ game }: { game: GameState }) {
               ))}
             </tbody>
           </table>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+/** Mundial de Clubes: semifinais cruzadas e final. */
+function MundialView({ game }: { game: GameState }) {
+  const m = game.mundial!;
+  const name = (id: string) => clubOf(game, id).name;
+  return (
+    <div className="cup-view">
+      {m.championId && <p className="outcome">🏆 Campeão mundial: <b>{name(m.championId)}</b></p>}
+      {[...m.ko].reverse().map((r) => (
+        <section key={r.name}>
+          <h3>{r.name}</h3>
+          <ul className="list">
+            {r.ties.map((t) => (
+              <li key={t.homeId} className={t.homeId === game.userClubId || t.awayId === game.userClubId ? 'row mine' : 'row'}>
+                <span className="grow right">{name(t.homeId)}</span>
+                <b className="score">{t.winnerId ? `${t.homeGoals} - ${t.awayGoals}` : 'x'}</b>
+                <span className="grow">{name(t.awayId)}{t.pens ? <small> ({t.pens[0]}–{t.pens[1]} pên.)</small> : null}</span>
+              </li>
+            ))}
+          </ul>
         </section>
       ))}
     </div>
