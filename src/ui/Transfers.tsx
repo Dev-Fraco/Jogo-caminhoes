@@ -1,4 +1,7 @@
 import { useMemo, useState } from 'react';
+import { anyClubName } from '../engine/market';
+import { Clubs } from './Clubs';
+import { NegotiationSheet } from './Negotiation';
 import { acceptOffer, myValue, rejectOffer, toggleLoanList, toggleTransferList } from '../engine/roster';
 import { BUY_BLOCK_TEXT, buyPlayer, MAX_SQUAD, marketEntries } from '../engine/transfers';
 import type { GameState, Position, Transfer } from '../engine/types';
@@ -86,7 +89,7 @@ function Offers({ game, onChange }: { game: GameState; onChange: (g: GameState) 
           {moves.length === 0 ? <p className="hint" style={{ margin: 0 }}>Nenhuma movimentação ainda.</p> : (
             <ul className="tf-log">
               {[...moves].reverse().map((t, i) => (
-                <li key={`${t.playerId}-${i}`}><b>{KIND_LABEL[t.kind]}:</b> {t.playerName} <small>({POS_SHORT[t.pos]}, overall {t.strength}){t.kind === 'buy' ? ` · de ${game.clubs[t.fromClubId].name}` : t.kind === 'release' ? '' : ` · para ${game.clubs[t.toClubId]?.name}`}{t.fee > 0 ? ` · ${formatBudget(t.fee)}` : ''} · rodada {t.round}</small></li>
+                <li key={`${t.playerId}-${i}`}><b>{KIND_LABEL[t.kind]}:</b> {t.playerName} <small>({POS_SHORT[t.pos]}, overall {t.strength}){t.kind === 'buy' ? ` · de ${anyClubName(game, t.fromClubId)}` : t.kind === 'release' ? '' : ` · para ${anyClubName(game, t.toClubId)}`}{t.fee > 0 ? ` · ${formatBudget(t.fee)}` : ''} · rodada {t.round}</small></li>
               ))}
             </ul>
           )}
@@ -113,15 +116,16 @@ function News({ game }: { game: GameState }) {
 }
 
 /** Transferências: comprar jogadores de outros clubes e responder às propostas pelos seus. */
-export function Transfers({ game, onChange, view, onView }: { game: GameState; onChange: (g: GameState) => void; view: 'buy' | 'offers' | 'news'; onView: (v: 'buy' | 'offers' | 'news') => void }) {
+export function Transfers({ game, onChange, view, onView }: { game: GameState; onChange: (g: GameState) => void; view: 'clubs' | 'buy' | 'offers' | 'news'; onView: (v: 'clubs' | 'buy' | 'offers' | 'news') => void }) {
   return (
     <>
       <div className="seg" role="tablist" aria-label="Transferências">
-        <button role="tab" aria-selected={view === 'buy'} className={view === 'buy' ? 'on' : ''} onClick={() => onView('buy')}>Comprar</button>
+        <button role="tab" aria-selected={view === 'clubs'} className={view === 'clubs' ? 'on' : ''} onClick={() => onView('clubs')}>Clubes</button>
+        <button role="tab" aria-selected={view === 'buy'} className={view === 'buy' ? 'on' : ''} onClick={() => onView('buy')}>Mercado</button>
         <button role="tab" aria-selected={view === 'offers'} className={view === 'offers' ? 'on' : ''} onClick={() => onView('offers')}>Propostas{game.offers.length > 0 ? ` (${game.offers.length})` : ''}</button>
         <button role="tab" aria-selected={view === 'news'} className={view === 'news' ? 'on' : ''} onClick={() => onView('news')}>Notícias</button>
       </div>
-      {view === 'buy' ? <Market game={game} onChange={onChange} /> : view === 'offers' ? <Offers game={game} onChange={onChange} /> : <News game={game} />}
+      {view === 'clubs' ? <Clubs game={game} onChange={onChange} /> : view === 'buy' ? <Market game={game} onChange={onChange} /> : view === 'offers' ? <Offers game={game} onChange={onChange} /> : <News game={game} />}
     </>
   );
 }
@@ -133,6 +137,7 @@ function Market({ game, onChange }: { game: GameState; onChange: (g: GameState) 
   const [afford, setAfford] = useState(true);
   const [sort, setSort] = useState<Sort>('ovr');
   const [shown, setShown] = useState(PAGE);
+  const [neg, setNeg] = useState<{ clubId: string; id: string } | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
 
@@ -216,7 +221,7 @@ function Market({ game, onChange }: { game: GameState; onChange: (g: GameState) 
                   <small>{POS_SHORT[p.pos]} · {p.age} anos · {club.name} ({divisionOf.get(clubId)?.name})</small>
                 </div>
                 <span className={`tf-price ${tooExpensive ? 'no' : ''}`}>{formatBudget(price)}</span>
-                <button className="tf-buy" disabled={tooExpensive || full} onClick={() => setConfirmId(open ? null : p.id)} aria-expanded={open} aria-label={`Contratar ${p.name}`}>Contratar</button>
+                <button className="tf-buy" disabled={tooExpensive || full} onClick={() => { setNotice(null); setNeg({ clubId, id: p.id }); }} aria-label={`Negociar ${p.name}`}>Negociar</button>
               </div>
               {open && (
                 <div className="tf-confirm">
@@ -230,6 +235,7 @@ function Market({ game, onChange }: { game: GameState; onChange: (g: GameState) 
         })}
       </ul>
       {filtered.length === 0 && <div className="card center"><p className="hint">Nenhum jogador com esses filtros. {afford && 'Desmarque "Só quem cabe no meu orçamento" para ver todos.'}</p></div>}
+      {neg && <NegotiationSheet game={game} clubId={neg.clubId} playerId={neg.id} onChange={onChange} onClose={() => setNeg(null)} onDone={(m) => { setNeg(null); setNotice({ text: `✔ ${m}` }); }} />}
       {filtered.length > shown && <button className="btn tf-more" onClick={() => setShown(shown + PAGE)}>Mostrar mais ({filtered.length - shown})</button>}
 
     </>

@@ -4,6 +4,7 @@ import { contAfterLeagueRound, createContinentals, mundialAfterLeagueRound, play
 import { pendingEvent, playEvent } from './events';
 import { tickContracts } from './assets';
 import { boardTick, fire, seasonEndFiring, seasonEndOffers, seasonPoints } from './jobs';
+import { expireContracts } from './market';
 import { managed } from './lookup';
 import { socialAds, socialAfterMatch } from './social';
 import { tickBoletos } from './bank';
@@ -217,7 +218,7 @@ export function startNextSeason(g: GameState): GameState {
   moves.forEach((m, i) => m.table.forEach((r, idx) => {
     budgets[r.clubId] = (budgets[r.clubId] ?? 0) + seasonIncome(i, g.clubs[r.clubId].reputation, idx + 1, m.table.length);
   }));
-  const back = returnLoans(g);
+  const back = expireContracts(returnLoans(g));
   const next: GameState = { ...back, season: g.season + 1, round: 1, totalRounds, divisions, fixtures, results: [], budgets, offers: [], history: [...g.history, summary] };
   // a IA entra em ação: evolução dos jogadores, investimento dos promovidos, crises dos rebaixados e janela de transferências
   const arrivals = (list: 'promoted' | 'relegated', delta: number) => moves.flatMap((m, i) => m[list].map((clubId) => ({ clubId, to: i + delta })));

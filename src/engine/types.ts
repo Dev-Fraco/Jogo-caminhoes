@@ -15,6 +15,8 @@ export interface Player {
   pos: Position;
   age: number;
   strength: number; // 1..100
+  /** Contrato negociado (só jogadores contratados por você): salário anual e última temporada. */
+  contract?: { wage: number; until: number };
 }
 
 export interface Club {
@@ -273,6 +275,10 @@ export interface GameState {
   casino?: CasinoState;
   /** Sem clube (demitido ou pediu demissão): o clube antigo passa a ser controlado pela IA. */
   unemployed?: boolean;
+  /** Jogadores de clubes de outras ligas que saíram (out) ou chegaram (in) — esses elencos vêm dos dados do jogo. */
+  foreignDeals?: Record<string, { out: string[]; in: Player[] }>;
+  /** Rodadas de negociação por jogador (limite de tentativas por rodada). */
+  talks?: Record<string, { season: number; round: number; tries: number }>;
   firedInfo?: { clubId: string; season: number; round: number; reason: string; resigned?: boolean };
   jobOffers?: JobOffer[];
   /** Clubes pelos quais o treinador já passou. */

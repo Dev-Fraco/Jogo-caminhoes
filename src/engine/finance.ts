@@ -22,13 +22,17 @@ const refStrength = (divisionIndex: number, reputation: number) => [59, 64, 69, 
 const ageFactor = (age: number) => (age <= 20 ? 0.7 : age <= 31 ? 1 : age <= 34 ? 0.85 : 0.6);
 
 /** Salário anual do jogador no clube (R$). Um elenco típico de 24 jogadores custa ~55% da receita-base do clube. */
-export function wageOf(g: GameState, clubId: string, p: Player): number {
+/** Salário que o clube pagaria pela fórmula (sem contrato negociado). */
+export function baseWage(g: GameState, clubId: string, p: Player): number {
   const idx = divisionIndexOf(g, clubId);
   const rep = g.clubs[clubId].reputation;
   const unit = (0.55 * baseIncome(idx, rep)) / 24;
   const w = unit * 1.12 ** (p.strength - refStrength(idx, rep)) * ageFactor(p.age);
   return Math.max(6_000, Math.round(w / 1_000) * 1_000);
 }
+
+/** Salário anual do jogador: o do contrato negociado, se houver; senão a fórmula do clube. */
+export const wageOf = (g: GameState, clubId: string, p: Player): number => p.contract?.wage ?? baseWage(g, clubId, p);
 
 export const payrollOf = (g: GameState, clubId: string) => g.teams[clubId].players.reduce((s, p) => s + wageOf(g, clubId, p), 0);
 /** Receita de bilheteria em casa por jogo (a torcida animada enche mais o estádio). */

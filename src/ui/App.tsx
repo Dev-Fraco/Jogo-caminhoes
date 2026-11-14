@@ -38,7 +38,7 @@ export function App() {
   const [tab, setTab] = useState<Tab>('home');
   const [phoneOpen, setPhoneOpen] = useState(false);
   const [tableView, setTableView] = useState<'div' | 'rounds'>('div');
-  const [tfView, setTfView] = useState<'buy' | 'offers' | 'news'>('buy');
+  const [tfView, setTfView] = useState<'clubs' | 'buy' | 'offers' | 'news'>('clubs');
   // partida em andamento: o resultado já foi calculado, mas só entra no jogo quando a partida termina
   const [live, setLive] = useState<{ state: GameState; results: MatchResult[] } | null>(null);
   const [last, setLast] = useState<MatchResult[]>([]);

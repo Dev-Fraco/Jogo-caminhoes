@@ -1,4 +1,5 @@
 import { divisionTable, userDivision } from './game';
+import { anyClubName } from './market';
 import { makeRng, type Rng } from './rng';
 import { contextOf } from './social';
 import type { GameState } from './types';
@@ -62,8 +63,8 @@ export function fanInterviews(g: GameState, n = 4): { headline: string; items: I
 /** Últimas transferências entre clubes (e as suas). */
 export function transferFeed(g: GameState, limit = 30): { season: number; round: number; text: string; mine?: boolean }[] {
   const mine = g.transfers.map((t) => {
-    const from = t.fromClubId ? g.clubs[t.fromClubId]?.name : undefined;
-    const to = t.toClubId ? g.clubs[t.toClubId]?.name : undefined;
+    const from = t.fromClubId ? anyClubName(g, t.fromClubId) : undefined;
+    const to = t.toClubId ? anyClubName(g, t.toClubId) : undefined;
     const verb = t.kind === 'buy' ? `Seu clube contratou ${t.playerName}${from ? ` do ${from}` : ''}` : t.kind === 'sale' ? `Seu clube vendeu ${t.playerName}${to ? ` ao ${to}` : ''}` : t.kind === 'loan' ? `Seu clube emprestou ${t.playerName}${to ? ` ao ${to}` : ''}` : `Seu clube dispensou ${t.playerName}`;
     return { season: t.season, round: t.round, text: `${verb}${t.fee ? ` por R$ ${t.fee.toLocaleString('pt-BR')}` : ''}.`, mine: true };
   });

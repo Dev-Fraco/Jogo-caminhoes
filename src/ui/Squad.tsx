@@ -3,6 +3,8 @@ import { POS_ORDER } from '../engine/game';
 import { checkRelease, myValue, releasePlayer, toggleLoanList, toggleTransferList } from '../engine/roster';
 import { teamRatings } from '../engine/squad';
 import { MAX_SQUAD } from '../engine/transfers';
+import { wageOf } from '../engine/finance';
+import { contractLeft, renew, renewalQuote } from '../engine/market';
 import type { GameState, Player, Position } from '../engine/types';
 import { formatBudget } from '../newgame/format';
 
@@ -21,6 +23,12 @@ function PlayerSheet({ game, player: p, onChange, onClose, onDone }: SheetProps)
   const onSale = game.transferList.includes(p.id), onLoan = game.loanList.includes(p.id);
   const value = myValue(game, p);
   const release = checkRelease(game, p.id);
+  const left = contractLeft(game, p);
+  const rq = renewalQuote(game, p.id);
+  const [renewing, setRenewing] = useState(false);
+  const [rWage, setRWage] = useState(rq ? rq.wageDemand : 0);
+  const [rYears, setRYears] = useState(rq ? Math.max(rq.yearsMin, 2) : 2);
+  const [rMsg, setRMsg] = useState<{ text: string; ok: boolean; counter?: number } | null>(null);
 
   useEffect(() => { box.current?.focus(); }, []);
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -42,11 +50,31 @@ function PlayerSheet({ game, player: p, onChange, onClose, onDone }: SheetProps)
             <h2 id="ps-title">{p.name}</h2>
             <p>{POS_ONE[p.pos]} · {p.age} anos · {starter ? 'Titular' : 'Reserva'}</p>
             <p>Valor de mercado: <b>{formatBudget(value)}</b></p>
+            <p>Salário: <b>{formatBudget(wageOf(game, game.userClubId, p))}/ano</b> · {left === null ? 'sem contrato fixo' : left <= 1 ? <b className="ps-warn">contrato termina no fim desta temporada</b> : `contrato por mais ${left} temporadas`}</p>
           </div>
           <button className="ps-x" aria-label="Fechar" onClick={onClose}>✕</button>
         </div>
 
         <div className="ps-actions">
+          {!renewing ? (
+            <button className="ps-act" onClick={() => { setRenewing(true); setRMsg(null); }}>
+              <strong>Renovar contrato</strong>
+              <small>Negocie um novo salário e a duração com o jogador.</small>
+            </button>
+          ) : rq && (
+            <div className="ps-confirm" role="group" aria-label="Renovar contrato">
+              <p>Salário atual: <b>{formatBudget(rq.current)}</b>/ano. Quanto você oferece por ano?</p>
+              <div className="ng-input">
+                <button onClick={() => setRWage(Math.max(0, Math.round(rWage * 0.95 / 1000) * 1000))} aria-label="Diminuir 5%">−</button>
+                <input inputMode="numeric" aria-label="Novo salário por ano" value={rWage.toLocaleString('pt-BR')} onChange={(e) => setRWage(Number(e.target.value.replace(/\D/g, '')))} />
+                <button onClick={() => setRWage(Math.round(rWage * 1.05 / 1000) * 1000)} aria-label="Aumentar 5%">+</button>
+              </div>
+              <div className="ng-years" role="radiogroup" aria-label="Duração">{[1, 2, 3, 4, 5].map((y) => <button key={y} role="radio" aria-checked={rYears === y} className={rYears === y ? 'on' : ''} onClick={() => setRYears(y)}>{y} {y === 1 ? 'ano' : 'anos'}</button>)}</div>
+              {rMsg && <p className={`ng-say ${rMsg.ok ? 'ok' : 'no'}`}>{rMsg.text}{rMsg.counter ? <button className="ng-counter" onClick={() => setRWage(rMsg.counter!)}>Aceitar R$ {rMsg.counter.toLocaleString('pt-BR')}</button> : null}</p>}
+              <button className="primary" onClick={() => { const r = renew(game, p.id, rWage, rYears); setRMsg({ text: r.text, ok: r.ok, counter: r.counter }); if (r.ok) { onChange(r.state); setRenewing(false); } }}>Propor renovação</button>
+              <button className="btn" onClick={() => setRenewing(false)}>Cancelar</button>
+            </div>
+          )}
           <button className={`ps-act ${onSale ? 'on' : ''}`} onClick={() => { onChange(toggleTransferList(game, p.id)); }}>
             <strong>{onSale ? 'Retirar da lista de transferência' : 'Colocar na lista de transferência'}</strong>
             <small>{onSale ? 'Os clubes deixam de fazer propostas de compra.' : `Outros clubes poderão fazer propostas de compra, em torno de ${formatBudget(value)}.`}</small>
