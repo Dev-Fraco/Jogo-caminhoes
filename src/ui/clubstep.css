@@ -1,0 +1,69 @@
+/* Etapa 3 (Escolha do Clube) e escudo do clube. Usa as variáveis do menu (--lime, --ink...). */
+
+/* ---------- Escudo (imagem ou círculo com a sigla) ---------- */
+.cb { position: relative; display: inline-grid; place-items: center; flex: none; border-radius: 50%; overflow: hidden; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, .5)); }
+.cb-img { width: 100%; height: 100%; object-fit: contain; }
+.cb-img.loading { position: absolute; inset: 0; opacity: 0; }
+.cb-fallback {
+  position: relative; width: 100%; height: 100%; display: grid; place-items: center; border-radius: 50%;
+  background: var(--cb-bg); color: var(--cb-fg); border: 2px solid rgba(255, 255, 255, .55); box-sizing: border-box;
+  font: 800 calc(var(--cb-size) * .31)/1 'Barlow Condensed', 'Arial Narrow', sans-serif; letter-spacing: .04em; text-transform: uppercase;
+  text-shadow: var(--cb-shadow, none);
+}
+.cb-fallback::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle at 30% 24%, rgba(255, 255, 255, .28), transparent 58%); pointer-events: none; }
+
+/* ---------- Cabeçalho da etapa ---------- */
+.cc-context { margin: 0 0 clamp(10px, 2vh, 18px); color: var(--ink-dim); font: 600 clamp(15px, 2.1vh, 18px)/1.3 'Barlow Condensed', 'Arial Narrow', sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+.cc-context strong { color: var(--ink); }
+.cc-context em { margin-left: 12px; padding: 3px 9px 2px; font-style: normal; color: var(--lime-ink); background: var(--lime); border-radius: 3px; font-size: .85em; }
+
+/* ---------- Grade de cartões: 1 coluna no celular, 2 a partir de 900px, 3 a partir de 1600px ---------- */
+.cc-grid { display: grid; grid-template-columns: 1fr; gap: clamp(10px, 1.4vw, 16px); }
+@media (min-width: 900px) { .cc-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1600px) { .cc-grid { grid-template-columns: repeat(3, 1fr); } }
+
+.cc { position: relative; display: block; cursor: pointer; }
+.cc input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.cc-body {
+  position: relative; display: flex; flex-direction: column; gap: 10px; height: 100%; padding: 14px 16px 14px;
+  background: rgba(6, 18, 12, .62); border: 1px solid rgba(255, 255, 255, .16); border-radius: 6px;
+  transition: border-color .18s ease, background-color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+.cc-top { display: flex; align-items: center; gap: 14px; padding-right: 34px; }
+.cc-title { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.cc-name { font: 800 clamp(20px, 2.8vh, 25px)/1.05 'Barlow Condensed', 'Arial Narrow', sans-serif; letter-spacing: .06em; text-transform: uppercase; overflow-wrap: anywhere; }
+.cc-short { font: 600 13px/1 'Barlow Condensed', sans-serif; letter-spacing: .24em; color: var(--ink-dim); }
+.cc-venue { display: flex; align-items: center; gap: 7px; color: var(--ink-dim); font: 500 clamp(13.5px, 1.9vh, 15.5px)/1.3 'Barlow', system-ui, sans-serif; }
+.cc-ico { flex: none; color: var(--lime); }
+.cc-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: auto; }
+.cc-budget { display: flex; flex-direction: column; gap: 2px; font: 700 clamp(17px, 2.4vh, 20px)/1 'Barlow Condensed', sans-serif; letter-spacing: .06em; }
+.cc-budget small { font: 600 10.5px/1 'Barlow Condensed', sans-serif; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-dim); }
+
+/* Meta da diretoria, com cor por severidade */
+.cc-exp { padding: 5px 10px 4px; border: 1px solid currentColor; border-radius: 3px; font: 700 13px/1 'Barlow Condensed', sans-serif; letter-spacing: .14em; text-transform: uppercase; }
+.cc-exp.title { color: var(--lime); background: rgba(184, 255, 60, .12); }
+.cc-exp.top4 { color: #5fd7ff; background: rgba(95, 215, 255, .12); }
+.cc-exp.mid { color: #ffd23f; background: rgba(255, 210, 63, .12); }
+.cc-exp.survive { color: #ff7a52; background: rgba(255, 122, 82, .13); }
+
+.cc-stars { margin-left: auto; display: inline-flex; gap: 1px; font-size: 19px; line-height: 1; color: rgba(255, 255, 255, .28); }
+.cc-stars .on { color: #ffc93c; text-shadow: 0 0 8px rgba(255, 201, 60, .45); }
+
+.cc-check {
+  position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%;
+  background: var(--lime); color: var(--lime-ink); font: 800 16px/1 system-ui, sans-serif; opacity: 0; transform: scale(.5);
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+/* Estados */
+.cc:hover .cc-body { border-color: var(--lime); transform: translateY(-2px); box-shadow: 0 8px 26px rgba(184, 255, 60, .20); }
+.cc input:checked + .cc-body { border-color: var(--lime); background: rgba(184, 255, 60, .14); box-shadow: inset 0 0 0 2px var(--lime), 0 8px 28px rgba(184, 255, 60, .28); }
+.cc input:checked + .cc-body .cc-check { opacity: 1; transform: none; }
+.cc input:focus-visible + .cc-body { outline: 3px solid var(--lime); outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) { .cc:hover .cc-body { transform: none; } .cc-check { transition: none; transform: none; } }
+
+/* ---------- Rolagem suave dentro do painel do assistente + largura maior para a grade ---------- */
+.nw-body { scroll-behavior: smooth; scrollbar-width: thin; scrollbar-color: rgba(184, 255, 60, .55) transparent; }
+@media (prefers-reduced-motion: reduce) { .nw-body { scroll-behavior: auto; } }
+.nw-wide .nw-top, .nw-wide .nw-card, .nw-wide .nw-foot { width: min(1280px, 100%); }

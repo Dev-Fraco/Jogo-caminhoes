@@ -43,7 +43,7 @@ describe('Etapa 2 — validação', () => {
     expect(validateWorld({ ...w, divisionId: 'primera' }).division).toBeTruthy();
   });
   it('etapas 1 e 2 implementadas; 3 e 4 seguem placeholders', () => {
-    expect(STEPS.map((s) => s.implemented)).toEqual([true, true, false, false]);
+    expect(STEPS.map((s) => s.implemented)).toEqual([true, true, true, false]);
     expect(createNewGameState().world).toEqual({ countryId: '', leagueId: '', divisionId: '' });
   });
 });

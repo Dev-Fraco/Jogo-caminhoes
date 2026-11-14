@@ -1,3 +1,4 @@
+import { getClub, type ClubData } from '../data/clubs';
 import { getCountry, getDivision, getLeague } from '../data/world';
 
 /**
@@ -49,14 +50,20 @@ export interface WorldSelection { countryId: string; leagueId: string; divisionI
 export interface NewGameState {
   coach: CoachProfile; // Etapa 1
   world: WorldSelection; // Etapa 2
-  // Etapa 3 (clube):        club?: { clubId }
+  club: ClubData | null; // Etapa 3 (clube completo; null = ainda não escolhido)
   // Etapa 4 (confirmação):  setup?: { difficulty, mode, saveName }
 }
 
 export const createNewGameState = (): NewGameState => ({
   coach: { name: '', nationality: '', reputation: '' },
   world: { countryId: '', leagueId: '', divisionId: '' },
+  club: null,
 });
+
+/** Atualiza a Etapa 2. Se a divisão mudou, o clube escolhido deixa de valer e é limpo. */
+export function applyWorld(state: NewGameState, world: WorldSelection): NewGameState {
+  return { ...state, world, club: world.divisionId === state.world.divisionId ? state.club : null };
+}
 
 export const NAME_MIN = 2;
 export const NAME_MAX = 40;
@@ -99,6 +106,6 @@ export interface StepDef {
 export const STEPS: StepDef[] = [
   { id: 'coach', title: 'Perfil do Treinador', implemented: true, isValid: (s) => Object.keys(validateCoach(s.coach)).length === 0 },
   { id: 'world', title: 'Mundo', subtitle: 'País, Ligas, Divisões', implemented: true, isValid: (s) => Object.keys(validateWorld(s.world)).length === 0 },
-  { id: 'club', title: 'Escolha do Clube', implemented: false, isValid: () => false },
+  { id: 'club', title: 'Escolha do Clube', implemented: true, isValid: (s) => !!s.club && !!getClub(s.world.divisionId, s.club.id) },
   { id: 'confirm', title: 'Confirmação', subtitle: 'Dificuldade, Modo de Jogo, Nome do Save', implemented: false, isValid: () => false },
 ];

@@ -26,6 +26,6 @@ describe('Novo Jogo — etapa 1', () => {
   });
   it('4 etapas; só a primeira implementada', () => {
     expect(STEPS.map((s) => s.title)).toEqual(['Perfil do Treinador', 'Mundo', 'Escolha do Clube', 'Confirmação']);
-    expect(STEPS.map((s) => s.implemented)).toEqual([true, true, false, false]);
+    expect(STEPS.map((s) => s.implemented)).toEqual([true, true, true, false]);
   });
 });

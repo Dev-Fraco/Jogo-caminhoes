@@ -1,6 +1,7 @@
 import { useRef, useState, type CSSProperties } from 'react';
-import { createNewGameState, NAME_MAX, NATIONALITIES, REPUTATIONS, STEPS, validateCoach, type CoachProfile, type NewGameState } from '../newgame/state';
+import { applyWorld, createNewGameState, NAME_MAX, NATIONALITIES, REPUTATIONS, STEPS, validateCoach, type CoachProfile, type NewGameState } from '../newgame/state';
 import { Backdrop } from './Backdrop';
+import { ClubStep } from './ClubStep';
 import { WorldStep } from './WorldStep';
 import { WALLPAPER_URL } from './MainMenu';
 import './newgame.css';
@@ -100,7 +101,9 @@ export function NewGame({ onBack }: { onBack: () => void }) {
 
   const step = STEPS[index];
   const last = index === STEPS.length - 1;
-  const canAdvance = step.implemented; // placeholders bloqueiam o Avançar
+  // Placeholders bloqueiam o Avançar; na escolha do clube ele só libera depois de selecionar um clube.
+  const canAdvance = step.implemented && (step.id !== 'club' || step.isValid(state));
+  const footNote = !step.implemented ? 'Em breve' : step.id === 'club' && !canAdvance ? 'Selecione um clube para continuar' : '';
 
   const focusFirstError = () => {
     const e = validateCoach(state.coach);
@@ -132,7 +135,7 @@ export function NewGame({ onBack }: { onBack: () => void }) {
   const canJump = (i: number) => i <= index || STEPS.slice(0, i).every((s) => !s.implemented || s.isValid(state));
 
   return (
-    <div className="menu nw" style={{ '--menu-wallpaper': `url(${WALLPAPER_URL})` } as CSSProperties}>
+    <div className={`menu nw${step.id === 'club' ? ' nw-wide' : ''}`} style={{ '--menu-wallpaper': `url(${WALLPAPER_URL})` } as CSSProperties}>
       <Backdrop />
       <div className="nw-shell">
         <div className="nw-top">
@@ -159,7 +162,9 @@ export function NewGame({ onBack }: { onBack: () => void }) {
             {step.id === 'coach' ? (
               <CoachStep coach={state.coach} onChange={(coach) => setState({ ...state, coach })} touched={touched} setTouched={setTouched} refs={refs} />
             ) : step.id === 'world' ? (
-              <WorldStep world={state.world} onChange={(world) => setState({ ...state, world })} attempted={worldAttempted} focusTick={worldFocus} />
+              <WorldStep world={state.world} onChange={(world) => setState(applyWorld(state, world))} attempted={worldAttempted} focusTick={worldFocus} />
+            ) : step.id === 'club' ? (
+              <ClubStep world={state.world} selected={state.club} onSelect={(club) => setState({ ...state, club })} />
             ) : (
               <PlaceholderStep title={step.title} subtitle={step.subtitle} />
             )}
@@ -168,7 +173,7 @@ export function NewGame({ onBack }: { onBack: () => void }) {
 
         <footer className="nw-foot">
           <button type="button" className="nw-btn" onClick={back}>Voltar</button>
-          <div className="nw-foot-note" role="status">{!canAdvance && 'Em breve'}</div>
+          <div className="nw-foot-note" role="status">{footNote}</div>
           <button type="button" className="nw-btn go" onClick={next} disabled={!canAdvance}>Avançar</button>
         </footer>
       </div>
