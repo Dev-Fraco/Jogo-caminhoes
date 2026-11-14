@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react';
 import type { DataPack } from '../engine/types';
 
-interface Props { defaultPack: DataPack; parsePack: (raw: unknown) => DataPack; onStart: (pack: DataPack, clubId: string) => void }
+interface Props { defaultPack: DataPack; parsePack: (raw: unknown) => DataPack; onStart: (pack: DataPack, clubId: string) => void; onBack: () => void }
 
-export function Start({ defaultPack, parsePack, onStart }: Props) {
+export function Start({ defaultPack, parsePack, onStart, onBack }: Props) {
   const [pack, setPack] = useState(defaultPack);
   const [error, setError] = useState('');
   const file = useRef<HTMLInputElement>(null);
@@ -18,6 +18,7 @@ export function Start({ defaultPack, parsePack, onStart }: Props) {
     <div className="app">
       <header style={{ background: '#0b3d2e' }}>
         <div><strong>Escolha seu clube</strong><small>{pack.name}</small></div>
+        <button className="ghost" onClick={onBack}>← Menu</button>
       </header>
       <main>
         <div className="card">
