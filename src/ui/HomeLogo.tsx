@@ -29,7 +29,7 @@ export function HomeLogo({ className }: { className?: string }) {
         <rect x="232" y="34" width="56" height="7" rx="2" fill="url(#hl-gold)" stroke="#6b4608" strokeWidth="1.2" />
       </g>
       {/* letras */}
-      <g filter="url(#hl-shadow)" fontFamily="'Rajdhani','Arial Narrow',Impact,sans-serif" fontWeight="800" fontStyle="italic" textAnchor="middle">
+      <g filter="url(#hl-shadow)" fontFamily="'Inter',system-ui,sans-serif" fontWeight="800" fontStyle="italic" textAnchor="middle">
         <text x="260" y="112" fontSize="92" fill="url(#hl-chrome)" stroke="#2b2f36" strokeWidth="1.5" letterSpacing="1">VIDA REAL</text>
         <text x="270" y="170" fontSize="82" fill="url(#hl-gold)" stroke="#5a3a05" strokeWidth="1.5">FC</text>
       </g>

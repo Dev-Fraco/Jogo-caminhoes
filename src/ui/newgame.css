@@ -13,12 +13,12 @@
 .nw-top { width: min(1000px, 100%); margin: 0 auto; }
 .nw-kicker {
   display: flex; align-items: center; gap: 10px; color: var(--gold);
-  font: 700 clamp(12px, 1.6vh, 15px)/1 'Rajdhani', 'Arial Narrow', sans-serif; letter-spacing: .32em; text-transform: uppercase;
+  font: 700 clamp(12px, 1.6vh, 15px)/1 'Inter', system-ui, sans-serif; letter-spacing: .32em; text-transform: uppercase;
 }
 .nw-kicker::before { content: ''; width: 34px; height: 5px; background: var(--gold); transform: skewX(-30deg); }
 .nw-top h1 {
   margin: 8px 0 clamp(8px, 2vh, 18px);
-  font: italic 800 clamp(26px, 4.6vh, 44px)/1 'Rajdhani', 'Arial Narrow', Impact, sans-serif;
+  font: italic 800 clamp(26px, 4.6vh, 44px)/1 'Inter', system-ui, sans-serif;
   text-transform: uppercase; text-shadow: 0 4px 24px rgba(0, 0, 0, .55);
 }
 .nw-steps { list-style: none; margin: 0; padding: 0; display: flex; align-items: center; gap: 0; }
@@ -28,7 +28,7 @@
 .nw-steps li.done:not(:last-child)::after { background: var(--gold); }
 .nw-steps button {
   display: flex; align-items: center; gap: 10px; padding: 4px 6px 4px 0; background: none; border: 0; color: var(--ink-dim); cursor: pointer; border-radius: 6px;
-  font: 600 clamp(13px, 1.9vh, 16px)/1 'Rajdhani', 'Arial Narrow', sans-serif; letter-spacing: .1em; text-transform: uppercase;
+  font: 600 clamp(13px, 1.9vh, 16px)/1 'Inter', system-ui, sans-serif; letter-spacing: .1em; text-transform: uppercase;
   transition: color .18s ease;
 }
 .nw-steps button:disabled { cursor: default; opacity: .6; }
@@ -57,12 +57,12 @@
 .nw-field { border: 0; margin: 0; padding: 0; min-width: 0; }
 .nw-field label, .nw-field legend {
   display: block; padding: 0; margin-bottom: 8px; color: var(--ink-dim);
-  font: 700 clamp(13px, 1.9vh, 16px)/1 'Rajdhani', 'Arial Narrow', sans-serif; letter-spacing: .18em; text-transform: uppercase;
+  font: 700 clamp(13px, 1.9vh, 16px)/1 'Inter', system-ui, sans-serif; letter-spacing: .18em; text-transform: uppercase;
 }
 .nw-field input[type=text], .nw-field select {
   width: 100%; min-height: clamp(46px, 6.4vh, 56px); padding: 0 16px; color: var(--ink);
   background-color: rgba(0, 0, 0, .38); border: 1px solid rgba(255, 255, 255, .22); border-radius: 4px;
-  font: 500 clamp(16px, 2.4vh, 19px)/1.2 'Rajdhani', system-ui, sans-serif;
+  font: 500 clamp(16px, 2.4vh, 19px)/1.2 'Inter', system-ui, sans-serif;
   transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
 }
 .nw-field input::placeholder { color: rgba(244, 251, 246, .38); }
@@ -77,7 +77,7 @@
 .nw-field input:focus, .nw-field select:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(255, 226, 26, .35); background-color: rgba(0, 0, 0, .5); }
 .nw-field input.bad, .nw-field select.bad { border-color: #ff7b7b; }
 .nw-field input.bad:focus, .nw-field select.bad:focus { box-shadow: 0 0 0 3px rgba(255, 123, 123, .35); }
-.nw-msg { display: flex; justify-content: space-between; gap: 10px; min-height: 22px; margin-top: 6px; font: 500 13px/1.3 'Rajdhani', system-ui, sans-serif; }
+.nw-msg { display: flex; justify-content: space-between; gap: 10px; min-height: 22px; margin-top: 6px; font: 500 13px/1.3 'Inter', system-ui, sans-serif; }
 .nw-hint, .nw-count { color: var(--ink-dim); }
 .nw-error { color: #ff9a9a; font-weight: 600; }
 .nw-count { margin-left: auto; font-variant-numeric: tabular-nums; } .nw-count.bad { color: #ff9a9a; }
@@ -92,8 +92,8 @@
   background: rgba(0, 0, 0, .34); border: 1px solid rgba(255, 255, 255, .18); border-left: 3px solid rgba(255, 255, 255, .25); border-radius: 4px;
   transition: background-color .18s ease, color .18s ease, border-color .18s ease, transform .18s ease, box-shadow .18s ease;
 }
-.nw-rep-body strong { font: 700 clamp(17px, 2.5vh, 21px)/1.05 'Rajdhani', 'Arial Narrow', sans-serif; letter-spacing: .08em; text-transform: uppercase; }
-.nw-rep-body small { font: 500 clamp(12.5px, 1.8vh, 14.5px)/1.35 'Rajdhani', system-ui, sans-serif; color: var(--ink-dim); }
+.nw-rep-body strong { font: 700 clamp(17px, 2.5vh, 21px)/1.05 'Inter', system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+.nw-rep-body small { font: 500 clamp(12.5px, 1.8vh, 14.5px)/1.35 'Inter', system-ui, sans-serif; color: var(--ink-dim); }
 .nw-pips { display: flex; gap: 4px; margin-bottom: 4px; }
 .nw-pips i { width: 16px; height: 6px; background: rgba(255, 255, 255, .22); transform: skewX(-30deg); transition: background-color .18s ease; }
 .nw-pips i.on { background: var(--gold); }
@@ -106,20 +106,20 @@
 
 /* ---------- Placeholder das etapas 2–4 ---------- */
 .nw-soon { text-align: center; padding: clamp(24px, 8vh, 80px) 10px; }
-.nw-soon h2 { margin: 0; font: italic 800 clamp(28px, 5vh, 44px)/1 'Rajdhani', 'Arial Narrow', sans-serif; text-transform: uppercase; }
+.nw-soon h2 { margin: 0; font: italic 800 clamp(28px, 5vh, 44px)/1 'Inter', system-ui, sans-serif; text-transform: uppercase; }
 .nw-soon-sub { margin: 10px 0 0; color: var(--ink-dim); font-size: 17px; }
-.nw-soon-tag { display: inline-block; margin: 22px 0 0; padding: 6px 16px; color: var(--gold-ink); background: var(--gold); border-radius: 3px; transform: skewX(-12deg); font: 700 15px/1 'Rajdhani', sans-serif; letter-spacing: .2em; text-transform: uppercase; }
+.nw-soon-tag { display: inline-block; margin: 22px 0 0; padding: 6px 16px; color: var(--gold-ink); background: var(--gold); border-radius: 3px; transform: skewX(-12deg); font: 700 15px/1 'Inter', system-ui, sans-serif; letter-spacing: .2em; text-transform: uppercase; }
 
 /* ---------- Rodapé ---------- */
 .nw-foot {
   width: min(1000px, 100%); margin: 0 auto; display: flex; align-items: center; gap: 14px;
   padding: clamp(10px, 2vh, 18px) 0 max(clamp(12px, 2.4vh, 22px), env(safe-area-inset-bottom, 0px));
 }
-.nw-foot-note { flex: 1; text-align: right; color: var(--ink-dim); font: 600 14px/1 'Rajdhani', sans-serif; letter-spacing: .16em; text-transform: uppercase; }
+.nw-foot-note { flex: 1; text-align: right; color: var(--ink-dim); font: 600 14px/1 'Inter', system-ui, sans-serif; letter-spacing: .16em; text-transform: uppercase; }
 .nw-btn {
   min-height: clamp(46px, 6.4vh, 56px); min-width: clamp(110px, 12vw, 170px); padding: 0 24px; color: var(--ink); cursor: pointer;
   background: var(--glass); border: 1px solid var(--glass-line); border-radius: 4px; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
-  font: 700 clamp(16px, 2.4vh, 20px)/1 'Rajdhani', 'Arial Narrow', sans-serif; letter-spacing: .14em; text-transform: uppercase;
+  font: 700 clamp(16px, 2.4vh, 20px)/1 'Inter', system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase;
   transition: background-color .18s ease, color .18s ease, border-color .18s ease, transform .18s ease, box-shadow .18s ease;
 }
 .nw-btn:hover:not(:disabled) { border-color: var(--gold); transform: translateY(-2px); }

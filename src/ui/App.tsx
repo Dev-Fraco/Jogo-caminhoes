@@ -148,10 +148,10 @@ export function App() {
           {!live && !game.unemployed && tab === 'transfers' && <Transfers game={game} onChange={setGame} view={tfView} onView={setTfView} />}
         </main>
         <nav>
-          {([['home', '🏠', 'Início'], ['squad', '👕', 'Elenco'], ['table', '📊', 'Tabela'], ['transfers', '🔁', 'Transf.'], ['phone', '📱', 'Celular']] as const).map(([id, icon, label]) => {
-            const on = tab === id || (id === 'home' && (tab === 'lineup' || tab === 'finance' || tab === 'stadium'));
+          {([['home', '🏠', 'Início'], ['squad', '👕', 'Elenco'], ['table', '📊', 'Tabela'], ['transfers', '🔁', 'Transf.'], ['stadium', '🏟️', 'Estádio'], ['finance', '💰', 'Finanças'], ['phone', '📱', 'Celular']] as const).map(([id, icon, label]) => {
+            const on = tab === id || (id === 'home' && tab === 'lineup');
             return (
-              <button key={id} className={on ? 'on' : ''} disabled={!!live || (!!game.unemployed && (id === 'squad' || id === 'transfers'))} onClick={() => (id === 'phone' ? setPhoneOpen(true) : setTab(id))} aria-label={id === 'transfers' ? 'Transferências' : label} aria-current={on ? 'page' : undefined}>
+              <button key={id} className={on ? 'on' : ''} disabled={!!live || (!!game.unemployed && (id === 'squad' || id === 'transfers' || id === 'stadium' || id === 'finance'))} onClick={() => (id === 'phone' ? setPhoneOpen(true) : setTab(id))} aria-label={id === 'transfers' ? 'Transferências' : label} aria-current={on ? 'page' : undefined}>
                 <span aria-hidden="true">{icon}</span>{label}
                 {id === 'phone' && unreadCount(game) > 0 && <i className="nav-badge" aria-label={`${unreadCount(game)} notificações`}>{unreadCount(game)}</i>}
                 {id === 'transfers' && game.offers.length > 0 && <i className="nav-badge" aria-label={`${game.offers.length} propostas`}>{game.offers.length}</i>}

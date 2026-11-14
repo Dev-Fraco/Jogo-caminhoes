@@ -14,7 +14,7 @@
   position: relative; overflow: hidden; height: 100%;
   color: var(--ink);
   background: #010620;
-  font-family: 'Rajdhani', 'Segoe UI', Roboto, system-ui, sans-serif;
+  font-family: 'Inter', 'Segoe UI', Roboto, system-ui, sans-serif;
 }
 
 /* ---------- Fundo ---------- */

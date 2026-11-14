@@ -15,9 +15,9 @@
   --line: rgba(255, 226, 26, .24);
   --good: #5be08a;
   --bad: #ff7a6b;
-  --font-head: 'Rajdhani', 'Arial Narrow', sans-serif;
-  --font-tech: 'Press Start 2P', 'Courier New', monospace;
-  --font-body: 'Rajdhani', system-ui, -apple-system, Roboto, sans-serif;
+  --font-head: 'Inter', system-ui, sans-serif;
+  --font-tech: 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, Roboto, sans-serif;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body, #root { height: 100%; margin: 0; }
