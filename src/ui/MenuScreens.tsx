@@ -213,6 +213,7 @@ export function HallScreen({ onBack }: { onBack: () => void }) {
                 {e.divisions.map((d, i) => <li key={i}><span>{d.name}</span><b>🏆 {d.champion}</b></li>)}
                 {e.cups.map((c, i) => <li key={`c${i}`} className="cup"><span>{c.icon} {c.name}</span><b>{c.champion}</b></li>)}
               </ul>
+              {e.states && e.states.length > 0 && <details className="hv-est"><summary>🏟️ Estaduais ({e.states.length})</summary><ul className="hv-champs">{e.states.map((s, i) => <li key={i}><span>{s.name}</span><b>{s.champion}</b></li>)}</ul></details>}
             </div>
           ))}
         </section>

@@ -97,7 +97,7 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
   return (
     <>
       <div className="card center">
-        <small>{ev ? ev.label : `${division.name} · Rodada ${Math.min(game.round, game.totalRounds)} de ${game.totalRounds}`}</small>
+        <small>{ev ? ev.label : game.estadual?.due ? `🏟️ Estaduais · rodada ${game.estadual.step} de ${game.estadual.totalSteps}` : `${division.name} · Rodada ${Math.min(game.round, game.totalRounds)} de ${game.totalRounds}`}</small>
         {!next && !ev && <p className="hint">Seu clube não joga nesta rodada.</p>}
         {next && <h2>{name(next.homeId)} <span className="vs">x</span> {name(next.awayId)}</h2>}
         <button className="primary" onClick={() => { setOpen(null); onPlay(); }}>▶ Iniciar partida</button>

@@ -1,4 +1,5 @@
 import { CLUBS_DATA, type ClubData } from '../data/clubs';
+import { estadualClub } from '../data/estaduais_clubs';
 import { COUNTRY_ORDER, WORLD_DATA } from '../data/world';
 import { developPlayer } from './ai';
 import { baseWage } from './finance';
@@ -56,7 +57,7 @@ export function directory(g: GameState): DirClub[] {
 
 export const dirClub = (g: GameState, id: string): DirClub | undefined => directory(g).find((c) => c.id === id);
 /** Nome de qualquer clube (da liga, da Libertadores/Champions ou de outras ligas). */
-export const anyClubName = (g: GameState, id: string): string => g.clubs[id]?.name ?? g.foreign?.clubs[id]?.name ?? foreignIndex().get(id)?.name ?? '—';
+export const anyClubName = (g: GameState, id: string): string => g.clubs[id]?.name ?? g.foreign?.clubs[id]?.name ?? foreignIndex().get(id)?.name ?? estadualClub(id)?.name ?? '—';
 
 /* ---------- elencos de fora ---------- */
 

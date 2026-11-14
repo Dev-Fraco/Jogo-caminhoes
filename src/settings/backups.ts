@@ -10,7 +10,7 @@ export interface Backup {
   data: string; // JSON do save da carreira
 }
 
-export const MAX_BACKUPS = 5; // cada backup guarda a carreira inteira; o limite protege o espaço do localStorage
+export const MAX_BACKUPS = 3; // cada backup guarda a carreira inteira; o limite protege o espaço do localStorage
 const KEY = 'caminhoes-backups-v1';
 
 export function listBackups(): Backup[] {

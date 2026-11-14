@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { COMPS, CONTINENTALS, groupTable, type Comp } from '../engine/continental';
 import { clubOf } from '../engine/lookup';
 import { GROUP_ROUNDS, groupTables, isGroups, knockoutView } from '../engine/groups';
+import { estadualOfUser, estadualTable } from '../engine/estadual';
 import { HistoryView, TrophyRoom } from './HistoryView';
 import { divisionTable, slotsOf, userDivisionIndex } from '../engine/game';
 import type { GameState } from '../engine/types';
@@ -27,7 +28,7 @@ function formOf(game: GameState, divisionId: string, clubId: string): ('W' | 'D'
 export function Table({ game, initialView = 'div' }: { game: GameState; initialView?: 'div' | 'rounds' | 'hist' }) {
   const mineIndex = userDivisionIndex(game);
   const [idx, setIdx] = useState(mineIndex);
-  const [view, setView] = useState<'div' | 'cup' | Comp | 'mundial' | 'rounds' | 'hist' | 'titles'>(initialView);
+  const [view, setView] = useState<'div' | 'cup' | Comp | 'mundial' | 'rounds' | 'hist' | 'titles' | 'estadual'>(initialView);
   const division = game.divisions[idx];
   const rows = divisionTable(game, division.id);
   const n = rows.length;
@@ -46,11 +47,13 @@ export function Table({ game, initialView = 'div' }: { game: GameState; initialV
         <button role="tab" aria-selected={view === 'hist'} className={view === 'hist' ? 'on' : ''} onClick={() => setView('hist')}>🏅 Campeões</button>
         <button role="tab" aria-selected={view === 'titles'} className={view === 'titles' ? 'on' : ''} onClick={() => setView('titles')}>🥇 Meus títulos</button>
         <button role="tab" aria-selected={view === 'rounds'} className={view === 'rounds' ? 'on' : ''} onClick={() => setView('rounds')}>📋 Jogos</button>
+        {game.estadual && <button role="tab" aria-selected={view === 'estadual'} className={view === 'estadual' ? 'on' : ''} onClick={() => setView('estadual')}>🏟️ Estadual</button>}
         {game.cup && <button role="tab" aria-selected={view === 'cup'} className={view === 'cup' ? 'on' : ''} onClick={() => setView('cup')}>🏆 Copa</button>}
         {COMPS.map((k) => game[k] && <button key={k} role="tab" aria-selected={view === k} className={view === k ? 'on' : ''} onClick={() => setView(k)}>{CONTINENTALS[k].icon} {k === 'lib' ? 'Liberta' : k === 'sula' ? 'Sula' : 'Champions'}</button>)}
         {game.mundial && <button role="tab" aria-selected={view === 'mundial'} className={view === 'mundial' ? 'on' : ''} onClick={() => setView('mundial')}>🌍 Mundial</button>}
       </div>
       {view === 'rounds' && <RoundsView game={game} />}
+      {view === 'estadual' && game.estadual && <EstadualView game={game} />}
       {view === 'hist' && <HistoryView game={game} />}
       {view === 'titles' && <TrophyRoom game={game} />}
       {view === 'cup' && game.cup && <CupView game={game} />}
@@ -262,6 +265,73 @@ function GroupsView({ game }: { game: GameState }) {
             </table>
           </div>
           <p className="legend"><i className="k acc" /> Avançam ao mata-mata (2 primeiros) · os 4 semifinalistas sobem para a Série C</p>
+        </>
+      )}
+    </>
+  );
+}
+
+/** Campeonatos estaduais: escolha o estado e a divisão para ver a classificação e os jogos de cada rodada. */
+function EstadualView({ game }: { game: GameState }) {
+  const e = game.estadual!;
+  const mine = estadualOfUser(game);
+  const [uf, setUf] = useState(mine?.comp.uf ?? e.comps[0].uf);
+  const [divIdx, setDivIdx] = useState(mine && mine.comp.uf === uf ? mine.divIndex : 0);
+  const comp = e.comps.find((c) => c.uf === uf)!;
+  const div = comp.divisions[Math.min(divIdx, comp.divisions.length - 1)];
+  const played = e.done ? e.totalSteps : e.step - 1;
+  const [round, setRound] = useState(Math.max(1, played));
+  const rows = estadualTable(game, div);
+  const name = (id: string) => clubOf(game, id).name;
+  const list = div.matches.filter((m) => m[0] === round);
+  const maxRound = Math.max(...div.matches.map((m) => m[0]), 0);
+  return (
+    <>
+      <div className="card">
+        <div className="tf-filters">
+          <select aria-label="Estado" value={uf} onChange={(ev) => { setUf(ev.target.value); setDivIdx(0); }}>
+            {e.comps.map((c) => <option key={c.uf} value={c.uf}>{c.name}{c.uf === mine?.comp.uf ? ' ★' : ''}</option>)}
+          </select>
+        </div>
+        {comp.divisions.length > 1 && (
+          <div className="chips" role="tablist" aria-label="Divisão do estadual" style={{ marginTop: 8 }}>
+            {comp.divisions.map((d, i) => <button key={d.name} role="tab" aria-selected={i === divIdx} className={i === divIdx ? 'on' : ''} onClick={() => setDivIdx(i)}>{d.name}</button>)}
+          </div>
+        )}
+        <p className="hint" style={{ margin: '8px 0 0' }}>{e.done ? 'Estadual encerrado.' : `Rodada ${Math.min(e.step, e.totalSteps)} de ${e.totalSteps}.`} Turno único; o líder é o campeão.</p>
+      </div>
+      <div className="tb-wrap">
+        <table className="tb">
+          <thead><tr><th>#</th><th className="l">Clube</th><th>PTS</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr></thead>
+          <tbody>
+            {rows.map((r, i) => {
+              const c = clubOf(game, r.clubId);
+              return (
+                <tr key={r.clubId} className={`${r.clubId === game.userClubId ? 'mine' : ''} ${comp.divisions.length > 1 && divIdx === 0 && i >= rows.length - 2 ? 'rel' : ''} ${comp.divisions.length > 1 && divIdx === 1 && i < 2 ? 'acc' : ''}`}>
+                  <td><span className="pos">{i + 1}</span></td>
+                  <td className="l"><div className="team"><span className="dot" style={{ background: c.primaryColor, color: c.primaryColor }} /><div><span className="cname">{c.name}</span></div></div></td>
+                  <td><span className="pts">{r.points}</span></td><td className="sub">{r.played}</td><td className="sub">{r.won}</td><td className="sub">{r.drawn}</td><td className="sub">{r.lost}</td><td className="sub">{r.gd > 0 ? `+${r.gd}` : r.gd}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {comp.divisions.length > 1 && <p className="legend"><i className="k acc" /> Sobem à Série A (2) <i className="k rel" /> Caem à Série B (2)</p>}
+      {maxRound > 0 && (
+        <>
+          <div className="round-nav">
+            <button className="btn" disabled={round <= 1} onClick={() => setRound(round - 1)} aria-label="Rodada anterior">‹</button>
+            <b>Rodada {round}</b>
+            <button className="btn" disabled={round >= maxRound} onClick={() => setRound(round + 1)} aria-label="Próxima rodada">›</button>
+          </div>
+          <ul className="list">
+            {list.map((m, i) => (
+              <li key={i} className={div.clubIds[m[1]] === game.userClubId || div.clubIds[m[2]] === game.userClubId ? 'row mine' : 'row'}>
+                <span className="grow right">{name(div.clubIds[m[1]])}</span><b className="score">{m[3]} - {m[4]}</b><span className="grow">{name(div.clubIds[m[2]])}</span>
+              </li>
+            ))}
+          </ul>
         </>
       )}
     </>

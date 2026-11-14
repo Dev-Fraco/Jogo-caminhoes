@@ -199,9 +199,16 @@ export interface JobOffer { clubId: string; season: number; round: number; /** v
 export interface JobSpell { clubId: string; fromSeason: number; toSeason?: number; ended?: 'demitido' | 'pediu demissão' | 'contratado por outro clube' }
 export interface RetiredPlayer { name: string; age: number; pos: Position; strength: number; clubId: string; season: number }
 
-export interface CoachTitle { season: number; clubId: string; clubName: string; competition: string; kind: 'liga' | 'copa' | 'continental' | 'mundial' }
+export interface CoachTitle { season: number; clubId: string; clubName: string; competition: string; kind: 'liga' | 'copa' | 'continental' | 'mundial' | 'estadual' }
+
+/** Um estadual: Série A (e, em CE, RJ e SP, Série B). Os resultados ficam compactos: [rodada, mandante (índice), visitante (índice), gols, gols]. */
+export interface EstadualDivision { name: string; clubIds: string[]; matches: [number, number, number, number, number][] }
+export interface EstadualComp { uf: string; name: string; divisions: EstadualDivision[] }
+export interface EstadualState { id: string; comps: EstadualComp[]; step: number; totalSteps: number; due: boolean; done: boolean }
 
 export interface SeasonSummary {
+  /** Campeões dos estaduais da temporada (todos os estados). */
+  estadualChampions?: { uf: string; name: string; divisions: { name: string; championId: string }[] }[];
   sulaChampionId?: string;
   /** Classificação final de cada divisão: [clube, pontos, jogos, saldo de gols]. */
   tables?: { id: string; rows: [string, number, number, number][] }[];
@@ -281,6 +288,7 @@ export interface GameState {
   lib?: LibState;
   ucl?: LibState;
   sula?: LibState;
+  estadual?: EstadualState;
   phone?: PhoneState;
   bank?: BankState;
   assets?: AssetsState;

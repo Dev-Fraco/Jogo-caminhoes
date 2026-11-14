@@ -199,3 +199,5 @@ select, input[type=text], input[type=search] { border-radius: 0; border-color: v
 .hv-table { overflow-x: auto; }
 .hv-table .tb { min-width: 0; }
 .hv .chips { max-width: 100%; }
+
+.hv-est { margin: 8px 0 0; } .hv-est summary { cursor: pointer; font: 700 13px var(--font-head); color: var(--gold-hi); padding: 6px 0; }

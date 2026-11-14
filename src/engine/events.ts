@@ -1,13 +1,15 @@
+import { estadualOfUser, playEstadualStep, userEstadualMatch } from './estadual';
 import { COPA_DO_BRASIL, cupMatchDue, playCupRound, userCupTie } from './cup';
 import { CONTINENTALS, matchDue, mundialMatchDue, mundialStepName, mundialUserMatch, playContStep, playMundialStep, stepName, userMatch, type Comp } from './continental';
 import { socialAfterMatch } from './social';
 import type { GameState, MatchResult } from './types';
 
-export type EventKind = 'cup' | 'lib' | 'sula' | 'ucl' | 'mundial';
+export type EventKind = 'estadual' | 'cup' | 'lib' | 'sula' | 'ucl' | 'mundial';
 export interface PendingEvent { kind: EventKind; /** id da competição (divisionId dos resultados) */ id: string; label: string; match: { homeId: string; awayId: string } }
 
 /** Jogo especial esperando o seu clube (copa nacional, Libertadores, Champions ou Mundial), se houver. */
 export function pendingEvent(g: GameState): PendingEvent | undefined {
+  if (g.estadual?.due) { const m = userEstadualMatch(g); const mine = estadualOfUser(g); if (m && mine) return { kind: 'estadual', id: 'estadual', label: `🏟️ ${mine.comp.name}${mine.divIndex ? ' (Série B)' : ''} · Rodada ${g.estadual.step}`, match: m }; }
   if (cupMatchDue(g) && g.cup) { const t = userCupTie(g); if (t) return { kind: 'cup', id: COPA_DO_BRASIL, label: `🏆 ${g.cup.name} · ${g.cup.rounds[g.cup.roundIndex].name}`, match: t }; }
   for (const key of ['lib', 'sula', 'ucl'] as Comp[]) {
     const l = g[key];
@@ -19,7 +21,7 @@ export function pendingEvent(g: GameState): PendingEvent | undefined {
 
 /** Joga o evento pendente do seu clube. */
 export function playEvent(g: GameState, kind: EventKind): { state: GameState; results: MatchResult[] } {
-  const r = kind === 'cup' ? playCupRound(g) : kind === 'mundial' ? playMundialStep(g) : playContStep(g, kind);
+  const r = kind === 'estadual' ? playEstadualStep(g) : kind === 'cup' ? playCupRound(g) : kind === 'mundial' ? playMundialStep(g) : playContStep(g, kind);
   const my = r.results.find((x) => x.homeId === g.userClubId || x.awayId === g.userClubId);
   if (!my || g.unemployed) return r;
   const home = my.homeId === g.userClubId;

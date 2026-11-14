@@ -35,6 +35,14 @@ export function HistoryView({ game }: { game: GameState }) {
               {h.divisions.map((d, i) => <li key={d.id}><span>{game.divisions[i]?.name ?? d.id}</span><b>🏆 {name(d.championId)}</b></li>)}
               {cups(h).map(([icon, n, id]) => <li key={n} className="cup"><span>{icon} {n}</span><b>{name(id)}</b></li>)}
             </ul>
+            {isOpen && h.estadualChampions && (
+              <details className="hv-est">
+                <summary>🏟️ Campeões dos estaduais ({h.estadualChampions.length})</summary>
+                <ul className="hv-champs">
+                  {h.estadualChampions.map((c) => <li key={c.uf}><span>{c.name.replace('Campeonato ', '')}</span><b>{c.divisions.map((d) => `${d.championId ? name(d.championId) : ''}${c.divisions.length > 1 ? ` (${d.name.replace('Série ', '')})` : ''}`).join(' · ')}</b></li>)}
+                </ul>
+              </details>
+            )}
             {isOpen && h.tables && (
               <div className="hv-table">
                 <div className="chips" role="tablist" aria-label="Divisão">

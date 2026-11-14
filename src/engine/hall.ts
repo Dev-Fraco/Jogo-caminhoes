@@ -4,7 +4,7 @@ import type { GameState } from './types';
 /** Salão de campeões: guarda os campeões de todas as ligas e copas, de todas as carreiras e simulações (fica no aparelho, fora dos saves). */
 export interface HallEntry {
   key: string; mode: 'carreira' | 'simulacao'; world: string; league: string; season: number;
-  divisions: { name: string; champion: string }[]; cups: { icon: string; name: string; champion: string }[];
+  states?: { name: string; champion: string }[]; divisions: { name: string; champion: string }[]; cups: { icon: string; name: string; champion: string }[];
 }
 
 const KEY = 'vr-hall-v1';
@@ -22,6 +22,7 @@ export function entriesOf(g: GameState): HallEntry[] {
   const world = observer ? `Simulação — ${g.leagueName ?? 'Campeonato Brasileiro'}` : `Carreira de ${g.coach.name}`;
   return g.history.map((h) => ({
     key: `${observer ? 's' : 'c'}:${g.seed}:${g.leagueName ?? ''}:${h.season}`, mode: observer ? 'simulacao' : 'carreira', world, league: g.leagueName ?? 'Campeonato Brasileiro', season: h.season,
+    states: h.estadualChampions?.map((c) => ({ name: c.name.replace('Campeonato ', ''), champion: c.divisions.map((d) => anyClubName(g, d.championId)).join(' / ') })),
     divisions: h.divisions.map((d, i) => ({ name: g.divisions[i]?.name ?? d.id, champion: anyClubName(g, d.championId) })),
     cups: [
       ...(h.cupChampionId ? [{ icon: '🏆', name: g.cup?.name ?? 'Copa do Brasil', champion: anyClubName(g, h.cupChampionId) }] : []),
