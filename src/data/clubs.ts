@@ -10,6 +10,7 @@ import { generateSquad } from '../engine/squad';
 import type { Player } from '../engine/types';
 import { AR_NACIONAL, AR_PRIMERA, EN_CHAMPIONSHIP, EN_LEAGUE_ONE, EN_PREMIER, ES_LALIGA, ES_SEGUNDA, IT_SERIE_A, IT_SERIE_B } from './clubs_world';
 import { DE_BUNDESLIGA, DE_BUNDESLIGA_2, FR_LIGUE_1, FR_LIGUE_2, PT_PRIMEIRA, PT_SEGUNDA } from './clubs_europe2';
+import { buildEstadualClubs } from './br_estadual_core';
 import { SERIE_D_EXTRA } from './br_serie_d';
 import { BO_PRIMERA, CL_PRIMERA, CO_PRIMERA, EC_PRIMERA, PE_PRIMERA, PY_PRIMERA, UY_PRIMERA, VE_PRIMERA } from './clubs_sulamerica';
 
@@ -32,6 +33,10 @@ export interface ClubData {
   boardExpectation: BoardExpectation;
   /** 1 (pequeno) a 5 (gigante). */
   reputation: 1 | 2 | 3 | 4 | 5;
+  /** Estado do clube (clubes que só jogam estadual e clubes criados pelo jogador). */
+  uf?: string;
+  /** Clube criado pelo jogador. */
+  custom?: boolean;
   /** Plantel: 24 jogadores (3 goleiros, 8 defensores, 8 meias, 5 atacantes). `strength` é o overall (1–100). */
   squad: Player[];
 }
@@ -179,6 +184,16 @@ export const CLUBS_DATA: Record<string, ClubData[]> = {
   'uy-primera': build(UY_PRIMERA, -6),
   've-primera': build(VE_PRIMERA, -10),
 };
+
+/** Clubes que só jogam estadual (191): vêm da lista de estaduais; o elenco é gerado a partir da força fixa de cada um. */
+const ESTADUAL_ONLY: ClubData[] = [...buildEstadualClubs(['serie-a', 'serie-b', 'serie-c', 'serie-d'].flatMap((d) => CLUBS_DATA[d])).byId.values()]
+  .filter((c) => !c.inGame)
+  .map((c) => ({
+    id: c.id, name: c.name, shortName: c.shortName, badge: `assets/badges/${c.id}.png`, primaryColor: c.primaryColor, secondaryColor: c.secondaryColor,
+    stadium: 'Estádio Municipal', city: c.city, budget: (1 + (c.name.length % 3)) * MI, boardExpectation: 'mid' as BoardExpectation, reputation: 1 as Rep, uf: c.uf,
+    squad: generateSquad({ id: c.id, name: c.name, short: c.shortName, color: c.primaryColor, strength: c.rating }, SQUAD_SEED),
+  }));
+CLUBS_DATA['br-estaduais'] = ESTADUAL_ONLY;
 
 /** Clubes de uma divisão (lista vazia se ainda não houver dados). */
 export const getClubs = (divisionId: string): ClubData[] => CLUBS_DATA[divisionId] ?? [];

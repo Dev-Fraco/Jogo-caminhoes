@@ -62,7 +62,7 @@ describe('simular anos sem treinador', () => {
     expect(n.season).toBe(2027);
     expect(n.jobOffers ?? []).toEqual([]);
     expect(n.firedInfo).toBeUndefined();
-    expect(Object.keys(n.teams).length).toBe(156);
+    expect(Object.keys(n.teams).length).toBeGreaterThanOrEqual(156); // + clubes de estadual que subiram à Série D
   });
   it('simula vários anos em qualquer liga, com campeões e tabelas guardados', () => {
     expect(simLeagues().length).toBe(16);

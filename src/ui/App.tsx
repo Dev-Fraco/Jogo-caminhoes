@@ -72,7 +72,7 @@ export function App() {
     const { name, nationality, reputation } = s.coach;
     setGame(newCareer({
       saveName: s.setup.saveName, coach: { name, nationality, reputation }, difficulty: s.setup.difficulty, mode: s.setup.mode,
-      season: START_SEASON, userClubId: s.club!.id, divisions: pyramidOf(s.world.countryId, s.world.leagueId),
+      season: START_SEASON, userClubId: s.club!.id, divisions: pyramidOf(s.world.countryId, s.world.leagueId), outside: s.world.divisionId === 'br-estaduais' ? s.club! : undefined,
       leagueName: s.world.leagueId === 'brasileirao' ? undefined : getLeague(s.world.countryId, s.world.leagueId)?.name, slots: slotsOfLeague(s.world.leagueId), cup: s.world.leagueId === 'brasileirao',
     }));
     setLast([]); setTab('home'); setScreen('game');

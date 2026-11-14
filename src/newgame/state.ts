@@ -177,7 +177,7 @@ export interface StepDef {
 export const STEPS: StepDef[] = [
   { id: 'coach', title: 'Perfil do Treinador', implemented: true, isValid: (s) => Object.keys(validateCoach(s.coach)).length === 0 },
   { id: 'world', title: 'Mundo', subtitle: 'País, Ligas, Divisões', implemented: true, isValid: (s) => Object.keys(validateWorld(s.world)).length === 0 },
-  { id: 'club', title: 'Escolha do Clube', implemented: true, isValid: (s) => !!s.club && !!getClub(s.world.divisionId, s.club.id) },
+  { id: 'club', title: 'Escolha do Clube', implemented: true, isValid: (s) => !!s.club && (!!getClub(s.world.divisionId, s.club.id) || (!!s.club.custom && s.world.divisionId === 'br-estaduais')) },
   { id: 'confirm', title: 'Confirmação', subtitle: 'Dificuldade, Modo de Jogo, Nome do Save', implemented: true, isValid: (s) => Object.keys(validateSetup(s.setup)).length === 0 },
 ];
 

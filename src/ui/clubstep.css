@@ -140,3 +140,16 @@
   .ss-body { padding: 6px 14px 12px; }
   .ss-foot { padding: 12px 14px; } .ss-foot .nw-btn { flex: 1; }
 }
+
+/* Clubes de estadual e criar clube */
+.cc-estadual { display: grid; gap: 10px; margin: 8px 0 12px; }
+.cc-note { margin: 0; font-size: 13.5px; color: var(--ink-dim, #cfd9ff); line-height: 1.4; }
+.cc-filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cc-filters input, .cc-filters select { width: 100%; min-height: 44px; margin: 0; }
+.cc-create { display: grid; gap: 10px; padding: 12px; border: 2px solid #fff; background: rgba(0, 0, 0, .35); }
+.cc-create h3 { margin: 0; }
+.cc-create label { display: grid; gap: 4px; font-size: 13px; color: #fff; }
+.cc-create input, .cc-create select { width: 100%; min-height: 44px; margin: 0; padding: 8px 10px; box-sizing: border-box; }
+.cc-create input[type=color] { padding: 2px; height: 44px; }
+.cc-colors { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cc-actions { display: flex; gap: 8px; flex-wrap: wrap; }

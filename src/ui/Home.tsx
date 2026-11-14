@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { fixturesOfRound, leagueNameOf, seasonOutcome, slotsOf, userDivision } from '../engine/game';
+import { estadualOfUser, estadualTable } from '../engine/estadual';
 import { userInCup } from '../engine/cup';
 import { pendingEvent } from '../engine/events';
 import { CONTINENTALS, COMPS, mundialStepName, stepName, userIn } from '../engine/continental';
@@ -30,6 +31,14 @@ function Meter({ label, value, note }: { label: string; value: number; note?: st
   );
 }
 
+/** Resultado do estadual (para quem joga fora da pirâmide). */
+function EstadualResult({ game }: { game: GameState }) {
+  const mine = estadualOfUser(game);
+  if (!mine) return <p>Temporada encerrada.</p>;
+  const pos = estadualTable(game, mine.div).findIndex((r) => r.clubId === game.userClubId) + 1;
+  return <p>No <b>{mine.comp.name}</b>{mine.divIndex ? ' (Série B)' : ''} você terminou em <b>{pos}º</b> lugar.</p>;
+}
+
 /** Início: próxima partida, escalação, humor (equipe, dirigentes e torcida), propostas e resultados da rodada. */
 export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, onSeeResults, onNextSeason, onEditLineup, onFinance, onSeeOffers }: Props) {
   const name = (id: string) => clubOf(game, id).name;
@@ -43,7 +52,7 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
   if (over) {
     const out = seasonOutcome(game);
     const mine = out.moves.find((m) => m.divisionId === out.userDivisionId)!;
-    const nextName = game.divisions.find((d) => d.id === out.nextDivisionId)!.name;
+    const nextName = game.divisions.find((d) => d.id === out.nextDivisionId)?.name ?? 'Estadual';
     const msg = out.movement === 'promoted' ? `🔼 Acesso conquistado! Você sobe para a ${nextName}.`
       : out.movement === 'relegated' ? `🔽 Rebaixado. Você cai para a ${nextName}.`
       : out.userPosition === 1 && game.divisions[0].id === division.id ? `🏆 CAMPEÃO — ${leagueNameOf(game).toUpperCase()}!` : 'Você permanece na divisão.';
@@ -51,7 +60,7 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
       <>
         <div className="card center">
           <h2>Temporada {game.season} encerrada</h2>
-          <p>Você terminou em <b>{out.userPosition}º</b> lugar na {division.name}.</p>
+          {division.format === 'outside' ? <EstadualResult game={game} /> : <p>Você terminou em <b>{out.userPosition}º</b> lugar na {division.name}.</p>}
           <p className={`outcome ${out.movement}`}>{msg}</p>
           {firingWarning(game) && <p className="un-warn" role="alert">⚠️ {firingWarning(game)} Ao virar a temporada você será demitido.</p>}
           {out.movement === 'promoted' && <p className="hint">🎲 Ao virar a temporada, a diretoria sorteia o investimento: {Math.round(PROMOTED_STRONG_CHANCE * 100)}% de chance de investimento forte (boa chance de se manter na divisão) e {100 - Math.round(PROMOTED_STRONG_CHANCE * 100)}% de investimento pequeno (risco de cair de novo).</p>}

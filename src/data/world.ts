@@ -11,8 +11,8 @@ export interface Division {
   /** Nome local da divisão, mostrado como apoio (ex.: "Championship"). */
   alias?: string;
   teams: number;
-  /** 'groups' = grupos de 6 clubes e mata-mata (Série D). */
-  format?: 'groups';
+  /** 'groups' = grupos de 6 clubes e mata-mata (Série D); 'estadual' = clubes que só jogam estadual (fora da pirâmide). */
+  format?: 'groups' | 'estadual';
 }
 
 export interface League {
@@ -39,6 +39,7 @@ export const WORLD_DATA: Record<string, Country> = {
         { id: 'serie-b', name: 'Série B', teams: 20 },
         { id: 'serie-c', name: 'Série C', teams: 20 },
         { id: 'serie-d', name: 'Série D', teams: 96, format: 'groups' },
+        { id: 'br-estaduais', name: 'Estaduais', alias: 'Só estaduais', teams: 191, format: 'estadual' },
       ],
     }],
   },

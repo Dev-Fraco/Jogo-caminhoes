@@ -4,9 +4,9 @@ import { contAfterLeagueRound, createContinentals, mundialAfterLeagueRound, play
 import { pendingEvent, playEvent } from './events';
 import { tickContracts } from './assets';
 import { advanceKnockout, finalStandings, groupFixtures, isGroups, userGroupRows, withGroups } from './groups';
-import { createEstaduais, estadualChampions, estadualOfUser, estadualTable, nextEstaduais, playEstadualStep } from './estadual';
+import { adoptClub, createEstaduais, estadualChampions, estadualOfUser, estadualTable, nextEstaduais, playEstadualStep, serieDQualifiers } from './estadual';
 import { boardTick, fire, seasonEndFiring, seasonEndOffers, seasonPoints } from './jobs';
-import { expireContracts } from './market';
+import { anyClubName, expireContracts } from './market';
 import { managed } from './lookup';
 import { socialAds, socialAfterMatch } from './social';
 import { tickBoletos } from './bank';
@@ -46,6 +46,8 @@ export interface CareerInput {
   slots?: number;
   /** Pirâmide, da divisão principal para as inferiores. */
   divisions: { id: string; name: string; clubs: ClubData[]; format?: 'groups' }[];
+  /** Clube que só joga estadual (ou criado pelo jogador): fica fora da pirâmide e começa pelo estadual. */
+  outside?: ClubData;
 }
 
 function buildSeason(divisions: DivisionState[]): { fixtures: Fixture[]; totalRounds: number } {
@@ -62,7 +64,7 @@ function buildSeason(divisions: DivisionState[]): { fixtures: Fixture[]; totalRo
 
 /** Cria uma carreira nova: todos os clubes de todas as divisões, calendário completo e elencos. */
 export function newCareer(input: CareerInput, seed = Date.now() % 2147483647): GameState {
-  const all = input.divisions.flatMap((d) => d.clubs);
+  const all = [...input.divisions.flatMap((d) => d.clubs), ...(input.outside ? [input.outside] : [])];
   if (!all.some((c) => c.id === input.userClubId)) throw new Error('Clube inexistente na pirâmide');
   if (new Set(all.map((c) => c.id)).size !== all.length) throw new Error('Clubes repetidos na pirâmide');
   const slots = input.slots ?? PROMOTION_SLOTS;
@@ -78,6 +80,7 @@ export function newCareer(input: CareerInput, seed = Date.now() % 2147483647): G
     teams[c.id] = teamFromPlayers(c.id, c.squad);
   }
   divisions = divisions.map((d, i) => withGroups(d, teams, seed * 7 + i));
+  if (input.outside) divisions.push({ id: 'fora', name: 'Estadual', clubIds: [input.outside.id], format: 'outside' });
   const { fixtures, totalRounds } = buildSeason(divisions);
   const career: GameState = {
     version: 5, leagueName: input.leagueName, slots, saveName: input.saveName, coach: input.coach, difficulty: input.difficulty, mode: input.mode,
@@ -85,7 +88,7 @@ export function newCareer(input: CareerInput, seed = Date.now() % 2147483647): G
     clubs, budgets, transfers: [], morale: { ...MORALE_START }, transferList: [], loanList: [], offers: [], loans: [], news: [], divisions, teams, fixtures, results: [], history: [],
   };
   if (!input.cup) return createContinentals(career);
-  return createContinentals({ ...career, cup: createCup(career), estadual: createEstaduais() });
+  return createContinentals({ ...career, cup: createCup(career), estadual: createEstaduais(input.outside ? { id: input.outside.id, uf: input.outside.uf ?? 'SP' } : undefined) });
 }
 
 export const isSeasonOver = (g: GameState) => g.round > g.totalRounds && !g.mundial?.due;
@@ -175,11 +178,13 @@ export interface DivisionMoves { divisionId: string; table: TableRow[]; promoted
 
 /** Quem sobe e quem desce em cada divisão, de acordo com a classificação atual. */
 export function seasonMoves(g: GameState): DivisionMoves[] {
-  const last = g.divisions.length - 1;
+  const last = g.divisions.filter((d) => d.format !== 'outside').length - 1;
   const slots = slotsOf(g);
+  const quals = serieDQualifiers(g); // clubes de estadual que sobem à Série D
   return g.divisions.map((d, i) => {
     const table = divisionTable(g, d.id);
-    if (isGroups(d)) return { divisionId: d.id, table, promoted: finalStandings(g, d).promoted, relegated: [] };
+    if (d.format === 'outside') return { divisionId: d.id, table, promoted: quals.filter((id) => d.clubIds.includes(id)), relegated: [] };
+    if (isGroups(d)) return { divisionId: d.id, table, promoted: finalStandings(g, d).promoted, relegated: quals.length ? table.slice(-quals.length).map((r) => r.clubId) : [] }; // os piores da D voltam para os estaduais
     return {
       divisionId: d.id, table,
       promoted: i > 0 ? table.slice(0, slots).map((r) => r.clubId) : [],
@@ -205,7 +210,7 @@ export function seasonOutcome(g: GameState): SeasonOutcome {
   const m = moves[i];
   const movement: Movement = m.promoted.includes(g.userClubId) ? 'promoted' : m.relegated.includes(g.userClubId) ? 'relegated' : 'stay';
   const next = movement === 'promoted' ? i - 1 : movement === 'relegated' ? i + 1 : i;
-  return { moves, userDivisionId: g.divisions[i].id, userPosition: m.table.findIndex((r) => r.clubId === g.userClubId) + 1, movement, nextDivisionId: g.divisions[next].id };
+  return { moves, userDivisionId: g.divisions[i].id, userPosition: m.table.findIndex((r) => r.clubId === g.userClubId) + 1, movement, nextDivisionId: g.divisions[next]?.id ?? 'fora' }; // 'fora' = volta para o estadual (caiu da Série D)
 }
 
 /** Resumo da temporada que acabou de terminar (campeões, classificações, copas). */
@@ -223,12 +228,19 @@ export function startNextSeason(g: GameState): GameState {
   const out = seasonOutcome(g);
   const moves = out.moves;
 
-  const divisions: DivisionState[] = g.divisions.map((d, i) => {
+  const pyramid = g.divisions.filter((d) => d.format !== 'outside');
+  const outsideDiv = g.divisions.find((d) => d.format === 'outside');
+  const lastP = pyramid.length - 1;
+  const quals = serieDQualifiers(g); // clubes de estadual que sobem à Série D (e os 8 piores da D que saem)
+  const divisions: DivisionState[] = pyramid.map((d, i) => {
     const stay = moves[i].table.map((r) => r.clubId).filter((id) => !moves[i].promoted.includes(id) && !moves[i].relegated.includes(id));
     const fromAbove = i > 0 ? moves[i - 1].relegated : [];
-    const fromBelow = i < g.divisions.length - 1 ? moves[i + 1].promoted : [];
+    const fromBelow = i < lastP ? moves[i + 1].promoted : quals;
     return withGroups({ id: d.id, name: d.name, format: d.format, clubIds: [...fromBelow, ...stay, ...fromAbove] }, g.teams, g.seed * 11 + g.season * 3 + i);
   });
+  // o seu clube fora da pirâmide (estadual) continua lá, a menos que tenha subido; se cair da Série D, volta para o estadual
+  const outsideIds = [...(outsideDiv?.clubIds ?? []).filter((id) => !quals.includes(id)), ...moves[lastP].relegated.filter((id) => id === g.userClubId && !g.unemployed)];
+  if (outsideIds.length) divisions.push({ id: 'fora', name: 'Estadual', clubIds: outsideIds, format: 'outside' });
 
   const summary = seasonSummary(g, out);
   const { fixtures, totalRounds } = buildSeason(divisions);
@@ -260,7 +272,9 @@ export function startNextSeason(g: GameState): GameState {
     if (g.mundial?.championId === mine) add(g.mundial.name, 'mundial');
   }
   const inflation = nextInflation(g, makeRng(g.seed * 37 + g.season * 5 + 1)); // a inflação do ano que começa
-  const next: GameState = { ...back, titles, inflation, news: [{ season: g.season + 1, round: 1, text: `📈 Inflação de ${(inflation.rate * 100).toFixed(1).replace('.', ',')}%: preços, salários e receitas sobem.`, tone: 'info' as const }, ...back.news].slice(0, 80), season: g.season + 1, round: 1, totalRounds, divisions, fixtures, results: [], budgets, offers: [], history: [...g.history, summary] };
+  let next: GameState = { ...back, titles, inflation, news: [{ season: g.season + 1, round: 1, text: `📈 Inflação de ${(inflation.rate * 100).toFixed(1).replace('.', ',')}%: preços, salários e receitas sobem.`, tone: 'info' as const }, ...back.news].slice(0, 80), season: g.season + 1, round: 1, totalRounds, divisions, fixtures, results: [], budgets, offers: [], history: [...g.history, summary] };
+  for (const id of quals) next = adoptClub(next, id); // clubes de estadual que sobem ganham elenco, caixa e ficha
+  if (quals.length && !g.observer) next = { ...next, news: [{ season: next.season, round: 1, text: `⬆️ Sobem dos estaduais para a Série D: ${quals.map((id) => anyClubName(next, id)).join(', ')}.`, tone: (quals.includes(g.userClubId) ? 'good' : 'info') as 'good' | 'info' }, ...next.news].slice(0, 80) };
   // a IA entra em ação: evolução dos jogadores, investimento dos promovidos, crises dos rebaixados e janela de transferências
   const arrivals = (list: 'promoted' | 'relegated', delta: number) => moves.flatMap((m, i) => m[list].map((clubId) => ({ clubId, to: i + delta })));
   const rng = makeRng(g.seed * 977 + g.season * 31 + 5);

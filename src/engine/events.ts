@@ -1,4 +1,6 @@
-import { estadualOfUser, playEstadualStep, userEstadualMatch } from './estadual';
+import { estadualOfUser, estadualTable, playEstadualStep, userEstadualMatch } from './estadual';
+import { gateOf } from './finance';
+import { updateMorale } from './morale';
 import { COPA_DO_BRASIL, cupMatchDue, playCupRound, userCupTie } from './cup';
 import { CONTINENTALS, matchDue, mundialMatchDue, mundialStepName, mundialUserMatch, playContStep, playMundialStep, stepName, userMatch, type Comp } from './continental';
 import { socialAfterMatch } from './social';
@@ -25,5 +27,16 @@ export function playEvent(g: GameState, kind: EventKind): { state: GameState; re
   const my = r.results.find((x) => x.homeId === g.userClubId || x.awayId === g.userClubId);
   if (!my || g.unemployed) return r;
   const home = my.homeId === g.userClubId;
-  return { ...r, state: socialAfterMatch(r.state, home ? my.homeGoals : my.awayGoals, home ? my.awayGoals : my.homeGoals, 0.6) }; // copas pesam um pouco menos
+  const gf = home ? my.homeGoals : my.awayGoals, ga = home ? my.awayGoals : my.homeGoals;
+  let state = socialAfterMatch(r.state, gf, ga, 0.6); // copas pesam um pouco menos
+  if (kind === 'estadual') {
+    // a diretoria também acompanha o estadual (para quem está fora da pirâmide, é a única competição)
+    const mine = estadualOfUser(state);
+    if (mine) {
+      const rows = estadualTable(state, mine.div, my.round);
+      state = { ...state, morale: updateMorale(g.morale, { gf, ga, home, position: rows.findIndex((x) => x.clubId === g.userClubId) + 1, size: Math.max(20, rows.length), round: Math.max(4, my.round), expectation: g.clubs[g.userClubId].boardExpectation }) };
+      if (home && state.budgets[g.userClubId] !== undefined) state = { ...state, budgets: { ...state.budgets, [g.userClubId]: state.budgets[g.userClubId] + gateOf(state, g.userClubId) } }; // bilheteria do jogo em casa
+    }
+  }
+  return { ...r, state };
 }

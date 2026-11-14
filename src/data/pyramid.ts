@@ -5,7 +5,7 @@ import { getLeague } from './world';
 export function pyramidOf(countryId: string, leagueId: string) {
   const league = getLeague(countryId, leagueId);
   if (!league) throw new Error('Liga inexistente');
-  return league.divisions.map((d) => ({ id: d.id, name: d.alias ?? d.name, clubs: CLUBS_DATA[d.id] ?? [], format: d.format }));
+  return league.divisions.filter((d) => d.format !== 'estadual').map((d) => ({ id: d.id, name: d.alias ?? d.name, clubs: CLUBS_DATA[d.id] ?? [], format: d.format as 'groups' | undefined }));
 }
 
 /** Quantos clubes sobem/descem entre divisões vizinhas em cada liga (padrão: 4). */
@@ -14,5 +14,5 @@ export const slotsOfLeague = (leagueId: string) => SLOTS[leagueId] ?? 4;
 
 /** A pirâmide do Campeonato Brasileiro (Série A → D). */
 export function brazilPyramid() {
-  return getLeague('BR', 'brasileirao')!.divisions.map((d) => ({ id: d.id, name: d.name, clubs: CLUBS_DATA[d.id] ?? [], format: d.format }));
+  return getLeague('BR', 'brasileirao')!.divisions.filter((d) => d.format !== 'estadual').map((d) => ({ id: d.id, name: d.name, clubs: CLUBS_DATA[d.id] ?? [], format: d.format as 'groups' | undefined }));
 }

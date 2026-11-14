@@ -62,7 +62,9 @@ export function roundFinance(g: GameState, homeIds: Set<string>): GameState {
   const say = (text: string, tone: NewsItem['tone']) => news.push({ season: g.season, round: g.round, text, tone });
   const n = g.totalRounds;
 
+  const active = new Set([g.userClubId, ...g.divisions.flatMap((d) => d.clubIds)]); // clubes fora da pirâmide não têm folha nem receita
   for (const id of Object.keys(g.teams)) {
+    if (!active.has(id)) continue;
     let wages = payrollOf(g, id) / n;
     if (managed(g, id)) {
       const want = wages * cover / 100;

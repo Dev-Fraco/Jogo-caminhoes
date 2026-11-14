@@ -1,6 +1,6 @@
 import { ESTADUAIS } from '../data/br_estaduais';
 import { ESTADUAL_SPLIT, estadualClub, estadualClubsOf } from '../data/estaduais_clubs';
-import { prize } from './economy';
+import { inflate, prize } from './economy';
 import { clubOf, managed, teamOf } from './lookup';
 import { moraleFactor } from './morale';
 import { simulateMatch } from './match';
@@ -40,8 +40,12 @@ function initialComps(): EstadualComp[] {
 }
 
 /** Os 27 estaduais da temporada, prontos para começar (a primeira rodada espera o início da temporada). */
-export function createEstaduais(): EstadualState {
+export function createEstaduais(extra?: { id: string; uf: string }): EstadualState {
   const comps = initialComps();
+  if (extra) { // clube criado pelo jogador: entra na divisão mais baixa do estado
+    const c = comps.find((x) => x.uf === extra.uf);
+    if (c && !c.divisions.some((d) => d.clubIds.includes(extra.id))) c.divisions[c.divisions.length - 1].clubIds.push(extra.id);
+  }
   return { id: ESTADUAL_ID, comps, step: 1, totalSteps: totalStepsOf(comps), due: true, done: false };
 }
 
@@ -140,4 +144,39 @@ export function playEstadualStep(g: GameState): { state: GameState; results: Mat
 /** Campeões de todos os estaduais (para o histórico). */
 export function estadualChampions(g: GameState): NonNullable<import('./types').SeasonSummary['estadualChampions']> {
   return (g.estadual?.comps ?? []).map((c) => ({ uf: c.uf, name: c.name, divisions: c.divisions.map((d) => ({ name: d.name, championId: estadualTable(g, d)[0]?.clubId ?? '' })).filter((x) => x.championId) }));
+}
+
+/* ---------- caminho dos estaduais até a Série D ---------- */
+
+/** Quantos clubes de estadual entram na Série D a cada ano (e quantos da D saem para os estaduais). */
+export const SERIE_D_SLOTS = 8;
+
+const ratingOf = (g: GameState, id: string) => (g.teams[id] ? teamRatings(g.teams[id]).overall : (estadualClub(id)?.rating ?? 40));
+
+/**
+ * Clubes que sobem dos estaduais para a Série D: em cada estado, o melhor colocado da Série A estadual que não esteja na pirâmide
+ * (se terminou entre os 2 primeiros). Entram os 8 de maior força; o clube do jogador, se for um deles, sempre entra.
+ */
+export function serieDQualifiers(g: GameState): string[] {
+  if (!g.estadual?.done) return [];
+  const pyramid = new Set(g.divisions.filter((d) => d.format !== 'outside').flatMap((d) => d.clubIds));
+  const cands: string[] = [];
+  for (const c of g.estadual.comps) {
+    const rows = estadualTable(g, c.divisions[0]);
+    const i = rows.findIndex((r) => !pyramid.has(r.clubId));
+    if (i >= 0 && i < 2) cands.push(rows[i].clubId);
+  }
+  const mine = cands.includes(g.userClubId) && !g.unemployed ? g.userClubId : undefined;
+  const picked = cands.filter((id) => id !== mine).sort((a, b) => ratingOf(g, b) - ratingOf(g, a)).slice(0, SERIE_D_SLOTS - (mine ? 1 : 0));
+  return mine ? [mine, ...picked] : picked;
+}
+
+/** Traz para o jogo um clube de estadual que sobe à Série D: elenco, orçamento e ficha. */
+export function adoptClub(g: GameState, id: string): GameState {
+  if (g.teams[id]) return g;
+  const c = estadualClub(id);
+  if (!c) return g;
+  const team = teamOf(g, id);
+  const info = clubOf(g, id);
+  return { ...g, teams: { ...g.teams, [id]: team }, clubs: { ...g.clubs, [id]: { ...info, reputation: 1 } }, budgets: { ...g.budgets, [id]: inflate(g, 1_500_000) } };
 }

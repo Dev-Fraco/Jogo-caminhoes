@@ -37,7 +37,7 @@ export function buildGroups(clubIds: string[], strength: (id: string) => number,
 export function withGroups(d: DivisionState, teams: GameState['teams'], seed: number): DivisionState {
   if (!isGroups(d)) return d;
   const rng = makeRng(seed);
-  return { ...d, groups: buildGroups(d.clubIds, (id) => teamRatings(teams[id]).overall, rng) };
+  return { ...d, groups: buildGroups(d.clubIds, (id) => (teams[id] ? teamRatings(teams[id]).overall : 40), rng) }; // clubes que acabaram de subir ainda não têm elenco: contam como fracos
 }
 
 export function groupFixtures(d: DivisionState): Fixture[] {

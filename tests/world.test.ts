@@ -21,7 +21,7 @@ describe('dados do mundo', () => {
   });
   it('Brasil: Campeonato Brasileiro com Séries A–D; Série A tem 20 times', () => {
     const l = getLeague('BR', 'brasileirao')!;
-    expect(l.divisions.map((d) => d.name)).toEqual(['Série A', 'Série B', 'Série C', 'Série D']);
+    expect(l.divisions.map((d) => d.name)).toEqual(['Série A', 'Série B', 'Série C', 'Série D', 'Estaduais']); // a última é a vitrine dos clubes que só jogam estadual
     expect(getDivision('BR', 'brasileirao', 'serie-a')).toMatchObject({ teams: 20 });
   });
   it('ids de países batem com as nacionalidades da Etapa 1 (reuso)', () => {

@@ -8,7 +8,7 @@ export const MIN_SQUAD = 18;
 export const MIN_BY_POS: Record<Position, number> = { GK: 2, DEF: 5, MID: 5, ATT: 3 };
 
 /** Quanto vale um jogador em cada divisão (A → D): jogador da Série D vale uma fração do mesmo overall na Série A. */
-export const DIVISION_VALUE = [1, 0.5, 0.25, 0.1];
+export const DIVISION_VALUE = [1, 0.5, 0.25, 0.1, 0.05];
 
 /**
  * Valor de mercado (R$). Cresce com o overall, cai com a idade e depende da divisão do clube onde joga.
@@ -23,7 +23,7 @@ export function playerValue(p: Player, divisionIndex = 0): number {
 }
 
 /** Índice (0 = Série A) da divisão em que o clube joga. */
-export const divisionIndexOf = (g: GameState, clubId: string) => Math.max(0, g.divisions.findIndex((d) => d.clubIds.includes(clubId)));
+export const divisionIndexOf = (g: GameState, clubId: string) => { const i = g.divisions.findIndex((d) => d.clubIds.includes(clubId)); return i < 0 ? 4 : i; }; // fora da pirâmide = nível 4
 
 export interface MarketEntry { player: Player; clubId: string; price: number }
 

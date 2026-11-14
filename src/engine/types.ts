@@ -110,7 +110,7 @@ export interface DivisionState {
   name: string;
   clubIds: string[];
   /** 'groups' = grupos de 6 e mata-mata (Série D): `groups` guarda os grupos da temporada. */
-  format?: 'groups';
+  format?: 'groups' | 'outside';
   groups?: string[][];
 }
 

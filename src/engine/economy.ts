@@ -1,7 +1,7 @@
 import type { Rng } from './rng';
 
 /** Receita-base de fim de temporada por divisão (A→D), em R$. */
-export const DIVISION_INCOME = [40_000_000, 12_000_000, 5_000_000, 2_000_000];
+export const DIVISION_INCOME = [40_000_000, 12_000_000, 5_000_000, 2_000_000, 800_000]; // a última: clubes que só jogam estadual
 
 /** Ajustes da economia: os clubes ganhavam dinheiro demais, então a receita de fim de temporada e a bilheteria caíram, a folha subiu e os prêmios encolheram. */
 export const SEASON_INCOME_FACTOR = 0.7;

@@ -59,8 +59,15 @@ export function Table({ game, initialView = 'div' }: { game: GameState; initialV
       {view === 'cup' && game.cup && <CupView game={game} />}
       {(view === 'lib' || view === 'sula' || view === 'ucl') && game[view] && <LibView game={game} comp={view} />}
       {view === 'mundial' && game.mundial && <MundialView game={game} />}
+      {view === 'div' && division.format === 'outside' && (
+        <div className="card">
+          <h2>Fora da pirâmide</h2>
+          <p>Seu clube joga só o estadual. Termine entre os 2 primeiros da Série A estadual (sendo o melhor clube do estado fora das Séries A–D) para subir à Série D.</p>
+          <button className="btn main" onClick={() => setView('estadual')}>🏟️ Ver o estadual</button>
+        </div>
+      )}
       {view === 'div' && isGroups(division) && <GroupsView game={game} />}
-      {view === 'div' && !isGroups(division) && <>
+      {view === 'div' && !isGroups(division) && division.format !== 'outside' && <>
       <div className="tb-wrap">
       <table className="tb">
         <thead><tr><th>#</th><th className="l">Clube</th><th>PTS</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr></thead>
