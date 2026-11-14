@@ -24,8 +24,8 @@ describe('Novo Jogo — etapa 1', () => {
     expect(NATIONALITIES.map((n) => n.label)).toEqual(expect.arrayContaining(['Brasil', 'Argentina', 'Portugal', 'Espanha', 'Inglaterra', 'Itália', 'Alemanha', 'França', 'Uruguai', 'Chile', 'Colômbia', 'México', 'Japão', 'EUA']));
     expect(REPUTATIONS.map((r) => r.label)).toEqual(['Desconhecido', 'Amador', 'Semi-profissional', 'Profissional', 'Lenda']);
   });
-  it('4 etapas; só a primeira implementada', () => {
+  it('4 etapas, todas implementadas', () => {
     expect(STEPS.map((s) => s.title)).toEqual(['Perfil do Treinador', 'Mundo', 'Escolha do Clube', 'Confirmação']);
-    expect(STEPS.map((s) => s.implemented)).toEqual([true, true, true, false]);
+    expect(STEPS.map((s) => s.implemented)).toEqual([true, true, true, true]);
   });
 });

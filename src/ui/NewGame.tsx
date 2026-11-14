@@ -1,8 +1,9 @@
-import { useRef, useState, type CSSProperties } from 'react';
-import { applyWorld, createNewGameState, NAME_MAX, NATIONALITIES, REPUTATIONS, STEPS, validateCoach, type CoachProfile, type NewGameState } from '../newgame/state';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { applyWorld, createNewGameState, isWizardComplete, NAME_MAX, NATIONALITIES, REPUTATIONS, STEPS, syncSaveName, validateCoach, type CoachProfile, type NewGameState } from '../newgame/state';
 import { Backdrop } from './Backdrop';
 import type { ClubData } from '../data/clubs';
 import { ClubStep } from './ClubStep';
+import { SetupStep } from './SetupStep';
 import { SquadSheet } from './SquadSheet';
 import { WorldStep } from './WorldStep';
 import { WALLPAPER_URL } from './MainMenu';
@@ -106,8 +107,16 @@ export function NewGame({ onBack }: { onBack: () => void }) {
   const step = STEPS[index];
   const last = index === STEPS.length - 1;
   // Placeholders bloqueiam o Avançar; na escolha do clube ele só libera depois de selecionar um clube.
-  const canAdvance = step.implemented && (step.id !== 'club' || step.isValid(state));
-  const footNote = !step.implemented ? 'Em breve' : step.id === 'club' && !canAdvance ? 'Selecione um clube para continuar' : '';
+  // Na confirmação, o botão vira "Iniciar Jogo" e só libera com tudo preenchido.
+  const canAdvance = step.implemented && (step.id !== 'club' || step.isValid(state)) && (step.id !== 'confirm' || isWizardComplete(state));
+  const footNote = !step.implemented ? 'Em breve'
+    : step.id === 'club' && !canAdvance ? 'Selecione um clube para continuar'
+    : step.id === 'confirm' && !canAdvance ? 'Preencha todos os campos para iniciar' : '';
+
+  // Ao chegar na confirmação, preenche a sugestão do nome do save (se o jogador ainda não editou).
+  useEffect(() => {
+    if (step.id === 'confirm') setState((s) => syncSaveName(s));
+  }, [step.id]);
 
   const focusFirstError = () => {
     const e = validateCoach(state.coach);
@@ -128,10 +137,14 @@ export function NewGame({ onBack }: { onBack: () => void }) {
       }
       return;
     }
-    const clean: NewGameState = { ...state, coach: { ...state.coach, name: state.coach.name.trim() } };
+    if (last && !isWizardComplete(state)) return;
+    const clean: NewGameState = { ...state, coach: { ...state.coach, name: state.coach.name.trim() }, setup: { ...state.setup, saveName: state.setup.saveName.trim() } };
     setState(clean);
-    if (last) console.log('[Novo Jogo] estado do assistente', clean); // por enquanto só registra
-    else setIndex(index + 1);
+    if (last) {
+      // Por enquanto só registra o estado final e volta ao menu (a engine do jogo vem depois).
+      console.log('[Novo Jogo] estado final', clean);
+      onBack();
+    } else setIndex(index + 1);
   };
   const back = () => (index === 0 ? onBack() : setIndex(index - 1));
 
@@ -169,6 +182,8 @@ export function NewGame({ onBack }: { onBack: () => void }) {
               <WorldStep world={state.world} onChange={(world) => setState(applyWorld(state, world))} attempted={worldAttempted} focusTick={worldFocus} />
             ) : step.id === 'club' ? (
               <ClubStep world={state.world} selected={state.club} onSelect={(club) => setState({ ...state, club })} onViewSquad={(club, el) => { opener.current = el; setViewing(club); }} />
+            ) : step.id === 'confirm' ? (
+              <SetupStep state={state} onChange={(setup) => setState({ ...state, setup })} />
             ) : (
               <PlaceholderStep title={step.title} subtitle={step.subtitle} />
             )}
@@ -178,7 +193,7 @@ export function NewGame({ onBack }: { onBack: () => void }) {
         <footer className="nw-foot">
           <button type="button" className="nw-btn" onClick={back}>Voltar</button>
           <div className="nw-foot-note" role="status">{footNote}</div>
-          <button type="button" className="nw-btn go" onClick={next} disabled={!canAdvance}>Avançar</button>
+          <button type="button" className="nw-btn go" onClick={next} disabled={!canAdvance}>{last ? 'Iniciar Jogo' : 'Avançar'}</button>
         </footer>
       </div>
 
