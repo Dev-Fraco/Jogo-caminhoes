@@ -5,6 +5,7 @@ import { isSeasonOver, newGame, playRound } from '../engine/game';
 import { loadGame, saveGame } from '../engine/save';
 import type { DataPack, GameState, MatchResult } from '../engine/types';
 import { MainMenu, MENU_OPTIONS, type MenuOptionId } from './MainMenu';
+import { Options } from './Options';
 import { Placeholder } from './Placeholder';
 import { Squad } from './Squad';
 import { Matches } from './Matches';
@@ -35,6 +36,8 @@ export function App() {
     const start = (pack: DataPack, clubId: string) => { setLast([]); setTab('matches'); setGame(newGame(pack, clubId)); setScreen('game'); };
     return <Start defaultPack={BRASILEIRAO} parsePack={parsePack} onStart={start} onBack={toMenu} />;
   }
+
+  if (screen === 'opcoes') return <Options onBack={toMenu} onRestored={() => setGame(loadGame())} />;
 
   if (screen !== 'game' || !game) {
     const opt = MENU_OPTIONS.find((o) => o.id === screen)!;

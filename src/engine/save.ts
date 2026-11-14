@@ -18,3 +18,12 @@ export function loadGame(): GameState | null {
 export function clearSave() {
   try { localStorage.removeItem(KEY); } catch { /* ignore */ }
 }
+
+/** Acesso ao JSON bruto do save (usado pelos backups). */
+export function readRawSave(): string | null {
+  try { return localStorage.getItem(KEY); } catch { return null; }
+}
+
+export function writeRawSave(raw: string): boolean {
+  try { localStorage.setItem(KEY, raw); return true; } catch { return false; }
+}
