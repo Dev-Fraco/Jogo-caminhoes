@@ -22,6 +22,7 @@ export const APPS: PhoneApp[] = [...SYSTEM_APPS, ...STORE_APPS];
 export const appById = (id: string) => APPS.find((a) => a.id === id);
 
 export const WALLPAPERS: { id: PhoneSettings['wallpaper']; label: string; css: string }[] = [
+  { id: 'neon', label: 'Neon', css: 'linear-gradient(160deg,#021726,#0b3a66 45%,#6a3dff 85%,#22e6ff)' },
   { id: 'ouro', label: 'Ouro', css: 'linear-gradient(160deg,#3a2a05,#a97a10 55%,#f0b92b)' },
   { id: 'noite', label: 'Noite', css: 'linear-gradient(160deg,#050812,#1b2a52 60%,#3a4f93)' },
   { id: 'campo', label: 'Gramado', css: 'linear-gradient(160deg,#052b12,#0c6b2c 55%,#35b358)' },
@@ -30,7 +31,7 @@ export const WALLPAPERS: { id: PhoneSettings['wallpaper']; label: string; css: s
 
 export const DEFAULT_PHONE: PhoneState = {
   installed: [],
-  settings: { wallpaper: 'ouro', dark: true, brightness: 100, bigText: false, dnd: false, sounds: true, vibration: true },
+  settings: { wallpaper: 'neon', dark: true, brightness: 100, bigText: false, dnd: false, sounds: true, vibration: true, fingerprint: false },
   notifications: [],
 };
 

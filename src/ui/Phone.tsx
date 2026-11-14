@@ -56,6 +56,7 @@ export function Phone({ game, onChange, onClose }: Props) {
   const [waitUntil, setWaitUntil] = useState(0);
   const [now, setNow] = useState(clock());
   const [closing, setClosing] = useState(false);
+  const [offer, setOffer] = useState(false); // depois de criar o PIN: oferece cadastrar a digital
   const gameRef = useRef(game); gameRef.current = game;
 
   useEffect(() => { const t = window.setInterval(() => setNow(clock()), 15000); return () => window.clearInterval(t); }, []);
@@ -72,7 +73,7 @@ export function Phone({ game, onChange, onClose }: Props) {
       }
       const r = registerPin(game, firstPin, pin);
       if (!r.ok) { setFirstPin(null); return bad(r.error); }
-      onChange(r.state); unlock(); return;
+      onChange(r.state); setOffer(true); audio.sfx('unlock'); return;
     }
     if (checkPin(game, pin)) return unlock();
     const n = tries + 1; setTries(n);
@@ -93,7 +94,8 @@ export function Phone({ game, onChange, onClose }: Props) {
           <div className="ph-status"><span>{now}</span><span>{unread > 0 && !s.dnd ? `🔔 ${unread} ` : ''}{s.dnd ? '🌙 ' : ''}📶 🔋</span></div>
 
           {locked ? (
-            <LockScreen game={game} now={now} onSubmit={submitLock} firstPin={firstPin} err={err} shake={shake} onReset={() => { setFirstPin(null); setErr(undefined); }} />
+            offer ? <FingerOffer onYes={() => { onChange(updatePhoneSettings(gameRef.current, { fingerprint: true })); setOffer(false); unlock(); }} onNo={() => { setOffer(false); unlock(); }} />
+            : <LockScreen game={game} now={now} onSubmit={submitLock} firstPin={firstPin} err={err} shake={shake} onReset={() => { setFirstPin(null); setErr(undefined); }} onFinger={unlock} />
           ) : (
             <>
               {screen === 'home' && <HomeScreen game={game} onOpen={setScreen} />}
@@ -116,10 +118,46 @@ export function Phone({ game, onChange, onClose }: Props) {
   );
 }
 
-function LockScreen({ game, now, onSubmit, firstPin, err, shake, onReset }: { game: GameState; now: string; onSubmit: (pin: string) => void; firstPin: string | null; err?: string; shake: number; onReset: () => void }) {
+/** Sensor de digital: tocar em cima faz a leitura e libera. */
+function Finger({ onDone, label }: { onDone: () => void; label: string }) {
+  const [scan, setScan] = useState(false);
+  const touch = () => {
+    if (scan) return;
+    setScan(true); audio.sfx('notify');
+    window.setTimeout(onDone, 650);
+  };
+  return (
+    <button className={`ph-finger ${scan ? 'scan' : ''}`} onClick={touch} aria-label="Sensor de impressão digital">
+      <span className="ph-finger-ico" aria-hidden="true">{scan ? '✅' : '🫆'}</span>
+      <small>{scan ? 'Reconhecido!' : label}</small>
+    </button>
+  );
+}
+
+function FingerOffer({ onYes, onNo }: { onYes: () => void; onNo: () => void }) {
+  const [reg, setReg] = useState(false);
+  return (
+    <div className="ph-lock">
+      <div className="ph-offer">
+        <h2>Desbloqueio por digital</h2>
+        <p>Quer abrir o celular só tocando no sensor, sem digitar o PIN?</p>
+        {!reg ? (
+          <>
+            <button className="ph-btn pri" onClick={() => setReg(true)}>Cadastrar digital</button>
+            <button className="ph-link" onClick={onNo}>Agora não</button>
+          </>
+        ) : <Finger label="Toque no sensor para cadastrar" onDone={onYes} />}
+      </div>
+    </div>
+  );
+}
+
+function LockScreen({ game, now, onSubmit, firstPin, err, shake, onReset, onFinger }: { game: GameState; now: string; onSubmit: (pin: string) => void; firstPin: string | null; err?: string; shake: number; onReset: () => void; onFinger: () => void }) {
   const ph = phoneOf(game);
   const registering = !hasPin(game);
   const [show, setShow] = useState(false);
+  const finger = !registering && !!ph.settings.fingerprint;
+  const [usePin, setUsePin] = useState(false);
   return (
     <div className="ph-lock">
       <div className="ph-time" aria-live="off">{now}</div>
@@ -127,7 +165,12 @@ function LockScreen({ game, now, onSubmit, firstPin, err, shake, onReset }: { ga
       {!ph.settings.dnd && ph.notifications.filter((n) => !n.read).slice(0, 3).map((n) => (
         <div className="ph-notif" key={n.id}><b>{appById(n.app)?.icon} {appById(n.app)?.name ?? n.app}</b><span>{n.text}</span></div>
       ))}
-      {!show ? (
+      {finger && !usePin ? (
+        <>
+          <Finger label="Toque no sensor para desbloquear" onDone={onFinger} />
+          <button className="ph-link" onClick={() => setUsePin(true)}>Usar PIN</button>
+        </>
+      ) : !show && !(finger && usePin) ? (
         <button className="ph-unlock" onClick={() => setShow(true)}>{registering ? '🔐 Toque para cadastrar o PIN' : '🔓 Toque para desbloquear'}</button>
       ) : registering ? (
         <>
@@ -247,6 +290,7 @@ function Settings({ game, onChange }: { game: GameState; onChange: (g: GameState
 
       <h3>Segurança</h3>
       <div className="ph-card">
+        <Toggle label="Desbloqueio por digital" note="Abre o celular só tocando no sensor, sem o PIN." on={!!s.fingerprint} onClick={() => set({ fingerprint: !s.fingerprint })} />
         {!pinForm ? <button className="ph-btn" onClick={() => { setPinForm({ cur: '', a: '', b: '' }); setMsg(null); }}>🔐 Alterar PIN</button> : (
           <div className="ph-form">
             <input inputMode="numeric" type="password" placeholder="PIN atual" value={pinForm.cur} onChange={(e) => setPinForm({ ...pinForm, cur: digits(e.target.value) })} aria-label="PIN atual" />

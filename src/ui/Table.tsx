@@ -11,6 +11,17 @@ function zone(divIndex: number, divCount: number, pos: number, size: number, slo
   return pos < slots ? 'acc' : '';
 }
 
+/** Últimos 5 jogos do clube na divisão (V, E ou D), do mais antigo para o mais recente. */
+function formOf(game: GameState, divisionId: string, clubId: string): ('W' | 'D' | 'L')[] {
+  const out: ('W' | 'D' | 'L')[] = [];
+  for (const r of game.results) {
+    if (r.divisionId !== divisionId || (r.homeId !== clubId && r.awayId !== clubId)) continue;
+    const gf = r.homeId === clubId ? r.homeGoals : r.awayGoals, ga = r.homeId === clubId ? r.awayGoals : r.homeGoals;
+    out.push(gf > ga ? 'W' : gf < ga ? 'L' : 'D');
+  }
+  return out.slice(-5);
+}
+
 export function Table({ game, initialView = 'div' }: { game: GameState; initialView?: 'div' | 'rounds' }) {
   const mineIndex = userDivisionIndex(game);
   const [idx, setIdx] = useState(mineIndex);
@@ -40,21 +51,26 @@ export function Table({ game, initialView = 'div' }: { game: GameState; initialV
       {(view === 'lib' || view === 'ucl') && game[view] && <LibView game={game} comp={view} />}
       {view === 'mundial' && game.mundial && <MundialView game={game} />}
       {view === 'div' && <>
-      <table className="table">
-        <thead><tr><th>#</th><th className="l">Clube</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr></thead>
+      <div className="tb-wrap">
+      <table className="tb">
+        <thead><tr><th>#</th><th className="l">Clube</th><th>PTS</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr></thead>
         <tbody>
           {rows.map((r, i) => {
             const c = game.clubs[r.clubId];
             return (
               <tr key={r.clubId} className={`${r.clubId === game.userClubId ? 'mine' : ''} ${zone(idx, count, i, n, slots, brazil)}`}>
-                <td>{i + 1}</td>
-                <td className="l"><span className="dot" style={{ background: c.primaryColor }} /><span className="cname">{c.name}</span></td>
-                <td><b>{r.points}</b></td><td>{r.played}</td><td>{r.won}</td><td>{r.drawn}</td><td>{r.lost}</td><td>{r.gd}</td>
+                <td><span className="pos">{i + 1}</span></td>
+                <td className="l">
+                  <div className="team"><span className="dot" style={{ background: c.primaryColor, color: c.primaryColor }} /><div><span className="cname">{c.name}</span>
+                    <span className="form" aria-label="Últimos 5 jogos">{formOf(game, division.id, r.clubId).map((f, k) => <i key={k} className={f} />)}</span></div></div>
+                </td>
+                <td><span className="pts">{r.points}</span></td><td className="sub">{r.played}</td><td className="sub">{r.won}</td><td className="sub">{r.drawn}</td><td className="sub">{r.lost}</td><td className="sub">{r.gd > 0 ? `+${r.gd}` : r.gd}</td>
               </tr>
             );
           })}
         </tbody>
       </table>
+      </div>
       <p className="legend">
         {idx === 0 && brazil && <><i className="k lib" /> Libertadores <i className="k sul" /> Sul-Americana </>}
         {idx > 0 && <><i className="k acc" /> Acesso (sobem {slots}) </>}

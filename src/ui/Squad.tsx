@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { POS_ORDER } from '../engine/game';
 import { checkRelease, myValue, releasePlayer, toggleLoanList, toggleTransferList } from '../engine/roster';
+import { teamRatings } from '../engine/squad';
 import { MAX_SQUAD } from '../engine/transfers';
 import type { GameState, Player, Position } from '../engine/types';
 import { formatBudget } from '../newgame/format';
 
 const POS_LABEL: Record<Position, string> = { GK: 'Goleiros', DEF: 'Defensores', MID: 'Meio-campistas', ATT: 'Atacantes' };
+const POS_SHORT: Record<Position, string> = { GK: 'GOL', DEF: 'DEF', MID: 'MEI', ATT: 'ATA' };
 const POS_ONE: Record<Position, string> = { GK: 'Goleiro', DEF: 'Defensor', MID: 'Meio-campista', ATT: 'Atacante' };
 
 interface SheetProps { game: GameState; player: Player; onChange: (g: GameState) => void; onClose: () => void; onDone: (msg: string) => void }
@@ -81,45 +83,54 @@ export function Squad({ game, onChange }: { game: GameState; onChange: (g: GameS
   const open = team.players.find((p) => p.id === openId) ?? null;
   const loaned = game.loans.map((l) => ({ loan: l, player: game.teams[l.hostClubId]?.players.find((p) => p.id === l.playerId) })).filter((x) => x.player);
 
+  const ratings = teamRatings(team);
+  const avgAge = (team.players.reduce((t, p) => t + p.age, 0) / Math.max(1, team.players.length)).toFixed(1).replace('.', ',');
+  const squadValue = team.players.reduce((t, p) => t + myValue(game, p), 0);
   const close = () => { setOpenId(null); opener.current?.focus(); };
 
   return (
     <>
       <div className="card sq-top">
+        <div><small>Overall</small><b>{ratings.overall}</b></div>
+        <div><small>Idade média</small><b>{avgAge}</b></div>
+        <div><small>Valor do elenco</small><b>{formatBudget(squadValue)}</b></div>
         <div><small>Jogadores</small><b>{team.players.length}/{MAX_SQUAD}</b></div>
         <div><small>À venda</small><b>{game.transferList.length}</b></div>
-        <div><small>Empréstimo</small><b>{game.loanList.length}</b></div>
         <div><small>Emprestados</small><b>{loaned.length}</b></div>
       </div>
       <p className="hint sq-hint">Toque em um jogador para vender, emprestar ou dispensar.</p>
       <div role="status" aria-live="polite">{notice && <p className="tf-notice">{notice}</p>}</div>
 
-      {POS_ORDER.map((pos) => (
-        <section key={pos}>
-          <h3>{POS_LABEL[pos]}</h3>
-          <ul className="list">
-            {team.players.filter((p) => p.pos === pos)
-              .sort((a, b) => Number(team.lineup.includes(b.id)) - Number(team.lineup.includes(a.id)) || b.strength - a.strength)
-              .map((p) => {
+      {POS_ORDER.map((pos) => {
+        const list = team.players.filter((p) => p.pos === pos)
+          .sort((a, b) => Number(team.lineup.includes(b.id)) - Number(team.lineup.includes(a.id)) || b.strength - a.strength);
+        const avg = list.length ? Math.round(list.reduce((t, p) => t + p.strength, 0) / list.length) : 0;
+        return (
+          <section key={pos} className="sq-pos">
+            <h3>{POS_LABEL[pos]} <em>média {avg}</em></h3>
+            <ul className="sq-grid">
+              {list.map((p) => {
                 const starter = team.lineup.includes(p.id);
                 return (
                   <li key={p.id}>
-                    <button className={`row ${starter ? '' : 'bench'}`} aria-label={`${p.name}, overall ${p.strength}. Abrir opções`} onClick={(e) => { opener.current = e.currentTarget; setNotice(null); setOpenId(p.id); }}>
-                      <span className={`tag ${starter ? 'on' : ''}`}>{starter ? 'T' : 'R'}</span>
-                      <span className="grow">{p.name}
-                        <small>{p.age} anos · {formatBudget(myValue(game, p))}
-                          {game.transferList.includes(p.id) && <em className="pill sale">À venda</em>}
-                          {game.loanList.includes(p.id) && <em className="pill loan">Empréstimo</em>}
-                        </small>
+                    <button className={`sq-card ${pos} ${starter ? '' : 'bench'}`} aria-label={`${p.name}, overall ${p.strength}. Abrir opções`} onClick={(e) => { opener.current = e.currentTarget; setNotice(null); setOpenId(p.id); }}>
+                      <span className={`sq-ovr ${p.strength >= 80 ? 'elite' : ''}`}>{p.strength}</span>
+                      <span className="sq-role">{POS_SHORT[pos]} · {starter ? 'TITULAR' : 'RESERVA'}</span>
+                      <span className="sq-name">{p.name}</span>
+                      <span className="sq-meta">{p.age} anos
+                        {game.transferList.includes(p.id) && <em className="pill sale">À venda</em>}
+                        {game.loanList.includes(p.id) && <em className="pill loan">Empréstimo</em>}
                       </span>
-                      <b className="str">{p.strength}</b>
+                      <span className="sq-val">{formatBudget(myValue(game, p))}</span>
+                      <span className="sq-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, p.strength)}%` }} /></span>
                     </button>
                   </li>
                 );
               })}
-          </ul>
-        </section>
-      ))}
+            </ul>
+          </section>
+        );
+      })}
 
       {loaned.length > 0 && (
         <section>
