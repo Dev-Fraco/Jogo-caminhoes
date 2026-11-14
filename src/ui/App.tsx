@@ -15,11 +15,15 @@ export function App() {
   const [game, setGame] = useState<GameState | null>(() => loadGame());
   const [tab, setTab] = useState<Tab>('matches');
   const [last, setLast] = useState<MatchResult[]>([]);
+  const [askQuit, setAskQuit] = useState(false);
 
   useEffect(() => { if (game) saveGame(game); }, [game]);
 
   const start = (pack: DataPack, clubId: string) => { setLast([]); setTab('matches'); setGame(newGame(pack, clubId)); };
-  const quit = () => { if (confirm('Sair da carreira atual? O progresso salvo será apagado.')) { clearSave(); setGame(null); } };
+  const quit = () => {
+    if (!askQuit) { setAskQuit(true); setTimeout(() => setAskQuit(false), 4000); return; }
+    clearSave(); setAskQuit(false); setGame(null);
+  };
 
   if (!game) return <Start defaultPack={BRASILEIRAO} parsePack={parsePack} onStart={start} />;
 
@@ -34,7 +38,7 @@ export function App() {
           <strong>{club.name}</strong>
           <small>{game.leagueName} · Temporada {game.season}</small>
         </div>
-        <button className="ghost" onClick={quit}>Sair</button>
+        <button className="ghost" onClick={quit}>{askQuit ? 'Apagar e sair?' : 'Sair'}</button>
       </header>
       <main>
         {tab === 'squad' && <Squad game={game} onChange={setGame} />}
