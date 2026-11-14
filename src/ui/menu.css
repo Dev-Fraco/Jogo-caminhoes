@@ -1,0 +1,199 @@
+/* =====================================================================
+   PAINEL INICIAL — visual estilo jogo AAA de futebol (EA FC)
+   Só afeta classes .menu*. Não mexe nas outras telas.
+   ===================================================================== */
+.menu {
+  --lime: #b8ff3c;        /* destaque (hover, foco, marcadores) */
+  --lime-ink: #07140c;    /* texto sobre o lime */
+  --ink: #f4fbf6;
+  --ink-dim: #a9bdb0;
+  --glass: rgba(6, 18, 12, .52);
+  --glass-line: rgba(255, 255, 255, .14);
+  --row-h: clamp(40px, 6.1vh, 58px);
+
+  position: relative; overflow: hidden; height: 100%;
+  color: var(--ink);
+  background: #04110b;
+  font-family: 'Barlow', 'Segoe UI', Roboto, system-ui, sans-serif;
+}
+
+/* ---------- Fundo ---------- */
+.menu-bg, .menu-bg > * { position: absolute; inset: 0; pointer-events: none; }
+
+/* Foto de fundo. TROCAR O WALLPAPER: coloque public/assets/wallpaper-menu.jpg
+   (ou mude WALLPAPER_URL em MainMenu.tsx). Sem a imagem esta camada fica vazia
+   e a arte em CSS logo abaixo aparece. */
+.menu-photo {
+  background-image: var(--menu-wallpaper, none);
+  background-size: cover;
+  background-position: 70% center;
+}
+
+/* Fallback desenhado em CSS: estádio à noite, refletores, arquibancada e gramado em perspectiva */
+.menu-art {
+  background:
+    radial-gradient(55% 45% at 82% 6%,  rgba(200, 255, 215, .30), transparent 70%),
+    radial-gradient(35% 30% at 98% 10%, rgba(255, 255, 255, .22), transparent 70%),
+    radial-gradient(45% 40% at 58% 0%,  rgba(170, 255, 215, .16), transparent 70%),
+    linear-gradient(180deg, #04140d 0%, #0a3a27 44%, #06241a 68%, #03120b 100%);
+  overflow: hidden;
+}
+.beam {
+  position: absolute; top: -8%; height: 78%; width: 22vmax; transform-origin: 50% 0;
+  background: linear-gradient(180deg, rgba(225, 255, 235, .30), rgba(225, 255, 235, .04) 75%, transparent);
+  clip-path: polygon(46% 0, 54% 0, 100% 100%, 0 100%);
+  filter: blur(5px); opacity: .8;
+}
+.beam.b1 { right: 6%;  transform: rotate(12deg); }
+.beam.b2 { right: 24%; transform: rotate(-4deg); opacity: .55; }
+.beam.b3 { right: -6%; transform: rotate(26deg); opacity: .5; }
+/* arquibancada: pontinhos de luz (celulares/flashes) fundidos no horizonte */
+.menu-crowd {
+  left: 0; right: 0; top: 34%; height: 24%; position: absolute;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .55) 0 1px, transparent 1.6px) 0 0 / 15px 11px,
+    radial-gradient(circle, rgba(190, 255, 210, .40) 0 1px, transparent 1.6px) 7px 5px / 21px 13px,
+    linear-gradient(180deg, rgba(2, 12, 8, .0), rgba(2, 12, 8, .85));
+  opacity: .55;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 35%, #000 70%, transparent);
+          mask-image: linear-gradient(180deg, transparent, #000 35%, #000 70%, transparent);
+}
+/* gramado listrado em perspectiva */
+.menu-pitch {
+  position: absolute; left: -60%; right: -60%; bottom: 0; height: 120%;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, .30), transparent 55%),
+    repeating-linear-gradient(90deg, #1a9a4c 0 7vmax, #137f3d 7vmax 14vmax);
+  transform: perspective(900px) rotateX(64deg); transform-origin: 50% 100%;
+  -webkit-mask-image: linear-gradient(0deg, #000 45%, transparent 100%);
+          mask-image: linear-gradient(0deg, #000 45%, transparent 100%);
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, .25);
+}
+
+/* Escurecimento: mais forte à esquerda e embaixo, para o menu ficar legível mesmo com foto clara */
+.menu-overlay {
+  background:
+    linear-gradient(90deg, rgba(2, 9, 6, .94) 0%, rgba(2, 9, 6, .80) 30%, rgba(2, 9, 6, .30) 62%, rgba(2, 9, 6, .08) 100%),
+    linear-gradient(0deg, rgba(2, 9, 6, .55) 0%, rgba(2, 9, 6, 0) 40%),
+    linear-gradient(180deg, rgba(2, 9, 6, .45) 0%, rgba(2, 9, 6, 0) 22%);
+}
+/* Vinheta nas bordas */
+.menu-vignette { background: radial-gradient(120% 100% at 62% 42%, transparent 55%, rgba(0, 0, 0, .55) 100%); }
+/* Granulado sutil */
+.menu-grain {
+  opacity: .09; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+/* Faixas diagonais da identidade visual */
+.menu-diagonal {
+  left: clamp(380px, 31vw, 600px);
+  background: linear-gradient(112deg, transparent 0 3%, rgba(184, 255, 60, .60) 3% 3.4%, transparent 3.4% 5.5%, rgba(184, 255, 60, .16) 5.5% 6.4%, transparent 6.4%);
+}
+
+/* ---------- Painel lateral ---------- */
+.menu-panel {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; height: 100%; overflow-y: auto;
+  width: clamp(380px, 31vw, 600px);
+  padding: clamp(18px, 4.2vh, 44px) clamp(20px, 2.6vw, 44px) clamp(12px, 2.4vh, 24px)
+           max(clamp(20px, 2.6vw, 44px), env(safe-area-inset-left, 0px));
+  padding-top: max(clamp(18px, 4.2vh, 44px), env(safe-area-inset-top, 0px));
+  background: linear-gradient(90deg, rgba(3, 12, 8, .62), rgba(3, 12, 8, .30));
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border-right: 1px solid var(--glass-line);
+}
+
+/* Marca */
+.menu-brand { margin-bottom: clamp(14px, 3.4vh, 34px); }
+.menu-kicker {
+  display: flex; align-items: center; gap: 10px;
+  font: 700 clamp(12px, 1.6vh, 15px)/1 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  letter-spacing: .32em; text-transform: uppercase; color: var(--lime);
+}
+.menu-kicker::before { content: ''; width: 34px; height: 5px; background: var(--lime); transform: skewX(-30deg); }
+.menu-badge {
+  letter-spacing: .14em; color: var(--lime-ink); background: var(--lime);
+  padding: 3px 7px 2px; border-radius: 3px; font-size: .85em; transform: skewX(-12deg);
+}
+.menu-brand h1 {
+  margin: 10px 0 0; display: flex; flex-direction: column;
+  font: italic 800 clamp(40px, 8.2vh, 84px)/.88 'Barlow Condensed', 'Arial Narrow', Impact, sans-serif;
+  text-transform: uppercase; letter-spacing: .01em;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, .55);
+}
+.menu-brand h1 span { color: transparent; -webkit-text-stroke: 2px var(--ink); }
+
+/* ---------- Botões ---------- */
+.menu-list { display: flex; flex-direction: column; gap: clamp(5px, 1.1vh, 10px); }
+
+.menu-btn {
+  position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; min-height: var(--row-h); padding: 0 clamp(14px, 1.6vw, 22px);
+  color: var(--ink); text-align: left; cursor: pointer;
+  background: var(--glass);
+  border: 1px solid var(--glass-line); border-left: 3px solid rgba(255, 255, 255, .22);
+  border-radius: 4px;
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  font: 600 clamp(15px, 2.35vh, 21px)/1 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  letter-spacing: .12em; text-transform: uppercase;
+  transition: background-color .18s ease, color .18s ease, border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+  animation: menu-in .38s cubic-bezier(.2, .8, .2, 1) both;
+  animation-delay: calc(var(--i) * 45ms + 80ms);
+}
+.menu-arrow {
+  font-size: 1.5em; line-height: 1; opacity: 0; transform: translateX(-8px);
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+/* Hover / foco: preenchimento lime, deslocamento lateral, seta e brilho */
+.menu-btn:hover, .menu-btn:focus-visible {
+  background: var(--lime); color: var(--lime-ink); border-color: var(--lime);
+  transform: translateX(10px);
+  box-shadow: 0 0 0 1px rgba(184, 255, 60, .5), 0 8px 28px rgba(184, 255, 60, .35);
+}
+.menu-btn:hover .menu-arrow, .menu-btn:focus-visible .menu-arrow { opacity: 1; transform: none; }
+.menu-btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.menu-btn:active { transform: translateX(10px) scale(.98); transition-duration: .08s; }
+
+/* Novo Jogo e Continuar: maiores e com marcador lime */
+.menu-btn.is-primary {
+  min-height: calc(var(--row-h) * 1.22);
+  font-size: clamp(17px, 2.9vh, 26px);
+  border-left: 5px solid var(--lime);
+  background: linear-gradient(90deg, rgba(184, 255, 60, .20), var(--glass) 70%);
+}
+.menu-btn.is-primary:hover, .menu-btn.is-primary:focus-visible { background: var(--lime); border-left-color: #fff; }
+
+/* Continuar sem save: apagado e sem hover (o clique segue como antes, indo para a tela "Nenhum jogo salvo") */
+.menu-btn.is-empty {
+  color: rgba(244, 251, 246, .5); background: rgba(40, 48, 44, .5); border-color: rgba(255, 255, 255, .08);
+  border-left-color: rgba(255, 255, 255, .18); cursor: default;
+}
+.menu-btn.is-empty:hover { background: rgba(40, 48, 44, .5); color: rgba(244, 251, 246, .5); border-color: rgba(255, 255, 255, .08); border-left-color: rgba(255, 255, 255, .18); transform: none; box-shadow: none; }
+.menu-btn.is-empty:hover .menu-arrow { opacity: 0; }
+.menu-btn.is-empty:focus-visible { background: rgba(40, 48, 44, .5); color: #fff; box-shadow: none; transform: none; }
+
+/* ---------- Rodapé ---------- */
+.menu-foot {
+  display: flex; justify-content: space-between; gap: 12px; margin-top: auto; padding-top: clamp(12px, 2.4vh, 24px);
+  font: 500 12px/1.2 'Barlow', system-ui, sans-serif; letter-spacing: .08em; color: var(--ink-dim);
+}
+
+/* ---------- Telas estreitas (celular): painel ocupa a largura toda ---------- */
+@media (max-width: 899px) {
+  .menu-panel { width: 100%; border-right: 0; background: linear-gradient(180deg, rgba(3, 12, 8, .20), rgba(3, 12, 8, .55)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+  .menu-overlay { background: linear-gradient(180deg, rgba(2, 9, 6, .40) 0%, rgba(2, 9, 6, .60) 100%); }
+  .menu-diagonal { display: none; }
+  .menu-brand h1 { font-size: clamp(44px, 10vh, 76px); }
+  .menu-btn { min-height: clamp(44px, 6.4vh, 56px); }
+  .menu-btn.is-primary { min-height: clamp(52px, 7.6vh, 66px); }
+  .menu-btn:hover, .menu-btn:focus-visible { transform: translateX(6px); }
+}
+
+/* ---------- Animações ---------- */
+@keyframes menu-in { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .menu-btn, .menu-arrow { animation: none; transition: background-color .01s, color .01s; }
+  .menu-btn:hover, .menu-btn:focus-visible, .menu-btn:active { transform: none; }
+  .menu-arrow { transform: none; }
+}

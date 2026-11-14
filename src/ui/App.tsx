@@ -30,7 +30,7 @@ export function App() {
   // as outras 6 opções são placeholders até serem desenvolvidas uma a uma.
   const select = (id: MenuOptionId) => setScreen(id === 'continuar' && game ? 'game' : id);
 
-  if (screen === 'menu') return <MainMenu onSelect={select} />;
+  if (screen === 'menu') return <MainMenu onSelect={select} hasSave={!!game} />;
 
   if (screen === 'novo-jogo') {
     const start = (pack: DataPack, clubId: string) => { setLast([]); setTab('matches'); setGame(newGame(pack, clubId)); setScreen('game'); };
