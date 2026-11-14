@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { fixturesOfRound, PROMOTION_SLOTS, RELEGATION_SLOTS, seasonOutcome, userDivision } from '../engine/game';
+import { fixturesOfRound, leagueNameOf, seasonOutcome, slotsOf, userDivision } from '../engine/game';
 import { moodLabel } from '../engine/morale';
 import type { GameState, MatchResult } from '../engine/types';
 import { PROMOTED_STRONG_CHANCE } from '../engine/ai';
@@ -35,7 +35,7 @@ export function Home({ game, last, over, onPlay, onNextSeason, onEditLineup, onS
     const nextName = game.divisions.find((d) => d.id === out.nextDivisionId)!.name;
     const msg = out.movement === 'promoted' ? `🔼 Acesso conquistado! Você sobe para a ${nextName}.`
       : out.movement === 'relegated' ? `🔽 Rebaixado. Você cai para a ${nextName}.`
-      : out.userPosition === 1 && game.divisions[0].id === division.id ? '🏆 CAMPEÃO BRASILEIRO!' : 'Você permanece na divisão.';
+      : out.userPosition === 1 && game.divisions[0].id === division.id ? `🏆 CAMPEÃO — ${leagueNameOf(game).toUpperCase()}!` : 'Você permanece na divisão.';
     return (
       <>
         <div className="card center">
@@ -56,8 +56,8 @@ export function Home({ game, last, over, onPlay, onNextSeason, onEditLineup, onS
         <section>
           <h3>Acesso e rebaixamento na {division.name}</h3>
           <div className="card moves">
-            {mine.promoted.length > 0 && <p><b>Sobem ({PROMOTION_SLOTS}):</b> {mine.promoted.map(name).join(', ')}</p>}
-            {mine.relegated.length > 0 && <p><b>Descem ({RELEGATION_SLOTS}):</b> {mine.relegated.map(name).join(', ')}</p>}
+            {mine.promoted.length > 0 && <p><b>Sobem ({slotsOf(game)}):</b> {mine.promoted.map(name).join(', ')}</p>}
+            {mine.relegated.length > 0 && <p><b>Descem ({slotsOf(game)}):</b> {mine.relegated.map(name).join(', ')}</p>}
           </div>
         </section>
       </>

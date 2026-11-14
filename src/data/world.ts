@@ -46,7 +46,7 @@ export const WORLD_DATA: Record<string, Country> = {
       id: 'liga-profesional', name: 'Liga Profesional', description: 'Campeonato nacional de pontos corridos da Argentina.',
       divisions: [
         { id: 'ar-primera', name: '1ª Divisão', alias: 'Primera División', teams: 30 },
-        { id: 'ar-nacional', name: '2ª Divisão', alias: 'Primera Nacional', teams: 36 },
+        { id: 'ar-nacional', name: '2ª Divisão', alias: 'Primera Nacional', teams: 34 },
       ],
     }],
   },
@@ -57,6 +57,7 @@ export const WORLD_DATA: Record<string, Country> = {
       divisions: [
         { id: 'premier', name: '1ª Divisão', alias: 'Premier League', teams: 20 },
         { id: 'championship', name: '2ª Divisão', alias: 'Championship', teams: 24 },
+        { id: 'league-one', name: '3ª Divisão', alias: 'League One', teams: 24 },
       ],
     }],
   },

@@ -157,6 +157,9 @@ export interface Loan { playerId: string; hostClubId: string; season: number }
 
 export interface GameState {
   version: 5;
+  /** Liga da carreira (nome exibido) e quantos clubes sobem/descem por fronteira. Ausentes em saves antigos (Brasileirão, 4). */
+  leagueName?: string;
+  slots?: number;
   saveName: string;
   coach: { name: string; nationality: string; reputation: string };
   difficulty: string;

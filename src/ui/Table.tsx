@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { divisionTable, PROMOTION_SLOTS, RELEGATION_SLOTS, userDivisionIndex } from '../engine/game';
+import { divisionTable, slotsOf, userDivisionIndex } from '../engine/game';
 import type { GameState } from '../engine/types';
 
 /** Zona de cada posição: Série A tem Libertadores (1–4), Sul-Americana (5–6) e rebaixamento; as demais, acesso e rebaixamento. */
-function zone(divIndex: number, divCount: number, pos: number, size: number): '' | 'lib' | 'sul' | 'acc' | 'rel' {
-  if (divIndex < divCount - 1 && pos >= size - RELEGATION_SLOTS) return 'rel';
-  if (divIndex === 0) return pos < 4 ? 'lib' : pos < 6 ? 'sul' : '';
-  return pos < PROMOTION_SLOTS ? 'acc' : '';
+function zone(divIndex: number, divCount: number, pos: number, size: number, slots: number, brazil: boolean): '' | 'lib' | 'sul' | 'acc' | 'rel' {
+  if (divIndex < divCount - 1 && pos >= size - slots) return 'rel';
+  if (divIndex === 0) return brazil ? (pos < 4 ? 'lib' : pos < 6 ? 'sul' : '') : '';
+  return pos < slots ? 'acc' : '';
 }
 
 export function Table({ game }: { game: GameState }) {
@@ -16,6 +16,8 @@ export function Table({ game }: { game: GameState }) {
   const rows = divisionTable(game, division.id);
   const n = rows.length;
   const count = game.divisions.length;
+  const slots = slotsOf(game);
+  const brazil = game.leagueName === undefined;
 
   return (
     <>
@@ -32,7 +34,7 @@ export function Table({ game }: { game: GameState }) {
           {rows.map((r, i) => {
             const c = game.clubs[r.clubId];
             return (
-              <tr key={r.clubId} className={`${r.clubId === game.userClubId ? 'mine' : ''} ${zone(idx, count, i, n)}`}>
+              <tr key={r.clubId} className={`${r.clubId === game.userClubId ? 'mine' : ''} ${zone(idx, count, i, n, slots, brazil)}`}>
                 <td>{i + 1}</td>
                 <td className="l"><span className="dot" style={{ background: c.primaryColor }} /><span className="cname">{c.name}</span></td>
                 <td><b>{r.points}</b></td><td>{r.played}</td><td>{r.won}</td><td>{r.drawn}</td><td>{r.lost}</td><td>{r.gd}</td>
@@ -42,9 +44,9 @@ export function Table({ game }: { game: GameState }) {
         </tbody>
       </table>
       <p className="legend">
-        {idx === 0 && <><i className="k lib" /> Libertadores <i className="k sul" /> Sul-Americana </>}
-        {idx > 0 && <><i className="k acc" /> Acesso (sobem {PROMOTION_SLOTS}) </>}
-        {idx < count - 1 && <><i className="k rel" /> Rebaixamento (descem {RELEGATION_SLOTS})</>}
+        {idx === 0 && brazil && <><i className="k lib" /> Libertadores <i className="k sul" /> Sul-Americana </>}
+        {idx > 0 && <><i className="k acc" /> Acesso (sobem {slots}) </>}
+        {idx < count - 1 && <><i className="k rel" /> Rebaixamento (descem {slots})</>}
       </p>
     </>
   );

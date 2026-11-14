@@ -8,6 +8,7 @@
  */
 import { generateSquad } from '../engine/squad';
 import type { Player } from '../engine/types';
+import { AR_NACIONAL, AR_PRIMERA, EN_CHAMPIONSHIP, EN_LEAGUE_ONE, EN_PREMIER, ES_LALIGA, ES_SEGUNDA, IT_SERIE_A, IT_SERIE_B } from './clubs_world';
 
 /** O que a diretoria espera da temporada. */
 export type BoardExpectation = 'title' | 'top4' | 'mid' | 'survive';
@@ -150,6 +151,16 @@ export const CLUBS_DATA: Record<string, ClubData[]> = {
   'serie-b': build(SERIE_B, -5),
   'serie-c': build(SERIE_C, -10),
   'serie-d': build(SERIE_D, -15),
+  // Ligas estrangeiras (clubes reais; elencos fictícios). Divisões menores descontam a força do elenco.
+  'ar-primera': build(AR_PRIMERA, -4),
+  'ar-nacional': build(AR_NACIONAL, -12),
+  premier: build(EN_PREMIER, 3),
+  championship: build(EN_CHAMPIONSHIP, -4),
+  'league-one': build(EN_LEAGUE_ONE, -10),
+  'it-serie-a': build(IT_SERIE_A, 1),
+  'it-serie-b': build(IT_SERIE_B, -6),
+  'es-primera': build(ES_LALIGA, 1),
+  'es-segunda': build(ES_SEGUNDA, -6),
 };
 
 /** Clubes de uma divisão (lista vazia se ainda não houver dados). */

@@ -15,6 +15,9 @@ import { seasonIncome } from './economy';
 /** Quantos clubes sobem e descem entre divisões vizinhas (Série A↔B, B↔C, C↔D). */
 export const PROMOTION_SLOTS = 4;
 export const RELEGATION_SLOTS = 4;
+/** Vagas de acesso/rebaixamento da carreira (cada liga tem a sua regra). */
+export const slotsOf = (g: Pick<GameState, 'slots'>) => g.slots ?? PROMOTION_SLOTS;
+export const leagueNameOf = (g: Pick<GameState, 'leagueName'>) => g.leagueName ?? 'Campeonato Brasileiro';
 
 export interface CareerInput {
   saveName: string;
@@ -23,6 +26,9 @@ export interface CareerInput {
   mode: string;
   season: number;
   userClubId: string;
+  leagueName?: string;
+  /** Clubes que sobem/descem entre divisões vizinhas (padrão 4). */
+  slots?: number;
   /** Pirâmide, da divisão principal para as inferiores. */
   divisions: { id: string; name: string; clubs: ClubData[] }[];
 }
@@ -43,7 +49,8 @@ export function newCareer(input: CareerInput, seed = Date.now() % 2147483647): G
   const all = input.divisions.flatMap((d) => d.clubs);
   if (!all.some((c) => c.id === input.userClubId)) throw new Error('Clube inexistente na pirâmide');
   if (new Set(all.map((c) => c.id)).size !== all.length) throw new Error('Clubes repetidos na pirâmide');
-  if (input.divisions.some((d) => d.clubs.length < PROMOTION_SLOTS + RELEGATION_SLOTS)) throw new Error('Divisão com poucos clubes');
+  const slots = input.slots ?? PROMOTION_SLOTS;
+  if (input.divisions.some((d) => d.clubs.length < slots * 2)) throw new Error('Divisão com poucos clubes');
 
   const divisions: DivisionState[] = input.divisions.map((d) => ({ id: d.id, name: d.name, clubIds: d.clubs.map((c) => c.id) }));
   const clubs: Record<string, ClubInfo> = {};
@@ -56,7 +63,7 @@ export function newCareer(input: CareerInput, seed = Date.now() % 2147483647): G
   }
   const { fixtures, totalRounds } = buildSeason(divisions);
   return {
-    version: 5, saveName: input.saveName, coach: input.coach, difficulty: input.difficulty, mode: input.mode,
+    version: 5, leagueName: input.leagueName, slots, saveName: input.saveName, coach: input.coach, difficulty: input.difficulty, mode: input.mode,
     userClubId: input.userClubId, seed, season: input.season, round: 1, totalRounds,
     clubs, budgets, transfers: [], morale: { ...MORALE_START }, transferList: [], loanList: [], offers: [], loans: [], news: [], divisions, teams, fixtures, results: [], history: [],
   };
@@ -105,7 +112,7 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
   // propostas dos outros clubes pelos jogadores listados
   state = generateOffers(state, rng);
   // meio da temporada: janela pequena de transferências da IA
-  if (state.round === 20) state = aiWindow(state, rng, 1);
+  if (state.round === Math.floor(state.totalRounds / 2) + 1) state = aiWindow(state, rng, 1);
   return { state, results };
 }
 
@@ -122,12 +129,13 @@ export interface DivisionMoves { divisionId: string; table: TableRow[]; promoted
 /** Quem sobe e quem desce em cada divisão, de acordo com a classificação atual. */
 export function seasonMoves(g: GameState): DivisionMoves[] {
   const last = g.divisions.length - 1;
+  const slots = slotsOf(g);
   return g.divisions.map((d, i) => {
     const table = divisionTable(g, d.id);
     return {
       divisionId: d.id, table,
-      promoted: i > 0 ? table.slice(0, PROMOTION_SLOTS).map((r) => r.clubId) : [],
-      relegated: i < last ? table.slice(-RELEGATION_SLOTS).map((r) => r.clubId) : [],
+      promoted: i > 0 ? table.slice(0, slots).map((r) => r.clubId) : [],
+      relegated: i < last ? table.slice(-slots).map((r) => r.clubId) : [],
     };
   });
 }

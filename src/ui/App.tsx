@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { brazilPyramid } from '../data/pyramid';
+import { pyramidOf, slotsOfLeague } from '../data/pyramid';
+import { getLeague } from '../data/world';
 import { isSeasonOver, newCareer, playRound, startNextSeason, userDivision } from '../engine/game';
 import { loadGame, saveGame } from '../engine/save';
 import type { GameState, MatchResult } from '../engine/types';
@@ -36,12 +37,13 @@ export function App() {
 
   const toMenu = () => setScreen('menu');
 
-  // Termina o assistente: cria a carreira no Campeonato Brasileiro (Série A–D) e abre o jogo.
+  // Termina o assistente: cria a carreira na liga escolhida (pirâmide completa) e abre o jogo.
   const startCareer = (s: NewGameState) => {
     const { name, nationality, reputation } = s.coach;
     setGame(newCareer({
       saveName: s.setup.saveName, coach: { name, nationality, reputation }, difficulty: s.setup.difficulty, mode: s.setup.mode,
-      season: START_SEASON, userClubId: s.club!.id, divisions: brazilPyramid(),
+      season: START_SEASON, userClubId: s.club!.id, divisions: pyramidOf(s.world.countryId, s.world.leagueId),
+      leagueName: s.world.leagueId === 'brasileirao' ? undefined : getLeague(s.world.countryId, s.world.leagueId)?.name, slots: slotsOfLeague(s.world.leagueId),
     }));
     setLast([]); setTab('home'); setScreen('game');
   };
