@@ -5,7 +5,7 @@ import { loadGame, saveGame } from '../engine/save';
 import type { GameState, MatchResult } from '../engine/types';
 import { START_SEASON, type NewGameState } from '../newgame/state';
 import { headerColor } from './badge';
-import { MainMenu, MENU_OPTIONS, type MenuOptionId } from './MainMenu';
+import { MainMenu, MENU_OPTIONS, SHORTCUTS, type MenuOptionId } from './MainMenu';
 import { NewGame } from './NewGame';
 import { Options } from './Options';
 import { Placeholder } from './Placeholder';
@@ -39,7 +39,12 @@ export function App() {
 
   // Menu inicial. Só "Novo Jogo" e "Continuar" reaproveitam o que já existia (escolha de clube / carreira salva);
   // as outras 6 opções são placeholders até serem desenvolvidas uma a uma.
-  const select = (id: MenuOptionId) => setScreen(id === 'continuar' && game ? 'game' : id);
+  const select = (id: MenuOptionId) => {
+    // Atalhos da faixa inferior: Elenco e Competições abrem a carreira em andamento (se houver); os outros são placeholders.
+    if (game && (id === 'elenco' || id === 'competicoes')) { setTab(id === 'elenco' ? 'squad' : 'table'); setScreen('game'); return; }
+    if (id === 'continuar' && game) { setTab('matches'); setScreen('game'); return; }
+    setScreen(id);
+  };
 
   if (screen === 'menu') return <MainMenu onSelect={select} hasSave={!!game} />;
 
@@ -48,8 +53,11 @@ export function App() {
   if (screen === 'opcoes') return <Options onBack={toMenu} onRestored={() => setGame(loadGame())} />;
 
   if (screen !== 'game' || !game) {
-    const opt = MENU_OPTIONS.find((o) => o.id === screen)!;
-    return <Placeholder title={opt.label} note={screen === 'continuar' ? 'Nenhum jogo salvo ainda. Em breve' : 'Em breve'} onBack={toMenu} />;
+    const opt = [...MENU_OPTIONS, ...SHORTCUTS].find((o) => o.id === screen)!;
+    const note = screen === 'continuar' ? 'Nenhum jogo salvo ainda. Em breve'
+      : screen === 'elenco' || screen === 'competicoes' ? 'Inicie ou continue uma carreira para acessar'
+      : 'Em breve';
+    return <Placeholder title={opt.label} note={note} onBack={toMenu} />;
   }
 
   const club = game.clubs[game.userClubId];

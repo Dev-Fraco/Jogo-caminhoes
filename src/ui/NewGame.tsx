@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { applyWorld, createNewGameState, isWizardComplete, NAME_MAX, NATIONALITIES, REPUTATIONS, STEPS, syncSaveName, validateCoach, type CoachProfile, type NewGameState } from '../newgame/state';
 import { Backdrop } from './Backdrop';
 import type { ClubData } from '../data/clubs';
@@ -6,7 +6,6 @@ import { ClubStep } from './ClubStep';
 import { SetupStep } from './SetupStep';
 import { SquadSheet } from './SquadSheet';
 import { WorldStep } from './WorldStep';
-import { WALLPAPER_URL } from './MainMenu';
 import './newgame.css';
 
 type Touched = { name?: boolean; nationality?: boolean; reputation?: boolean };
@@ -151,7 +150,7 @@ export function NewGame({ onBack, onStart, hasSave }: { onBack: () => void; onSt
   const canJump = (i: number) => i <= index || STEPS.slice(0, i).every((s) => !s.implemented || s.isValid(state));
 
   return (
-    <div className="menu nw" style={{ '--menu-wallpaper': `url(${WALLPAPER_URL})` } as CSSProperties}>
+    <div className="menu nw">
       <Backdrop />
       <div className="nw-shell">
         <div className="nw-top">
