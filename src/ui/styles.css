@@ -303,3 +303,6 @@ select option { background: #15110a; color: var(--ink); }
 .news li.good { border-left-color: var(--good); } .news li.bad { border-left-color: var(--bad); } .news li.info { border-left-color: var(--gold); }
 .news small { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; }
 .app > nav button:disabled, .ghost:disabled { opacity: .4; cursor: not-allowed; }
+
+.cup-line{display:block;margin-top:.6rem;opacity:.85}
+.cup-view section{margin-top:.8rem}

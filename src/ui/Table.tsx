@@ -12,6 +12,7 @@ function zone(divIndex: number, divCount: number, pos: number, size: number, slo
 export function Table({ game }: { game: GameState }) {
   const mineIndex = userDivisionIndex(game);
   const [idx, setIdx] = useState(mineIndex);
+  const [showCup, setShowCup] = useState(false);
   const division = game.divisions[idx];
   const rows = divisionTable(game, division.id);
   const n = rows.length;
@@ -23,11 +24,14 @@ export function Table({ game }: { game: GameState }) {
     <>
       <div className="chips" role="tablist" aria-label="Divisão">
         {game.divisions.map((d, i) => (
-          <button key={d.id} role="tab" aria-selected={i === idx} className={i === idx ? 'on' : ''} onClick={() => setIdx(i)}>
+          <button key={d.id} role="tab" aria-selected={!showCup && i === idx} className={!showCup && i === idx ? 'on' : ''} onClick={() => { setIdx(i); setShowCup(false); }}>
             {d.name}{i === mineIndex ? ' ★' : ''}
           </button>
         ))}
+        {game.cup && <button role="tab" aria-selected={showCup} className={showCup ? 'on' : ''} onClick={() => setShowCup(true)}>🏆 Copa</button>}
       </div>
+      {showCup && game.cup && <CupView game={game} />}
+      {!showCup && <>
       <table className="table">
         <thead><tr><th>#</th><th className="l">Clube</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr></thead>
         <tbody>
@@ -48,6 +52,32 @@ export function Table({ game }: { game: GameState }) {
         {idx > 0 && <><i className="k acc" /> Acesso (sobem {slots}) </>}
         {idx < count - 1 && <><i className="k rel" /> Rebaixamento (descem {slots})</>}
       </p>
+      </>}
     </>
+  );
+}
+
+/** Chaveamento da copa: as fases já sorteadas, da mais recente para a mais antiga; o seu jogo fica em destaque. */
+function CupView({ game }: { game: GameState }) {
+  const cup = game.cup!;
+  const name = (id: string) => game.clubs[id].name;
+  return (
+    <div className="cup-view">
+      {cup.championId && <p className="outcome">🏆 Campeão: <b>{name(cup.championId)}</b></p>}
+      {[...cup.rounds].reverse().map((r) => (
+        <section key={r.name}>
+          <h3>{r.name}</h3>
+          <ul className="list">
+            {r.ties.map((t) => (
+              <li key={t.homeId} className={t.homeId === game.userClubId || t.awayId === game.userClubId ? 'row mine' : 'row'}>
+                <span className="grow right">{name(t.homeId)}</span>
+                <b className="score">{t.winnerId ? `${t.homeGoals} - ${t.awayGoals}` : 'x'}</b>
+                <span className="grow">{name(t.awayId)}{t.pens ? <small> ({t.pens[0]}–{t.pens[1]} pên.)</small> : null}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
   );
 }

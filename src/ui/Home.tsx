@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { fixturesOfRound, leagueNameOf, seasonOutcome, slotsOf, userDivision } from '../engine/game';
+import { cupMatchDue, userCupTie, userInCup } from '../engine/cup';
 import { moodLabel } from '../engine/morale';
 import type { GameState, MatchResult } from '../engine/types';
 import { PROMOTED_STRONG_CHANCE } from '../engine/ai';
@@ -64,17 +65,20 @@ export function Home({ game, last, over, onPlay, onNextSeason, onEditLineup, onS
     );
   }
 
-  const next = fixturesOfRound(game, game.round, division.id).find((f) => f.homeId === game.userClubId || f.awayId === game.userClubId);
-  const shown = last.filter((r) => r.divisionId === division.id);
+  const cupDue = cupMatchDue(game);
+  const cupTie = userCupTie(game);
+  const next = cupDue && cupTie ? cupTie : fixturesOfRound(game, game.round, division.id).find((f) => f.homeId === game.userClubId || f.awayId === game.userClubId);
+  const shown = last.filter((r) => r.divisionId === division.id || r.divisionId === game.cup?.id);
   const expectation = game.clubs[game.userClubId].boardExpectation;
   const m = game.morale;
 
   return (
     <>
       <div className="card center">
-        <small>{division.name} · Rodada {game.round} de {game.totalRounds}</small>
+        <small>{cupDue && game.cup ? `🏆 ${game.cup.name} · ${game.cup.rounds[game.cup.roundIndex].name}` : `${division.name} · Rodada ${game.round} de ${game.totalRounds}`}</small>
         {next && <h2>{name(next.homeId)} <span className="vs">x</span> {name(next.awayId)}</h2>}
         <button className="primary" onClick={() => { setOpen(null); onPlay(); }}>▶ Iniciar partida</button>
+        {game.cup && !cupDue && <small className="cup-line">{game.cup.championId ? `🏆 ${game.cup.name}: campeão ${name(game.cup.championId)}` : userInCup(game) ? `🏆 ${game.cup.name}: você está na ${game.cup.rounds[game.cup.roundIndex].name}` : `🏆 ${game.cup.name}: seu clube já foi eliminado`}</small>}
         <button className="btn home-lineup" onClick={onEditLineup}>Editar escalação</button>
       </div>
 
@@ -106,7 +110,7 @@ export function Home({ game, last, over, onPlay, onNextSeason, onEditLineup, onS
 
       {shown.length > 0 && (
         <section>
-          <h3>Resultados da rodada {shown[0].round}</h3>
+          <h3>{shown[0].divisionId === game.cup?.id ? `${game.cup.name} — resultados` : `Resultados da rodada ${shown[0].round}`}</h3>
           <ul className="list">
             {shown.map((r) => {
               const key = `${r.round}-${r.homeId}`;

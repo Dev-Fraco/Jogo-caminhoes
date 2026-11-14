@@ -114,7 +114,24 @@ export interface NewsItem {
 }
 
 /** Resumo de uma temporada encerrada. */
+/** Um jogo de mata-mata (jogo único; empate vai para os pênaltis). */
+export interface CupTie { homeId: string; awayId: string; homeGoals?: number; awayGoals?: number; pens?: [number, number]; winnerId?: string }
+export interface CupRound { name: string; ties: CupTie[] }
+/** Copa nacional da temporada (ex.: Copa do Brasil). */
+export interface CupState {
+  id: string;
+  name: string;
+  rounds: CupRound[]; // fases já sorteadas (a próxima é sorteada quando a anterior termina)
+  roundIndex: number; // próxima fase a jogar
+  totalRounds: number;
+  dueAfter: number[]; // depois de qual rodada do campeonato cada fase acontece
+  due: boolean; // há uma fase esperando para ser jogada
+  alive: string[]; // clubes ainda na copa
+  championId?: string;
+}
+
 export interface SeasonSummary {
+  cupChampionId?: string;
   season: number;
   userDivisionId: string;
   userPosition: number;
@@ -183,4 +200,5 @@ export interface GameState {
   fixtures: Fixture[]; // da temporada atual, todas as divisões
   results: MatchResult[]; // da temporada atual
   history: SeasonSummary[];
+  cup?: CupState;
 }

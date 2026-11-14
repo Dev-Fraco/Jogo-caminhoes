@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { pyramidOf, slotsOfLeague } from '../data/pyramid';
 import { getLeague } from '../data/world';
-import { isSeasonOver, newCareer, playRound, startNextSeason, userDivision } from '../engine/game';
+import { isSeasonOver, newCareer, playNext, startNextSeason, userDivision } from '../engine/game';
+import { cupMatchDue } from '../engine/cup';
 import { loadGame, saveGame } from '../engine/save';
 import type { GameState, MatchResult } from '../engine/types';
 import { START_SEASON, type NewGameState } from '../newgame/state';
@@ -43,7 +44,7 @@ export function App() {
     setGame(newCareer({
       saveName: s.setup.saveName, coach: { name, nationality, reputation }, difficulty: s.setup.difficulty, mode: s.setup.mode,
       season: START_SEASON, userClubId: s.club!.id, divisions: pyramidOf(s.world.countryId, s.world.leagueId),
-      leagueName: s.world.leagueId === 'brasileirao' ? undefined : getLeague(s.world.countryId, s.world.leagueId)?.name, slots: slotsOfLeague(s.world.leagueId),
+      leagueName: s.world.leagueId === 'brasileirao' ? undefined : getLeague(s.world.countryId, s.world.leagueId)?.name, slots: slotsOfLeague(s.world.leagueId), cup: s.world.leagueId === 'brasileirao',
     }));
     setLast([]); setTab('home'); setScreen('game');
   };
@@ -70,9 +71,11 @@ export function App() {
   }
 
   const club = game.clubs[game.userClubId];
-  const play = () => setLive(playRound(game));
+  const play = () => setLive(playNext(game));
   const finishMatch = () => { if (live) { setLast(live.results); setGame(live.state); } setLive(null); };
   const liveResult = live?.results.find((r) => r.homeId === game.userClubId || r.awayId === game.userClubId);
+  const liveCup = !!live && cupMatchDue(game);
+  const liveLabel = liveCup && game.cup ? `${game.cup.name} · ${game.cup.rounds[game.cup.roundIndex].name}` : userDivision(game).name;
   const nextSeason = () => { setLast([]); setGame(startNextSeason(game)); };
 
   return (
@@ -94,8 +97,8 @@ export function App() {
         </header>
         <main>
           {live && liveResult && (
-            <LiveMatch key={`${game.season}-${game.round}`} home={game.clubs[liveResult.homeId]} away={game.clubs[liveResult.awayId]} result={liveResult}
-              userSide={liveResult.homeId === game.userClubId ? 'home' : 'away'} divisionName={userDivision(game).name} stadium={game.clubs[liveResult.homeId].stadium} onFinish={finishMatch} />
+            <LiveMatch key={`${game.season}-${game.round}-${liveCup ? 'c' : 'l'}`} home={game.clubs[liveResult.homeId]} away={game.clubs[liveResult.awayId]} result={liveResult}
+              userSide={liveResult.homeId === game.userClubId ? 'home' : 'away'} divisionName={liveLabel} stadium={game.clubs[liveResult.homeId].stadium} onFinish={finishMatch} />
           )}
           {!live && tab === 'home' && <Home game={game} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onEditLineup={() => setTab('lineup')} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} />}
           {!live && tab === 'lineup' && <Lineup game={game} onChange={setGame} onBack={() => setTab('home')} />}
