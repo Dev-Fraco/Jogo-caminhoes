@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { fixturesOfRound, PROMOTION_SLOTS, RELEGATION_SLOTS, seasonOutcome, userDivision } from '../engine/game';
 import { moodLabel } from '../engine/morale';
 import type { GameState, MatchResult } from '../engine/types';
+import { PROMOTED_STRONG_CHANCE } from '../engine/ai';
 import { EXPECTATION_LABEL } from '../newgame/format';
 
 interface Props {
@@ -41,6 +42,7 @@ export function Home({ game, last, over, onPlay, onNextSeason, onEditLineup, onS
           <h2>Temporada {game.season} encerrada</h2>
           <p>Você terminou em <b>{out.userPosition}º</b> lugar na {division.name}.</p>
           <p className={`outcome ${out.movement}`}>{msg}</p>
+          {out.movement === 'promoted' && <p className="hint">🎲 Ao virar a temporada, a diretoria sorteia o investimento: {Math.round(PROMOTED_STRONG_CHANCE * 100)}% de chance de investimento forte (boa chance de se manter na divisão) e {100 - Math.round(PROMOTED_STRONG_CHANCE * 100)}% de investimento pequeno (risco de cair de novo).</p>}
           <button className="primary" onClick={onNextSeason}>Próxima temporada</button>
         </div>
         <section>
@@ -90,6 +92,17 @@ export function Home({ game, last, over, onPlay, onNextSeason, onEditLineup, onS
           <Meter label="Torcida" value={m.fans} note="Reage aos resultados, principalmente em casa." />
         </div>
       </section>
+
+      {game.news.length > 0 && (
+        <section>
+          <h3>Notícias</h3>
+          <div className="card">
+            <ul className="news">
+              {game.news.slice(0, 5).map((n, i) => <li key={i} className={n.tone}>{n.text}<small>Temporada {n.season} · rodada {n.round}</small></li>)}
+            </ul>
+          </div>
+        </section>
+      )}
 
       {shown.length > 0 && (
         <section>

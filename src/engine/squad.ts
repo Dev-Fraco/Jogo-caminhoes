@@ -4,6 +4,15 @@ import { FORMATIONS, type Club, type FormationId, type Player, type Position, ty
 const FIRST = ['João','Pedro','Lucas','Gabriel','Mateus','Rafael','Bruno','Thiago','Felipe','Gustavo','Diego','Caio','Vitor','Renan','Igor','Leandro','Marcelo','Fábio','Daniel','Henrique','Wesley','Everton','Murilo','Davi','Nathan','Kaique','Ricardo','André','Rodrigo','Luan'];
 const LAST = ['Silva','Santos','Oliveira','Souza','Lima','Pereira','Costa','Ferreira','Almeida','Ribeiro','Carvalho','Gomes','Martins','Araújo','Barbosa','Rocha','Dias','Nunes','Moreira','Cardoso','Teixeira','Moura','Cavalcante','Freitas','Mendes','Batista','Correia','Pinto','Campos','Vieira'];
 
+/** Nome fictício que ainda não está em `used`. */
+export function randomName(rng: Rng, used: Set<string>): string {
+  let name = '';
+  do name = `${pick(rng, FIRST)} ${pick(rng, LAST)}`;
+  while (used.has(name));
+  used.add(name);
+  return name;
+}
+
 /** Composição do elenco gerado: 24 jogadores. */
 const SQUAD_SHAPE: [Position, number][] = [['GK', 3], ['DEF', 8], ['MID', 8], ['ATT', 5]];
 

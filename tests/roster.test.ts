@@ -185,7 +185,7 @@ describe('saves', () => {
     const m = new Map<string, string>();
     vi.stubGlobal('localStorage', { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) });
   });
-  it('save da versão 3 (antes do humor/listas) é migrado para a 4', () => {
+  it('save da versão 3 (antes do humor/listas) é migrado para a versão atual', () => {
     const g4 = makeCareer('palmeiras');
     const { morale: _m, transferList: _t, loanList: _l, offers: _o, loans: _ln, ...rest } = g4;
     const clubs = Object.fromEntries(Object.entries(g4.clubs).map(([id, c]) => { const { boardExpectation: _b, ...r } = c; return [id, r]; }));
@@ -193,7 +193,8 @@ describe('saves', () => {
     expect(isValidSave(v3)).toBe(true);
     localStorage.setItem('caminhoes-save-v1', JSON.stringify(v3));
     const g = loadGame()!;
-    expect(g.version).toBe(4);
+    expect(g.version).toBe(5);
+    expect(g.news).toEqual([]);
     expect(g.morale).toEqual({ team: 60, board: 60, fans: 60 });
     expect([g.transferList, g.loanList, g.offers, g.loans]).toEqual([[], [], [], []]);
     expect(g.clubs.palmeiras.boardExpectation).toBe('title');

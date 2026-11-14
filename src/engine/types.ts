@@ -44,9 +44,13 @@ export interface TeamState {
 
 export interface MatchEvent {
   minute: number;
-  type: 'goal' | 'yellow' | 'red' | 'chance';
-  side: 'home' | 'away';
+  type: 'kickoff' | 'goal' | 'yellow' | 'red' | 'foul' | 'save' | 'miss' | 'corner' | 'halftime' | 'fulltime';
+  side: 'home' | 'away' | 'none';
   text: string;
+  /** Jogador principal do lance (autor do gol, da falta, do chute...). */
+  player?: string;
+  /** Placar [casa, fora] depois do lance (gols, intervalo e fim de jogo). */
+  score?: [number, number];
 }
 
 export interface MatchResult {
@@ -101,12 +105,22 @@ export interface DivisionState {
   clubIds: string[];
 }
 
+/** Notícia do mercado e dos clubes (movimentos da IA, investimentos, crises). */
+export interface NewsItem {
+  season: number;
+  round: number;
+  text: string;
+  tone: 'good' | 'bad' | 'info';
+}
+
 /** Resumo de uma temporada encerrada. */
 export interface SeasonSummary {
   season: number;
   userDivisionId: string;
   userPosition: number;
   divisions: { id: string; championId: string; promoted: string[]; relegated: string[] }[];
+  /** Sorteio do investimento dos clubes promovidos (strong = investimento forte). */
+  promotion?: { clubId: string; strong: boolean; bonus: number }[];
 }
 
 /** Registro de uma contratação (o jogador passa de um clube para outro). */
@@ -142,7 +156,7 @@ export interface Offer {
 export interface Loan { playerId: string; hostClubId: string; season: number }
 
 export interface GameState {
-  version: 4;
+  version: 5;
   saveName: string;
   coach: { name: string; nationality: string; reputation: string };
   difficulty: string;
@@ -160,6 +174,7 @@ export interface GameState {
   loanList: string[]; // jogadores do seu clube disponíveis para empréstimo
   offers: Offer[]; // propostas recebidas
   loans: Loan[]; // jogadores seus emprestados
+  news: NewsItem[]; // últimas notícias (mais recente primeiro)
   divisions: DivisionState[]; // ordem: Série A, B, C, D
   teams: Record<string, TeamState>; // todos os clubes
   fixtures: Fixture[]; // da temporada atual, todas as divisões

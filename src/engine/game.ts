@@ -1,4 +1,5 @@
 import type { ClubData } from '../data/clubs';
+import { aiWindow, offseason } from './ai';
 import { MORALE_START, moraleFactor, updateMorale } from './morale';
 import { simulateMatch } from './match';
 import { makeRng } from './rng';
@@ -8,15 +9,8 @@ import { autoLineup, teamFromPlayers } from './squad';
 import { computeTable } from './table';
 import type { ClubInfo, DivisionState, FormationId, Fixture, GameState, MatchResult, Position, SeasonSummary, TableRow } from './types';
 
-/** Receita de fim de temporada por divisão (A→D), em R$. Valores provisórios até existir um sistema de finanças. */
-export const DIVISION_INCOME = [40_000_000, 12_000_000, 5_000_000, 2_000_000];
-
-/** Receita do clube na temporada: base da divisão × reputação, com bônus pela posição final (até +40% para o campeão). */
-export function seasonIncome(divisionIndex: number, reputation: number, position: number, size: number): number {
-  const base = DIVISION_INCOME[Math.min(divisionIndex, DIVISION_INCOME.length - 1)] * (0.6 + 0.2 * reputation);
-  const bonus = 1 + 0.4 * (1 - (position - 1) / Math.max(1, size - 1));
-  return Math.round((base * bonus) / 100_000) * 100_000;
-}
+export { DIVISION_INCOME, seasonIncome } from './economy';
+import { seasonIncome } from './economy';
 
 /** Quantos clubes sobem e descem entre divisões vizinhas (Série A↔B, B↔C, C↔D). */
 export const PROMOTION_SLOTS = 4;
@@ -62,9 +56,9 @@ export function newCareer(input: CareerInput, seed = Date.now() % 2147483647): G
   }
   const { fixtures, totalRounds } = buildSeason(divisions);
   return {
-    version: 4, saveName: input.saveName, coach: input.coach, difficulty: input.difficulty, mode: input.mode,
+    version: 5, saveName: input.saveName, coach: input.coach, difficulty: input.difficulty, mode: input.mode,
     userClubId: input.userClubId, seed, season: input.season, round: 1, totalRounds,
-    clubs, budgets, transfers: [], morale: { ...MORALE_START }, transferList: [], loanList: [], offers: [], loans: [], divisions, teams, fixtures, results: [], history: [],
+    clubs, budgets, transfers: [], morale: { ...MORALE_START }, transferList: [], loanList: [], offers: [], loans: [], news: [], divisions, teams, fixtures, results: [], history: [],
   };
 }
 
@@ -91,7 +85,7 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
   const factor = moraleFactor(g.morale.team); // humor da equipe mexe um pouco na força do seu time
   const results: MatchResult[] = fixturesOfRound(g, g.round).map((f) => {
     const mods = { home: f.homeId === g.userClubId ? factor : 1, away: f.awayId === g.userClubId ? factor : 1 };
-    const out = simulateMatch(teams[f.homeId], teams[f.awayId], rng, mods);
+    const out = simulateMatch(teams[f.homeId], teams[f.awayId], rng, mods, { home: g.clubs[f.homeId].name, away: g.clubs[f.awayId].name });
     const mine = f.homeId === g.userClubId || f.awayId === g.userClubId;
     return { divisionId: f.divisionId, round: f.round, homeId: f.homeId, awayId: f.awayId, homeGoals: out.homeGoals, awayGoals: out.awayGoals, events: mine ? out.events : [] };
   });
@@ -110,6 +104,8 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
   }
   // propostas dos outros clubes pelos jogadores listados
   state = generateOffers(state, rng);
+  // meio da temporada: janela pequena de transferências da IA
+  if (state.round === 20) state = aiWindow(state, rng, 1);
   return { state, results };
 }
 
@@ -180,7 +176,12 @@ export function startNextSeason(g: GameState): GameState {
     budgets[r.clubId] = (budgets[r.clubId] ?? 0) + seasonIncome(i, g.clubs[r.clubId].reputation, idx + 1, m.table.length);
   }));
   const back = returnLoans(g);
-  return { ...back, season: g.season + 1, round: 1, totalRounds, divisions, fixtures, results: [], budgets, offers: [], history: [...g.history, summary] };
+  const next: GameState = { ...back, season: g.season + 1, round: 1, totalRounds, divisions, fixtures, results: [], budgets, offers: [], history: [...g.history, summary] };
+  // a IA entra em ação: evolução dos jogadores, investimento dos promovidos, crises dos rebaixados e janela de transferências
+  const arrivals = (list: 'promoted' | 'relegated', delta: number) => moves.flatMap((m, i) => m[list].map((clubId) => ({ clubId, to: i + delta })));
+  const rng = makeRng(g.seed * 977 + g.season * 31 + 5);
+  const { state, promotion } = offseason(next, rng, { promoted: arrivals('promoted', -1), relegated: arrivals('relegated', 1) });
+  return { ...state, history: state.history.map((h, i) => (i === state.history.length - 1 ? { ...h, promotion } : h)) };
 }
 
 export function setFormation(g: GameState, formation: FormationId): GameState {

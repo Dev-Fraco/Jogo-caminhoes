@@ -96,15 +96,32 @@ function Offers({ game, onChange }: { game: GameState; onChange: (g: GameState) 
   );
 }
 
+/** Notícias do mercado: o que a IA dos outros clubes está fazendo (contratações, investimentos, crises). */
+function News({ game }: { game: GameState }) {
+  return (
+    <section>
+      <h3>Notícias do mercado</h3>
+      <div className="card">
+        {game.news.length === 0 ? <p className="hint" style={{ margin: 0 }}>Ainda sem notícias. Os outros clubes contratam e vendem no meio da temporada (rodada 19) e na virada da temporada.</p> : (
+          <ul className="news">
+            {game.news.map((n, i) => <li key={i} className={n.tone}>{n.text}<small>Temporada {n.season} · rodada {n.round}</small></li>)}
+          </ul>
+        )}
+      </div>
+    </section>
+  );
+}
+
 /** Transferências: comprar jogadores de outros clubes e responder às propostas pelos seus. */
-export function Transfers({ game, onChange, view, onView }: { game: GameState; onChange: (g: GameState) => void; view: 'buy' | 'offers'; onView: (v: 'buy' | 'offers') => void }) {
+export function Transfers({ game, onChange, view, onView }: { game: GameState; onChange: (g: GameState) => void; view: 'buy' | 'offers' | 'news'; onView: (v: 'buy' | 'offers' | 'news') => void }) {
   return (
     <>
       <div className="seg" role="tablist" aria-label="Transferências">
         <button role="tab" aria-selected={view === 'buy'} className={view === 'buy' ? 'on' : ''} onClick={() => onView('buy')}>Comprar</button>
         <button role="tab" aria-selected={view === 'offers'} className={view === 'offers' ? 'on' : ''} onClick={() => onView('offers')}>Propostas{game.offers.length > 0 ? ` (${game.offers.length})` : ''}</button>
+        <button role="tab" aria-selected={view === 'news'} className={view === 'news' ? 'on' : ''} onClick={() => onView('news')}>Notícias</button>
       </div>
-      {view === 'buy' ? <Market game={game} onChange={onChange} /> : <Offers game={game} onChange={onChange} />}
+      {view === 'buy' ? <Market game={game} onChange={onChange} /> : view === 'offers' ? <Offers game={game} onChange={onChange} /> : <News game={game} />}
     </>
   );
 }

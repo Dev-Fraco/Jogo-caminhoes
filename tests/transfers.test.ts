@@ -128,10 +128,12 @@ describe('receita de fim de temporada', () => {
     expect(seasonIncome(0, 5, 10, 20)).toBeGreaterThan(seasonIncome(0, 2, 10, 20));
     expect(seasonIncome(0, 4, 1, 20)).toBeGreaterThan(seasonIncome(0, 4, 20, 20));
   });
-  it('todo clube recebe ao virar a temporada', () => {
+  it('o seu clube recebe a receita ao virar a temporada (a IA não mexe no seu caixa) e o total do jogo cresce', () => {
     const end = playSeason(makeCareer('flamengo', 3));
     const next = startNextSeason(end);
-    for (const id of Object.keys(end.budgets)) expect(next.budgets[id]).toBeGreaterThan(end.budgets[id]);
+    expect(next.budgets.flamengo).toBeGreaterThan(end.budgets.flamengo);
+    const sum = (b: Record<string, number>) => Object.values(b).reduce((a, v) => a + v, 0);
+    expect(sum(next.budgets)).toBeGreaterThan(sum(end.budgets));
   });
 });
 
@@ -147,7 +149,7 @@ describe('saves', () => {
     expect(isValidSave(v2)).toBe(true);
     localStorage.setItem('caminhoes-save-v1', JSON.stringify(v2));
     const loaded = loadGame()!;
-    expect(loaded.version).toBe(4);
+    expect(loaded.version).toBe(5);
     expect(loaded.transfers).toEqual([]);
     expect(loaded.budgets.palmeiras).toBe(CLUBS_DATA['serie-a'].find((c) => c.id === 'palmeiras')!.budget);
     expect(Object.keys(loaded.budgets)).toHaveLength(80);

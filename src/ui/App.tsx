@@ -14,6 +14,7 @@ import { Options } from './Options';
 import { Placeholder } from './Placeholder';
 import { Home } from './Home';
 import { Lineup } from './Lineup';
+import { LiveMatch } from './LiveMatch';
 import { Squad } from './Squad';
 import { Table } from './Table';
 import { Transfers } from './Transfers';
@@ -26,7 +27,9 @@ export function App() {
   const [game, setGame] = useState<GameState | null>(() => loadGame());
   const [screen, setScreen] = useState<Screen>('menu');
   const [tab, setTab] = useState<Tab>('home');
-  const [tfView, setTfView] = useState<'buy' | 'offers'>('buy');
+  const [tfView, setTfView] = useState<'buy' | 'offers' | 'news'>('buy');
+  // partida em andamento: o resultado já foi calculado, mas só entra no jogo quando a partida termina
+  const [live, setLive] = useState<{ state: GameState; results: MatchResult[] } | null>(null);
   const [last, setLast] = useState<MatchResult[]>([]);
 
   useEffect(() => { if (game) saveGame(game); }, [game]);
@@ -65,7 +68,9 @@ export function App() {
   }
 
   const club = game.clubs[game.userClubId];
-  const play = () => { const r = playRound(game); setLast(r.results); setGame(r.state); };
+  const play = () => setLive(playRound(game));
+  const finishMatch = () => { if (live) { setLast(live.results); setGame(live.state); } setLive(null); };
+  const liveResult = live?.results.find((r) => r.homeId === game.userClubId || r.awayId === game.userClubId);
   const nextSeason = () => { setLast([]); setGame(startNextSeason(game)); };
 
   return (
@@ -82,21 +87,25 @@ export function App() {
           </div>
           <div className="gh-right">
             <span className="gh-money" title="Orçamento para transferências">{formatBudget(game.budgets[game.userClubId])}</span>
-            <button className="ghost" onClick={toMenu}>Menu</button>
+            <button className="ghost" onClick={toMenu} disabled={!!live}>Menu</button>
           </div>
         </header>
         <main>
-          {tab === 'home' && <Home game={game} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onEditLineup={() => setTab('lineup')} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} />}
-          {tab === 'lineup' && <Lineup game={game} onChange={setGame} onBack={() => setTab('home')} />}
-          {tab === 'squad' && <Squad game={game} onChange={setGame} />}
-          {tab === 'table' && <Table game={game} />}
-          {tab === 'transfers' && <Transfers game={game} onChange={setGame} view={tfView} onView={setTfView} />}
+          {live && liveResult && (
+            <LiveMatch key={`${game.season}-${game.round}`} home={game.clubs[liveResult.homeId]} away={game.clubs[liveResult.awayId]} result={liveResult}
+              userSide={liveResult.homeId === game.userClubId ? 'home' : 'away'} divisionName={userDivision(game).name} stadium={game.clubs[liveResult.homeId].stadium} onFinish={finishMatch} />
+          )}
+          {!live && tab === 'home' && <Home game={game} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onEditLineup={() => setTab('lineup')} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} />}
+          {!live && tab === 'lineup' && <Lineup game={game} onChange={setGame} onBack={() => setTab('home')} />}
+          {!live && tab === 'squad' && <Squad game={game} onChange={setGame} />}
+          {!live && tab === 'table' && <Table game={game} />}
+          {!live && tab === 'transfers' && <Transfers game={game} onChange={setGame} view={tfView} onView={setTfView} />}
         </main>
         <nav>
           {([['home', '🏠', 'Início'], ['squad', '👕', 'Elenco'], ['table', '📊', 'Tabela'], ['transfers', '🔁', 'Transf.']] as const).map(([id, icon, label]) => {
             const on = tab === id || (id === 'home' && tab === 'lineup');
             return (
-              <button key={id} className={on ? 'on' : ''} onClick={() => setTab(id)} aria-label={id === 'transfers' ? 'Transferências' : label} aria-current={on ? 'page' : undefined}>
+              <button key={id} className={on ? 'on' : ''} disabled={!!live} onClick={() => setTab(id)} aria-label={id === 'transfers' ? 'Transferências' : label} aria-current={on ? 'page' : undefined}>
                 <span aria-hidden="true">{icon}</span>{label}
                 {id === 'transfers' && game.offers.length > 0 && <i className="nav-badge" aria-label={`${game.offers.length} propostas`}>{game.offers.length}</i>}
               </button>
