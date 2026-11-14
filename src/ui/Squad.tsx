@@ -6,6 +6,7 @@ import { MAX_SQUAD } from '../engine/transfers';
 import { wageOf } from '../engine/finance';
 import { contractLeft, renew, renewalQuote } from '../engine/market';
 import type { GameState, Player, Position } from '../engine/types';
+import { ScreenTitle } from './FmParts';
 import { formatBudget } from '../newgame/format';
 
 const POS_LABEL: Record<Position, string> = { GK: 'Goleiros', DEF: 'Defensores', MID: 'Meio-campistas', ATT: 'Atacantes' };
@@ -118,6 +119,7 @@ export function Squad({ game, onChange }: { game: GameState; onChange: (g: GameS
 
   return (
     <>
+      <ScreenTitle icon="👕" title="Elenco" />
       <div className="card sq-top">
         <div><small>Overall</small><b>{ratings.overall}</b></div>
         <div><small>Idade média</small><b>{avgAge}</b></div>

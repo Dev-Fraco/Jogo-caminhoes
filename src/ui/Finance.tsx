@@ -2,13 +2,14 @@ import { priceIndex } from '../engine/economy';
 import { coachMoneyOf, coachSalary, gateOf, payrollOf, setWageCover, WAGE_COVER_OPTIONS, wageCoverOf, wageOf } from '../engine/finance';
 import type { GameState, Position } from '../engine/types';
 import { formatBudget } from '../newgame/format';
+import { ScreenTitle } from './FmParts';
 
 const POS: Record<Position, string> = { GK: 'GOL', DEF: 'DEF', MID: 'MEI', ATT: 'ATA' };
 
-interface Props { game: GameState; onChange: (g: GameState) => void; onBack: () => void }
+interface Props { game: GameState; onChange: (g: GameState) => void; onBack?: () => void }
 
 /** Finanças: caixa, folha de pagamento, bilheteria, salário do treinador e a opção de pagar os salários do próprio bolso. */
-export function Finance({ game, onChange, onBack }: Props) {
+export function Finance({ game, onChange }: Props) {
   const id = game.userClubId;
   const payroll = payrollOf(game, id);
   const perRound = payroll / game.totalRounds;
@@ -21,7 +22,7 @@ export function Finance({ game, onChange, onBack }: Props) {
 
   return (
     <>
-      <button className="btn" onClick={onBack}>‹ Voltar ao início</button>
+      <ScreenTitle icon="💰" title="Finanças" />
       <div className="card center fin-cash">
         <small>Caixa do clube</small>
         <h2 className={budget < 0 ? 'neg' : ''}>{budget < 0 ? '−' : ''}{formatBudget(Math.abs(budget))}</h2>

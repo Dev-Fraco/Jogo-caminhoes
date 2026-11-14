@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { ScreenTitle, SubTabs } from './FmParts';
 import { anyClubName } from '../engine/market';
 import { Clubs } from './Clubs';
 import { NegotiationSheet } from './Negotiation';
@@ -119,12 +120,13 @@ function News({ game }: { game: GameState }) {
 export function Transfers({ game, onChange, view, onView }: { game: GameState; onChange: (g: GameState) => void; view: 'clubs' | 'buy' | 'offers' | 'news'; onView: (v: 'clubs' | 'buy' | 'offers' | 'news') => void }) {
   return (
     <>
-      <div className="seg" role="tablist" aria-label="Transferências">
-        <button role="tab" aria-selected={view === 'clubs'} className={view === 'clubs' ? 'on' : ''} onClick={() => onView('clubs')}>Clubes</button>
-        <button role="tab" aria-selected={view === 'buy'} className={view === 'buy' ? 'on' : ''} onClick={() => onView('buy')}>Mercado</button>
-        <button role="tab" aria-selected={view === 'offers'} className={view === 'offers' ? 'on' : ''} onClick={() => onView('offers')}>Propostas{game.offers.length > 0 ? ` (${game.offers.length})` : ''}</button>
-        <button role="tab" aria-selected={view === 'news'} className={view === 'news' ? 'on' : ''} onClick={() => onView('news')}>Notícias</button>
-      </div>
+      <ScreenTitle icon="🔁" title="Transferências" />
+      <SubTabs items={[
+        { icon: '👥', label: 'Clubes', on: view === 'clubs', onClick: () => onView('clubs') },
+        { icon: '🔎', label: 'Mercado', on: view === 'buy', onClick: () => onView('buy') },
+        { icon: '📄', label: `Propostas${game.offers.length > 0 ? ` (${game.offers.length})` : ''}`, on: view === 'offers', onClick: () => onView('offers') },
+        { icon: '📰', label: 'Notícias', on: view === 'news', onClick: () => onView('news') },
+      ]} />
       {view === 'clubs' ? <Clubs game={game} onChange={onChange} /> : view === 'buy' ? <Market game={game} onChange={onChange} /> : view === 'offers' ? <Offers game={game} onChange={onChange} /> : <News game={game} />}
     </>
   );

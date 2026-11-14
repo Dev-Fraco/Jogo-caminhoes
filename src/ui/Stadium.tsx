@@ -5,14 +5,15 @@ import {
 } from '../engine/stadium';
 import type { GameState } from '../engine/types';
 import { formatBudget } from '../newgame/format';
+import { ScreenTitle } from './FmParts';
 
 export const brl = (v: number) => `R$ ${v.toLocaleString('pt-BR')}`;
 const num = (v: number) => v.toLocaleString('pt-BR');
 
-interface Props { game: GameState; onChange: (g: GameState) => void; onBack: () => void }
+interface Props { game: GameState; onChange: (g: GameState) => void; onBack?: () => void }
 
 /** Estádio: preço do ingresso, público e renda dos jogos e obras de melhoria. */
-export function Stadium({ game, onChange, onBack }: Props) {
+export function Stadium({ game, onChange }: Props) {
   const st = stadiumOf(game);
   const id = game.userClubId;
   const fair = fairPrice(game);
@@ -33,7 +34,7 @@ export function Stadium({ game, onChange, onBack }: Props) {
 
   return (
     <>
-      <button className="btn" onClick={onBack}>‹ Voltar ao início</button>
+      <ScreenTitle icon="🏟️" title="Estádio" />
       <div className="card center st-hero">
         <small>🏟️ {club.stadium}</small>
         <h2>{num(st.capacity)} lugares</h2>

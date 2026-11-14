@@ -444,3 +444,57 @@ h3 { color: #dbe7ff; letter-spacing: .06em; font-size: 13px; }
 .app > nav button { font-size: 9px; letter-spacing: 0; }
 .fm-rows .grow b { font-size: 15px; }
 .fm-strip { grid-template-columns: .8fr .9fr 1.5fr .9fr; } .fm-strip b { font-size: 16px; }
+
+/* ===== Segunda referência: telas com título inclinado, camisa, sub-abas e tabelas com escudos ===== */
+.app > header { display: flex; padding-bottom: 10px; background: linear-gradient(180deg, rgba(4, 9, 22, .96), rgba(4, 9, 22, .8)); border-bottom: 1px solid #1b2f55; }
+.gh-id { gap: 10px; align-items: center; }
+.gh-div { width: 1px; height: 38px; background: #34507f; flex: none; }
+.app > header strong { font: italic 800 20px/1.1 var(--font-head); max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app > header small { font-size: 12px; }
+
+.fm-title { display: flex; align-items: center; gap: 10px; margin: 2px 2px 10px; }
+.fm-title > span { font-size: 30px; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .6)); }
+.fm-title h2 { margin: 0; flex: 1; font: italic 800 30px/1 var(--font-head); text-transform: uppercase; letter-spacing: .01em; color: #fff; text-shadow: 0 2px 10px rgba(0, 0, 0, .6); }
+.fm-title-r { flex: none; }
+.fm-chip { display: inline-block; padding: 10px 14px; border: 1px solid #2d4a7c; border-radius: 10px; background: rgba(8, 14, 30, .85); font: 700 14px var(--font-head); color: #fff; }
+.fm-chip::after { content: ' ⌄'; color: #aebfe0; }
+
+.fm-hero { display: grid; grid-template-columns: 38% 1fr; gap: 6px; margin: 0 0 12px; padding: 10px; background: linear-gradient(180deg, rgba(14, 24, 48, .85), rgba(9, 17, 36, .85)); border: 1px solid #25406f; border-radius: 16px; align-items: center; }
+.fm-jersey { width: 100%; max-height: 190px; filter: drop-shadow(0 8px 14px rgba(0, 0, 0, .55)); }
+.fm-hero-r h2 { margin: 0 0 6px; font: italic 800 30px/1 var(--font-head); color: #fff; text-align: left; }
+.fm-strip.compact { grid-template-columns: repeat(3, 1fr); padding: 6px 0; margin: 0 0 8px; background: rgba(0, 0, 0, .25); border: 0; border-top: 1px solid #25406f; border-radius: 0; }
+.fm-strip.compact b { font: italic 800 16px var(--font-head); } .fm-strip.compact small { font-size: 9px; text-transform: none; letter-spacing: 0; }
+.fm-wide { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; margin-top: 8px; }
+.fm-wide i { font-style: normal; margin-left: auto; font-size: 22px; }
+.fm-panel { margin: 0 0 12px; padding: 12px; background: linear-gradient(180deg, rgba(14, 24, 48, .88), rgba(9, 17, 36, .9)); border: 1px solid #25406f; border-radius: 16px; }
+.fm-sub { display: flex; gap: 8px; overflow-x: auto; margin: 0 0 10px; scrollbar-width: none; }
+.fm-sub button { flex: 1 0 auto; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 14px; border: 1px solid #2d4a7c; border-radius: 12px; background: rgba(8, 15, 34, .9); color: #fff; font: 800 14px var(--font-head); text-transform: uppercase; letter-spacing: .02em; }
+.fm-sub button.on { background: linear-gradient(180deg, #2f8bff, #1560d8); border-color: #4da3ff; box-shadow: 0 4px 14px rgba(21, 96, 216, .45); }
+.fm-mini { width: 100%; border-collapse: collapse; margin: 0 0 4px; border: 1px solid #1d3157; border-radius: 10px; overflow: hidden; }
+.fm-mini th { background: rgba(8, 15, 34, .95); color: #cfe0ff; font: 600 13px var(--font-head); padding: 8px 4px; text-align: center; }
+.fm-mini td { padding: 7px 4px; text-align: center; border-top: 1px solid #1d3157; font: 600 15px var(--font-head); }
+.fm-mini .l { text-align: left; } .fm-mini td.l span { display: flex; align-items: center; gap: 8px; }
+.fm-mini tr.mine td { background: linear-gradient(90deg, #123e86, #0f2f66); font-weight: 800; }
+.fm-feed { list-style: none; margin: 0; padding: 0; border: 1px solid #1d3157; border-radius: 10px; overflow: hidden; }
+.fm-feed li { display: flex; gap: 10px; padding: 11px 12px; border-top: 1px solid #1d3157; font: 600 14px/1.3 var(--font-head); color: #e6eefc; }
+.fm-feed li:first-child { border-top: 0; } .fm-feed li.mine { background: rgba(77, 163, 255, .14); }
+.fm-empty { color: var(--muted); }
+
+/* Telas internas: botões e abas grandes e padronizados */
+.seg { display: flex; gap: 8px; } .seg button { min-height: 46px; border-radius: 12px; border: 1px solid #2d4a7c; background: rgba(8, 15, 34, .9); color: #fff; font-weight: 800; text-transform: uppercase; font-size: 13px; }
+.chips button { min-height: 44px; border-radius: 12px; border: 1px solid #2d4a7c; background: rgba(8, 15, 34, .9); color: #fff; font: 800 13px var(--font-head); text-transform: uppercase; }
+.chips button.on { background: linear-gradient(180deg, #2f8bff, #1560d8); border-color: #4da3ff; box-shadow: 0 4px 14px rgba(21, 96, 216, .45); }
+.tb-wrap { border-color: #25406f; border-radius: 14px; background: rgba(9, 17, 36, .9); }
+.tb thead th { background: rgba(8, 15, 34, .95); color: #cfe0ff; }
+.tb tbody tr:nth-child(odd) td, .tb tbody tr:nth-child(even) td { background: rgba(12, 22, 46, .85); }
+.tb tbody tr.mine td { background: linear-gradient(90deg, #123e86, #0f2f66); }
+.sq-top { background: linear-gradient(180deg, rgba(14, 24, 48, .88), rgba(9, 17, 36, .9)); }
+.sq-card { background: rgba(12, 22, 46, .9); border: 1px solid #25406f; border-radius: 14px; }
+.tf-item { background: rgba(12, 22, 46, .9); border: 1px solid #25406f; border-radius: 14px; }
+.list > li { background: rgba(12, 22, 46, .85); border-bottom: 1px solid #1d3157; } .list > li:nth-child(even) { background: rgba(9, 17, 36, .85); }
+.fm-sub { overflow: visible; gap: 6px; } .fm-sub button { flex: 1 1 0; min-width: 0; padding: 0 6px; font-size: 12px; gap: 5px; }
+.fm-hero { grid-template-columns: 34% 1fr; }
+.fm-strip.compact { grid-template-columns: .7fr .8fr 1.3fr; } .fm-strip.compact b { font-size: 14px; white-space: nowrap; }
+.fm-wide { font-size: 13px; padding: 0 10px; white-space: nowrap; }
+.app > header strong { font-size: 17px; max-width: 36vw; }
+.gh-money { font-size: 13px; padding: 9px 9px; } .ghost { padding: 9px 9px; font-size: 13px; }

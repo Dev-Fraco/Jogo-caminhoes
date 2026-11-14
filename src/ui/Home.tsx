@@ -12,14 +12,16 @@ import { acceptOffer, declineOffer, resign } from '../engine/jobs';
 import { firingWarning } from '../engine/game';
 import { ClubBadge } from './ClubBadge';
 import { stadiumOf } from '../engine/stadium';
-import { Avatar, FmCard, ovrClass, POS_ONE, QuickTabs, StatStrip } from './FmParts';
+import { FmCard, Jersey, ScreenTitle, StatStrip, SubTabs } from './FmParts';
+import { transferFeed } from '../engine/news';
+import { divisionTable } from '../engine/game';
+import { isGroups, userGroupRows } from '../engine/groups';
 import { brl } from './Stadium';
 import { EXPECTATION_LABEL, formatBudget } from '../newgame/format';
-import { myValue } from '../engine/roster';
 
 interface Props {
   game: GameState; onChange: (g: GameState) => void; last: MatchResult[]; over: boolean;
-  onPlay: () => void; onSkip: (years: number) => void; onSeeTables: () => void; onSeeResults: () => void; onNextSeason: () => void; onEditLineup: () => void; onFinance: () => void; onStadium: () => void; onTab: (t: 'squad' | 'table' | 'transfers') => void; onNews: () => void; onSeeOffers: () => void;
+  onPlay: () => void; onSkip: (years: number) => void; onSeeTables: () => void; onSeeResults: () => void; onNextSeason: () => void; onEditLineup: () => void; onFinance: () => void; onStadium: () => void; onTab: (t: 'squad' | 'table' | 'transfers') => void; onNews: () => void; onSeeHist: () => void; onSeeOffers: () => void;
 }
 
 function Meter({ label, value, note }: { label: string; value: number; note?: string }) {
@@ -44,7 +46,7 @@ function EstadualResult({ game }: { game: GameState }) {
 }
 
 /** Início: próxima partida, escalação, humor (equipe, dirigentes e torcida), propostas e resultados da rodada. */
-export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, onSeeResults, onNextSeason, onEditLineup, onFinance, onStadium, onSeeOffers, onTab, onNews }: Props) {
+export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, onSeeResults, onNextSeason, onEditLineup, onFinance, onStadium, onSeeOffers, onTab, onNews, onSeeHist }: Props) {
   const name = (id: string) => clubOf(game, id).name;
   const [open, setOpen] = useState<string | null>(null);
   const [askSkip, setAskSkip] = useState(false);
@@ -107,6 +109,10 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
   const expectation = game.clubs[game.userClubId].boardExpectation;
   const m = game.morale;
   const recent = game.results.filter((r) => r.homeId === game.userClubId || r.awayId === game.userClubId).slice(-3).reverse();
+  const tableRows = division.format === 'outside' ? [] : (isGroups(division) ? userGroupRows(game, division) : undefined) ?? divisionTable(game, division.id);
+  const myPos = tableRows.findIndex((r) => r.clubId === game.userClubId);
+  const miniRows = [0, 1, 2].filter((i) => i < tableRows.length).map((i) => ({ r: tableRows[i], pos: i + 1 })).concat(myPos > 2 ? [{ r: tableRows[myPos], pos: myPos + 1 }] : []);
+  const feed = transferFeed(game, 3);
   const gate = stadiumOf(game).log[0];
   const gateNow = gate && gate.season === game.season && gate.round === game.round - 1 && last.length > 0 ? gate : undefined; // jogo em casa que acabou de acontecer
 
@@ -137,15 +143,40 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
         <button className="btn home-lineup" onClick={onStadium}>🏟️ Estádio e ingressos</button>
       </div>
 
-      <StatStrip game={game} />
-      <QuickTabs items={[{ icon: '👕', label: 'Elenco', on: true, onClick: () => onTab('squad') }, { icon: '🏆', label: 'Competições', onClick: () => onTab('table') }, { icon: '🔁', label: 'Transferências', onClick: () => onTab('transfers') }, { icon: '📰', label: 'Notícias', onClick: onNews }]} />
-      <FmCard icon="👕" title="Seu elenco" action="Ver todos" onAction={() => onTab('squad')}>
-        <ul className="fm-rows">
-          {[...game.teams[game.userClubId].players].sort((a, b) => b.strength - a.strength).slice(0, 3).map((p) => (
-            <li key={p.id}><button onClick={() => onTab('squad')}><Avatar pos={p.pos} /><span className="grow"><b>{p.name}</b><small>{POS_ONE[p.pos]}</small></span><em className={`fm-ovr ${ovrClass(p.strength)}`}>{p.strength}</em><span className="fm-side">{p.age} anos<small>{formatBudget(myValue(game, p))}</small></span><i aria-hidden="true">›</i></button></li>
-          ))}
+      <section className="fm-hero">
+        <Jersey club={game.clubs[game.userClubId]} />
+        <div className="fm-hero-r">
+          <h2>ELENCO</h2>
+          <StatStrip game={game} compact />
+          <button className="primary fm-wide" onClick={() => onTab('squad')}>👥 Ver meu elenco <i aria-hidden="true">›</i></button>
+        </div>
+      </section>
+      {tableRows.length > 0 && (
+        <section className="fm-panel">
+          <ScreenTitle icon="🏆" title="Competições" right={<span className="fm-chip">{division.name}</span>} />
+          <SubTabs items={[{ icon: '☰', label: 'Tabela', on: true, onClick: onSeeTables }, { icon: '⚽', label: 'Jogos', onClick: onSeeResults }, { icon: '🏅', label: 'Campeões', onClick: onSeeHist }]} />
+          <table className="fm-mini">
+            <thead><tr><th>Pos</th><th className="l">Clube</th><th>Pts</th><th>J</th><th>V</th><th>E</th><th>D</th></tr></thead>
+            <tbody>
+              {miniRows.map(({ r, pos }) => (
+                <tr key={r.clubId} className={r.clubId === game.userClubId ? 'mine' : ''}>
+                  <td>{pos}</td><td className="l"><span><ClubBadge club={clubOf(game, r.clubId)} size={26} />{name(r.clubId)}</span></td><td><b>{r.points}</b></td><td>{r.played}</td><td>{r.won}</td><td>{r.drawn}</td><td>{r.lost}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <button className="primary fm-wide" onClick={onSeeTables}>📊 Ver tabela completa <i aria-hidden="true">›</i></button>
+        </section>
+      )}
+      <section className="fm-panel">
+        <ScreenTitle icon="🔁" title="Transferências" />
+        <SubTabs items={[{ icon: '🛒', label: 'Mercado', on: true, onClick: () => onTab('transfers') }, { icon: '📄', label: `Propostas${game.offers.length ? ` (${game.offers.length})` : ''}`, onClick: onSeeOffers }, { icon: '📰', label: 'Notícias', onClick: onNews }]} />
+        <ul className="fm-feed">
+          {feed.length === 0 && <li className="fm-empty">Nenhuma transferência ainda. Os clubes negociam durante a temporada.</li>}
+          {feed.map((n, i) => <li key={i} className={n.mine ? 'mine' : ''}><span aria-hidden="true">{n.mine ? '⭐' : '🔁'}</span><span>{n.text}</span></li>)}
         </ul>
-      </FmCard>
+        <button className="primary fm-wide" onClick={() => onTab('transfers')}>🔎 Abrir mercado <i aria-hidden="true">›</i></button>
+      </section>
       {recent.length > 0 && (
         <FmCard icon="🏆" title="Últimos jogos" action="Ver tabela" onAction={() => onTab('table')}>
           <ul className="fm-games">

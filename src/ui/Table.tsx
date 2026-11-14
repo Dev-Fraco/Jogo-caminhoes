@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ScreenTitle } from './FmParts';
 import { COMPS, CONTINENTALS, groupTable, type Comp } from '../engine/continental';
 import { clubOf } from '../engine/lookup';
 import { GROUP_ROUNDS, groupTables, isGroups, knockoutView } from '../engine/groups';
@@ -38,6 +39,7 @@ export function Table({ game, initialView = 'div' }: { game: GameState; initialV
 
   return (
     <>
+      <ScreenTitle icon="🏆" title="Competições" />
       <div className="chips" role="tablist" aria-label="Divisão">
         {game.divisions.map((d, i) => (
           <button key={d.id} role="tab" aria-selected={view === 'div' && i === idx} className={view === 'div' && i === idx ? 'on' : ''} onClick={() => { setIdx(i); setView('div'); }}>
