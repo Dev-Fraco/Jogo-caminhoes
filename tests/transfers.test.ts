@@ -41,10 +41,10 @@ describe('valor de mercado', () => {
 });
 
 describe('mercado', () => {
-  it('lista os jogadores dos outros 79 clubes, nunca os do próprio', () => {
+  it('lista os jogadores dos outros 155 clubes, nunca os do próprio', () => {
     const g = makeCareer('palmeiras');
     const m = marketEntries(g);
-    expect(m).toHaveLength(79 * 24);
+    expect(m).toHaveLength(155 * 24);
     expect(m.some((e) => e.clubId === 'palmeiras')).toBe(false);
     expect(m.every((e) => e.price === playerValue(e.player, divisionIndexOf(g, e.clubId)))).toBe(true);
   });
@@ -117,7 +117,7 @@ describe('contratação', () => {
     let g = makeCareer('flamengo', 5);
     g = buyPlayer(g, pick(g, 'palmeiras').id).state;
     g = playSeason(g);
-    expect(g.results).toHaveLength(4 * 380);
+    expect(g.results).toHaveLength(3 * 380 + 16 * 30 + 31);
     expect(startNextSeason(g).teams.flamengo.players.length).toBeLessThanOrEqual(25); // veteranos podem se aposentar
   });
 });
@@ -153,7 +153,7 @@ describe('saves', () => {
     expect(loaded.version).toBe(5);
     expect(loaded.transfers).toEqual([]);
     expect(loaded.budgets.palmeiras).toBe(CLUBS_DATA['serie-a'].find((c) => c.id === 'palmeiras')!.budget);
-    expect(Object.keys(loaded.budgets)).toHaveLength(80);
+    expect(Object.keys(loaded.budgets)).toHaveLength(156);
     expect(migrateSave(g3)).toBe(g3);
   });
   it('save v1 ou lixo continua sendo ignorado', () => {

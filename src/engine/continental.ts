@@ -8,7 +8,7 @@ import { autoLineup, teamFromPlayers, teamRatings } from './squad';
 import { computeTable } from './table';
 import type { ClubInfo, CupRound, CupTie, GameState, LibGroup, LibState, MatchResult, MundialState, NewsItem, TeamState } from './types';
 
-export type Comp = 'lib' | 'ucl';
+export type Comp = 'lib' | 'ucl' | 'sula';
 const M = 1_000_000;
 
 interface Cfg {
@@ -30,6 +30,14 @@ export const CONTINENTALS: Record<Comp, Cfg> = {
     dates: [6, 11, 16, 21, 24, 28, 30, 32, 35, 37],
     win: 2.5 * M, draw: 1 * M, qualified: 8 * M, koPrize: [12 * M, 18 * M, 30 * M, 150 * M], runnerUp: 50 * M,
   },
+  sula: {
+    key: 'sula', id: 'sulamericana', name: 'Sul-Americana', icon: '🌴',
+    // os clubes logo depois dos da Libertadores em cada país (as vagas são as mesmas, a partir da posição seguinte)
+    quotas: [['serie-a', 6], ['ar-primera', 5], ['co-primera', 3], ['cl-primera', 3], ['uy-primera', 3], ['ec-primera', 3], ['py-primera', 3], ['pe-primera', 2], ['bo-primera', 2], ['ve-primera', 2]],
+    groups: 8, stepNames: [...GROUP_NAMES, 'Oitavas de final', 'Quartas de final', 'Semifinal', 'Final'],
+    dates: [5, 10, 15, 20, 23, 27, 29, 31, 34, 36],
+    win: 1.5 * M, draw: 0.6 * M, qualified: 5 * M, koPrize: [7 * M, 12 * M, 20 * M, 80 * M], runnerUp: 30 * M,
+  },
   ucl: {
     key: 'ucl', id: 'champions', name: 'Champions League', icon: '⭐',
     quotas: [['premier', 3], ['es-primera', 3], ['it-serie-a', 3], ['bundesliga', 3], ['ligue-1', 2], ['pt-primeira', 2]],
@@ -38,7 +46,14 @@ export const CONTINENTALS: Record<Comp, Cfg> = {
     win: 4 * M, draw: 1.5 * M, qualified: 15 * M, koPrize: [20 * M, 35 * M, 200 * M], runnerUp: 70 * M,
   },
 };
-export const COMPS: Comp[] = ['lib', 'ucl'];
+export const COMPS: Comp[] = ['lib', 'sula', 'ucl'];
+
+/** Ajusta as datas (pensadas para 38 rodadas) ao tamanho do campeonato, sempre crescentes. */
+export function scaleDates(dates: number[], totalRounds: number): number[] {
+  const out: number[] = [];
+  for (const d of dates) { const v = Math.max(1, Math.round((d * totalRounds) / 38)); out.push(out.length && v <= out[out.length - 1] ? out[out.length - 1] + 1 : v); }
+  return out;
+}
 export const MUNDIAL_ID = 'mundial';
 const MUNDIAL_PRIZE = { semi: 25 * M, champion: 120 * M };
 
@@ -52,7 +67,7 @@ const shuffle = <T>(rng: Rng, list: T[]): T[] => {
 
 export const toClubInfo = (c: ClubData): ClubInfo => ({ id: c.id, name: c.name, shortName: c.shortName, badge: c.badge, primaryColor: c.primaryColor, secondaryColor: c.secondaryColor, stadium: c.stadium, city: c.city, reputation: c.reputation, boardExpectation: c.boardExpectation });
 
-const topOf = (div: string, n: number): ClubData[] => [...(CLUBS_DATA[div] ?? [])].sort((a, b) => b.reputation - a.reputation || b.budget - a.budget).slice(0, n);
+const topOf = (div: string, n: number, skip = 0): ClubData[] => [...(CLUBS_DATA[div] ?? [])].sort((a, b) => b.reputation - a.reputation || b.budget - a.budget).slice(skip, skip + n);
 
 /** Cria as duas competições continentais da temporada. Os clubes do seu país vêm da sua liga (campeão da copa nacional primeiro, depois a classificação); os demais, dos maiores de cada país. */
 export function createContinentals(g: GameState, ranking?: string[], cupChampion?: string): GameState {
@@ -65,10 +80,11 @@ export function createContinentals(g: GameState, ranking?: string[], cupChampion
     const cfg = CONTINENTALS[key];
     const ids: string[] = [];
     for (const [div, n] of cfg.quotas) {
-      if (div === home) ids.push(...domestic.slice(0, n));
-      else for (const c of topOf(div, n)) { foreign.clubs[c.id] = toClubInfo(c); foreign.teams[c.id] = teamFromPlayers(c.id, c.squad); ids.push(c.id); }
+      const skip = key === 'sula' ? (CONTINENTALS.lib.quotas.find(([d]) => d === div)?.[1] ?? 0) : 0; // a Sul-Americana pega quem vem depois dos da Libertadores
+      if (div === home) ids.push(...domestic.slice(skip, skip + n));
+      else for (const c of topOf(div, n, skip)) { foreign.clubs[c.id] = toClubInfo(c); foreign.teams[c.id] = teamFromPlayers(c.id, c.squad); ids.push(c.id); }
     }
-    const rng = makeRng(g.seed * 53 + g.season * 13 + (key === 'lib' ? 29 : 71));
+    const rng = makeRng(g.seed * 53 + g.season * 13 + (key === 'lib' ? 29 : key === 'sula' ? 37 : 71));
     const ovr = (id: string) => teamRatings(teamOf(out, id)).overall;
     const sorted = [...ids].sort((a, b) => ovr(b) - ovr(a));
     const gs = cfg.groups;
@@ -84,7 +100,7 @@ export function createContinentals(g: GameState, ranking?: string[], cupChampion
       const gid = `G${'ABCDEFGH'[i]}`;
       return { id: gid, clubIds, matches: buildFixtures(clubIds, gid).fixtures.map((f) => ({ round: f.round, homeId: f.homeId, awayId: f.awayId })) };
     });
-    out[key] = { id: cfg.id, name: cfg.name, groups, ko: [], step: 0, dueAfter: cfg.dates, due: false, alive: ids };
+    out[key] = { id: cfg.id, name: cfg.name, groups, ko: [], step: 0, dueAfter: scaleDates(cfg.dates, g.totalRounds), due: false, alive: ids };
   }
   return out;
 }
@@ -149,7 +165,7 @@ export function playContStep(g: GameState, key: Comp): { state: GameState; resul
   const comp = g[key];
   if (!comp || !comp.due) return { state: g, results: [] };
   const step = comp.step;
-  const rng = makeRng(g.seed * 6151 + g.season * 97 + step * 19 + (key === 'lib' ? 7 : 43));
+  const rng = makeRng(g.seed * 6151 + g.season * 97 + step * 19 + (key === 'lib' ? 7 : key === 'sula' ? 23 : 43));
   const results: MatchResult[] = [];
   const news: NewsItem[] = [];
   const budgets = { ...g.budgets };

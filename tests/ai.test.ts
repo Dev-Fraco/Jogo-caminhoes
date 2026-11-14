@@ -30,9 +30,9 @@ describe('virada de temporada com a IA', () => {
   const end = playSeason(makeCareer('flamengo', 11));
   const next = startNextSeason(end);
 
-  it('mantém o mundo consistente: 80 clubes, 20 por divisão, jogadores únicos, orçamentos válidos', () => {
-    expect(next.divisions.map((d) => d.clubIds.length)).toEqual([20, 20, 20, 20]);
-    expect(Object.keys(next.teams)).toHaveLength(80);
+  it('mantém o mundo consistente: 156 clubes (20, 20, 20 e 96), jogadores únicos, orçamentos válidos', () => {
+    expect(next.divisions.map((d) => d.clubIds.length)).toEqual([20, 20, 20, 96]);
+    expect(Object.keys(next.teams)).toHaveLength(156);
     const ids = Object.values(next.teams).flatMap((t) => t.players.map((p) => p.id));
     expect(new Set(ids).size).toBe(ids.length);
     for (const [id, b] of Object.entries(next.budgets)) expect(b, id).toBeGreaterThanOrEqual(0);

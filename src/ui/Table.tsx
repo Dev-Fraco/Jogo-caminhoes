@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { COMPS, CONTINENTALS, groupTable, type Comp } from '../engine/continental';
 import { clubOf } from '../engine/lookup';
+import { GROUP_ROUNDS, groupTables, isGroups, knockoutView } from '../engine/groups';
 import { HistoryView, TrophyRoom } from './HistoryView';
 import { divisionTable, slotsOf, userDivisionIndex } from '../engine/game';
 import type { GameState } from '../engine/types';
@@ -46,16 +47,17 @@ export function Table({ game, initialView = 'div' }: { game: GameState; initialV
         <button role="tab" aria-selected={view === 'titles'} className={view === 'titles' ? 'on' : ''} onClick={() => setView('titles')}>🥇 Meus títulos</button>
         <button role="tab" aria-selected={view === 'rounds'} className={view === 'rounds' ? 'on' : ''} onClick={() => setView('rounds')}>📋 Jogos</button>
         {game.cup && <button role="tab" aria-selected={view === 'cup'} className={view === 'cup' ? 'on' : ''} onClick={() => setView('cup')}>🏆 Copa</button>}
-        {COMPS.map((k) => game[k] && <button key={k} role="tab" aria-selected={view === k} className={view === k ? 'on' : ''} onClick={() => setView(k)}>{CONTINENTALS[k].icon} {k === 'lib' ? 'Liberta' : 'Champions'}</button>)}
+        {COMPS.map((k) => game[k] && <button key={k} role="tab" aria-selected={view === k} className={view === k ? 'on' : ''} onClick={() => setView(k)}>{CONTINENTALS[k].icon} {k === 'lib' ? 'Liberta' : k === 'sula' ? 'Sula' : 'Champions'}</button>)}
         {game.mundial && <button role="tab" aria-selected={view === 'mundial'} className={view === 'mundial' ? 'on' : ''} onClick={() => setView('mundial')}>🌍 Mundial</button>}
       </div>
       {view === 'rounds' && <RoundsView game={game} />}
       {view === 'hist' && <HistoryView game={game} />}
       {view === 'titles' && <TrophyRoom game={game} />}
       {view === 'cup' && game.cup && <CupView game={game} />}
-      {(view === 'lib' || view === 'ucl') && game[view] && <LibView game={game} comp={view} />}
+      {(view === 'lib' || view === 'sula' || view === 'ucl') && game[view] && <LibView game={game} comp={view} />}
       {view === 'mundial' && game.mundial && <MundialView game={game} />}
-      {view === 'div' && <>
+      {view === 'div' && isGroups(division) && <GroupsView game={game} />}
+      {view === 'div' && !isGroups(division) && <>
       <div className="tb-wrap">
       <table className="tb">
         <thead><tr><th>#</th><th className="l">Clube</th><th>PTS</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr></thead>
@@ -205,5 +207,63 @@ function RoundsView({ game }: { game: GameState }) {
         ))}
       </ul>
     </div>
+  );
+}
+
+/** Série D: 16 grupos de 6 (os 2 primeiros avançam) e o mata-mata até a final. Os 4 semifinalistas sobem. */
+function GroupsView({ game }: { game: GameState }) {
+  const d = game.divisions.find(isGroups)!;
+  const tabs = groupTables(game, d);
+  const mine = Math.max(0, tabs.findIndex((t) => t.rows.some((r) => r.clubId === game.userClubId)));
+  const [sel, setSel] = useState<number | 'ko'>(game.round > GROUP_ROUNDS ? 'ko' : mine);
+  const ko = knockoutView(game, d);
+  const name = (id: string) => game.clubs[id].name;
+  return (
+    <>
+      <div className="chips" role="tablist" aria-label="Grupos da Série D">
+        <button role="tab" aria-selected={sel === 'ko'} className={sel === 'ko' ? 'on' : ''} onClick={() => setSel('ko')}>⚔️ Mata-mata</button>
+        {tabs.map((tb, i) => <button key={tb.name} role="tab" aria-selected={sel === i} className={sel === i ? 'on' : ''} onClick={() => setSel(i)}>{tb.name.replace('Grupo ', '')}{i === mine ? ' ★' : ''}</button>)}
+      </div>
+      {sel === 'ko' ? (
+        <div className="cup-view">
+          {ko.length === 0 && <p className="hint">O mata-mata começa depois da rodada {GROUP_ROUNDS}, com os 2 primeiros de cada grupo (32 clubes). Os 4 semifinalistas sobem para a Série C.</p>}
+          {[...ko].reverse().map((v) => (
+            <section key={v.name}>
+              <h3>{v.name}</h3>
+              <ul className="list">
+                {v.ties.map((t) => (
+                  <li key={t.homeId} className={t.homeId === game.userClubId || t.awayId === game.userClubId ? 'row mine' : 'row'}>
+                    <span className="grow right">{name(t.homeId)}</span>
+                    <b className="score">{t.result ? `${t.result.homeGoals} - ${t.result.awayGoals}` : 'x'}</b>
+                    <span className="grow">{name(t.awayId)}{t.result?.pens ? <small> ({t.result.pens[0]}–{t.result.pens[1]} pên.)</small> : null}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      ) : (
+        <>
+          <div className="tb-wrap">
+            <table className="tb">
+              <thead><tr><th>#</th><th className="l">{tabs[sel].name}</th><th>PTS</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr></thead>
+              <tbody>
+                {tabs[sel].rows.map((r, i) => {
+                  const c = game.clubs[r.clubId];
+                  return (
+                    <tr key={r.clubId} className={`${r.clubId === game.userClubId ? 'mine' : ''} ${i < 2 ? 'acc' : ''}`}>
+                      <td><span className="pos">{i + 1}</span></td>
+                      <td className="l"><div className="team"><span className="dot" style={{ background: c.primaryColor, color: c.primaryColor }} /><div><span className="cname">{c.name}</span></div></div></td>
+                      <td><span className="pts">{r.points}</span></td><td className="sub">{r.played}</td><td className="sub">{r.won}</td><td className="sub">{r.drawn}</td><td className="sub">{r.lost}</td><td className="sub">{r.gd > 0 ? `+${r.gd}` : r.gd}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="legend"><i className="k acc" /> Avançam ao mata-mata (2 primeiros) · os 4 semifinalistas sobem para a Série C</p>
+        </>
+      )}
+    </>
   );
 }

@@ -50,24 +50,24 @@ describe('simulação', () => {
 });
 
 describe('carreira no Campeonato Brasileiro', () => {
-  it('cria 4 divisões de 20 clubes, 80 clubes distintos, e o clube do jogador na divisão certa', () => {
+  it('cria 4 divisões (20, 20, 20 e 96 em grupos), 156 clubes distintos, e o clube do jogador na divisão certa', () => {
     const g = makeCareer('santa-cruz');
     expect(g.divisions.map((d) => d.id)).toEqual(['serie-a', 'serie-b', 'serie-c', 'serie-d']);
-    expect(g.divisions.every((d) => d.clubIds.length === 20)).toBe(true);
-    expect(new Set(g.divisions.flatMap((d) => d.clubIds)).size).toBe(80);
-    expect(Object.keys(g.teams)).toHaveLength(80);
+    expect(g.divisions.map((d) => d.clubIds.length)).toEqual([20, 20, 20, 96]);
+    expect(new Set(g.divisions.flatMap((d) => d.clubIds)).size).toBe(156);
+    expect(Object.keys(g.teams)).toHaveLength(156);
     expect(userDivision(g).id).toBe('serie-c');
     expect(g.totalRounds).toBe(38);
-    expect(g.fixtures).toHaveLength(4 * 380);
+    expect(g.fixtures).toHaveLength(3 * 380 + 16 * 30); // Série D: 16 grupos de 6, 10 rodadas (o mata-mata é marcado depois)
     expect(g.version).toBe(5);
   });
   it('rejeita clube que não existe', () => expect(() => makeCareer('nao-existe')).toThrow());
 
   it('joga 38 rodadas em todas as divisões; tabelas consistentes e determinísticas; eventos só nos jogos do jogador', () => {
     const a = playSeason(makeCareer('palmeiras')), b = playSeason(makeCareer('palmeiras'));
-    expect(a.results).toHaveLength(4 * 380);
+    expect(a.results).toHaveLength(3 * 380 + 16 * 30 + 31); // + 31 jogos do mata-mata da Série D
     expect(JSON.stringify(a.results.map((r) => [r.homeGoals, r.awayGoals]))).toBe(JSON.stringify(b.results.map((r) => [r.homeGoals, r.awayGoals])));
-    for (const d of a.divisions) {
+    for (const d of a.divisions.slice(0, 3)) {
       const t = divisionTable(a, d.id);
       expect(t.every((r) => r.played === 38)).toBe(true);
       expect(t.reduce((s, r) => s + r.gf, 0)).toBe(t.reduce((s, r) => s + r.ga, 0));
@@ -92,8 +92,8 @@ describe('acesso e rebaixamento', () => {
 
     expect(PROMOTION_SLOTS).toBe(4); expect(RELEGATION_SLOTS).toBe(4);
     expect(next.season).toBe(2027);
-    expect(next.divisions.every((d) => d.clubIds.length === 20)).toBe(true);
-    expect(new Set(next.divisions.flatMap((d) => d.clubIds)).size).toBe(80);
+    expect(next.divisions.map((d) => d.clubIds.length)).toEqual([20, 20, 20, 96]);
+    expect(new Set(next.divisions.flatMap((d) => d.clubIds)).size).toBe(156);
 
     // Série A: perdeu os 4 últimos, ganhou os 4 primeiros da B
     for (const c of tables['serie-a'].slice(-4)) { expect(ids('serie-a').has(c)).toBe(false); expect(ids('serie-b').has(c)).toBe(true); }
@@ -106,10 +106,10 @@ describe('acesso e rebaixamento', () => {
     for (const c of tables['serie-d'].slice(0, 4)) expect(ids('serie-c').has(c)).toBe(true);
     // quem ficou no meio continua onde estava
     for (const c of tables['serie-a'].slice(0, 16)) expect(ids('serie-a').has(c)).toBe(true);
-    for (const c of tables['serie-d'].slice(4)) expect(ids('serie-d').has(c)).toBe(true);
+    for (const c of tables['serie-d'].slice(4)) expect(ids('serie-d').has(c)).toBe(true); // semifinalistas sobem; os outros 92 ficam
 
     // nova temporada limpa: rodada 1, sem resultados, calendário novo, histórico guardado
-    expect(next.round).toBe(1); expect(next.results).toHaveLength(0); expect(next.fixtures).toHaveLength(4 * 380);
+    expect(next.round).toBe(1); expect(next.results).toHaveLength(0); expect(next.fixtures).toHaveLength(3 * 380 + 16 * 30);
     expect(next.history).toHaveLength(1);
     expect(next.history[0].divisions.map((d) => d.championId)).toEqual(Object.values(tables).map((t) => t[0]));
   });
@@ -124,12 +124,12 @@ describe('acesso e rebaixamento', () => {
     }
   });
 
-  it('funciona por várias temporadas seguidas (sempre 80 clubes, 20 por divisão)', () => {
+  it('funciona por várias temporadas seguidas (sempre 156 clubes: 20, 20, 20 e 96)', () => {
     let g = makeCareer('flamengo', 99);
     for (let i = 0; i < 3; i++) {
       g = startNextSeason(playSeason(g));
-      expect(g.divisions.map((d) => d.clubIds.length)).toEqual([20, 20, 20, 20]);
-      expect(new Set(g.divisions.flatMap((d) => d.clubIds)).size).toBe(80);
+      expect(g.divisions.map((d) => d.clubIds.length)).toEqual([20, 20, 20, 96]);
+      expect(new Set(g.divisions.flatMap((d) => d.clubIds)).size).toBe(156);
     }
     expect(g.season).toBe(2029);
     expect(g.history).toHaveLength(3);

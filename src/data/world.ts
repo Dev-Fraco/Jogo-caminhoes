@@ -11,6 +11,8 @@ export interface Division {
   /** Nome local da divisão, mostrado como apoio (ex.: "Championship"). */
   alias?: string;
   teams: number;
+  /** 'groups' = grupos de 6 clubes e mata-mata (Série D). */
+  format?: 'groups';
 }
 
 export interface League {
@@ -36,7 +38,7 @@ export const WORLD_DATA: Record<string, Country> = {
         { id: 'serie-a', name: 'Série A', teams: 20 },
         { id: 'serie-b', name: 'Série B', teams: 20 },
         { id: 'serie-c', name: 'Série C', teams: 20 },
-        { id: 'serie-d', name: 'Série D', teams: 96 },
+        { id: 'serie-d', name: 'Série D', teams: 96, format: 'groups' },
       ],
     }],
   },

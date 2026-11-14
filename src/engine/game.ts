@@ -3,19 +3,20 @@ import { aiWindow, offseason } from './ai';
 import { contAfterLeagueRound, createContinentals, mundialAfterLeagueRound, playContStep, playMundialStep } from './continental';
 import { pendingEvent, playEvent } from './events';
 import { tickContracts } from './assets';
+import { advanceKnockout, finalStandings, groupFixtures, isGroups, userGroupRows, withGroups } from './groups';
 import { boardTick, fire, seasonEndFiring, seasonEndOffers, seasonPoints } from './jobs';
 import { expireContracts } from './market';
 import { managed } from './lookup';
 import { socialAds, socialAfterMatch } from './social';
 import { tickBoletos } from './bank';
 import { roundFinance } from './finance';
-import { createCup, cupAfterLeagueRound, playCupRound } from './cup';
+import { createCup, cupAfterLeagueRound, playCupRound, shootout } from './cup';
 import { MORALE_START, moraleFactor, updateMorale } from './morale';
 import { simulateMatch } from './match';
 import { makeRng } from './rng';
 import { buildFixtures } from './schedule';
 import { generateOffers, returnLoans } from './roster';
-import { autoLineup, teamFromPlayers } from './squad';
+import { autoLineup, teamFromPlayers, teamRatings } from './squad';
 import { computeTable } from './table';
 import type { ClubInfo, DivisionState, FormationId, Fixture, GameState, MatchResult, Position, SeasonSummary, TableRow } from './types';
 
@@ -42,13 +43,14 @@ export interface CareerInput {
   /** Clubes que sobem/descem entre divisões vizinhas (padrão 4). */
   slots?: number;
   /** Pirâmide, da divisão principal para as inferiores. */
-  divisions: { id: string; name: string; clubs: ClubData[] }[];
+  divisions: { id: string; name: string; clubs: ClubData[]; format?: 'groups' }[];
 }
 
 function buildSeason(divisions: DivisionState[]): { fixtures: Fixture[]; totalRounds: number } {
   const fixtures: Fixture[] = [];
   let totalRounds = 0;
   for (const d of divisions) {
+    if (isGroups(d)) { fixtures.push(...groupFixtures(d)); totalRounds = Math.max(totalRounds, 10); continue; }
     const f = buildFixtures(d.clubIds, d.id);
     fixtures.push(...f.fixtures);
     totalRounds = Math.max(totalRounds, f.totalRounds);
@@ -64,7 +66,7 @@ export function newCareer(input: CareerInput, seed = Date.now() % 2147483647): G
   const slots = input.slots ?? PROMOTION_SLOTS;
   if (input.divisions.some((d) => d.clubs.length < slots * 2)) throw new Error('Divisão com poucos clubes');
 
-  const divisions: DivisionState[] = input.divisions.map((d) => ({ id: d.id, name: d.name, clubIds: d.clubs.map((c) => c.id) }));
+  let divisions: DivisionState[] = input.divisions.map((d) => ({ id: d.id, name: d.name, clubIds: d.clubs.map((c) => c.id), format: d.format }));
   const clubs: Record<string, ClubInfo> = {};
   const teams: GameState['teams'] = {};
   const budgets: Record<string, number> = {};
@@ -73,6 +75,7 @@ export function newCareer(input: CareerInput, seed = Date.now() % 2147483647): G
     clubs[c.id] = { id: c.id, name: c.name, shortName: c.shortName, badge: c.badge, primaryColor: c.primaryColor, secondaryColor: c.secondaryColor, stadium: c.stadium, city: c.city, reputation: c.reputation, boardExpectation: c.boardExpectation };
     teams[c.id] = teamFromPlayers(c.id, c.squad);
   }
+  divisions = divisions.map((d, i) => withGroups(d, teams, seed * 7 + i));
   const { fixtures, totalRounds } = buildSeason(divisions);
   const career: GameState = {
     version: 5, leagueName: input.leagueName, slots, saveName: input.saveName, coach: input.coach, difficulty: input.difficulty, mode: input.mode,
@@ -96,7 +99,7 @@ export function fixturesOfRound(g: GameState, round: number, divisionId?: string
 export function playRound(g: GameState): { state: GameState; results: MatchResult[] } {
   if (g.round > g.totalRounds) return g.mundial?.due ? playMundialStep(g) : { state: g, results: [] }; // só falta o Mundial
   if (g.cup?.due) g = playCupRound(g).state; // fases pendentes das copas: simuladas automaticamente
-  for (const key of ['lib', 'ucl'] as const) if (g[key]?.due) g = playContStep(g, key).state;
+  for (const key of ['lib', 'sula', 'ucl'] as const) if (g[key]?.due) g = playContStep(g, key).state;
   const rng = makeRng(g.seed * 1000 + g.round + g.season * 100003);
   const teams = { ...g.teams };
   // clubes controlados pela IA sempre escalam o melhor time
@@ -110,19 +113,23 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
     const mods = { home: f.homeId === g.userClubId ? factor : 1, away: f.awayId === g.userClubId ? factor : 1 };
     const out = simulateMatch(teams[f.homeId], teams[f.awayId], rng, mods, { home: g.clubs[f.homeId].name, away: g.clubs[f.awayId].name });
     const mine = f.homeId === g.userClubId || f.awayId === g.userClubId;
-    return { divisionId: f.divisionId, round: f.round, homeId: f.homeId, awayId: f.awayId, homeGoals: out.homeGoals, awayGoals: out.awayGoals, events: mine ? out.events : [] };
+    // jogo eliminatório empatado: pênaltis
+    const pens = f.ko && out.homeGoals === out.awayGoals ? shootout(rng, teamRatings(teams[f.homeId]).gk, teamRatings(teams[f.awayId]).gk) : undefined;
+    return { divisionId: f.divisionId, round: f.round, homeId: f.homeId, awayId: f.awayId, homeGoals: out.homeGoals, awayGoals: out.awayGoals, ...(pens ? { pens } : {}), events: mine ? out.events : [] };
   });
-  let state: GameState = { ...g, teams, round: g.round + 1, results: [...g.results, ...results] };
+  let state: GameState = advanceKnockout({ ...g, teams, round: g.round + 1, results: [...g.results, ...results] });
 
   // humor: depois do jogo do seu clube
   const my = results.find((r) => r.homeId === g.userClubId || r.awayId === g.userClubId);
   if (my && !g.unemployed) {
     const home = my.homeId === g.userClubId;
     const div = userDivision(state);
-    const table = divisionTable(state, div.id);
+    // Série D (grupos): a posição vale no grupo de 6; a escala de 20 mantém as metas da diretoria justas
+    const grp = isGroups(div) ? userGroupRows(state, div) : undefined;
+    const table = grp ?? divisionTable(state, div.id);
     state = { ...state, morale: updateMorale(g.morale, {
       gf: home ? my.homeGoals : my.awayGoals, ga: home ? my.awayGoals : my.homeGoals, home,
-      position: table.findIndex((r) => r.clubId === g.userClubId) + 1, size: table.length, round: g.round, expectation: g.clubs[g.userClubId].boardExpectation,
+      position: table.findIndex((r) => r.clubId === g.userClubId) + 1, size: grp ? 20 : table.length, round: g.round, expectation: g.clubs[g.userClubId].boardExpectation,
     }) };
   }
   if (my && !g.unemployed) state = socialAfterMatch(state, my.homeId === g.userClubId ? my.homeGoals : my.awayGoals, my.homeId === g.userClubId ? my.awayGoals : my.homeGoals);
@@ -156,6 +163,7 @@ export const resultsOfDivision = (g: GameState, divisionId: string) => g.results
 /** Classificação atual de uma divisão. */
 export function divisionTable(g: GameState, divisionId: string): TableRow[] {
   const d = g.divisions.find((x) => x.id === divisionId)!;
+  if (isGroups(d)) return finalStandings(g, d).table; // Série D: campeão, vice, semifinalistas… e quem caiu antes
   return computeTable(d.clubIds.map((id) => ({ id, name: g.clubs[id].name })), resultsOfDivision(g, divisionId));
 }
 
@@ -167,6 +175,7 @@ export function seasonMoves(g: GameState): DivisionMoves[] {
   const slots = slotsOf(g);
   return g.divisions.map((d, i) => {
     const table = divisionTable(g, d.id);
+    if (isGroups(d)) return { divisionId: d.id, table, promoted: finalStandings(g, d).promoted, relegated: [] };
     return {
       divisionId: d.id, table,
       promoted: i > 0 ? table.slice(0, slots).map((r) => r.clubId) : [],
@@ -199,7 +208,7 @@ export function seasonOutcome(g: GameState): SeasonOutcome {
 export function seasonSummary(g: GameState, out: SeasonOutcome = seasonOutcome(g)): SeasonSummary {
   const moves = out.moves;
   return {
-    season: g.season, tables: moves.map((m) => ({ id: m.divisionId, rows: m.table.map((r) => [r.clubId, r.points, r.played, r.gd] as [string, number, number, number]) })), cupChampionId: g.cup?.championId, libChampionId: g.lib?.championId, uclChampionId: g.ucl?.championId, mundialChampionId: g.mundial?.championId, userDivisionId: out.userDivisionId, userPosition: out.userPosition,
+    season: g.season, tables: moves.map((m) => ({ id: m.divisionId, rows: m.table.map((r) => [r.clubId, r.points, r.played, r.gd] as [string, number, number, number]) })), cupChampionId: g.cup?.championId, libChampionId: g.lib?.championId, sulaChampionId: g.sula?.championId, uclChampionId: g.ucl?.championId, mundialChampionId: g.mundial?.championId, userDivisionId: out.userDivisionId, userPosition: out.userPosition,
     divisions: moves.map((m) => ({ id: m.divisionId, championId: m.table[0].clubId, promoted: m.promoted, relegated: m.relegated })),
   };
 }
@@ -214,7 +223,7 @@ export function startNextSeason(g: GameState): GameState {
     const stay = moves[i].table.map((r) => r.clubId).filter((id) => !moves[i].promoted.includes(id) && !moves[i].relegated.includes(id));
     const fromAbove = i > 0 ? moves[i - 1].relegated : [];
     const fromBelow = i < g.divisions.length - 1 ? moves[i + 1].promoted : [];
-    return { id: d.id, name: d.name, clubIds: [...fromBelow, ...stay, ...fromAbove] };
+    return withGroups({ id: d.id, name: d.name, format: d.format, clubIds: [...fromBelow, ...stay, ...fromAbove] }, g.teams, g.seed * 11 + g.season * 3 + i);
   });
 
   const summary = seasonSummary(g, out);
@@ -233,6 +242,7 @@ export function startNextSeason(g: GameState): GameState {
     moves.forEach((m, i) => { if (m.table[0].clubId === mine) add(g.divisions[i].name, 'liga'); });
     if (g.cup?.championId === mine) add(g.cup.name, 'copa');
     if (g.lib?.championId === mine) add(g.lib.name, 'continental');
+    if (g.sula?.championId === mine) add(g.sula.name, 'continental');
     if (g.ucl?.championId === mine) add(g.ucl.name, 'continental');
     if (g.mundial?.championId === mine) add(g.mundial.name, 'mundial');
   }

@@ -26,6 +26,7 @@ export function entriesOf(g: GameState): HallEntry[] {
     cups: [
       ...(h.cupChampionId ? [{ icon: '🏆', name: g.cup?.name ?? 'Copa do Brasil', champion: anyClubName(g, h.cupChampionId) }] : []),
       ...(h.libChampionId ? [{ icon: '🌎', name: 'Libertadores', champion: anyClubName(g, h.libChampionId) }] : []),
+      ...(h.sulaChampionId ? [{ icon: '🌴', name: 'Sul-Americana', champion: anyClubName(g, h.sulaChampionId) }] : []),
       ...(h.uclChampionId ? [{ icon: '⭐', name: 'Champions League', champion: anyClubName(g, h.uclChampionId) }] : []),
       ...(h.mundialChampionId ? [{ icon: '🌍', name: 'Mundial de Clubes', champion: anyClubName(g, h.mundialChampionId) }] : []),
     ],

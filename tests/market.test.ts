@@ -17,7 +17,7 @@ describe('diretório de clubes', () => {
     const g = g0();
     const d = directory(g);
     expect(homeLeague(g).countryId).toBe('BR');
-    expect(d.filter((c) => c.domestic).length).toBe(79);
+    expect(d.filter((c) => c.domestic).length).toBe(155);
     expect(d.some((c) => c.id === 'palmeiras')).toBe(false);
     expect(d.some((c) => !c.domestic && c.countryId === 'EN' && c.name === 'Arsenal')).toBe(true);
     expect(d.some((c) => !c.domestic && c.countryId === 'AR' && c.divisionName === 'Primera Nacional')).toBe(true);

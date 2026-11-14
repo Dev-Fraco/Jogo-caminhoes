@@ -17,9 +17,13 @@ describe('CLUBS_DATA — listas de 2026', () => {
   it('Série C: os 20 clubes pedidos', () => {
     expect(names('serie-c')).toEqual(['Amazonas', 'Anápolis', 'Barra', 'Botafogo-PB', 'Brusque', 'Caxias', 'Confiança', 'Ferroviária', 'Figueirense', 'Floresta', 'Guarani', 'Inter de Limeira', 'Itabaiana', 'Ituano', 'Maranhão', 'Maringá', 'Paysandu', 'Santa Cruz', 'Volta Redonda', 'Ypiranga'].sort((a, b) => a.localeCompare(b, 'pt-BR')));
   });
-  it('Série D: seleção representativa (parcial) — não passa do total da divisão', () => {
-    expect(CLUBS_DATA['serie-d']).toHaveLength(20);
-    expect(CLUBS_DATA['serie-d'].length).toBeLessThan(getDivision('BR', 'brasileirao', 'serie-d')!.teams);
+  it('Série D: 96 clubes reais (16 grupos de 6), sem repetir clubes das Séries A–C, siglas únicas', () => {
+    const d = CLUBS_DATA['serie-d'];
+    expect(d).toHaveLength(96);
+    expect(d.length).toBe(getDivision('BR', 'brasileirao', 'serie-d')!.teams);
+    const upper = new Set(['serie-a', 'serie-b', 'serie-c'].flatMap((x) => CLUBS_DATA[x].map((c) => c.id)));
+    expect(d.filter((c) => upper.has(c.id))).toEqual([]);
+    expect(new Set(d.map((c) => c.shortName)).size).toBe(96);
   });
   it('A–C batem com o número de times da Etapa 2', () => {
     for (const d of ['serie-a', 'serie-b', 'serie-c']) expect(CLUBS_DATA[d].length).toBe(getDivision('BR', 'brasileirao', d)!.teams);

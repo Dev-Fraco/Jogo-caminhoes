@@ -10,6 +10,7 @@ import { generateSquad } from '../engine/squad';
 import type { Player } from '../engine/types';
 import { AR_NACIONAL, AR_PRIMERA, EN_CHAMPIONSHIP, EN_LEAGUE_ONE, EN_PREMIER, ES_LALIGA, ES_SEGUNDA, IT_SERIE_A, IT_SERIE_B } from './clubs_world';
 import { DE_BUNDESLIGA, DE_BUNDESLIGA_2, FR_LIGUE_1, FR_LIGUE_2, PT_PRIMEIRA, PT_SEGUNDA } from './clubs_europe2';
+import { SERIE_D_EXTRA } from './br_serie_d';
 import { BO_PRIMERA, CL_PRIMERA, CO_PRIMERA, EC_PRIMERA, PE_PRIMERA, PY_PRIMERA, UY_PRIMERA, VE_PRIMERA } from './clubs_sulamerica';
 
 /** O que a diretoria espera da temporada. */
@@ -123,7 +124,7 @@ const SERIE_C: Row[] = [
   ['ypiranga', 'Ypiranga', 'YPI', '#00874A', '#F2C200', 'Colosso da Lagoa', 'Erechim', 4, 'survive', 1],
 ];
 
-// TODO: expandir para os 96 clubes da Série D (por enquanto, seleção representativa de 20; confirmar a lista oficial da CBF).
+// Série D: estes 20 + 76 de br_serie_d.ts = 96 clubes (16 grupos de 6).
 const SERIE_D: Row[] = [
   ['abc', 'ABC', 'ABC', '#111111', '#FFFFFF', 'Frasqueirão', 'Natal', 4, 'title', 1],
   ['america-rn', 'América-RN', 'ARN', '#D71920', '#FFFFFF', 'Arena das Dunas', 'Natal', 3, 'top4', 1],
@@ -152,7 +153,7 @@ export const CLUBS_DATA: Record<string, ClubData[]> = {
   'serie-a': build(SERIE_A, 0),
   'serie-b': build(SERIE_B, -5),
   'serie-c': build(SERIE_C, -10),
-  'serie-d': build(SERIE_D, -15),
+  'serie-d': build([...SERIE_D, ...SERIE_D_EXTRA], -15),
   // Ligas estrangeiras (clubes reais; elencos fictícios). Divisões menores descontam a força do elenco.
   'ar-primera': build(AR_PRIMERA, -4),
   'ar-nacional': build(AR_NACIONAL, -12),

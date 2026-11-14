@@ -61,11 +61,11 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
           </div>
           <button className="primary" onClick={onNextSeason}>Próxima temporada</button>
         </div>
-        {[game.cup, game.lib, game.ucl, game.mundial].some((c) => c?.championId) && (
+        {[game.cup, game.lib, game.sula, game.ucl, game.mundial].some((c) => c?.championId) && (
           <section>
             <h3>Campeões das copas</h3>
             <ul className="list">
-              {[['🏆', game.cup], ['🌎', game.lib], ['⭐', game.ucl], ['🌍', game.mundial]].map(([icon, c]) => { const k = c as { id: string; name: string; championId?: string } | undefined; return k?.championId ? <li key={k.id}><div className="row"><span className="grow">{icon as string} {k.name}</span><b>{name(k.championId)}</b></div></li> : null; })}
+              {[['🏆', game.cup], ['🌎', game.lib], ['🌴', game.sula], ['⭐', game.ucl], ['🌍', game.mundial]].map(([icon, c]) => { const k = c as { id: string; name: string; championId?: string } | undefined; return k?.championId ? <li key={k.id}><div className="row"><span className="grow">{icon as string} {k.name}</span><b>{name(k.championId)}</b></div></li> : null; })}
             </ul>
           </section>
         )}
@@ -90,7 +90,7 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
 
   const ev = pendingEvent(game);
   const next = ev ? ev.match : fixturesOfRound(game, game.round, division.id).find((f) => f.homeId === game.userClubId || f.awayId === game.userClubId);
-  const shown = last.filter((r) => r.divisionId === division.id || [game.cup?.id, game.lib?.id, game.ucl?.id, game.mundial?.id].includes(r.divisionId));
+  const shown = last.filter((r) => r.divisionId === division.id || [game.cup?.id, game.lib?.id, game.sula?.id, game.ucl?.id, game.mundial?.id].includes(r.divisionId));
   const expectation = game.clubs[game.userClubId].boardExpectation;
   const m = game.morale;
 
@@ -98,6 +98,7 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
     <>
       <div className="card center">
         <small>{ev ? ev.label : `${division.name} · Rodada ${Math.min(game.round, game.totalRounds)} de ${game.totalRounds}`}</small>
+        {!next && !ev && <p className="hint">Seu clube não joga nesta rodada.</p>}
         {next && <h2>{name(next.homeId)} <span className="vs">x</span> {name(next.awayId)}</h2>}
         <button className="primary" onClick={() => { setOpen(null); onPlay(); }}>▶ Iniciar partida</button>
         {!ev && COMPS.map((k) => { const c = game[k], cfg = CONTINENTALS[k]; if (!c) return null; const mine = c.groups.some((gr) => gr.clubIds.includes(game.userClubId)); return mine || c.championId ? <small key={k} className="cup-line">{c.championId ? `${cfg.icon} ${c.name}: campeão ${name(c.championId)}` : userIn(game, k) ? `${cfg.icon} ${c.name}: ${stepName(k, c)} em breve` : `${cfg.icon} ${c.name}: seu clube foi eliminado`}</small> : null; })}
@@ -169,7 +170,7 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
 
       {shown.length > 0 && (
         <section>
-          <h3>{shown[0].divisionId === division.id ? `Resultados da rodada ${shown[0].round}` : `${[game.cup, game.lib, game.ucl, game.mundial].find((c) => c?.id === shown[0].divisionId)?.name ?? 'Copa'} — resultados`}</h3>
+          <h3>{shown[0].divisionId === division.id ? `Resultados da rodada ${shown[0].round}` : `${[game.cup, game.lib, game.sula, game.ucl, game.mundial].find((c) => c?.id === shown[0].divisionId)?.name ?? 'Copa'} — resultados`}</h3>
           <ul className="list">
             {shown.map((r) => {
               const key = `${r.round}-${r.homeId}`;

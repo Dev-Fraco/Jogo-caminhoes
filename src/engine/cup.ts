@@ -71,7 +71,7 @@ const lineupTeam = (g: GameState, id: string): TeamState => {
 };
 
 /** Penalidades: 5 cobranças cada e depois alternadas; devolve o placar e o vencedor (leve vantagem de quem tem melhor goleiro). */
-function shootout(rng: Rng, homeGk: number, awayGk: number): [number, number] {
+export function shootout(rng: Rng, homeGk: number, awayGk: number): [number, number] {
   const pH = 0.78 - (awayGk - homeGk) * 0.002, pA = 0.78 - (homeGk - awayGk) * 0.002;
   let h = 0, a = 0;
   for (let i = 0; i < 5; i++) { if (rng() < pH) h++; if (rng() < pA) a++; }

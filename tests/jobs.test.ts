@@ -75,7 +75,7 @@ describe('ficar sem clube e ser contratado', () => {
     expect(g.lib?.championId).toBeTruthy();
     const next = startNextSeason(g);
     expect(next.unemployed).toBe(true);
-    expect(Object.keys(next.teams).length).toBe(80);
+    expect(Object.keys(next.teams).length).toBe(156);
   });
   it('o clube antigo passa a ser controlado pela IA (escalação automática e janela de transferências)', () => {
     const g = fired();

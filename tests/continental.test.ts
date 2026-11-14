@@ -18,7 +18,7 @@ describe('Libertadores', () => {
     expect(lib.groups.length).toBe(8);
     for (const gr of lib.groups) { expect(gr.clubIds.length).toBe(4); expect(gr.matches.length).toBe(12); }
     expect(lib.alive.filter((id) => g.clubs[id]).length).toBe(6);
-    expect(Object.keys(g.foreign!.clubs).length).toBe(26 + 16);
+    expect(Object.keys(g.foreign!.clubs).length).toBe(26 + 26 + 16); // Libertadores + Sul-Americana + Champions
     // clubes de fora não entram no campeonato nem no mercado
     expect(Object.keys(g.teams).some((id) => g.foreign!.teams[id])).toBe(false);
   });
@@ -105,5 +105,35 @@ describe('Libertadores', () => {
       if (g.mundial?.alive.includes('palmeiras') && g.mundial.due) found = true;
     }
     if (found) { expect(isSeasonOver(g)).toBe(false); while (!isSeasonOver(g)) g = playNext(g).state; expect(g.mundial!.championId).toBeTruthy(); }
+  });
+
+  it('Sul-Americana: 32 clubes de gente que NÃO está na Libertadores; 6 do Brasil são os 7º ao 12º da Série A', () => {
+    const g = newCareer({ saveName: 't', coach: { name: 'A B', nationality: 'BR', reputation: 'pro' }, difficulty: 'normal', mode: 'career', season: 2026, userClubId: 'palmeiras', divisions: brazilPyramid(), cup: true }, 4);
+    const sula = g.sula!;
+    expect(sula.alive.length).toBe(32);
+    expect(sula.groups.length).toBe(8);
+    expect(new Set(sula.alive).size).toBe(32);
+    expect(sula.alive.filter((id) => g.lib!.alive.includes(id))).toEqual([]);
+    expect(sula.alive.filter((id) => g.clubs[id]).length).toBe(6);
+    expect(sula.name).toBe('Sul-Americana');
+    let k = g, guard = 0;
+    while (!isSeasonOver(k) && guard++ < 400) k = playNext(k).state;
+    expect(k.sula!.championId).toBeTruthy();
+    expect(k.sula!.ko.map((r) => r.ties.length)).toEqual([8, 4, 2, 1]);
+    const n = startNextSeason({ ...k, morale: { ...k.morale, board: 60 } });
+    expect(n.history.at(-1)!.sulaChampionId).toBe(k.sula!.championId);
+    expect(n.sula!.championId).toBeUndefined();
+  });
+  it('o campeonato curto (Paraguai, 22 rodadas) termina todas as competições continentais dentro da temporada', () => {
+    const divisions = pyramidOf('PY', 'primera-paraguay');
+    let g = newCareer({ saveName: 't', coach: { name: 'A B', nationality: 'BR', reputation: 'pro' }, difficulty: 'normal', mode: 'career', season: 2026, userClubId: divisions[0].clubs[0].id, divisions, slots: slotsOfLeague('primera-paraguay'), leagueName: 'x' }, 3);
+    expect(g.totalRounds).toBe(22);
+    expect(Math.max(...g.lib!.dueAfter)).toBeLessThanOrEqual(22);
+    let guard = 0;
+    while (!isSeasonOver(g) && guard++ < 300) g = playNext(g).state;
+    expect(g.lib!.championId).toBeTruthy();
+    expect(g.sula!.championId).toBeTruthy();
+    expect(g.ucl!.championId).toBeTruthy();
+    expect(g.mundial!.championId).toBeTruthy();
   });
 });

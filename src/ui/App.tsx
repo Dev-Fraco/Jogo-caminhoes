@@ -107,7 +107,7 @@ export function App() {
   }
 
   const club = game.clubs[game.userClubId];
-  const play = () => { const r = playNext(game); if (game.unemployed) { setLast(r.results); setGame(r.state); } else setLive(r); }; // sem clube: não há partida para assistir
+  const play = () => { const r = playNext(game); const mine = r.results.some((x) => x.homeId === game.userClubId || x.awayId === game.userClubId); if (game.unemployed || !mine) { setLast(r.results); setGame(r.state); } else setLive(r); }; // sem clube (ou sem jogo seu nesta rodada, como na Série D eliminada): nada para assistir
   const finishMatch = () => { if (live) { setLast(live.results); setGame(live.state); } setLive(null); };
   const liveResult = live?.results.find((r) => r.homeId === game.userClubId || r.awayId === game.userClubId);
   const ev = live ? pendingEvent(game) : undefined;

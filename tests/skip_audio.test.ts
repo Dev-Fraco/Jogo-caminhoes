@@ -10,6 +10,7 @@ describe('pular temporada', () => {
     expect(isSeasonOver(g)).toBe(true);
     expect(g.round).toBe(g.totalRounds + 1);
     for (const d of g.divisions) {
+      if (d.format === 'groups') continue; // a Série D tem grupos e mata-mata (testada em groups.test.ts)
       expect(g.results.filter((r) => r.divisionId === d.id).length).toBe(d.clubIds.length * (d.clubIds.length - 1));
       expect(divisionTable(g, d.id).every((r) => r.played === (d.clubIds.length - 1) * 2)).toBe(true);
     }

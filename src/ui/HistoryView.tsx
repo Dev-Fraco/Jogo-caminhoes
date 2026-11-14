@@ -16,6 +16,7 @@ export function HistoryView({ game }: { game: GameState }) {
   const cups = (h: SeasonSummary) => [
     h.cupChampionId && ['🏆', game.cup?.name ?? 'Copa do Brasil', h.cupChampionId],
     h.libChampionId && ['🌎', 'Libertadores', h.libChampionId],
+    h.sulaChampionId && ['🌴', 'Sul-Americana', h.sulaChampionId],
     h.uclChampionId && ['⭐', 'Champions League', h.uclChampionId],
     h.mundialChampionId && ['🌍', 'Mundial de Clubes', h.mundialChampionId],
   ].filter(Boolean) as [string, string, string][];

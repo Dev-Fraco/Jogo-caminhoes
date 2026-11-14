@@ -62,6 +62,8 @@ export interface MatchResult {
   awayId: string;
   homeGoals: number;
   awayGoals: number;
+  /** Pênaltis (mata-mata empatado). */
+  pens?: [number, number];
   /** Lances da partida. Só são guardados nos jogos do clube do jogador (nos demais fica vazio, para o save não crescer). */
   events: MatchEvent[];
 }
@@ -71,6 +73,8 @@ export interface Fixture {
   round: number;
   homeId: string;
   awayId: string;
+  /** Jogo eliminatório (empate vai para os pênaltis). */
+  ko?: boolean;
 }
 
 export interface TableRow {
@@ -105,6 +109,9 @@ export interface DivisionState {
   id: string;
   name: string;
   clubIds: string[];
+  /** 'groups' = grupos de 6 e mata-mata (Série D): `groups` guarda os grupos da temporada. */
+  format?: 'groups';
+  groups?: string[][];
 }
 
 /** Notícia do mercado e dos clubes (movimentos da IA, investimentos, crises). */
@@ -195,6 +202,7 @@ export interface RetiredPlayer { name: string; age: number; pos: Position; stren
 export interface CoachTitle { season: number; clubId: string; clubName: string; competition: string; kind: 'liga' | 'copa' | 'continental' | 'mundial' }
 
 export interface SeasonSummary {
+  sulaChampionId?: string;
   /** Classificação final de cada divisão: [clube, pontos, jogos, saldo de gols]. */
   tables?: { id: string; rows: [string, number, number, number][] }[];
   uclChampionId?: string;
@@ -272,6 +280,7 @@ export interface GameState {
   cup?: CupState;
   lib?: LibState;
   ucl?: LibState;
+  sula?: LibState;
   phone?: PhoneState;
   bank?: BankState;
   assets?: AssetsState;
