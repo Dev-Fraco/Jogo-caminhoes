@@ -48,7 +48,7 @@ export function createCup(g: Pick<GameState, 'divisions' | 'teams' | 'userClubId
   };
 }
 
-export const userInCup = (g: GameState) => !!g.cup && g.cup.alive.includes(g.userClubId) && !g.cup.championId;
+export const userInCup = (g: GameState) => !g.unemployed && !!g.cup && g.cup.alive.includes(g.userClubId) && !g.cup.championId;
 /** O próximo jogo é da copa (e o seu clube joga). */
 export const cupMatchDue = (g: GameState) => !!g.cup?.due && userInCup(g);
 export const userCupTie = (g: GameState): CupTie | undefined => {
@@ -67,7 +67,7 @@ export function cupAfterLeagueRound(g: GameState): GameState {
 
 const lineupTeam = (g: GameState, id: string): TeamState => {
   const t = g.teams[id];
-  return id === g.userClubId ? t : { ...t, lineup: autoLineup(t.players, t.formation) };
+  return id === g.userClubId && !g.unemployed ? t : { ...t, lineup: autoLineup(t.players, t.formation) };
 };
 
 /** Penalidades: 5 cobranças cada e depois alternadas; devolve o placar e o vencedor (leve vantagem de quem tem melhor goleiro). */
@@ -116,6 +116,6 @@ export function playCupRound(g: GameState): { state: GameState; results: MatchRe
   const finished = winners.length === 1;
   if (!finished) rounds.push({ name: CUP_ROUND_NAMES[CUP_ROUND_NAMES.length - cup.totalRounds + cup.roundIndex + 1], ties: pair(rng, winners) });
   const next: CupState = { ...cup, rounds, roundIndex: cup.roundIndex + 1, due: false, alive: winners, championId: finished ? winners[0] : undefined };
-  const state: GameState = { ...g, budgets, cup: next, news: [...news, ...g.news].slice(0, 30) };
+  const state: GameState = { ...g, budgets, cup: next, news: [...news, ...g.news].slice(0, 80) };
   return { state, results };
 }

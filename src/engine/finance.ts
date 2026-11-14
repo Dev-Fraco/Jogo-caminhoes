@@ -1,4 +1,5 @@
 import { DIVISION_INCOME } from './economy';
+import { managed } from './lookup';
 import { divisionIndexOf } from './transfers';
 import type { GameState, Morale, NewsItem, Player } from './types';
 
@@ -59,7 +60,7 @@ export function roundFinance(g: GameState, homeIds: Set<string>): GameState {
 
   for (const id of Object.keys(g.teams)) {
     let wages = payrollOf(g, id) / n;
-    if (id === g.userClubId) {
+    if (managed(g, id)) {
       const want = wages * cover / 100;
       const paid = Math.min(wallet, want);
       wallet -= paid; wages -= paid; ledger.coachCover += paid;
@@ -69,16 +70,16 @@ export function roundFinance(g: GameState, homeIds: Set<string>): GameState {
       ledger.wages += wages;
     }
     budgets[id] -= wages;
-    if (homeIds.has(id)) { const gate = gateOf(g, id); budgets[id] += gate; if (id === g.userClubId) ledger.gate += gate; }
+    if (homeIds.has(id)) { const gate = gateOf(g, id); budgets[id] += gate; if (managed(g, id)) ledger.gate += gate; }
     budgets[id] = Math.round(budgets[id]);
   }
 
   // clube no vermelho: diretoria e elenco reclamam dos salários atrasados
   let morale: Morale = g.morale;
-  if (budgets[g.userClubId] < 0) {
+  if (!g.unemployed && budgets[g.userClubId] < 0) {
     morale = { ...morale, board: Math.max(0, morale.board - 3), team: Math.max(0, morale.team - 2) };
     if (g.round % 4 === 0) say('⚠️ Caixa no vermelho: salários atrasados irritam a diretoria e o elenco.', 'bad');
   }
-  return { ...g, budgets, morale, ledger, coachMoney: Math.round(wallet), wageCover: cover, news: [...news, ...g.news].slice(0, 30) };
+  return { ...g, budgets, morale, ledger, coachMoney: Math.round(wallet), wageCover: cover, news: [...news, ...g.news].slice(0, 80) };
 }
 

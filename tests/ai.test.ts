@@ -7,7 +7,8 @@ import { MIN_SQUAD } from '../src/engine/transfers';
 import type { GameState, Player } from '../src/engine/types';
 import { makeCareer } from './helpers';
 
-const playSeason = (g: GameState) => { while (!isSeasonOver(g)) g = playRound(g).state; return g; };
+/** Joga a temporada inteira mantendo a diretoria satisfeita (sem demissão), para testar o resto. */
+const playSeason = (g: GameState) => { while (!isSeasonOver(g)) { g = playRound(g).state; g = { ...g, morale: { ...g.morale, board: 60 } }; } return g; };
 const mk = (strength: number, age: number): Player => ({ id: 'x', name: 'X', pos: 'MID', age, strength });
 const total = (g: GameState) => Object.values(g.budgets).reduce((a, v) => a + v, 0);
 
@@ -46,11 +47,16 @@ describe('virada de temporada com a IA', () => {
       for (const pid of t.lineup) expect(t.players.some((p) => p.id === pid), id).toBe(true);
     }
   });
-  it('o seu clube só envelhece e evolui: mesmos jogadores (+1 ano), sem aposentadoria nem base automática', () => {
+  it('o seu clube envelhece e evolui, só perde veteranos aposentados (35+) e não ganha base automática', () => {
     const before = end.teams.flamengo.players, after = next.teams.flamengo.players;
-    expect(after.map((p) => p.id)).toEqual(before.map((p) => p.id));
-    after.forEach((p, i) => expect(p.age).toBe(before[i].age + 1));
-    expect(next.teams.flamengo.lineup).toEqual(end.teams.flamengo.lineup);
+    const ids = new Set(before.map((p) => p.id));
+    after.forEach((p) => expect(ids.has(p.id)).toBe(true));
+    for (const b of before) {
+      const a = after.find((p) => p.id === b.id);
+      if (a) expect(a.age).toBe(b.age + 1); else expect(b.age + 1).toBeGreaterThanOrEqual(35);
+    }
+    expect(after.length).toBeGreaterThanOrEqual(18);
+    expect(next.teams.flamengo.lineup.every((id) => after.some((p) => p.id === id))).toBe(true);
   });
   it('a IA contrata, e as notícias registram os negócios e os investimentos dos promovidos', () => {
     expect(next.news.length).toBeGreaterThan(5);

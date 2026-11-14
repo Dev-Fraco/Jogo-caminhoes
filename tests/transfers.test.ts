@@ -7,7 +7,8 @@ import type { GameState, Player } from '../src/engine/types';
 import { makeCareer } from './helpers';
 
 const p = (strength: number, age: number): Player => ({ id: 'x', name: 'X', pos: 'MID', age, strength });
-const playSeason = (g: GameState) => { while (!isSeasonOver(g)) g = playRound(g).state; return g; };
+/** Joga a temporada inteira mantendo a diretoria satisfeita (sem demissão), para testar o resto. */
+const playSeason = (g: GameState) => { while (!isSeasonOver(g)) { g = playRound(g).state; g = { ...g, morale: { ...g.morale, board: 60 } }; } return g; };
 
 describe('valor de mercado', () => {
   it('sobe com o overall e cai com a idade', () => {
@@ -117,7 +118,7 @@ describe('contratação', () => {
     g = buyPlayer(g, pick(g, 'palmeiras').id).state;
     g = playSeason(g);
     expect(g.results).toHaveLength(4 * 380);
-    expect(startNextSeason(g).teams.flamengo.players).toHaveLength(25);
+    expect(startNextSeason(g).teams.flamengo.players.length).toBeLessThanOrEqual(25); // veteranos podem se aposentar
   });
 });
 

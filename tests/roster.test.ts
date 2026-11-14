@@ -9,7 +9,8 @@ import type { GameState } from '../src/engine/types';
 import { makeCareer } from './helpers';
 
 const bench = (g: GameState, pos: 'MID' | 'ATT' | 'DEF' | 'GK' = 'MID') => { const t = g.teams[g.userClubId]; return t.players.filter((p) => p.pos === pos && !t.lineup.includes(p.id)).sort((a, b) => a.strength - b.strength)[0]; };
-const playSeason = (g: GameState) => { while (!isSeasonOver(g)) g = playRound(g).state; return g; };
+/** Joga a temporada inteira mantendo a diretoria satisfeita (sem demissão), para testar o resto. */
+const playSeason = (g: GameState) => { while (!isSeasonOver(g)) { g = playRound(g).state; g = { ...g, morale: { ...g.morale, board: 60 } }; } return g; };
 
 describe('listas de transferência e de empréstimo', () => {
   it('colocar e tirar da lista; uma lista tira o jogador da outra', () => {
@@ -117,7 +118,7 @@ describe('propostas', () => {
 
 describe('empréstimo', () => {
   it('cede o jogador por uma taxa pequena e ele volta no fim da temporada', () => {
-    let g = makeCareer('flamengo', 4); const p = bench(g);
+    let g = makeCareer('flamengo', 4); const p = g.teams.flamengo.players.filter((x) => x.pos === 'MID' && !g.teams.flamengo.lineup.includes(x.id) && x.age <= 30).sort((a, b) => a.strength - b.strength)[0];
     g = toggleLoanList(g, p.id);
     g = { ...g, offers: [{ id: 'l1', kind: 'loan', playerId: p.id, clubId: 'sport', fee: 50_000, season: 2026, expiresRound: 5 }] };
     const r = acceptOffer(g, 'l1'); expect(r.result.ok).toBe(true);

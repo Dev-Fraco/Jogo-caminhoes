@@ -21,7 +21,7 @@ export function pendingEvent(g: GameState): PendingEvent | undefined {
 export function playEvent(g: GameState, kind: EventKind): { state: GameState; results: MatchResult[] } {
   const r = kind === 'cup' ? playCupRound(g) : kind === 'mundial' ? playMundialStep(g) : playContStep(g, kind);
   const my = r.results.find((x) => x.homeId === g.userClubId || x.awayId === g.userClubId);
-  if (!my) return r;
+  if (!my || g.unemployed) return r;
   const home = my.homeId === g.userClubId;
   return { ...r, state: socialAfterMatch(r.state, home ? my.homeGoals : my.awayGoals, home ? my.awayGoals : my.homeGoals, 0.6) }; // copas pesam um pouco menos
 }

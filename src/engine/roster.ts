@@ -83,6 +83,7 @@ export const LOAN_FEE_RATE = 0.08;
 
 /** Depois de uma rodada: apaga propostas vencidas e sorteia novas para os jogadores das listas. */
 export function generateOffers(g: GameState, rng: Rng): GameState {
+  if (g.unemployed) return { ...g, offers: [] };
   let offers = g.offers.filter((o) => o.expiresRound >= g.round && mine(g, o.playerId));
   const userPlayers = g.teams[g.userClubId].players;
   const others = Object.keys(g.teams).filter((id) => id !== g.userClubId);

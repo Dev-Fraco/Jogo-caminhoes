@@ -3,6 +3,8 @@ import { aiWindow, offseason } from './ai';
 import { contAfterLeagueRound, createContinentals, mundialAfterLeagueRound, playContStep, playMundialStep } from './continental';
 import { pendingEvent, playEvent } from './events';
 import { tickContracts } from './assets';
+import { boardTick, fire, seasonEndFiring, seasonEndOffers, seasonPoints } from './jobs';
+import { managed } from './lookup';
 import { socialAds, socialAfterMatch } from './social';
 import { tickBoletos } from './bank';
 import { roundFinance } from './finance';
@@ -98,7 +100,7 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
   const teams = { ...g.teams };
   // clubes controlados pela IA sempre escalam o melhor time
   for (const id of Object.keys(teams)) {
-    if (id === g.userClubId) continue;
+    if (managed(g, id)) continue;
     const t = teams[id];
     teams[id] = { ...t, lineup: autoLineup(t.players, t.formation) };
   }
@@ -113,7 +115,7 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
 
   // humor: depois do jogo do seu clube
   const my = results.find((r) => r.homeId === g.userClubId || r.awayId === g.userClubId);
-  if (my) {
+  if (my && !g.unemployed) {
     const home = my.homeId === g.userClubId;
     const div = userDivision(state);
     const table = divisionTable(state, div.id);
@@ -122,8 +124,9 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
       position: table.findIndex((r) => r.clubId === g.userClubId) + 1, size: table.length, round: g.round, expectation: g.clubs[g.userClubId].boardExpectation,
     }) };
   }
-  if (my) state = socialAfterMatch(state, my.homeId === g.userClubId ? my.homeGoals : my.awayGoals, my.homeId === g.userClubId ? my.awayGoals : my.homeGoals);
+  if (my && !g.unemployed) state = socialAfterMatch(state, my.homeId === g.userClubId ? my.homeGoals : my.awayGoals, my.homeId === g.userClubId ? my.awayGoals : my.homeGoals);
   state = socialAds(tickContracts(tickBoletos(roundFinance(state, new Set(results.map((r) => r.homeId))))));
+  state = boardTick(state, makeRng(g.seed * 19 + g.season * 7 + g.round)); // diretoria (demissão) ou, sem clube, propostas de emprego
   state = mundialAfterLeagueRound(contAfterLeagueRound(cupAfterLeagueRound(state)));
   // propostas dos outros clubes pelos jogadores listados
   state = generateOffers(state, rng);
@@ -222,8 +225,20 @@ export function startNextSeason(g: GameState): GameState {
   const { state, promotion } = offseason(next, rng, { promoted: arrivals('promoted', -1), relegated: arrivals('relegated', 1) });
   const cupped: GameState = g.cup ? { ...state, cup: createCup(state) } : state;
   const withCup: GameState = createContinentals({ ...cupped, mundial: undefined }, moves[0].table.map((r) => r.clubId), g.cup?.championId);
-  return { ...withCup, history: withCup.history.map((h, i) => (i === withCup.history.length - 1 ? { ...h, promotion } : h)) };
+  let result: GameState = { ...withCup, history: withCup.history.map((h, i) => (i === withCup.history.length - 1 ? { ...h, promotion } : h)) };
+  // carreira do treinador: pontos, demissão ou propostas de clubes maiores
+  const relegatedU = out.movement === 'relegated', promotedU = out.movement === 'promoted';
+  const reason = seasonEndFiring(g, out.userPosition, relegatedU);
+  result = seasonPoints(result, out.userPosition, promotedU, relegatedU);
+  return seasonEndOffers(reason ? fire(result, reason) : result, out.userPosition, promotedU);
 }
+
+/** Aviso antes de virar a temporada: o treinador será demitido? (motivo ou null) */
+export const firingWarning = (g: GameState): string | null => {
+  if (!isSeasonOver(g) || g.unemployed) return null;
+  const out = seasonOutcome(g);
+  return seasonEndFiring(g, out.userPosition, out.movement === 'relegated');
+};
 
 export function setFormation(g: GameState, formation: FormationId): GameState {
   const t = g.teams[g.userClubId];

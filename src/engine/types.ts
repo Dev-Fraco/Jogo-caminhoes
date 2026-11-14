@@ -186,6 +186,10 @@ export interface MundialState {
   championId?: string;
 }
 
+export interface JobOffer { clubId: string; season: number; round: number; /** vale até esta rodada da mesma temporada (ou da seguinte) */ expires: number }
+export interface JobSpell { clubId: string; fromSeason: number; toSeason?: number; ended?: 'demitido' | 'pediu demissão' | 'contratado por outro clube' }
+export interface RetiredPlayer { name: string; age: number; pos: Position; strength: number; clubId: string; season: number }
+
 export interface SeasonSummary {
   uclChampionId?: string;
   mundialChampionId?: string;
@@ -267,6 +271,19 @@ export interface GameState {
   assets?: AssetsState;
   social?: SocialState;
   casino?: CasinoState;
+  /** Sem clube (demitido ou pediu demissão): o clube antigo passa a ser controlado pela IA. */
+  unemployed?: boolean;
+  firedInfo?: { clubId: string; season: number; round: number; reason: string; resigned?: boolean };
+  jobOffers?: JobOffer[];
+  /** Clubes pelos quais o treinador já passou. */
+  jobs?: JobSpell[];
+  /** Pontos de reputação ganhos na carreira (títulos, acessos) ou perdidos (demissões). */
+  coachPoints?: number;
+  /** Quantas rodadas seguidas a diretoria esteve no limite. */
+  boardLow?: number;
+  /** Última rodada em que o treinador se candidatou a uma vaga. */
+  appliedKey?: string;
+  retired?: RetiredPlayer[];
   /** Últimas transferências entre clubes (para o app Notícias). */
   market?: MarketDeal[];
   mundial?: MundialState;

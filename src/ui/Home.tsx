@@ -7,10 +7,13 @@ import { clubOf } from '../engine/lookup';
 import { moodLabel } from '../engine/morale';
 import type { GameState, MatchResult } from '../engine/types';
 import { PROMOTED_STRONG_CHANCE } from '../engine/ai';
+import { acceptOffer, declineOffer, resign } from '../engine/jobs';
+import { firingWarning } from '../engine/game';
+import { ClubBadge } from './ClubBadge';
 import { EXPECTATION_LABEL } from '../newgame/format';
 
 interface Props {
-  game: GameState; last: MatchResult[]; over: boolean;
+  game: GameState; onChange: (g: GameState) => void; last: MatchResult[]; over: boolean;
   onPlay: () => void; onSkip: () => void; onSeeTables: () => void; onSeeResults: () => void; onNextSeason: () => void; onEditLineup: () => void; onFinance: () => void; onSeeOffers: () => void;
 }
 
@@ -28,10 +31,12 @@ function Meter({ label, value, note }: { label: string; value: number; note?: st
 }
 
 /** Início: próxima partida, escalação, humor (equipe, dirigentes e torcida), propostas e resultados da rodada. */
-export function Home({ game, last, over, onPlay, onSkip, onSeeTables, onSeeResults, onNextSeason, onEditLineup, onFinance, onSeeOffers }: Props) {
+export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, onSeeResults, onNextSeason, onEditLineup, onFinance, onSeeOffers }: Props) {
   const name = (id: string) => clubOf(game, id).name;
   const [open, setOpen] = useState<string | null>(null);
   const [askSkip, setAskSkip] = useState(false);
+  const [askLeave, setAskLeave] = useState(false);
+  const [askJob, setAskJob] = useState<string | null>(null);
   const division = userDivision(game);
 
   if (over) {
@@ -47,6 +52,7 @@ export function Home({ game, last, over, onPlay, onSkip, onSeeTables, onSeeResul
           <h2>Temporada {game.season} encerrada</h2>
           <p>Você terminou em <b>{out.userPosition}º</b> lugar na {division.name}.</p>
           <p className={`outcome ${out.movement}`}>{msg}</p>
+          {firingWarning(game) && <p className="un-warn" role="alert">⚠️ {firingWarning(game)} Ao virar a temporada você será demitido.</p>}
           {out.movement === 'promoted' && <p className="hint">🎲 Ao virar a temporada, a diretoria sorteia o investimento: {Math.round(PROMOTED_STRONG_CHANCE * 100)}% de chance de investimento forte (boa chance de se manter na divisão) e {100 - Math.round(PROMOTED_STRONG_CHANCE * 100)}% de investimento pequeno (risco de cair de novo).</p>}
           <div className="over-actions">
             <button className="btn" onClick={onSeeTables}>📊 Ver tabelas de todas as divisões</button>
@@ -114,6 +120,28 @@ export function Home({ game, last, over, onPlay, onSkip, onSeeTables, onSeeResul
         </button>
       )}
 
+      {(game.jobOffers ?? []).length > 0 && (
+        <section>
+          <h3>Propostas de emprego</h3>
+          <ul className="un-list">
+            {(game.jobOffers ?? []).map((o) => {
+              const c = game.clubs[o.clubId];
+              return (
+                <li key={o.clubId} className="un-offer">
+                  <ClubBadge club={c} size={40} />
+                  <div className="grow"><b>{c.name}</b><small>Reputação {'★'.repeat(c.reputation)} · meta: {EXPECTATION_LABEL[c.boardExpectation]}</small></div>
+                  {askJob === o.clubId ? (
+                    <div className="un-btns"><button className="btn main" onClick={() => { const r = acceptOffer(game, o.clubId); if (r.ok) onChange(r.state); setAskJob(null); }}>Confirmar saída</button><button className="btn" onClick={() => setAskJob(null)}>Voltar</button></div>
+                  ) : (
+                    <div className="un-btns"><button className="btn main" onClick={() => setAskJob(o.clubId)}>Aceitar</button><button className="btn" onClick={() => onChange(declineOffer(game, o.clubId))}>Recusar</button></div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
       <section>
         <h3>Moral</h3>
         <div className="card mo-card">
@@ -160,6 +188,16 @@ export function Home({ game, last, over, onPlay, onSkip, onSeeTables, onSeeResul
           </ul>
         </section>
       )}
+      <section>
+        <h3>Carreira</h3>
+        {!askLeave ? <button className="btn" onClick={() => setAskLeave(true)}>🧳 Pedir demissão</button> : (
+          <div className="skip-ask" role="alert">
+            <p>Pedir demissão do {game.clubs[game.userClubId].name}? Você fica sem clube e sem indenização, mas pode receber propostas de outros clubes.</p>
+            <button className="primary" onClick={() => { setAskLeave(false); onChange(resign(game)); }}>Sim, pedir demissão</button>
+            <button className="btn" onClick={() => setAskLeave(false)}>Cancelar</button>
+          </div>
+        )}
+      </section>
     </>
   );
 }

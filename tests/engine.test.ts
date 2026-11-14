@@ -12,7 +12,8 @@ import { computeTable } from '../src/engine/table';
 import type { GameState } from '../src/engine/types';
 import { makeCareer } from './helpers';
 
-const playSeason = (g: GameState) => { while (!isSeasonOver(g)) g = playRound(g).state; return g; };
+/** Joga a temporada inteira mantendo a diretoria satisfeita (sem demissão), para testar o resto. */
+const playSeason = (g: GameState) => { while (!isSeasonOver(g)) { g = playRound(g).state; g = { ...g, morale: { ...g.morale, board: 60 } }; } return g; };
 
 describe('calendário', () => {
   it('20 clubes => 38 rodadas, 380 jogos, todos jogam todas as rodadas', () => {

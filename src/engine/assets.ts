@@ -77,7 +77,7 @@ const addMonth = (g: GameState, season: number, round: number) => {
   const t = round + MONTH_ROUNDS;
   return { season: season + Math.floor((t - 1) / g.totalRounds), round: ((t - 1) % g.totalRounds) + 1 };
 };
-const news = (g: GameState, text: string, tone: NewsItem['tone']): GameState => ({ ...g, news: [{ season: g.season, round: g.round, text, tone }, ...g.news].slice(0, 30) });
+const news = (g: GameState, text: string, tone: NewsItem['tone']): GameState => ({ ...g, news: [{ season: g.season, round: g.round, text, tone }, ...g.news].slice(0, 80) });
 
 /* ---------- compra: cria a cobrança Pix; o efeito acontece quando o Banco confirma ---------- */
 

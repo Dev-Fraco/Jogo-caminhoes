@@ -4,6 +4,7 @@ import { getLeague } from '../data/world';
 import { audio } from '../audio/audio';
 import { isSeasonOver, newCareer, playNext, simulateToEnd, startNextSeason, userDivision } from '../engine/game';
 import { pendingEvent } from '../engine/events';
+import { balanceOf } from '../engine/bank';
 import { clubOf } from '../engine/lookup';
 import { loadGame, saveGame } from '../engine/save';
 import type { GameState, MatchResult } from '../engine/types';
@@ -23,6 +24,7 @@ import { unreadCount } from '../engine/phone';
 import { Lineup } from './Lineup';
 import { LiveMatch } from './LiveMatch';
 import { Squad } from './Squad';
+import { Unemployed } from './Unemployed';
 import { Table } from './Table';
 import { Transfers } from './Transfers';
 
@@ -42,6 +44,8 @@ export function App() {
   const [last, setLast] = useState<MatchResult[]>([]);
 
   useEffect(() => { if (game) saveGame(game); }, [game]);
+  // sem clube: some Elenco, Transferências, Finanças e Escalação
+  useEffect(() => { if (game?.unemployed && ['squad', 'transfers', 'lineup', 'finance'].includes(tab)) setTab('home'); }, [game?.unemployed, tab]);
 
   // som: o navegador só libera o áudio depois de um toque; a música toca em todas as telas
   useEffect(() => {
@@ -91,7 +95,7 @@ export function App() {
   }
 
   const club = game.clubs[game.userClubId];
-  const play = () => setLive(playNext(game));
+  const play = () => { const r = playNext(game); if (game.unemployed) { setLast(r.results); setGame(r.state); } else setLive(r); }; // sem clube: não há partida para assistir
   const finishMatch = () => { if (live) { setLast(live.results); setGame(live.state); } setLive(null); };
   const liveResult = live?.results.find((r) => r.homeId === game.userClubId || r.awayId === game.userClubId);
   const ev = live ? pendingEvent(game) : undefined;
@@ -107,12 +111,12 @@ export function App() {
           <div className="gh-id">
             <ClubBadge club={club} size={42} />
             <div>
-              <strong>{club.name}</strong>
-              <small>{userDivision(game).name} · Temporada {game.season}</small>
+              <strong>{game.unemployed ? 'Sem clube' : club.name}</strong>
+              <small>{game.unemployed ? 'Sem clube' : userDivision(game).name} · Temporada {game.season}</small>
             </div>
           </div>
           <div className="gh-right">
-            <span className="gh-money" title="Orçamento para transferências">{formatBudget(game.budgets[game.userClubId])}</span>
+            <span className="gh-money" title={game.unemployed ? 'Seu saldo no banco' : 'Orçamento para transferências'}>{game.unemployed ? formatBudget(balanceOf(game)) : formatBudget(game.budgets[game.userClubId])}</span>
             <button className="ghost" onClick={toMenu} disabled={!!live}>Menu</button>
           </div>
         </header>
@@ -121,18 +125,19 @@ export function App() {
             <LiveMatch key={`${game.season}-${game.round}-${ev?.kind ?? 'l'}`} home={clubOf(game, liveResult.homeId)} away={clubOf(game, liveResult.awayId)} result={liveResult}
               userSide={liveResult.homeId === game.userClubId ? 'home' : 'away'} divisionName={liveLabel} stadium={clubOf(game, liveResult.homeId).stadium} onFinish={finishMatch} />
           )}
-          {!live && tab === 'home' && <Home game={game} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onSkip={skipSeason} onSeeTables={() => { setTableView('div'); setTab('table'); }} onSeeResults={() => { setTableView('rounds'); setTab('table'); }} onEditLineup={() => setTab('lineup')} onFinance={() => setTab('finance')} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} />}
-          {!live && tab === 'finance' && <Finance game={game} onChange={setGame} onBack={() => setTab('home')} />}
-          {!live && tab === 'lineup' && <Lineup game={game} onChange={setGame} onBack={() => setTab('home')} />}
-          {!live && tab === 'squad' && <Squad game={game} onChange={setGame} />}
+          {!live && game.unemployed && tab === 'home' && <Unemployed game={game} over={isSeasonOver(game)} onChange={setGame} onPlay={play} onSkip={skipSeason} onNextSeason={nextSeason} onSeeTables={() => { setTableView('rounds'); setTab('table'); }} />}
+          {!live && !game.unemployed && tab === 'home' && <Home game={game} onChange={setGame} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onSkip={skipSeason} onSeeTables={() => { setTableView('div'); setTab('table'); }} onSeeResults={() => { setTableView('rounds'); setTab('table'); }} onEditLineup={() => setTab('lineup')} onFinance={() => setTab('finance')} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} />}
+          {!live && !game.unemployed && tab === 'finance' && <Finance game={game} onChange={setGame} onBack={() => setTab('home')} />}
+          {!live && !game.unemployed && tab === 'lineup' && <Lineup game={game} onChange={setGame} onBack={() => setTab('home')} />}
+          {!live && !game.unemployed && tab === 'squad' && <Squad game={game} onChange={setGame} />}
           {!live && tab === 'table' && <Table game={game} initialView={tableView} />}
-          {!live && tab === 'transfers' && <Transfers game={game} onChange={setGame} view={tfView} onView={setTfView} />}
+          {!live && !game.unemployed && tab === 'transfers' && <Transfers game={game} onChange={setGame} view={tfView} onView={setTfView} />}
         </main>
         <nav>
           {([['home', '🏠', 'Início'], ['squad', '👕', 'Elenco'], ['table', '📊', 'Tabela'], ['transfers', '🔁', 'Transf.'], ['phone', '📱', 'Celular']] as const).map(([id, icon, label]) => {
             const on = tab === id || (id === 'home' && (tab === 'lineup' || tab === 'finance'));
             return (
-              <button key={id} className={on ? 'on' : ''} disabled={!!live} onClick={() => (id === 'phone' ? setPhoneOpen(true) : setTab(id))} aria-label={id === 'transfers' ? 'Transferências' : label} aria-current={on ? 'page' : undefined}>
+              <button key={id} className={on ? 'on' : ''} disabled={!!live || (!!game.unemployed && (id === 'squad' || id === 'transfers'))} onClick={() => (id === 'phone' ? setPhoneOpen(true) : setTab(id))} aria-label={id === 'transfers' ? 'Transferências' : label} aria-current={on ? 'page' : undefined}>
                 <span aria-hidden="true">{icon}</span>{label}
                 {id === 'phone' && unreadCount(game) > 0 && <i className="nav-badge" aria-label={`${unreadCount(game)} notificações`}>{unreadCount(game)}</i>}
                 {id === 'transfers' && game.offers.length > 0 && <i className="nav-badge" aria-label={`${game.offers.length} propostas`}>{game.offers.length}</i>}

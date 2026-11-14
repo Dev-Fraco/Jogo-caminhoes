@@ -1,9 +1,10 @@
 import { clamp, type Rng } from './rng';
-import { rosterOk } from './roster';
+import { managed } from './lookup';
+import { repairLineup, rosterOk } from './roster';
 import { DIVISION_INCOME } from './economy';
 import { autoLineup, randomName } from './squad';
 import { divisionIndexOf, playerValue } from './transfers';
-import type { GameState, NewsItem, Player, Position, TeamState } from './types';
+import type { GameState, NewsItem, Player, Position, RetiredPlayer, TeamState } from './types';
 
 /**
  * A "IA" do jogo: todos os clubes, menos o do jogador, tomam as próprias decisões (contratar, vender, renovar o elenco).
@@ -43,13 +44,25 @@ const avgXI = (t: TeamState) => {
 };
 
 /** Fim de carreira (para os clubes da IA): 37+ sempre; de 34 a 36 com 35% de chance, se o elenco continuar válido. */
-function retire(players: Player[], rng: Rng): Player[] {
+function retire(players: Player[], rng: Rng): { left: Player[]; retired: Player[] } {
   let left = [...players];
+  const retired: Player[] = [];
   for (const p of [...players].sort((a, b) => b.age - a.age)) {
     if (p.age < 34) break;
-    if (p.age >= 37 || rng() < 0.35) { const next = left.filter((x) => x.id !== p.id); if (rosterOk(next)) left = next; }
+    if (p.age >= 37 || rng() < 0.35) { const next = left.filter((x) => x.id !== p.id); if (rosterOk(next)) { left = next; retired.push(p); } }
   }
-  return left;
+  return { left, retired };
+}
+
+/** Aposentadoria no seu clube: 38+ sempre; de 35 a 37 com 40% de chance. O elenco nunca fica abaixo do mínimo. */
+export function retireUser(players: Player[], rng: Rng): { left: Player[]; retired: Player[] } {
+  let left = [...players];
+  const retired: Player[] = [];
+  for (const p of [...players].sort((a, b) => b.age - a.age)) {
+    if (p.age < 35) break;
+    if (p.age >= 38 || rng() < 0.4) { const next = left.filter((x) => x.id !== p.id); if (rosterOk(next)) { left = next; retired.push(p); } }
+  }
+  return { left, retired };
 }
 
 /** Categorias de base da IA: completa o elenco com garotos de 17 a 19 anos, em torno de 14 pontos abaixo do time titular. */
@@ -99,7 +112,7 @@ function trimSquad(g: GameState, clubId: string, size: number): GameState {
  */
 export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[]): GameState {
   let s = g;
-  const ai = shuffle(Object.keys(s.teams).filter((id) => id !== s.userClubId), rng);
+  const ai = shuffle(Object.keys(s.teams).filter((id) => !managed(s, id)), rng);
   for (const buyerId of ai) {
     if (only && !only.includes(buyerId)) continue;
     for (let i = 0; i < maxBuys; i++) {
@@ -156,12 +169,18 @@ export interface OffseasonInput {
 export function offseason(g: GameState, rng: Rng, input: OffseasonInput): { state: GameState; promotion: NonNullable<import('./types').SeasonSummary['promotion']> } {
   // 1) todos envelhecem/evoluem; a IA ainda aposenta veteranos e renova com garotos da base
   const teams: GameState['teams'] = {};
+  const retiredNow: RetiredPlayer[] = [];
   for (const [id, t] of Object.entries(g.teams)) {
     let players = t.players.map((p) => developPlayer(p, rng));
-    if (id !== g.userClubId) { players = retire(players, rng); players = youthIntake({ ...t, players }, g.season, rng); }
-    teams[id] = { ...t, players, lineup: id === g.userClubId ? t.lineup : autoLineup(players, t.formation) };
+    if (!managed(g, id)) { const r = retire(players, rng); players = r.left; retiredNow.push(...r.retired.map((p) => ({ name: p.name, age: p.age, pos: p.pos, strength: p.strength, clubId: id, season: g.season - 1 }))); players = youthIntake({ ...t, players }, g.season, rng); }
+    else { const r = retireUser(players, rng); players = r.left; retiredNow.push(...r.retired.map((p) => ({ name: p.name, age: p.age, pos: p.pos, strength: p.strength, clubId: id, season: g.season - 1 }))); }
+    teams[id] = { ...t, players, lineup: managed(g, id) ? repairLineup({ ...t, players }).lineup : autoLineup(players, t.formation) };
   }
-  let s: GameState = { ...g, teams };
+  let s: GameState = { ...g, teams, retired: [...retiredNow, ...(g.retired ?? [])].slice(0, 200) };
+  const mineRetired = retiredNow.filter((r) => r.clubId === g.userClubId && !g.unemployed);
+  if (mineRetired.length) s = news(s, `🧓 Aposentados do seu clube: ${mineRetired.map((r) => `${r.name} (${r.age} anos)`).join(', ')}.`, 'info');
+  const stars = retiredNow.filter((r) => r.strength >= 80 && r.clubId !== g.userClubId).slice(0, 3);
+  if (stars.length) s = news(s, `🧓 Aposentadoria: ${stars.map((r) => `${r.name} (${r.age} anos, overall ${r.strength})`).join(', ')}.`, 'info');
 
   // 2) clubes promovidos: sorteio do investimento (65% de chance de investimento forte)
   const promotion: { clubId: string; strong: boolean; bonus: number }[] = [];
@@ -172,18 +191,18 @@ export function offseason(g: GameState, rng: Rng, input: OffseasonInput): { stat
     s = { ...s, budgets: { ...s.budgets, [clubId]: (s.budgets[clubId] ?? 0) + bonus } };
     promotion.push({ clubId, strong, bonus });
     const name = s.clubs[clubId].name;
-    s = news(s, strong ? `🔼 ${name} sobe e a diretoria investe forte: ${fmtMoney(bonus)} para reforçar o elenco.` : `🔼 ${name} sobe, mas a diretoria libera pouco dinheiro: ${fmtMoney(bonus)}.`, clubId === s.userClubId ? (strong ? 'good' : 'bad') : 'info');
+    s = news(s, strong ? `🔼 ${name} sobe e a diretoria investe forte: ${fmtMoney(bonus)} para reforçar o elenco.` : `🔼 ${name} sobe, mas a diretoria libera pouco dinheiro: ${fmtMoney(bonus)}.`, managed(s, clubId) ? (strong ? 'good' : 'bad') : 'info');
   }
 
   // 3) clubes rebaixados (da IA): 35% entram em crise, perdem metade do orçamento e vendem as estrelas
   for (const { clubId } of input.relegated) {
-    if (clubId === s.userClubId || rng() >= RELEGATED_CRISIS_CHANCE) continue;
+    if (managed(s, clubId) || rng() >= RELEGATED_CRISIS_CHANCE) continue;
     s = { ...s, budgets: { ...s.budgets, [clubId]: Math.round((s.budgets[clubId] ?? 0) * 0.5) } };
     const stars = [...s.teams[clubId].players].sort((a, b) => b.strength - a.strength).slice(0, 2);
     const sold: string[] = [];
     for (const p of stars) {
       const fee = playerValue(p, divisionIndexOf(s, clubId));
-      const buyers = Object.keys(s.teams).filter((id) => id !== clubId && id !== s.userClubId && s.teams[id].players.length < AI_MAX_SQUAD && (s.budgets[id] ?? 0) >= fee);
+      const buyers = Object.keys(s.teams).filter((id) => id !== clubId && !managed(s, id) && s.teams[id].players.length < AI_MAX_SQUAD && (s.budgets[id] ?? 0) >= fee);
       const left = s.teams[clubId].players.filter((x) => x.id !== p.id);
       if (!buyers.length || !rosterOk(left)) continue;
       s = move(s, p.id, clubId, buyers[Math.floor(rng() * buyers.length)], fee);
@@ -193,11 +212,11 @@ export function offseason(g: GameState, rng: Rng, input: OffseasonInput): { stat
   }
 
   // 4) janela de transferências da IA: promovidos com investimento forte vão às compras primeiro (até 8 contratações); depois, todos (até 3)
-  const strongIds = promotion.filter((p) => p.strong && p.clubId !== s.userClubId).map((p) => p.clubId);
+  const strongIds = promotion.filter((p) => p.strong && !managed(s, p.clubId)).map((p) => p.clubId);
   if (strongIds.length) s = aiWindow(s, rng, 8, strongIds);
   s = aiWindow(s, rng, 3);
 
   // 5) elenco enxuto: a IA dispensa o excedente (os menos cotados)
-  for (const id of Object.keys(s.teams)) if (id !== s.userClubId) s = trimSquad(s, id, AI_MAX_SQUAD);
+  for (const id of Object.keys(s.teams)) if (!managed(s, id)) s = trimSquad(s, id, AI_MAX_SQUAD);
   return { state: s, promotion };
 }

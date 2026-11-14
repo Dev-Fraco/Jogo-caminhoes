@@ -90,7 +90,7 @@ export function createContinentals(g: GameState, ranking?: string[], cupChampion
 }
 
 export const stepName = (key: Comp, l: LibState) => CONTINENTALS[key].stepNames[Math.min(l.step, CONTINENTALS[key].stepNames.length - 1)];
-export const userIn = (g: GameState, key: Comp) => { const l = g[key]; return !!l && l.alive.includes(g.userClubId) && !l.championId; };
+export const userIn = (g: GameState, key: Comp) => { const l = g[key]; return !g.unemployed && !!l && l.alive.includes(g.userClubId) && !l.championId; };
 export const matchDue = (g: GameState, key: Comp) => !!g[key]?.due && userIn(g, key);
 
 const isMine = (g: GameState) => (m: { homeId: string; awayId: string }) => m.homeId === g.userClubId || m.awayId === g.userClubId;
@@ -109,7 +109,7 @@ export function groupTable(g: GameState, group: LibGroup) {
 
 const lineupTeam = (g: GameState, id: string): TeamState => {
   const t = teamOf(g, id);
-  return id === g.userClubId ? t : { ...t, lineup: autoLineup(t.players, t.formation) };
+  return id === g.userClubId && !g.unemployed ? t : { ...t, lineup: autoLineup(t.players, t.formation) };
 };
 
 /** Simula um jogo e, se terminar empatado e for mata-mata, decide nos pênaltis. */
@@ -199,7 +199,7 @@ export function playContStep(g: GameState, key: Comp): { state: GameState; resul
     if (winners.length > 1) ko.push({ name: cfg.stepNames[step + 1], ties: winners.reduce<CupTie[]>((acc, w, i) => (i % 2 ? acc : [...acc, { homeId: w, awayId: winners[i + 1] }]), []) });
     next = { ...comp, ko, step: step + 1, due: false, alive: winners, championId: winners.length === 1 ? winners[0] : undefined };
   }
-  return { state: { ...g, budgets, [key]: next, news: [...news, ...g.news].slice(0, 30) }, results };
+  return { state: { ...g, budgets, [key]: next, news: [...news, ...g.news].slice(0, 80) }, results };
 }
 
 function playTieGroup(g: GameState, rng: Rng, m: { homeId: string; awayId: string }, divisionId: string, round: number, results: MatchResult[]) {
@@ -218,7 +218,7 @@ const finalists = (l: LibState | undefined): [string, string] | undefined => {
   return [l.championId, f.winnerId === f.homeId ? f.awayId : f.homeId];
 };
 
-export const mundialUserIn = (g: GameState) => !!g.mundial && g.mundial.alive.includes(g.userClubId) && !g.mundial.championId;
+export const mundialUserIn = (g: GameState) => !g.unemployed && !!g.mundial && g.mundial.alive.includes(g.userClubId) && !g.mundial.championId;
 export const mundialMatchDue = (g: GameState) => !!g.mundial?.due && mundialUserIn(g);
 export function mundialUserMatch(g: GameState): { homeId: string; awayId: string } | undefined {
   const m = g.mundial;
@@ -263,5 +263,5 @@ export function playMundialStep(g: GameState): { state: GameState; results: Matc
   let next: MundialState;
   if (final) next = { ...m, ko: [...prev, ...ko], due: false, alive: winners, championId: winners[0] };
   else next = { ...m, ko: [...prev, ...ko, { name: 'Final', ties: [{ homeId: winners[0], awayId: winners[1] }] }], step: 1, alive: winners, due: true };
-  return { state: { ...g, budgets, mundial: next, news: [...news, ...g.news].slice(0, 30) }, results };
+  return { state: { ...g, budgets, mundial: next, news: [...news, ...g.news].slice(0, 80) }, results };
 }
