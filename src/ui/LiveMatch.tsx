@@ -59,6 +59,8 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
   // som: apito inicial/final e festa a cada gol
   const goalsSeen = useRef(0);
   useEffect(() => { if (phase === 'play') audio.sfx('whistle'); if (phase === 'done') audio.sfx('whistle'); }, [phase]);
+  // torcida durante a partida; a música baixa
+  useEffect(() => { audio.duck(true); audio.crowd(true); return () => { audio.crowd(false); audio.duck(false); }; }, []);
   const shown = useMemo(() => result.events.filter((e) => e.minute <= Math.floor(minute)), [result.events, minute]);
   const [hg, ag] = scoreAt(result.events, Math.floor(minute));
   const goalCount = shown.filter((e) => e.type === 'goal').length;

@@ -8,12 +8,6 @@ import {
 import { ClubBadge } from './ClubBadge';
 import './setupstep.css';
 
-const LockIcon = () => (
-  <svg className="sp-lock" viewBox="0 0 16 16" width="22" height="22" aria-hidden="true">
-    <path fill="currentColor" d="M8 1a3.5 3.5 0 0 0-3.5 3.5V6H4a1.5 1.5 0 0 0-1.5 1.5v6A1.5 1.5 0 0 0 4 15h8a1.5 1.5 0 0 0 1.5-1.5v-6A1.5 1.5 0 0 0 12 6h-.5V4.5A3.5 3.5 0 0 0 8 1Zm2 5H6V4.5a2 2 0 1 1 4 0V6Z" />
-  </svg>
-);
-
 /** Resumo de tudo o que foi escolhido nas etapas anteriores e nesta. */
 function Summary({ state }: { state: NewGameState }) {
   const { coach, world, club, setup } = state;
@@ -76,24 +70,6 @@ export function SetupStep({ state, onChange }: Props) {
               </label>
             ))}
           </div>
-        </fieldset>
-
-        <fieldset className="nw-field sp-set">
-          <legend>Modo de jogo</legend>
-          <div className="sp-modes" role="radiogroup" aria-label="Modo de jogo">
-            {GAME_MODES.map((m) => (
-              <label key={m.id} className={`nw-pick${m.locked ? ' sp-locked' : ''}`} title={m.locked ? 'Recurso Premium: indisponível por enquanto' : undefined}>
-                <input type="radio" name="nw-mode" value={m.id} checked={setup.mode === m.id} disabled={m.locked}
-                  aria-describedby={m.locked ? 'sp-premium-note' : undefined} onChange={() => onChange({ ...setup, mode: m.id })} />
-                <span className="nw-pick-body nw-row">
-                  {m.locked && <LockIcon />}
-                  <span className="nw-grow"><strong>{m.label}</strong><small>{m.description}</small></span>
-                  {m.locked && <span className="sp-premium">Premium</span>}
-                </span>
-              </label>
-            ))}
-          </div>
-          <p id="sp-premium-note" className="sp-note">Desafio e Dinheiro Infinito são recursos Premium e ainda não estão disponíveis.</p>
         </fieldset>
 
         <div className="nw-field sp-set">

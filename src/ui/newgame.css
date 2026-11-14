@@ -39,7 +39,7 @@
   border: 2px solid rgba(255, 255, 255, .35); font-size: 15px; transition: background-color .18s ease, border-color .18s ease, color .18s ease;
 }
 .nw-steps li.current button { color: var(--ink); }
-.nw-steps li.current .nw-dot { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); box-shadow: 0 0 16px rgba(34, 230, 255, .45); }
+.nw-steps li.current .nw-dot { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); box-shadow: 0 0 16px rgba(255, 226, 26, .45); }
 .nw-steps li.done .nw-dot { border-color: var(--gold); color: var(--gold); }
 
 /* ---------- Cartão central ---------- */
@@ -73,8 +73,8 @@
 }
 .nw-field select:invalid, .nw-field select:has(option[value=""]:checked) { color: rgba(244, 251, 246, .5); }
 .nw-field select option { background: #0b1f16; color: #f4fbf6; }
-.nw-field input:hover, .nw-field select:hover { border-color: rgba(34, 230, 255, .6); }
-.nw-field input:focus, .nw-field select:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(34, 230, 255, .35); background-color: rgba(0, 0, 0, .5); }
+.nw-field input:hover, .nw-field select:hover { border-color: rgba(255, 226, 26, .6); }
+.nw-field input:focus, .nw-field select:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(255, 226, 26, .35); background-color: rgba(0, 0, 0, .5); }
 .nw-field input.bad, .nw-field select.bad { border-color: #ff7b7b; }
 .nw-field input.bad:focus, .nw-field select.bad:focus { box-shadow: 0 0 0 3px rgba(255, 123, 123, .35); }
 .nw-msg { display: flex; justify-content: space-between; gap: 10px; min-height: 22px; margin-top: 6px; font: 500 13px/1.3 'Rajdhani', system-ui, sans-serif; }
@@ -97,8 +97,8 @@
 .nw-pips { display: flex; gap: 4px; margin-bottom: 4px; }
 .nw-pips i { width: 16px; height: 6px; background: rgba(255, 255, 255, .22); transform: skewX(-30deg); transition: background-color .18s ease; }
 .nw-pips i.on { background: var(--gold); }
-.nw-rep-card:hover .nw-rep-body { border-color: var(--gold); background: rgba(34, 230, 255, .10); transform: translateY(-2px); }
-.nw-rep-card input:checked + .nw-rep-body { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); box-shadow: 0 0 0 1px rgba(34, 230, 255, .5), 0 8px 26px rgba(34, 230, 255, .30); }
+.nw-rep-card:hover .nw-rep-body { border-color: var(--gold); background: rgba(255, 226, 26, .10); transform: translateY(-2px); }
+.nw-rep-card input:checked + .nw-rep-body { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); box-shadow: 0 0 0 1px rgba(255, 226, 26, .5), 0 8px 26px rgba(255, 226, 26, .30); }
 .nw-rep-card input:checked + .nw-rep-body small { color: rgba(7, 20, 12, .82); }
 .nw-rep-card input:checked + .nw-rep-body .nw-pips i { background: rgba(7, 20, 12, .25); }
 .nw-rep-card input:checked + .nw-rep-body .nw-pips i.on { background: var(--gold-ink); }
@@ -125,8 +125,8 @@
 .nw-btn:hover:not(:disabled) { border-color: var(--gold); transform: translateY(-2px); }
 .nw-btn:active:not(:disabled) { transform: scale(.97); transition-duration: .08s; }
 .nw-btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
-.nw-btn.go { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); box-shadow: 0 6px 24px rgba(34, 230, 255, .28); }
-.nw-btn.go:hover:not(:disabled) { box-shadow: 0 8px 30px rgba(34, 230, 255, .5); }
+.nw-btn.go { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); box-shadow: 0 6px 24px rgba(255, 226, 26, .28); }
+.nw-btn.go:hover:not(:disabled) { box-shadow: 0 8px 30px rgba(255, 226, 26, .5); }
 .nw-btn:disabled { cursor: not-allowed; color: rgba(244, 251, 246, .45); background: rgba(40, 48, 44, .55); border-color: rgba(255, 255, 255, .1); box-shadow: none; }
 
 /* ---------- Telas estreitas ---------- */

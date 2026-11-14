@@ -55,7 +55,7 @@ export function App() {
   // som: o navegador só libera o áudio depois de um toque; a música toca em todas as telas
   useEffect(() => {
     const unlock = () => { audio.unlock(); audio.setMusic(true); };
-    const click = (e: Event) => { if ((e.target as HTMLElement | null)?.closest('button')) audio.sfx('click'); };
+    const click = (e: Event) => { const b = (e.target as HTMLElement | null)?.closest('button'); if (b) audio.sfx(/^(‹|←|Voltar|Cancelar|Fechar|✕)/.test(b.textContent?.trim() ?? '') ? 'back' : 'click'); };
     const onSettings = () => audio.refresh();
     const onVis = () => audio.suspend(document.hidden);
     window.addEventListener('pointerdown', unlock);

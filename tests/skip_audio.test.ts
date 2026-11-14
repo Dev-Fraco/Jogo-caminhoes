@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ARP, BPM, noteFreq, PROGRESSION, volumes } from '../src/audio/audio';
+import { ARP, BPM, MELODY, noteFreq, PROGRESSION, volumes } from '../src/audio/audio';
 import { DEFAULT_SETTINGS } from '../src/settings/settings';
 import { isSeasonOver, simulateToEnd, divisionTable } from '../src/engine/game';
 import { makeCareer } from './helpers';
@@ -28,8 +28,10 @@ describe('áudio', () => {
   it('frequências e música', () => {
     expect(noteFreq(69)).toBeCloseTo(440);
     expect(noteFreq(81)).toBeCloseTo(880);
-    expect(PROGRESSION.length).toBe(4);
+    expect(PROGRESSION.length).toBe(8);
     expect(ARP.length).toBe(8);
+    expect(MELODY.length).toBe(PROGRESSION.length);
+    expect(MELODY.every((m) => m.length === 8)).toBe(true);
     expect(BPM).toBeGreaterThan(60);
   });
   it('volumes respeitam o mudo e os controles', () => {

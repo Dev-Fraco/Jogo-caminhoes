@@ -3,8 +3,8 @@
    Usada pelo assistente de Novo Jogo (.menu.nw) e pelo painel inicial (.menu.home, ver home.css).
    ===================================================================== */
 .menu {
-  --gold: #22e6ff;        /* destaque (hover, foco, marcadores) */
-  --gold-ink: #00131a;    /* texto sobre o dourado */
+  --gold: #ffe21a;        /* destaque (hover, foco, marcadores) */
+  --gold-ink: #1a1400;    /* texto sobre o dourado */
   --ink: #f4fbf6;
   --ink-dim: #a9bdb0;
   --glass: rgba(6, 18, 12, .52);
@@ -13,7 +13,7 @@
 
   position: relative; overflow: hidden; height: 100%;
   color: var(--ink);
-  background: #030710;
+  background: #010620;
   font-family: 'Rajdhani', 'Segoe UI', Roboto, system-ui, sans-serif;
 }
 

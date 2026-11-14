@@ -70,9 +70,7 @@ export const DIFFICULTIES: Difficulty[] = [
  * Clube que disputa estadual E uma das Séries A–D do Brasileirão não pode ser sorteado (nem escolhido). Depende de os estaduais existirem.
  */
 export const GAME_MODES: GameMode[] = [
-  { id: 'career', label: 'Carreira Normal', description: 'Assuma o clube escolhido e conduza a carreira temporada após temporada.' },
-  { id: 'challenge', label: 'Desafio', description: 'Receba um clube sorteado que só joga estadual e leve-o até a elite do Brasileirão.', locked: true },
-  { id: 'infinite-money', label: 'Dinheiro Infinito', description: 'Sem limite de orçamento para montar o elenco dos sonhos.', locked: true },
+  { id: 'career', label: 'Carreira de Treinador', description: 'Assuma o clube escolhido e conduza a carreira temporada após temporada.' },
 ];
 
 /** Temporada inicial usada na sugestão do nome do save. */
