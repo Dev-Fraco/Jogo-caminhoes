@@ -100,3 +100,20 @@
 .bk-receipt .ph-row b { text-align: right; }
 .ph-app-screen h2.center { text-align: center; }
 @keyframes ph-pop { from { transform: scale(0); } 70% { transform: scale(1.15); } to { transform: scale(1); } }
+
+.ap-chips { margin: 8px 0; }
+.ap-kinds { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0 8px; }
+.ap-kinds button { flex: none; border: 1px solid rgba(255, 255, 255, .25); background: transparent; color: inherit; border-radius: 16px; padding: 5px 12px; font: 600 12px system-ui; cursor: pointer; }
+.ap-kinds button.on { background: var(--gold, #f0b92b); color: #1a1204; border-color: transparent; }
+.ap-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ap-list > li > button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 12px; border: 0; background: rgba(255, 255, 255, .07); color: inherit; text-align: left; cursor: pointer; font: 13px system-ui; }
+.ap-list .grow { flex: 1; min-width: 0; }
+.ap-list small { display: block; opacity: .75; font-size: 11.5px; }
+.ap-own { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 12px; background: rgba(255, 255, 255, .07); }
+.ap-hero { display: grid; justify-items: center; text-align: center; gap: 2px; margin: 6px 0 10px; }
+.ap-hero > span { font-size: 64px; }
+.ap-hero h2 { margin: 0; }
+.ap-hero b { font-size: 22px; margin-top: 4px; }
+.ap-stars { color: var(--gold, #f0b92b); letter-spacing: 1px; }
+.bk-steps { font-size: 13px; opacity: .9; padding-left: 18px; display: grid; gap: 4px; }
+.bk-sub.center { text-align: center; }

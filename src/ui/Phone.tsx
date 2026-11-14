@@ -3,6 +3,8 @@ import { audio } from '../audio/audio';
 import { changePin, checkPin, clearNotifications, hasPin, installApp, installedApps, isInstalled, markAllRead, phoneOf, PIN_LENGTH, registerPin, STORE_APPS, uninstallApp, updatePhoneSettings, WALLPAPERS, appById } from '../engine/phone';
 import type { GameState } from '../engine/types';
 import { BankApp } from './BankApp';
+import { DealerApp } from './DealerApp';
+import { RealtorApp } from './RealtorApp';
 import './phone.css';
 
 interface Props { game: GameState; onChange: (g: GameState) => void; onClose: () => void }
@@ -95,7 +97,9 @@ export function Phone({ game, onChange, onClose }: Props) {
               {screen === 'loja' && <Store game={game} onChange={onChange} onOpen={setScreen} />}
               {screen === 'config' && <Settings game={game} onChange={onChange} />}
               {screen === 'banco' && <BankApp game={game} onChange={onChange} />}
-              {!['home', 'loja', 'config', 'banco'].includes(screen) && <SoonApp id={screen} />}
+              {screen === 'concessionaria' && <DealerApp game={game} onChange={onChange} onOpenApp={setScreen} />}
+              {screen === 'corretor' && <RealtorApp game={game} onChange={onChange} onOpenApp={setScreen} />}
+              {!['home', 'loja', 'config', 'banco', 'concessionaria', 'corretor'].includes(screen) && <SoonApp id={screen} />}
               <button className="ph-homebar" onClick={() => setScreen('home')} aria-label="Início do celular" />
             </>
           )}

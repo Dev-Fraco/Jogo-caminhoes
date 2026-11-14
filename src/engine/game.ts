@@ -2,6 +2,7 @@ import type { ClubData } from '../data/clubs';
 import { aiWindow, offseason } from './ai';
 import { contAfterLeagueRound, createContinentals, mundialAfterLeagueRound, playContStep, playMundialStep } from './continental';
 import { pendingEvent, playEvent } from './events';
+import { tickContracts } from './assets';
 import { tickBoletos } from './bank';
 import { roundFinance } from './finance';
 import { createCup, cupAfterLeagueRound, playCupRound } from './cup';
@@ -120,7 +121,7 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
       position: table.findIndex((r) => r.clubId === g.userClubId) + 1, size: table.length, round: g.round, expectation: g.clubs[g.userClubId].boardExpectation,
     }) };
   }
-  state = tickBoletos(roundFinance(state, new Set(results.map((r) => r.homeId))));
+  state = tickContracts(tickBoletos(roundFinance(state, new Set(results.map((r) => r.homeId)))));
   state = mundialAfterLeagueRound(contAfterLeagueRound(cupAfterLeagueRound(state)));
   // propostas dos outros clubes pelos jogadores listados
   state = generateOffers(state, rng);

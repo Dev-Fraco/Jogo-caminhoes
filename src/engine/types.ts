@@ -158,6 +158,12 @@ export interface BankTx { id: string; kind: 'pix' | 'boleto' | 'income'; title: 
 /** Conta bancária do treinador (o saldo é o dinheiro pessoal dele, `coachMoney`). */
 export interface BankState { name: string; passHash: string; txs: BankTx[]; charges: PixCharge[]; boletos: Boleto[]; seq: number }
 
+/** Financiamento (parcelas mensais) ou aluguel (sem fim até encerrar). Um "mês" do jogo = 3 rodadas. */
+export interface Contract { id: string; kind: 'loan' | 'rent'; assetKind: 'vehicle' | 'house'; assetId: string; merchant: string; description: string; monthly: number; /** parcelas que ainda faltam gerar boleto (null = aluguel) */ remaining: number | null; total: number; paid: number; nextSeason: number; nextRound: number }
+export interface OwnedAsset { id: string; price: number; season: number; contractId?: string }
+/** Bens do treinador: veículos, imóveis, aluguel atual e contratos. */
+export interface AssetsState { vehicles: OwnedAsset[]; houses: OwnedAsset[]; contracts: Contract[]; seq: number }
+
 /** Mundial de Clubes: semifinais cruzadas entre os dois finalistas da Libertadores e da Champions, e final. */
 export interface MundialState {
   id: string;
@@ -247,6 +253,7 @@ export interface GameState {
   ucl?: LibState;
   phone?: PhoneState;
   bank?: BankState;
+  assets?: AssetsState;
   mundial?: MundialState;
   /** Dinheiro pessoal do treinador (R$) e quanto da folha ele paga (0/25/50/100). */
   coachMoney?: number;
