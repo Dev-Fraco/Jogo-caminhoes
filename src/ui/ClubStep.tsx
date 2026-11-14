@@ -1,4 +1,4 @@
-import { getClubs, type ClubData } from '../data/clubs';
+import { getClubs, sortByName, type ClubData } from '../data/clubs';
 import { getCountry, getDivision, getLeague } from '../data/world';
 import { EXPECTATION_LABEL, formatBudget } from '../newgame/format';
 import type { WorldSelection } from '../newgame/state';
@@ -19,7 +19,7 @@ interface Props { world: WorldSelection; selected: ClubData | null; onSelect: (c
 
 /** Etapa 3 — Escolha do Clube: grade de cartões com os clubes da divisão escolhida na Etapa 2. */
 export function ClubStep({ world, selected, onSelect }: Props) {
-  const clubs = getClubs(world.divisionId);
+  const clubs = sortByName(getClubs(world.divisionId));
   const country = getCountry(world.countryId);
   const league = getLeague(world.countryId, world.leagueId);
   const division = getDivision(world.countryId, world.leagueId, world.divisionId);

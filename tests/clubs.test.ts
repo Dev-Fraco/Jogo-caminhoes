@@ -78,3 +78,15 @@ describe('CLUBS_DATA — estrutura', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 });
+
+describe('ordem alfabética', () => {
+  it('Série A em ordem alfabética (pt-BR) sem alterar a lista original', async () => {
+    const { sortByName } = await import('../src/data/clubs');
+    const original = serieA.map((c) => c.name);
+    expect(sortByName(serieA).map((c) => c.name)).toEqual([
+      'Athletico-PR', 'Atlético-GO', 'Atlético-MG', 'Bahia', 'Botafogo', 'Corinthians', 'Criciúma', 'Cruzeiro', 'Cuiabá', 'Flamengo',
+      'Fluminense', 'Fortaleza', 'Grêmio', 'Internacional', 'Juventude', 'Palmeiras', 'Red Bull Bragantino', 'São Paulo', 'Vasco da Gama', 'Vitória',
+    ]);
+    expect(serieA.map((c) => c.name)).toEqual(original);
+  });
+});

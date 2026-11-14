@@ -62,3 +62,7 @@ export const CLUBS_DATA: Record<string, ClubData[]> = {
 export const getClubs = (divisionId: string): ClubData[] => CLUBS_DATA[divisionId] ?? [];
 export const getClub = (divisionId: string, clubId: string): ClubData | undefined =>
   getClubs(divisionId).find((c) => c.id === clubId);
+
+/** Cópia da lista em ordem alfabética pelo nome exibido (pt-BR, sem diferenciar acentos/maiúsculas). */
+export const sortByName = (clubs: ClubData[]): ClubData[] =>
+  [...clubs].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));

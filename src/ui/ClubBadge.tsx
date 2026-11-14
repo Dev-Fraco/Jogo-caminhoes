@@ -20,7 +20,7 @@ export function ClubBadge({ club, size = 60 }: { club: Pick<ClubData, 'badge' | 
   }, [club.badge]);
 
   const { bg, fg } = badgeColors(club);
-  const style = { width: size, height: size, '--cb-bg': bg, '--cb-fg': fg, '--cb-shadow': fg === '#FFFFFF' ? '0 1px 2px rgba(0, 0, 0, .35)' : 'none', '--cb-size': `${size}px` } as CSSProperties;
+  const style = { '--cb-bg': bg, '--cb-fg': fg, '--cb-shadow': fg === '#FFFFFF' ? '0 1px 2px rgba(0, 0, 0, .35)' : 'none', '--cb-size': `${size}px` } as CSSProperties;
 
   return (
     <span className="cb" style={style} aria-hidden="true">

@@ -135,7 +135,7 @@ export function NewGame({ onBack }: { onBack: () => void }) {
   const canJump = (i: number) => i <= index || STEPS.slice(0, i).every((s) => !s.implemented || s.isValid(state));
 
   return (
-    <div className={`menu nw${step.id === 'club' ? ' nw-wide' : ''}`} style={{ '--menu-wallpaper': `url(${WALLPAPER_URL})` } as CSSProperties}>
+    <div className="menu nw" style={{ '--menu-wallpaper': `url(${WALLPAPER_URL})` } as CSSProperties}>
       <Backdrop />
       <div className="nw-shell">
         <div className="nw-top">
