@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ClubInfo, MatchEvent, MatchResult } from '../engine/types';
+import { audio } from '../audio/audio';
 import { ClubBadge } from './ClubBadge';
 
 export const SPEEDS = [1, 2, 4, 8] as const;
@@ -55,8 +56,13 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
     return () => cancelAnimationFrame(raf);
   }, [phase, paused]);
 
+  // som: apito inicial/final e festa a cada gol
+  const goalsSeen = useRef(0);
+  useEffect(() => { if (phase === 'play') audio.sfx('whistle'); if (phase === 'done') audio.sfx('whistle'); }, [phase]);
   const shown = useMemo(() => result.events.filter((e) => e.minute <= Math.floor(minute)), [result.events, minute]);
   const [hg, ag] = scoreAt(result.events, Math.floor(minute));
+  const goalCount = shown.filter((e) => e.type === 'goal').length;
+  useEffect(() => { if (goalCount > goalsSeen.current) audio.sfx('goal'); goalsSeen.current = goalCount; }, [goalCount]);
   const goals = result.events.filter((e) => e.type === 'goal');
   const skip = () => { setMinute(90); setPhase('done'); };
   const feed = [...shown].reverse();

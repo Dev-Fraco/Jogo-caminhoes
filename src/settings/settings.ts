@@ -55,5 +55,9 @@ export function loadSettings(): Settings {
 
 /** Retorna false se não conseguiu gravar (armazenamento cheio/bloqueado). */
 export function saveSettings(s: Settings): boolean {
-  try { localStorage.setItem(KEY, JSON.stringify(s)); return true; } catch { return false; }
+  try {
+    localStorage.setItem(KEY, JSON.stringify(s));
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('vr-settings', { detail: s })); // o áudio relê o volume
+    return true;
+  } catch { return false; }
 }

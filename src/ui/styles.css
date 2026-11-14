@@ -307,3 +307,4 @@ select option { background: #15110a; color: var(--ink); }
 .cup-line{display:block;margin-top:.6rem;opacity:.85}
 .cup-view section{margin-top:.8rem}
 .fin-cash h2.neg,.neg{color:#ff6b6b}.pos{color:#5fd38d}
+.skip-ask{margin-top:10px;padding:10px;border:1px solid var(--gold,#f0b92b);border-radius:10px}.skip-ask .primary,.skip-ask .btn{margin:6px 6px 0 0}.over-actions{display:grid;gap:8px;margin:10px 0}.round-nav{display:flex;align-items:center;justify-content:space-between;margin:10px 0}

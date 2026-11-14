@@ -11,7 +11,7 @@ import { EXPECTATION_LABEL } from '../newgame/format';
 
 interface Props {
   game: GameState; last: MatchResult[]; over: boolean;
-  onPlay: () => void; onNextSeason: () => void; onEditLineup: () => void; onFinance: () => void; onSeeOffers: () => void;
+  onPlay: () => void; onSkip: () => void; onSeeTables: () => void; onSeeResults: () => void; onNextSeason: () => void; onEditLineup: () => void; onFinance: () => void; onSeeOffers: () => void;
 }
 
 function Meter({ label, value, note }: { label: string; value: number; note?: string }) {
@@ -28,9 +28,10 @@ function Meter({ label, value, note }: { label: string; value: number; note?: st
 }
 
 /** Início: próxima partida, escalação, humor (equipe, dirigentes e torcida), propostas e resultados da rodada. */
-export function Home({ game, last, over, onPlay, onNextSeason, onEditLineup, onFinance, onSeeOffers }: Props) {
+export function Home({ game, last, over, onPlay, onSkip, onSeeTables, onSeeResults, onNextSeason, onEditLineup, onFinance, onSeeOffers }: Props) {
   const name = (id: string) => clubOf(game, id).name;
   const [open, setOpen] = useState<string | null>(null);
+  const [askSkip, setAskSkip] = useState(false);
   const division = userDivision(game);
 
   if (over) {
@@ -47,8 +48,20 @@ export function Home({ game, last, over, onPlay, onNextSeason, onEditLineup, onF
           <p>Você terminou em <b>{out.userPosition}º</b> lugar na {division.name}.</p>
           <p className={`outcome ${out.movement}`}>{msg}</p>
           {out.movement === 'promoted' && <p className="hint">🎲 Ao virar a temporada, a diretoria sorteia o investimento: {Math.round(PROMOTED_STRONG_CHANCE * 100)}% de chance de investimento forte (boa chance de se manter na divisão) e {100 - Math.round(PROMOTED_STRONG_CHANCE * 100)}% de investimento pequeno (risco de cair de novo).</p>}
+          <div className="over-actions">
+            <button className="btn" onClick={onSeeTables}>📊 Ver tabelas de todas as divisões</button>
+            <button className="btn" onClick={onSeeResults}>📋 Ver todos os resultados</button>
+          </div>
           <button className="primary" onClick={onNextSeason}>Próxima temporada</button>
         </div>
+        {[game.cup, game.lib, game.ucl, game.mundial].some((c) => c?.championId) && (
+          <section>
+            <h3>Campeões das copas</h3>
+            <ul className="list">
+              {[['🏆', game.cup], ['🌎', game.lib], ['⭐', game.ucl], ['🌍', game.mundial]].map(([icon, c]) => { const k = c as { id: string; name: string; championId?: string } | undefined; return k?.championId ? <li key={k.id}><div className="row"><span className="grow">{icon as string} {k.name}</span><b>{name(k.championId)}</b></div></li> : null; })}
+            </ul>
+          </section>
+        )}
         <section>
           <h3>Campeões</h3>
           <ul className="list">
@@ -84,6 +97,14 @@ export function Home({ game, last, over, onPlay, onNextSeason, onEditLineup, onF
         {!ev && game.mundial && <small className="cup-line">{game.mundial.championId ? `🌍 ${game.mundial.name}: campeão ${name(game.mundial.championId)}` : `🌍 ${game.mundial.name}: ${mundialStepName(game.mundial)}`}</small>}
         {game.cup && !ev && <small className="cup-line">{game.cup.championId ? `🏆 ${game.cup.name}: campeão ${name(game.cup.championId)}` : userInCup(game) ? `🏆 ${game.cup.name}: você está na ${game.cup.rounds[game.cup.roundIndex].name}` : `🏆 ${game.cup.name}: seu clube já foi eliminado`}</small>}
         <button className="btn home-lineup" onClick={onEditLineup}>Editar escalação</button>
+        {!askSkip && <button className="btn home-lineup" onClick={() => setAskSkip(true)}>⏭ Pular temporada</button>}
+        {askSkip && (
+          <div className="skip-ask" role="alert">
+            <p>Simular todos os jogos até a rodada {game.totalRounds}, inclusive os do seu clube e as copas? Você verá todos os resultados e tabelas no fim.</p>
+            <button className="primary" onClick={() => { setAskSkip(false); onSkip(); }}>Sim, pular</button>
+            <button className="btn" onClick={() => setAskSkip(false)}>Cancelar</button>
+          </div>
+        )}
         <button className="btn home-lineup" onClick={onFinance}>💰 Finanças e salários</button>
       </div>
 

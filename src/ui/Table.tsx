@@ -11,10 +11,10 @@ function zone(divIndex: number, divCount: number, pos: number, size: number, slo
   return pos < slots ? 'acc' : '';
 }
 
-export function Table({ game }: { game: GameState }) {
+export function Table({ game, initialView = 'div' }: { game: GameState; initialView?: 'div' | 'rounds' }) {
   const mineIndex = userDivisionIndex(game);
   const [idx, setIdx] = useState(mineIndex);
-  const [view, setView] = useState<'div' | 'cup' | Comp | 'mundial'>('div');
+  const [view, setView] = useState<'div' | 'cup' | Comp | 'mundial' | 'rounds'>(initialView);
   const division = game.divisions[idx];
   const rows = divisionTable(game, division.id);
   const n = rows.length;
@@ -30,10 +30,12 @@ export function Table({ game }: { game: GameState }) {
             {d.name}{i === mineIndex ? ' ★' : ''}
           </button>
         ))}
+        <button role="tab" aria-selected={view === 'rounds'} className={view === 'rounds' ? 'on' : ''} onClick={() => setView('rounds')}>📋 Jogos</button>
         {game.cup && <button role="tab" aria-selected={view === 'cup'} className={view === 'cup' ? 'on' : ''} onClick={() => setView('cup')}>🏆 Copa</button>}
         {COMPS.map((k) => game[k] && <button key={k} role="tab" aria-selected={view === k} className={view === k ? 'on' : ''} onClick={() => setView(k)}>{CONTINENTALS[k].icon} {k === 'lib' ? 'Liberta' : 'Champions'}</button>)}
         {game.mundial && <button role="tab" aria-selected={view === 'mundial'} className={view === 'mundial' ? 'on' : ''} onClick={() => setView('mundial')}>🌍 Mundial</button>}
       </div>
+      {view === 'rounds' && <RoundsView game={game} />}
       {view === 'cup' && game.cup && <CupView game={game} />}
       {(view === 'lib' || view === 'ucl') && game[view] && <LibView game={game} comp={view} />}
       {view === 'mundial' && game.mundial && <MundialView game={game} />}
@@ -151,6 +153,36 @@ function MundialView({ game }: { game: GameState }) {
           </ul>
         </section>
       ))}
+    </div>
+  );
+}
+
+/** Todos os resultados da temporada, rodada a rodada, de qualquer divisão. */
+function RoundsView({ game }: { game: GameState }) {
+  const played = Math.max(0, Math.min(game.round - 1, game.totalRounds));
+  const [div, setDiv] = useState(userDivisionIndex(game));
+  const [round, setRound] = useState(Math.max(1, played));
+  const d = game.divisions[div];
+  const list = game.results.filter((r) => r.divisionId === d.id && r.round === round);
+  const name = (id: string) => game.clubs[id].name;
+  return (
+    <div className="rounds-view">
+      <div className="chips" role="tablist" aria-label="Divisão">
+        {game.divisions.map((x, i) => <button key={x.id} role="tab" aria-selected={i === div} className={i === div ? 'on' : ''} onClick={() => setDiv(i)}>{x.name}</button>)}
+      </div>
+      <div className="round-nav">
+        <button className="btn" disabled={round <= 1} onClick={() => setRound(round - 1)} aria-label="Rodada anterior">‹</button>
+        <b>Rodada {round} de {game.totalRounds}</b>
+        <button className="btn" disabled={round >= played} onClick={() => setRound(round + 1)} aria-label="Próxima rodada">›</button>
+      </div>
+      {played === 0 && <p className="hint">Nenhuma rodada jogada ainda.</p>}
+      <ul className="list">
+        {list.map((r) => (
+          <li key={r.homeId} className={r.homeId === game.userClubId || r.awayId === game.userClubId ? 'row mine' : 'row'}>
+            <span className="grow right">{name(r.homeId)}</span><b className="score">{r.homeGoals} - {r.awayGoals}</b><span className="grow">{name(r.awayId)}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

@@ -136,6 +136,13 @@ export function playNext(g: GameState) {
   return playRound(g);
 }
 
+/** Pula a temporada: simula tudo (campeonato, copas e Mundial) até a última rodada, inclusive os jogos do seu clube. */
+export function simulateToEnd(g: GameState): GameState {
+  let s = g;
+  for (let i = 0; i < 400 && !isSeasonOver(s); i++) s = playNext(s).state;
+  return s;
+}
+
 export const resultsOfDivision = (g: GameState, divisionId: string) => g.results.filter((r) => r.divisionId === divisionId);
 
 /** Classificação atual de uma divisão. */
