@@ -517,3 +517,17 @@ h3 { color: #dbe7ff; letter-spacing: .06em; font-size: 13px; }
 .fm-title h2 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fm-title-r { min-width: 0; max-width: 45%; } .fm-chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 @media (max-width: 380px) { .fm-title h2 { font-size: 24px; } .fm-title > span { font-size: 24px; } .fm-chip { padding: 8px 10px; font-size: 13px; } }
+
+/* ===== Celular por dentro: mesmo padrão (cartões escuros, botões azuis grandes, abas que quebram linha) ===== */
+.ph-app-screen { padding-bottom: 54px; background: rgba(8, 14, 28, .95); border-top: 1px solid #25406f; }
+.ph-app-screen h2 { font: italic 800 22px var(--font-head); text-transform: uppercase; }
+.ph-store li { flex-wrap: wrap; }
+.ph-store .ph-btns { flex: 1 0 100%; }
+.ph-store .ph-btns .ph-btn { flex: 1; min-height: 44px; }
+.ph-btn { min-height: 44px; border-radius: 12px; font: 800 13px var(--font-head); text-transform: uppercase; letter-spacing: .04em; }
+.ph-btn.pri { background: linear-gradient(180deg, #2f8bff, #1560d8); box-shadow: 0 4px 14px rgba(21, 96, 216, .35); }
+.ap-chips, .ap-chips.chips { display: flex; flex-wrap: wrap; overflow: visible; }
+.ap-chips button { flex: 1 1 auto; min-width: 0; padding: 0 10px; }
+.ph-app-screen .chips { flex-wrap: wrap; }
+.ph-ico { border-radius: 16px; }
+.ph-app small { font-weight: 600; }
