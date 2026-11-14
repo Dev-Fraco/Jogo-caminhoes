@@ -2,6 +2,7 @@ import { getClubs, sortByName, type ClubData } from '../data/clubs';
 import { getCountry, getDivision, getLeague } from '../data/world';
 import { EXPECTATION_LABEL, formatBudget } from '../newgame/format';
 import type { WorldSelection } from '../newgame/state';
+import { squadOverall } from '../newgame/squadInfo';
 import { ClubBadge } from './ClubBadge';
 import './clubstep.css';
 
@@ -15,10 +16,22 @@ const PinIcon = () => (
   <svg className="cc-ico" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M8 1a5 5 0 0 0-5 5c0 3.6 5 9 5 9s5-5.4 5-9a5 5 0 0 0-5-5Zm0 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z" /></svg>
 );
 
-interface Props { world: WorldSelection; selected: ClubData | null; onSelect: (club: ClubData) => void }
+const Swatch = ({ club }: { club: ClubData }) => (
+  <span className="cc-swatch" role="img" aria-label={`Cores: ${club.primaryColor} e ${club.secondaryColor}`}>
+    <i style={{ background: club.primaryColor }} /><i style={{ background: club.secondaryColor }} />
+  </span>
+);
+
+interface Props {
+  world: WorldSelection;
+  selected: ClubData | null;
+  onSelect: (club: ClubData) => void;
+  /** Abre o elenco do clube. `opener` é o botão clicado, para devolver o foco ao fechar. */
+  onViewSquad: (club: ClubData, opener: HTMLElement) => void;
+}
 
 /** Etapa 3 — Escolha do Clube: grade de cartões com os clubes da divisão escolhida na Etapa 2. */
-export function ClubStep({ world, selected, onSelect }: Props) {
+export function ClubStep({ world, selected, onSelect, onViewSquad }: Props) {
   const clubs = sortByName(getClubs(world.divisionId));
   const country = getCountry(world.countryId);
   const league = getLeague(world.countryId, world.leagueId);
@@ -28,7 +41,7 @@ export function ClubStep({ world, selected, onSelect }: Props) {
     <div>
       <p className="cc-context">
         <span aria-hidden="true">{country?.flag}</span> {country?.name} › {league?.name} › <strong>{division?.name}</strong>
-        {clubs.length > 0 && <em>{clubs.length} clubes</em>}
+        {clubs.length > 0 && <em>{division && clubs.length < division.teams ? `${clubs.length} de ${division.teams} clubes` : `${clubs.length} clubes`}</em>}
       </p>
 
       {clubs.length === 0 ? (
@@ -40,25 +53,29 @@ export function ClubStep({ world, selected, onSelect }: Props) {
       ) : (
         <div className="cc-grid" role="radiogroup" aria-label="Clube">
           {clubs.map((c) => (
-            <label key={c.id} className="cc">
-              <input type="radio" name="nw-club" value={c.id} checked={selected?.id === c.id} onChange={() => onSelect(c)} />
-              <span className="cc-body">
-                <span className="cc-top">
-                  <ClubBadge club={c} size={60} />
-                  <span className="cc-title">
-                    <span className="cc-name">{c.name}</span>
-                    <span className="cc-short">{c.shortName}</span>
+            <div key={c.id} className="cc-item">
+              <label className="cc">
+                <input type="radio" name="nw-club" value={c.id} checked={selected?.id === c.id} onChange={() => onSelect(c)} />
+                <span className="cc-body">
+                  <span className="cc-top">
+                    <ClubBadge club={c} size={60} />
+                    <span className="cc-title">
+                      <span className="cc-name">{c.name}</span>
+                      <span className="cc-short">{c.shortName}<Swatch club={c} /></span>
+                    </span>
                   </span>
+                  <span className="cc-venue"><PinIcon />{c.stadium} · {c.city}</span>
+                  <span className="cc-meta">
+                    <span className="cc-budget"><small>Orçamento</small>{formatBudget(c.budget)}</span>
+                    <span className="cc-budget"><small>Overall</small>{squadOverall(c.squad)}</span>
+                    <span className={`cc-exp ${c.boardExpectation}`} title="Meta da diretoria">{EXPECTATION_LABEL[c.boardExpectation]}</span>
+                    <Stars n={c.reputation} />
+                  </span>
+                  <span className="cc-check" aria-hidden="true">✓</span>
                 </span>
-                <span className="cc-venue"><PinIcon />{c.stadium} · {c.city}</span>
-                <span className="cc-meta">
-                  <span className="cc-budget"><small>Orçamento</small>{formatBudget(c.budget)}</span>
-                  <span className={`cc-exp ${c.boardExpectation}`} title="Meta da diretoria">{EXPECTATION_LABEL[c.boardExpectation]}</span>
-                  <Stars n={c.reputation} />
-                </span>
-                <span className="cc-check" aria-hidden="true">✓</span>
-              </span>
-            </label>
+              </label>
+              <button type="button" className="cc-squad-btn" aria-label={`Ver elenco do ${c.name}`} onClick={(e) => onViewSquad(c, e.currentTarget)}>Ver elenco</button>
+            </div>
           ))}
         </div>
       )}

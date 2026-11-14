@@ -17,26 +17,34 @@ describe('formatBudget', () => {
   });
 });
 
-describe('escudo reserva (cores)', () => {
+describe('escudo reserva (cores do time)', () => {
   it('preto é "muito escuro"; azul do Cruzeiro, não', () => {
     expect(isVeryDark('#000000')).toBe(true);
     expect(isVeryDark('#0033A0')).toBe(false);
   });
-  it('cor visível: usa a primaryColor', () => {
-    expect(badgeColors({ primaryColor: '#C52613' })).toEqual({ bg: '#C52613', fg: '#FFFFFF' });
+  it('primária visível vira o fundo; a outra cor do time vai no texto/borda quando contrasta', () => {
+    expect(badgeColors({ primaryColor: '#006437', secondaryColor: '#FFFFFF' })).toEqual({ bg: '#006437', fg: '#FFFFFF', ring: '#FFFFFF' });
+    // Flamengo: preto sobre vermelho não passa de 4,5 → texto branco, borda padrão
+    expect(badgeColors({ primaryColor: '#C52613', secondaryColor: '#111111' })).toMatchObject({ bg: '#C52613', fg: '#FFFFFF' });
   });
-  it('primária escura: usa a secondaryColor', () => {
-    expect(badgeColors({ primaryColor: '#000000', secondaryColor: '#E8574F' }).bg).toBe('#E8574F');
+  it('primária quase preta: fundo na secundária, texto na primária', () => {
+    expect(badgeColors({ primaryColor: '#000000', secondaryColor: '#FFFFFF' })).toMatchObject({ bg: '#FFFFFF', fg: '#000000' });
   });
-  it('primária escura sem secundária: clareia 30% com branco', () => {
+  it('primária e secundária escuras: clareia a primária com 30% de branco', () => {
     expect(mixWithWhite('#000000', 0.3)).toBe('#4D4D4D');
-    expect(badgeColors({ primaryColor: '#000000' })).toEqual({ bg: '#4D4D4D', fg: '#FFFFFF' });
+    expect(badgeColors({ primaryColor: '#000000', secondaryColor: '#111111' })).toMatchObject({ bg: '#4D4D4D', fg: '#FFFFFF' });
   });
-  it('fundo claro demais para texto branco usa texto escuro (legibilidade)', () => {
-    const c = badgeColors({ primaryColor: '#000000', secondaryColor: '#D9D9D9' });
-    expect(c).toEqual({ bg: '#D9D9D9', fg: '#07140C' });
-    expect(contrastRatio(c.bg, c.fg)).toBeGreaterThan(4.5);
-    expect(badgeColors({ primaryColor: '#F2C200' }).fg).toBe('#07140C');
+  it('fundo claro: texto escuro legível', () => {
+    const c = badgeColors({ primaryColor: '#F2C200', secondaryColor: '#FFFFFF' });
+    expect(contrastRatio(c.bg, c.fg)).toBeGreaterThanOrEqual(4.5);
+    expect(c.fg).toBe('#07140C');
+  });
+  it('todo clube tem sigla legível no escudo reserva (contraste >= 3)', async () => {
+    const { CLUBS_DATA } = await import('../src/data/clubs');
+    for (const c of Object.values(CLUBS_DATA).flat()) {
+      const k = badgeColors(c);
+      expect(contrastRatio(k.bg, k.fg), c.id).toBeGreaterThanOrEqual(3);
+    }
   });
 });
 

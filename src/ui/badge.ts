@@ -21,15 +21,20 @@ export const isVeryDark = (hex: string) => luminance(hex) < 0.02;
 /** Mistura a cor com branco (amount = 0.3 → 30% branco). */
 export const mixWithWhite = (hex: string, amount = 0.3) => toHex(toRgb(hex).map((v) => v + (255 - v) * amount));
 
+const RING_DEFAULT = 'rgba(255, 255, 255, .55)';
+
 /**
- * Fundo e cor do texto do escudo reserva:
- * - primaryColor, se for visível no fundo escuro;
- * - senão secondaryColor (se existir e for visível);
- * - senão a primaryColor clareada com 30% de branco.
- * O texto é branco; só vira escuro quando o fundo é claro demais para o branco ser lido (ex.: amarelo, cinza claro).
+ * Cores do escudo reserva a partir das duas cores do time:
+ * - fundo: primaryColor, se for visível no fundo escuro; senão secondaryColor; senão a primária clareada com 30% de branco;
+ * - texto da sigla: a "outra" cor do time se tiver bom contraste (>= 4,5); senão branco, ou escuro se o fundo for claro demais;
+ * - borda: a "outra" cor do time quando ela aparece (não é quase preta e destaca do fundo); senão um branco translúcido.
  */
-export function badgeColors(club: Pick<ClubData, 'primaryColor' | 'secondaryColor'>): { bg: string; fg: string } {
+export function badgeColors(club: Pick<ClubData, 'primaryColor' | 'secondaryColor'>): { bg: string; fg: string; ring: string } {
   const sec = club.secondaryColor && !isVeryDark(club.secondaryColor) ? club.secondaryColor : undefined;
   const bg = !isVeryDark(club.primaryColor) ? club.primaryColor : sec ?? mixWithWhite(club.primaryColor, 0.3);
-  return { bg, fg: contrastRatio(bg, '#FFFFFF') >= 3.5 ? '#FFFFFF' : '#07140C' };
+  const other = bg === club.primaryColor ? club.secondaryColor : club.primaryColor;
+  const fg = other && contrastRatio(other, bg) >= 4.5 ? other
+    : contrastRatio(bg, '#FFFFFF') >= 3.5 ? '#FFFFFF' : '#07140C';
+  const ring = other && !isVeryDark(other) && contrastRatio(other, bg) >= 1.5 ? other : RING_DEFAULT;
+  return { bg, fg, ring };
 }

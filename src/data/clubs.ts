@@ -1,8 +1,13 @@
 /**
- * Clubes por divisão, para a Etapa 3 do Novo Jogo (Escolha do Clube).
+ * Clubes por divisão (temporada 2026), para a Etapa 3 do Novo Jogo (Escolha do Clube).
  * A chave é o divisionId de data/world.ts (único no mundo todo).
- * Valores aproximados e "plausíveis": ajuste à vontade, a interface só lê estes campos.
+ *
+ * Cada clube traz as cores (primaryColor/secondaryColor, usadas no escudo reserva) e um elenco jogável.
+ * Os elencos são gerados de forma determinística: nomes fictícios, posições, idades e overall coerentes com a
+ * reputação do clube e com o nível da divisão. Estádios, cidades, cores e orçamentos são aproximados (protótipo).
  */
+import { generateSquad } from '../engine/squad';
+import type { Player } from '../engine/types';
 
 /** O que a diretoria espera da temporada. */
 export type BoardExpectation = 'title' | 'top4' | 'mid' | 'survive';
@@ -11,11 +16,11 @@ export interface ClubData {
   id: string;
   name: string;
   shortName: string;
-  /** Caminho do escudo. Os arquivos ainda não existem: a interface precisa de um visual reserva. */
+  /** Caminho do escudo. Os arquivos ainda não existem: a interface usa o escudo reserva (sigla + cores). */
   badge: string;
+  /** Cores principais do time (hex). */
   primaryColor: string;
-  /** Tom de apoio legível em fundo escuro. Obrigatório na prática quando primaryColor é quase preto; usar no escudo reserva e em detalhes. */
-  secondaryColor?: string;
+  secondaryColor: string;
   stadium: string;
   city: string;
   /** Orçamento em reais (R$). */
@@ -23,39 +28,128 @@ export interface ClubData {
   boardExpectation: BoardExpectation;
   /** 1 (pequeno) a 5 (gigante). */
   reputation: 1 | 2 | 3 | 4 | 5;
+  /** Plantel: 24 jogadores (3 goleiros, 8 defensores, 8 meias, 5 atacantes). `strength` é o overall (1–100). */
+  squad: Player[];
 }
 
+type Rep = ClubData['reputation'];
 const MI = 1_000_000;
 
-/** Brasileirão Série A — edição com Criciúma, Cuiabá e Atlético-GO (lista pedida para o protótipo). */
-const SERIE_A: ClubData[] = [
-  { id: 'flamengo', name: 'Flamengo', shortName: 'FLA', badge: 'assets/badges/flamengo.png', primaryColor: '#C52613', stadium: 'Maracanã', city: 'Rio de Janeiro', budget: 150 * MI, boardExpectation: 'title', reputation: 5 },
-  { id: 'palmeiras', name: 'Palmeiras', shortName: 'PAL', badge: 'assets/badges/palmeiras.png', primaryColor: '#006437', stadium: 'Allianz Parque', city: 'São Paulo', budget: 140 * MI, boardExpectation: 'title', reputation: 5 },
-  { id: 'corinthians', name: 'Corinthians', shortName: 'COR', badge: 'assets/badges/corinthians.png', primaryColor: '#000000', secondaryColor: '#D9D9D9', stadium: 'Neo Química Arena', city: 'São Paulo', budget: 100 * MI, boardExpectation: 'top4', reputation: 4 },
-  { id: 'sao-paulo', name: 'São Paulo', shortName: 'SAO', badge: 'assets/badges/sao-paulo.png', primaryColor: '#E30613', stadium: 'Morumbis', city: 'São Paulo', budget: 95 * MI, boardExpectation: 'top4', reputation: 4 },
-  { id: 'fluminense', name: 'Fluminense', shortName: 'FLU', badge: 'assets/badges/fluminense.png', primaryColor: '#8B1E3F', stadium: 'Maracanã', city: 'Rio de Janeiro', budget: 70 * MI, boardExpectation: 'mid', reputation: 4 },
-  { id: 'botafogo', name: 'Botafogo', shortName: 'BOT', badge: 'assets/badges/botafogo.png', primaryColor: '#000000', secondaryColor: '#D9D9D9', stadium: 'Nilton Santos', city: 'Rio de Janeiro', budget: 90 * MI, boardExpectation: 'top4', reputation: 4 },
-  { id: 'vasco', name: 'Vasco da Gama', shortName: 'VAS', badge: 'assets/badges/vasco.png', primaryColor: '#000000', secondaryColor: '#E8574F', stadium: 'São Januário', city: 'Rio de Janeiro', budget: 65 * MI, boardExpectation: 'mid', reputation: 4 },
-  { id: 'gremio', name: 'Grêmio', shortName: 'GRE', badge: 'assets/badges/gremio.png', primaryColor: '#0D80BF', stadium: 'Arena do Grêmio', city: 'Porto Alegre', budget: 70 * MI, boardExpectation: 'top4', reputation: 4 },
-  { id: 'internacional', name: 'Internacional', shortName: 'INT', badge: 'assets/badges/internacional.png', primaryColor: '#E30613', stadium: 'Beira-Rio', city: 'Porto Alegre', budget: 75 * MI, boardExpectation: 'top4', reputation: 4 },
-  { id: 'cruzeiro', name: 'Cruzeiro', shortName: 'CRU', badge: 'assets/badges/cruzeiro.png', primaryColor: '#0033A0', stadium: 'Mineirão', city: 'Belo Horizonte', budget: 80 * MI, boardExpectation: 'top4', reputation: 4 },
-  { id: 'atletico-mg', name: 'Atlético-MG', shortName: 'CAM', badge: 'assets/badges/atletico-mg.png', primaryColor: '#000000', secondaryColor: '#C9C9C9', stadium: 'Arena MRV', city: 'Belo Horizonte', budget: 85 * MI, boardExpectation: 'top4', reputation: 4 },
-  { id: 'athletico-pr', name: 'Athletico-PR', shortName: 'CAP', badge: 'assets/badges/athletico-pr.png', primaryColor: '#C8102E', stadium: 'Ligga Arena', city: 'Curitiba', budget: 60 * MI, boardExpectation: 'mid', reputation: 3 },
-  { id: 'bahia', name: 'Bahia', shortName: 'BAH', badge: 'assets/badges/bahia.png', primaryColor: '#005BAA', stadium: 'Arena Fonte Nova', city: 'Salvador', budget: 70 * MI, boardExpectation: 'mid', reputation: 3 },
-  { id: 'fortaleza', name: 'Fortaleza', shortName: 'FOR', badge: 'assets/badges/fortaleza.png', primaryColor: '#003DA5', stadium: 'Arena Castelão', city: 'Fortaleza', budget: 55 * MI, boardExpectation: 'mid', reputation: 3 },
-  { id: 'vitoria', name: 'Vitória', shortName: 'VIT', badge: 'assets/badges/vitoria.png', primaryColor: '#D50000', stadium: 'Barradão', city: 'Salvador', budget: 35 * MI, boardExpectation: 'survive', reputation: 2 },
-  { id: 'juventude', name: 'Juventude', shortName: 'JUV', badge: 'assets/badges/juventude.png', primaryColor: '#00873E', stadium: 'Alfredo Jaconi', city: 'Caxias do Sul', budget: 25 * MI, boardExpectation: 'survive', reputation: 2 },
-  { id: 'bragantino', name: 'Red Bull Bragantino', shortName: 'BRA', badge: 'assets/badges/bragantino.png', primaryColor: '#D2232A', stadium: 'Nabi Abi Chedid', city: 'Bragança Paulista', budget: 50 * MI, boardExpectation: 'mid', reputation: 3 },
-  { id: 'criciuma', name: 'Criciúma', shortName: 'CRI', badge: 'assets/badges/criciuma.png', primaryColor: '#F2C200', stadium: 'Heriberto Hülse', city: 'Criciúma', budget: 22 * MI, boardExpectation: 'survive', reputation: 2 },
-  { id: 'cuiaba', name: 'Cuiabá', shortName: 'CUI', badge: 'assets/badges/cuiaba.png', primaryColor: '#00874A', stadium: 'Arena Pantanal', city: 'Cuiabá', budget: 22 * MI, boardExpectation: 'survive', reputation: 2 },
-  { id: 'atletico-go', name: 'Atlético-GO', shortName: 'CAG', badge: 'assets/badges/atletico-go.png', primaryColor: '#C8102E', stadium: 'Antônio Accioly', city: 'Goiânia', budget: 20 * MI, boardExpectation: 'survive', reputation: 1 },
+/** Linha da tabela de dados: id, nome, sigla, cor 1, cor 2, estádio, cidade, orçamento (R$ mi), meta, reputação. */
+type Row = [string, string, string, string, string, string, string, number, BoardExpectation, Rep];
+
+/** Força-base do elenco por reputação; cada divisão abaixo da Série A desconta um pouco. */
+const BASE_STRENGTH: Record<Rep, number> = { 5: 82, 4: 75, 3: 69, 2: 64, 1: 59 };
+const SQUAD_SEED = 2026;
+
+function build(rows: Row[], tierOffset: number): ClubData[] {
+  return rows.map(([id, name, shortName, primaryColor, secondaryColor, stadium, city, budgetMi, boardExpectation, reputation]) => ({
+    id, name, shortName, badge: `assets/badges/${id}.png`, primaryColor, secondaryColor, stadium, city,
+    budget: Math.round(budgetMi * MI), boardExpectation, reputation,
+    squad: generateSquad({ id, name, short: shortName, color: primaryColor, strength: BASE_STRENGTH[reputation] + tierOffset }, SQUAD_SEED),
+  }));
+}
+
+/* eslint-disable prettier/prettier */
+const SERIE_A: Row[] = [
+  ['flamengo', 'Flamengo', 'FLA', '#C52613', '#111111', 'Maracanã', 'Rio de Janeiro', 150, 'title', 5],
+  ['palmeiras', 'Palmeiras', 'PAL', '#006437', '#FFFFFF', 'Allianz Parque', 'São Paulo', 140, 'title', 5],
+  ['cruzeiro', 'Cruzeiro', 'CRU', '#0033A0', '#FFFFFF', 'Mineirão', 'Belo Horizonte', 85, 'top4', 4],
+  ['mirassol', 'Mirassol', 'MIR', '#F2C200', '#00873E', 'Maião', 'Mirassol', 30, 'mid', 2],
+  ['fluminense', 'Fluminense', 'FLU', '#8B1E3F', '#00843D', 'Maracanã', 'Rio de Janeiro', 70, 'mid', 4],
+  ['bahia', 'Bahia', 'BAH', '#005BAA', '#D2232A', 'Arena Fonte Nova', 'Salvador', 70, 'mid', 3],
+  ['botafogo', 'Botafogo', 'BOT', '#000000', '#FFFFFF', 'Nilton Santos', 'Rio de Janeiro', 90, 'top4', 4],
+  ['sao-paulo', 'São Paulo', 'SAO', '#E30613', '#FFFFFF', 'Morumbis', 'São Paulo', 95, 'top4', 4],
+  ['bragantino', 'Red Bull Bragantino', 'RBB', '#D2232A', '#FFFFFF', 'Nabi Abi Chedid', 'Bragança Paulista', 50, 'mid', 3],
+  ['corinthians', 'Corinthians', 'COR', '#000000', '#FFFFFF', 'Neo Química Arena', 'São Paulo', 100, 'top4', 4],
+  ['gremio', 'Grêmio', 'GRE', '#0D80BF', '#111111', 'Arena do Grêmio', 'Porto Alegre', 70, 'top4', 4],
+  ['vasco', 'Vasco da Gama', 'VAS', '#000000', '#FFFFFF', 'São Januário', 'Rio de Janeiro', 65, 'mid', 4],
+  ['atletico-mg', 'Atlético-MG', 'CAM', '#000000', '#FFFFFF', 'Arena MRV', 'Belo Horizonte', 85, 'top4', 4],
+  ['santos', 'Santos', 'SAN', '#FFFFFF', '#111111', 'Vila Belmiro', 'Santos', 60, 'mid', 4],
+  ['athletico-pr', 'Athletico-PR', 'CAP', '#C8102E', '#111111', 'Ligga Arena', 'Curitiba', 60, 'mid', 3],
+  ['coritiba', 'Coritiba', 'CFC', '#00553A', '#FFFFFF', 'Couto Pereira', 'Curitiba', 32, 'survive', 3],
+  ['internacional', 'Internacional', 'INT', '#E30613', '#FFFFFF', 'Beira-Rio', 'Porto Alegre', 75, 'top4', 4],
+  ['chapecoense', 'Chapecoense', 'CHA', '#00873E', '#FFFFFF', 'Arena Condá', 'Chapecó', 25, 'survive', 2],
+  ['vitoria', 'Vitória', 'VIT', '#D50000', '#111111', 'Barradão', 'Salvador', 35, 'survive', 2],
+  ['remo', 'Remo', 'REM', '#0A2A66', '#FFFFFF', 'Baenão', 'Belém', 24, 'survive', 2],
 ];
 
+const SERIE_B: Row[] = [
+  ['america-mg', 'América-MG', 'AME', '#1B7F3B', '#FFFFFF', 'Independência', 'Belo Horizonte', 28, 'title', 3],
+  ['athletic', 'Athletic', 'ATH', '#111111', '#FFFFFF', 'Joaquim Portugal', 'São João del-Rei', 8, 'survive', 1],
+  ['atletico-go', 'Atlético-GO', 'CAG', '#C8102E', '#111111', 'Antônio Accioly', 'Goiânia', 20, 'top4', 2],
+  ['avai', 'Avaí', 'AVA', '#0A4FA3', '#FFFFFF', 'Ressacada', 'Florianópolis', 14, 'top4', 2],
+  ['botafogo-sp', 'Botafogo-SP', 'BSP', '#D2232A', '#FFFFFF', 'Santa Cruz', 'Ribeirão Preto', 12, 'mid', 2],
+  ['ceara', 'Ceará', 'CEA', '#111111', '#FFFFFF', 'Arena Castelão', 'Fortaleza', 30, 'title', 3],
+  ['crb', 'CRB', 'CRB', '#D71920', '#FFFFFF', 'Rei Pelé', 'Maceió', 14, 'mid', 2],
+  ['criciuma', 'Criciúma', 'CRI', '#F2C200', '#111111', 'Heriberto Hülse', 'Criciúma', 16, 'mid', 2],
+  ['cuiaba', 'Cuiabá', 'CUI', '#00874A', '#F2C200', 'Arena Pantanal', 'Cuiabá', 18, 'top4', 2],
+  ['fortaleza', 'Fortaleza', 'FOR', '#003DA5', '#D2232A', 'Arena Castelão', 'Fortaleza', 35, 'title', 3],
+  ['goias', 'Goiás', 'GOI', '#00843D', '#FFFFFF', 'Serrinha', 'Goiânia', 20, 'top4', 3],
+  ['juventude', 'Juventude', 'JUV', '#00873E', '#FFFFFF', 'Alfredo Jaconi', 'Caxias do Sul', 14, 'mid', 2],
+  ['londrina', 'Londrina', 'LON', '#1E88E5', '#FFFFFF', 'Estádio do Café', 'Londrina', 8, 'survive', 1],
+  ['nautico', 'Náutico', 'NAU', '#D71920', '#FFFFFF', 'Aflitos', 'Recife', 18, 'top4', 3],
+  ['novorizontino', 'Novorizontino', 'NOV', '#F2C200', '#111111', 'Jorge Ismael de Biasi', 'Novo Horizonte', 12, 'survive', 1],
+  ['operario-pr', 'Operário-PR', 'OPE', '#111111', '#FFFFFF', 'Germano Krüger', 'Ponta Grossa', 9, 'mid', 1],
+  ['ponte-preta', 'Ponte Preta', 'PON', '#111111', '#FFFFFF', 'Moisés Lucarelli', 'Campinas', 14, 'mid', 2],
+  ['sao-bernardo', 'São Bernardo', 'SBE', '#F2C200', '#111111', 'Primeiro de Maio', 'São Bernardo do Campo', 10, 'survive', 1],
+  ['sport', 'Sport', 'SPO', '#D71920', '#111111', 'Ilha do Retiro', 'Recife', 28, 'title', 3],
+  ['vila-nova', 'Vila Nova', 'VNO', '#D71920', '#FFFFFF', 'Onésio Brasileiro Alvarenga', 'Goiânia', 14, 'top4', 2],
+];
+
+const SERIE_C: Row[] = [
+  ['amazonas', 'Amazonas', 'AMA', '#F2C200', '#111111', 'Arena da Amazônia', 'Manaus', 6, 'mid', 2],
+  ['anapolis', 'Anápolis', 'ANA', '#0057B8', '#FFFFFF', 'Jonas Duarte', 'Anápolis', 3, 'survive', 1],
+  ['barra', 'Barra', 'BAR', '#C8102E', '#111111', 'Estádio Municipal de Balneário Camboriú', 'Balneário Camboriú', 3, 'survive', 1],
+  ['botafogo-pb', 'Botafogo-PB', 'BPB', '#111111', '#FFFFFF', 'Almeidão', 'João Pessoa', 6, 'top4', 2],
+  ['brusque', 'Brusque', 'BRU', '#F2C200', '#0A3D91', 'Augusto Bauer', 'Brusque', 5, 'mid', 2],
+  ['caxias', 'Caxias', 'CAX', '#7A1230', '#FFFFFF', 'Centenário', 'Caxias do Sul', 5, 'mid', 1],
+  ['confianca', 'Confiança', 'CON', '#1565C0', '#FFFFFF', 'Batistão', 'Aracaju', 5, 'top4', 1],
+  ['ferroviaria', 'Ferroviária', 'FER', '#7A1230', '#FFFFFF', 'Fonte Luminosa', 'Araraquara', 5, 'top4', 1],
+  ['figueirense', 'Figueirense', 'FIG', '#111111', '#FFFFFF', 'Orlando Scarpelli', 'Florianópolis', 7, 'top4', 2],
+  ['floresta', 'Floresta', 'FLO', '#1B7F3B', '#FFFFFF', 'Alencarzão', 'Fortaleza', 4, 'mid', 1],
+  ['guarani', 'Guarani', 'GUA', '#0A7D37', '#FFFFFF', 'Brinco de Ouro da Princesa', 'Campinas', 9, 'title', 3],
+  ['inter-de-limeira', 'Inter de Limeira', 'INL', '#111111', '#FFFFFF', 'Limeirão', 'Limeira', 5, 'mid', 1],
+  ['itabaiana', 'Itabaiana', 'ITA', '#0057B8', '#FFFFFF', 'Presidente Médici', 'Itabaiana', 3, 'survive', 1],
+  ['ituano', 'Ituano', 'ITU', '#D71920', '#111111', 'Novelli Júnior', 'Itu', 8, 'top4', 2],
+  ['maranhao', 'Maranhão', 'MAR', '#C8102E', '#111111', 'Nhozinho Santos', 'São Luís', 4, 'survive', 1],
+  ['maringa', 'Maringá', 'MGA', '#F2C200', '#111111', 'Willie Davids', 'Maringá', 4, 'mid', 1],
+  ['paysandu', 'Paysandu', 'PAY', '#0057B8', '#FFFFFF', 'Mangueirão', 'Belém', 12, 'title', 3],
+  ['santa-cruz', 'Santa Cruz', 'SCR', '#D71920', '#111111', 'Arruda', 'Recife', 10, 'title', 3],
+  ['volta-redonda', 'Volta Redonda', 'VRE', '#F2C200', '#FFFFFF', 'Raulino de Oliveira', 'Volta Redonda', 5, 'top4', 1],
+  ['ypiranga', 'Ypiranga', 'YPI', '#00874A', '#F2C200', 'Colosso da Lagoa', 'Erechim', 4, 'survive', 1],
+];
+
+// TODO: expandir para os 96 clubes da Série D (por enquanto, seleção representativa de 20; confirmar a lista oficial da CBF).
+const SERIE_D: Row[] = [
+  ['abc', 'ABC', 'ABC', '#111111', '#FFFFFF', 'Frasqueirão', 'Natal', 4, 'title', 1],
+  ['america-rn', 'América-RN', 'ARN', '#D71920', '#FFFFFF', 'Arena das Dunas', 'Natal', 3, 'top4', 1],
+  ['bangu', 'Bangu', 'BAN', '#C8102E', '#FFFFFF', 'Moça Bonita', 'Rio de Janeiro', 2, 'mid', 1],
+  ['campinense', 'Campinense', 'CPN', '#D71920', '#111111', 'Amigão', 'Campina Grande', 3, 'top4', 1],
+  ['central', 'Central', 'CEN', '#0057B8', '#FFFFFF', 'Lacerdão', 'Caruaru', 2, 'mid', 1],
+  ['csa', 'CSA', 'CSA', '#0057B8', '#FFFFFF', 'Rei Pelé', 'Maceió', 4, 'title', 1],
+  ['joinville', 'Joinville', 'JOI', '#C8102E', '#111111', 'Arena Joinville', 'Joinville', 3, 'top4', 1],
+  ['madureira', 'Madureira', 'MAD', '#F2C200', '#0057B8', 'Conselheiro Galvão', 'Rio de Janeiro', 2, 'mid', 1],
+  ['mixto', 'Mixto', 'MIX', '#111111', '#FFFFFF', 'Dutrinha', 'Cuiabá', 2, 'survive', 1],
+  ['moto-club', 'Moto Club', 'MOT', '#C8102E', '#FFFFFF', 'Nhozinho Santos', 'São Luís', 2, 'mid', 1],
+  ['nova-iguacu', 'Nova Iguaçu', 'NIG', '#F28C00', '#111111', 'Laranjão', 'Nova Iguaçu', 2, 'survive', 1],
+  ['sampaio-correa', 'Sampaio Corrêa', 'SAM', '#00874A', '#F2C200', 'Castelão', 'São Luís', 4, 'title', 1],
+  ['tombense', 'Tombense', 'TOM', '#D71920', '#FFFFFF', 'Soares de Azevedo', 'Tombos', 3, 'top4', 1],
+  ['treze', 'Treze', 'TRE', '#111111', '#FFFFFF', 'Amigão', 'Campina Grande', 2, 'survive', 1],
+  ['aguia-de-maraba', 'Águia de Marabá', 'AGM', '#F2C200', '#111111', 'Zinho Oliveira', 'Marabá', 2, 'mid', 1],
+  ['altos', 'Altos', 'ALT', '#F2C200', '#111111', 'Felipão', 'Altos', 2, 'top4', 1],
+  ['aparecidense', 'Aparecidense', 'APA', '#D71920', '#FFFFFF', 'Annibal Batista de Toledo', 'Aparecida de Goiânia', 1, 'survive', 1],
+  ['gama', 'Gama', 'GAM', '#1B7F3B', '#FFFFFF', 'Bezerrão', 'Gama', 2, 'mid', 1],
+  ['portuguesa', 'Portuguesa', 'POR', '#C8102E', '#00874A', 'Canindé', 'São Paulo', 3, 'top4', 1],
+  ['rio-branco-ac', 'Rio Branco-AC', 'RBR', '#111111', '#FFFFFF', 'Arena da Floresta', 'Rio Branco', 1, 'survive', 1],
+];
+/* eslint-enable prettier/prettier */
+
 export const CLUBS_DATA: Record<string, ClubData[]> = {
-  'serie-a': SERIE_A,
-  'serie-b': [], // TODO: popular com clubes reais
-  'serie-c': [], // TODO: popular com clubes reais
-  'serie-d': [], // TODO: popular com clubes reais
+  'serie-a': build(SERIE_A, 0),
+  'serie-b': build(SERIE_B, -5),
+  'serie-c': build(SERIE_C, -10),
+  'serie-d': build(SERIE_D, -15),
 };
 
 /** Clubes de uma divisão (lista vazia se ainda não houver dados). */

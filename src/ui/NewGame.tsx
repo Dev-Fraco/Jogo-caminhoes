@@ -1,7 +1,9 @@
 import { useRef, useState, type CSSProperties } from 'react';
 import { applyWorld, createNewGameState, NAME_MAX, NATIONALITIES, REPUTATIONS, STEPS, validateCoach, type CoachProfile, type NewGameState } from '../newgame/state';
 import { Backdrop } from './Backdrop';
+import type { ClubData } from '../data/clubs';
 import { ClubStep } from './ClubStep';
+import { SquadSheet } from './SquadSheet';
 import { WorldStep } from './WorldStep';
 import { WALLPAPER_URL } from './MainMenu';
 import './newgame.css';
@@ -97,6 +99,8 @@ export function NewGame({ onBack }: { onBack: () => void }) {
   const [touched, setTouched] = useState<Touched>({});
   const [worldAttempted, setWorldAttempted] = useState(false);
   const [worldFocus, setWorldFocus] = useState(0);
+  const [viewing, setViewing] = useState<ClubData | null>(null); // clube com o elenco aberto
+  const opener = useRef<HTMLElement | null>(null);
   const refs = { name: useRef<HTMLInputElement>(null), nat: useRef<HTMLSelectElement>(null), rep: useRef<HTMLDivElement>(null) };
 
   const step = STEPS[index];
@@ -164,7 +168,7 @@ export function NewGame({ onBack }: { onBack: () => void }) {
             ) : step.id === 'world' ? (
               <WorldStep world={state.world} onChange={(world) => setState(applyWorld(state, world))} attempted={worldAttempted} focusTick={worldFocus} />
             ) : step.id === 'club' ? (
-              <ClubStep world={state.world} selected={state.club} onSelect={(club) => setState({ ...state, club })} />
+              <ClubStep world={state.world} selected={state.club} onSelect={(club) => setState({ ...state, club })} onViewSquad={(club, el) => { opener.current = el; setViewing(club); }} />
             ) : (
               <PlaceholderStep title={step.title} subtitle={step.subtitle} />
             )}
@@ -177,6 +181,15 @@ export function NewGame({ onBack }: { onBack: () => void }) {
           <button type="button" className="nw-btn go" onClick={next} disabled={!canAdvance}>Avançar</button>
         </footer>
       </div>
+
+      {viewing && (
+        <SquadSheet
+          club={viewing}
+          chosen={state.club?.id === viewing.id}
+          onChoose={() => { setState({ ...state, club: viewing }); setViewing(null); }}
+          onClose={() => { setViewing(null); opener.current?.focus(); }}
+        />
+      )}
     </div>
   );
 }

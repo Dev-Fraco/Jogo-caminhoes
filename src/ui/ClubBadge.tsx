@@ -19,8 +19,8 @@ export function ClubBadge({ club, size = 60 }: { club: Pick<ClubData, 'badge' | 
     if (el?.complete && el.naturalWidth > 0) setStatus('ok');
   }, [club.badge]);
 
-  const { bg, fg } = badgeColors(club);
-  const style = { '--cb-bg': bg, '--cb-fg': fg, '--cb-shadow': fg === '#FFFFFF' ? '0 1px 2px rgba(0, 0, 0, .35)' : 'none', '--cb-size': `${size}px` } as CSSProperties;
+  const { bg, fg, ring } = badgeColors(club);
+  const style = { '--cb-bg': bg, '--cb-fg': fg, '--cb-ring': ring, '--cb-shadow': fg.toUpperCase() === '#FFFFFF' ? '0 1px 2px rgba(0, 0, 0, .35)' : 'none', '--cb-size': `${size}px` } as CSSProperties;
 
   return (
     <span className="cb" style={style} aria-hidden="true">
