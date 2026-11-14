@@ -1,0 +1,76 @@
+.ph-overlay { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; background: rgba(0, 0, 0, .72); animation: ph-fade .3s ease both; }
+.ph-overlay.out { animation: ph-fade-out .38s ease both; }
+.ph-overlay.out .ph-device { animation: ph-close .38s ease both; }
+.ph-device { position: relative; width: min(94vw, 380px); height: min(92dvh, 760px); border-radius: 42px; padding: 11px; background: #0b0b0d; border: 2px solid #3a3a40; box-shadow: 0 0 0 3px #17171a, 0 30px 80px rgba(0, 0, 0, .7); transform-origin: 50% 100%; animation: ph-open .7s cubic-bezier(.2, .9, .25, 1.05) both; }
+.ph-notch { position: absolute; top: 18px; left: 50%; width: 92px; height: 22px; margin-left: -46px; border-radius: 14px; background: #000; z-index: 6; }
+.ph-power { position: absolute; right: -7px; top: 120px; width: 6px; height: 56px; border: 0; border-radius: 0 4px 4px 0; background: #3a3a40; color: transparent; font-size: 0; cursor: pointer; }
+.ph-power:focus-visible { outline: 3px solid var(--gold-hi, #ffe38a); }
+.ph-screen { position: relative; height: 100%; border-radius: 32px; overflow: hidden; color: #fff; display: flex; flex-direction: column; }
+.ph-wall { position: absolute; inset: 0; z-index: 0; }
+.ph-device.light .ph-screen { color: #101015; }
+.ph-device.big .ph-app-screen, .ph-device.big .ph-home { font-size: 1.15em; }
+.ph-status { position: relative; z-index: 3; display: flex; justify-content: space-between; padding: 14px 22px 0; font: 600 13px/1 system-ui, sans-serif; text-shadow: 0 1px 3px rgba(0, 0, 0, .5); }
+.ph-lock { position: relative; z-index: 2; flex: 1; display: flex; flex-direction: column; align-items: center; padding: 26px 18px 18px; overflow-y: auto; }
+.ph-time { font: 300 64px/1 system-ui, sans-serif; margin-top: 18px; text-shadow: 0 2px 10px rgba(0, 0, 0, .4); }
+.ph-date { margin: 6px 0 14px; opacity: .9; font-size: 14px; }
+.ph-notif { width: 100%; background: rgba(20, 20, 24, .55); backdrop-filter: blur(8px); border-radius: 14px; padding: 9px 12px; margin-bottom: 8px; font-size: 13px; color: #fff; display: grid; gap: 2px; }
+.ph-unlock { margin-top: auto; background: rgba(255, 255, 255, .18); border: 1px solid rgba(255, 255, 255, .35); color: inherit; padding: 14px 22px; border-radius: 28px; font: 600 15px system-ui; cursor: pointer; backdrop-filter: blur(6px); }
+.ph-pad { margin-top: auto; width: 100%; display: grid; justify-items: center; }
+.ph-pad-title { font-weight: 700; margin: 0 0 8px; }
+.ph-dots { display: flex; gap: 14px; margin: 6px 0; }
+.ph-dots i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid currentColor; }
+.ph-dots i.on { background: currentColor; }
+.ph-dots.shake { animation: ph-shake .4s; }
+.ph-pad-msg { min-height: 34px; margin: 6px 0; font-size: 12.5px; text-align: center; opacity: .9; }
+.ph-pad-msg.err { color: #ff8a8a; opacity: 1; font-weight: 700; }
+.ph-keys { display: grid; grid-template-columns: repeat(3, 62px); gap: 12px; }
+.ph-keys button { height: 62px; border-radius: 50%; border: 0; background: rgba(255, 255, 255, .2); color: inherit; font: 500 24px system-ui; cursor: pointer; backdrop-filter: blur(6px); }
+.ph-keys button:active { background: rgba(255, 255, 255, .4); }
+.ph-link { background: none; border: 0; color: inherit; text-decoration: underline; margin-top: 6px; cursor: pointer; }
+.ph-home { position: relative; z-index: 2; flex: 1; padding: 28px 16px 16px; overflow-y: auto; }
+.ph-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px 6px; }
+.ph-app { background: none; border: 0; color: inherit; display: grid; justify-items: center; gap: 5px; cursor: pointer; font: 12px system-ui; }
+.ph-app small { text-align: center; line-height: 1.1; text-shadow: 0 1px 3px rgba(0, 0, 0, .6); }
+.ph-ico { position: relative; width: 54px; height: 54px; border-radius: 14px; display: grid; place-items: center; font-size: 28px; background: rgba(255, 255, 255, .92); box-shadow: 0 2px 8px rgba(0, 0, 0, .35); }
+.ph-ico.big { width: 56px; height: 56px; flex: none; }
+.ph-ico em { position: absolute; top: -5px; right: -5px; background: #e53935; color: #fff; font: 700 11px system-ui; padding: 2px 6px; border-radius: 10px; }
+.ph-tip { margin-top: 26px; text-align: center; font-size: 13px; opacity: .85; }
+.ph-homebar { position: absolute; z-index: 5; bottom: 7px; left: 50%; width: 120px; height: 6px; margin-left: -60px; border: 0; border-radius: 4px; background: rgba(255, 255, 255, .85); cursor: pointer; padding: 0; }
+.ph-app-screen { position: relative; z-index: 2; flex: 1; overflow-y: auto; padding: 14px 16px 30px; background: rgba(12, 12, 16, .92); margin-top: 6px; border-radius: 22px 22px 0 0; }
+.ph-device.light .ph-app-screen { background: rgba(250, 250, 253, .96); }
+.ph-app-screen.center { display: grid; place-content: center; justify-items: center; text-align: center; gap: 8px; }
+.ph-app-screen h2 { margin: 6px 0 12px; font: 700 20px system-ui; }
+.ph-app-screen h3 { margin: 16px 0 6px; font: 700 12px system-ui; text-transform: uppercase; letter-spacing: .06em; opacity: .7; }
+.ph-card { background: rgba(255, 255, 255, .08); border-radius: 14px; padding: 8px 12px; display: grid; gap: 4px; }
+.ph-device.light .ph-card { background: rgba(0, 0, 0, .06); }
+.ph-label { margin: 8px 0 4px; font-size: 13px; opacity: .8; }
+.ph-walls { display: flex; gap: 10px; }
+.ph-walls button { width: 48px; height: 66px; border-radius: 10px; border: 2px solid transparent; cursor: pointer; }
+.ph-walls button.on { border-color: #fff; box-shadow: 0 0 0 2px var(--gold, #f0b92b); }
+.ph-row { display: flex; align-items: center; gap: 10px; width: 100%; background: none; border: 0; color: inherit; padding: 9px 0; text-align: left; cursor: pointer; font: 14px system-ui; }
+.ph-row.static { cursor: default; }
+.ph-row small { display: block; opacity: .7; font-size: 12px; }
+.ph-sw { width: 44px; height: 26px; border-radius: 14px; background: #666; position: relative; flex: none; transition: background .2s; }
+.ph-sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform .2s; }
+.ph-sw.on { background: #2fbf6b; }
+.ph-sw.on::after { transform: translateX(18px); }
+.ph-btn { border: 0; border-radius: 10px; padding: 9px 14px; background: rgba(255, 255, 255, .16); color: inherit; font: 600 13px system-ui; cursor: pointer; }
+.ph-device.light .ph-btn { background: rgba(0, 0, 0, .1); }
+.ph-btn.pri { background: var(--gold, #f0b92b); color: #1a1204; }
+.ph-btn.ghost { background: transparent; border: 1px solid currentColor; opacity: .75; }
+.ph-btn:disabled { opacity: .4; }
+.ph-btns { display: flex; gap: 6px; }
+.ph-form { display: grid; gap: 8px; }
+.ph-form input, .ph-search { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, .25); background: rgba(0, 0, 0, .25); color: inherit; font: 15px system-ui; letter-spacing: .1em; }
+.ph-search { letter-spacing: 0; margin-bottom: 8px; }
+.ph-store { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.ph-store li { display: flex; gap: 10px; align-items: center; }
+.ph-store small { display: block; opacity: .7; font-size: 12px; }
+.ph-store .grow { flex: 1; min-width: 0; }
+.ph-empty { opacity: .7; }
+@keyframes ph-open { from { transform: translateY(70%) scale(.6) rotate(-4deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes ph-close { to { transform: translateY(70%) scale(.6) rotate(4deg); opacity: 0; } }
+@keyframes ph-fade { from { background: rgba(0, 0, 0, 0); } }
+@keyframes ph-fade-out { to { background: rgba(0, 0, 0, 0); } }
+@keyframes ph-shake { 20%, 60% { transform: translateX(-9px); } 40%, 80% { transform: translateX(9px); } }
+@media (prefers-reduced-motion: reduce) { .ph-device, .ph-overlay, .ph-dots.shake { animation: none !important; } }

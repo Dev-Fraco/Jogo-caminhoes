@@ -18,6 +18,8 @@ import { Options } from './Options';
 import { Placeholder } from './Placeholder';
 import { Home } from './Home';
 import { Finance } from './Finance';
+import { Phone } from './Phone';
+import { unreadCount } from '../engine/phone';
 import { Lineup } from './Lineup';
 import { LiveMatch } from './LiveMatch';
 import { Squad } from './Squad';
@@ -32,6 +34,7 @@ export function App() {
   const [game, setGame] = useState<GameState | null>(() => loadGame());
   const [screen, setScreen] = useState<Screen>('menu');
   const [tab, setTab] = useState<Tab>('home');
+  const [phoneOpen, setPhoneOpen] = useState(false);
   const [tableView, setTableView] = useState<'div' | 'rounds'>('div');
   const [tfView, setTfView] = useState<'buy' | 'offers' | 'news'>('buy');
   // partida em andamento: o resultado já foi calculado, mas só entra no jogo quando a partida termina
@@ -126,16 +129,18 @@ export function App() {
           {!live && tab === 'transfers' && <Transfers game={game} onChange={setGame} view={tfView} onView={setTfView} />}
         </main>
         <nav>
-          {([['home', '🏠', 'Início'], ['squad', '👕', 'Elenco'], ['table', '📊', 'Tabela'], ['transfers', '🔁', 'Transf.']] as const).map(([id, icon, label]) => {
+          {([['home', '🏠', 'Início'], ['squad', '👕', 'Elenco'], ['table', '📊', 'Tabela'], ['transfers', '🔁', 'Transf.'], ['phone', '📱', 'Celular']] as const).map(([id, icon, label]) => {
             const on = tab === id || (id === 'home' && (tab === 'lineup' || tab === 'finance'));
             return (
-              <button key={id} className={on ? 'on' : ''} disabled={!!live} onClick={() => setTab(id)} aria-label={id === 'transfers' ? 'Transferências' : label} aria-current={on ? 'page' : undefined}>
+              <button key={id} className={on ? 'on' : ''} disabled={!!live} onClick={() => (id === 'phone' ? setPhoneOpen(true) : setTab(id))} aria-label={id === 'transfers' ? 'Transferências' : label} aria-current={on ? 'page' : undefined}>
                 <span aria-hidden="true">{icon}</span>{label}
+                {id === 'phone' && unreadCount(game) > 0 && <i className="nav-badge" aria-label={`${unreadCount(game)} notificações`}>{unreadCount(game)}</i>}
                 {id === 'transfers' && game.offers.length > 0 && <i className="nav-badge" aria-label={`${game.offers.length} propostas`}>{game.offers.length}</i>}
               </button>
             );
           })}
         </nav>
+        {phoneOpen && <Phone game={game} onChange={setGame} onClose={() => setPhoneOpen(false)} />}
       </div>
     </>
   );

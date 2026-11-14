@@ -145,6 +145,11 @@ export interface LibState {
   championId?: string;
 }
 
+export interface PhoneSettings { wallpaper: 'ouro' | 'noite' | 'campo' | 'aurora'; dark: boolean; brightness: number; bigText: boolean; dnd: boolean; sounds: boolean; vibration: boolean }
+export interface PhoneNotification { id: string; app: string; text: string; season: number; round: number; read: boolean }
+/** Celular do treinador: PIN, apps instalados, configurações e notificações. */
+export interface PhoneState { pinHash?: string; installed: string[]; settings: PhoneSettings; notifications: PhoneNotification[] }
+
 /** Mundial de Clubes: semifinais cruzadas entre os dois finalistas da Libertadores e da Champions, e final. */
 export interface MundialState {
   id: string;
@@ -232,6 +237,7 @@ export interface GameState {
   cup?: CupState;
   lib?: LibState;
   ucl?: LibState;
+  phone?: PhoneState;
   mundial?: MundialState;
   /** Dinheiro pessoal do treinador (R$) e quanto da folha ele paga (0/25/50/100). */
   coachMoney?: number;
