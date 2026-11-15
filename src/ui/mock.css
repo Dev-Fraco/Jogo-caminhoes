@@ -29,3 +29,41 @@
 .sq-card .sq-bar { margin: 2px 0 0 !important; height: 5px !important; background: rgba(255, 255, 255, .08) !important; }
 .sq-card .sq-bar i { background: linear-gradient(90deg, #2ee27a, #8dff7a) !important; }
 .sq-card .pill { font-size: 8px; padding: 1px 4px; margin-left: 3px; }
+
+/* Peças comuns das telas no padrão mockup */
+.mk-card { border: 1px solid var(--mk-line) !important; border-radius: 14px !important; background: linear-gradient(180deg, rgba(14, 30, 66, .94), rgba(8, 17, 38, .95)) !important; box-shadow: var(--mk-glow); }
+.mk-sec > h3 { display: flex; align-items: center; gap: 8px; font: italic 800 16px var(--font-head); text-transform: uppercase; color: #fff; margin: 14px 2px 8px; }
+.mk-rows { display: grid; gap: 0; }
+.mk-rows > div { display: flex; justify-content: space-between; gap: 10px; padding: 9px 2px; border-top: 1px solid rgba(80, 130, 220, .2); font-size: 13.5px; }
+.mk-rows > div:first-child { border-top: 0; }
+.mk-rows span { color: #d5e4ff; } .mk-rows b { color: #fff; white-space: nowrap; } .mk-rows b.pos { color: #5ee08a; }
+.mk-info { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0 0; padding: 9px 11px; font-size: 12.5px; line-height: 1.35; color: #cfe0ff; background: rgba(14, 34, 76, .7); border: 1px solid var(--mk-line); border-radius: 10px; }
+.mk-presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+.mk-presets button { padding: 8px 4px; border-radius: 10px; border: 1px solid var(--mk-line); background: rgba(10, 24, 56, .9); color: #fff; font: 800 13px var(--font-head); display: grid; gap: 2px; text-transform: uppercase; }
+.mk-presets button small { font: 600 11px var(--font-head); color: #9fb4d8; text-transform: none; }
+.mk-presets button.on { background: linear-gradient(180deg, #2f8bff, #1b62d6); border-color: #6db0ff; box-shadow: 0 0 12px rgba(47, 139, 255, .5); }
+.mk-presets button.on small { color: #e6f0ff; }
+.mk-big { width: 100%; margin-top: 10px; border-radius: 12px; }
+
+/* Estádio */
+.st-hero2 { display: flex; gap: 12px; align-items: center; padding: 10px !important; }
+.st-art { width: 46%; max-width: 180px; border-radius: 10px; flex: none; }
+.st-hero2-r { display: grid; gap: 5px; min-width: 0; }
+.st-name { font: 800 16px var(--font-head); color: #fff; }
+.st-cap { font-size: 13px; color: #d5e4ff; } .st-cap b { color: #fff; }
+.st-hero2-r small { font-size: 11.5px; color: #aac0e6; line-height: 1.3; }
+.st-ticket { display: flex; gap: 10px; align-items: center; }
+.st-ticket-art { width: 38%; max-width: 150px; border-radius: 10px; flex: none; }
+.st-ticket-r { flex: 1; min-width: 0; text-align: center; }
+.st-ticket-r small { font-size: 12px; color: #d5e4ff; }
+.st-ticket-r .st-price { gap: 6px; margin: 4px 0; }
+.st-ticket-r .st-price .btn { width: 36px; height: 36px; border-radius: 10px; font-size: 20px; }
+.st-ticket-r .st-price input { flex: 1; width: auto; min-width: 0; text-align: center; font: 800 20px var(--font-head); color: #fff; background: rgba(8, 18, 40, .9); border: 1px solid var(--mk-line); border-radius: 10px; padding: 6px 2px; }
+.st-pred { margin: 2px 0 0; font: 700 12.5px var(--font-head); color: #5ee08a; } .st-pred.neg { color: #ff8a8a; }
+.st-income { display: flex; gap: 8px; align-items: center; } .st-income .mk-rows { flex: 1; }
+.st-bars { font-size: 34px; }
+.st-up { display: grid; grid-template-columns: 38% 1fr; gap: 6px 10px; align-items: center; }
+.st-up-art { width: 100%; border-radius: 10px; }
+.st-up-r { display: grid; gap: 4px; font-size: 13px; color: #d5e4ff; } .st-up-r b { color: #fff; font-size: 13.5px; }
+.st-cost { justify-self: start; padding: 4px 10px; border-radius: 9px; background: rgba(8, 18, 40, .9); border: 1px solid var(--mk-line); color: #fff; font: 800 13px var(--font-head); }
+.st-up .mk-big, .st-up .hint, .st-up .mk-info { grid-column: 1 / -1; }
