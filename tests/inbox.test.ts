@@ -4,7 +4,6 @@ import { newCareer, playNext } from '../src/engine/game';
 import { absRound, answerMessage, claimGoal, claimable, goalDone, inboxOf, inboxTick, openMessages, pendingCount, urgentMessages } from '../src/engine/inbox';
 import { registerBank } from '../src/engine/bank';
 import { makeRng } from '../src/engine/rng';
-import { stadiumOf } from '../src/engine/stadium';
 import type { GameState } from '../src/engine/types';
 
 const mk = (seed = 3): GameState => newCareer({ saveName: 't', coach: { name: 'A B', nationality: 'BR', reputation: 'pro' }, difficulty: 'normal', mode: 'career', season: 2026, userClubId: 'palmeiras', divisions: brazilPyramid(), cup: true }, seed);
@@ -63,13 +62,11 @@ describe('mensagens e metas do celular', () => {
     expect(n.coachMoney).toBe(cash + goal.reward);
     expect(claimGoal(n, goal.id)).toBe(n);
   });
-  it('meta de lotar o estádio conta jogos em casa lotados', () => {
-    let g = play(league(mk(11)), 2);
-    const goal = inboxOf(g).goals.find((x) => x.kind === 'sellout');
-    if (!goal) return;
-    const st = stadiumOf(g);
-    g = { ...g, stadium: { ...st, log: [{ season: g.season, round: g.round, opponentId: 'x', attendance: st.capacity, capacity: st.capacity, price: 10, revenue: 1 }, ...st.log] } };
-    expect(goalDone(g, goal)).toBe(true);
+  it('não existe mais meta de lotar o estádio (nem em saves antigos)', () => {
+    let g = play(league(mk(11)), 14);
+    expect(inboxOf(g).goals.some((x) => (x.kind as string) === 'sellout')).toBe(false);
+    g = { ...g, inbox: { ...inboxOf(g), goals: [{ id: 'old', kind: 'sellout' as never, text: 'x', target: 1, base: 0, startAbs: 0, expires: 9e9, reward: 1, claimed: false, expired: false }, ...inboxOf(g).goals] } };
+    expect(inboxOf(g).goals.some((x) => (x.kind as string) === 'sellout')).toBe(false);
   });
   it('quem tem conta no banco recebe a fatura do cartão como boleto', () => {
     let g = league(mk(13));

@@ -2,7 +2,6 @@ import { creditAccount, openBoletos, createBoleto, hasBank } from './bank';
 import { inflate } from './economy';
 import { notifyPhone } from './phone';
 import { makeRng, type Rng } from './rng';
-import { stadiumOf } from './stadium';
 import { socialOf, totalFollowers } from './social';
 import type { GameState } from './types';
 
@@ -25,7 +24,7 @@ export interface InboxMsg {
   /** O que aconteceu quando foi respondida/expirou. */
   result?: string;
 }
-export type GoalKind = 'post' | 'win' | 'followers' | 'sellout' | 'reply';
+export type GoalKind = 'post' | 'win' | 'followers' | 'reply';
 export interface Goal {
   id: string; kind: GoalKind; text: string; target: number;
   /** Valores de partida (para contar só o que acontece depois da meta criada). */
@@ -39,7 +38,11 @@ export const absRound = (g: Pick<GameState, 'season' | 'round'>) => g.season * A
 const MAX_OPEN = 4;
 const MAX_KEEP = 30;
 
-export const inboxOf = (g: GameState): InboxState => g.inbox ?? { msgs: [], goals: [], seq: 1, answered: 0, lastBill: 0 };
+/** Metas de lotar o estádio (de versões antigas) foram removidas: somem de saves antigos. */
+export const inboxOf = (g: GameState): InboxState => {
+  const i = g.inbox ?? { msgs: [], goals: [], seq: 1, answered: 0, lastBill: 0 };
+  return i.goals.some((x) => (x.kind as string) === 'sellout') ? { ...i, goals: i.goals.filter((x) => (x.kind as string) !== 'sellout') } : i;
+};
 export const openMessages = (g: GameState) => inboxOf(g).msgs.filter((m) => m.status === 'open');
 /** Mensagens que vencem logo (no próximo jogo). */
 export const urgentMessages = (g: GameState) => openMessages(g).filter((m) => m.expires - absRound(g) <= 1);
@@ -50,7 +53,6 @@ export const goalProgress = (g: GameState, goal: Goal): number => {
     case 'followers': return totalFollowers(g);
     case 'reply': return Math.max(0, inbox.answered - goal.base);
     case 'win': return g.results.filter((r) => g.season * ABS + r.round >= goal.startAbs && winnerIs(g, r)).length;
-    case 'sellout': return stadiumOf(g).log.filter((r) => r.season * ABS + r.round >= goal.startAbs && r.attendance >= r.capacity * 0.95).length;
   }
 };
 const totalPosts = (g: GameState) => { const s = socialOf(g); return s.linstagra.posts.length + s.tikiteko.posts.length; };
@@ -182,7 +184,7 @@ function expire(g: GameState): GameState {
 // ---- metas ----
 function newGoal(g: GameState, inbox: InboxState, rng: Rng): Goal | null {
   const used = new Set(inbox.goals.filter((x) => !x.claimed && !x.expired).map((x) => x.kind));
-  const pool: GoalKind[] = (['post', 'win', 'followers', 'sellout', 'reply'] as GoalKind[]).filter((k) => !used.has(k));
+  const pool: GoalKind[] = (['post', 'win', 'followers', 'reply'] as GoalKind[]).filter((k) => !used.has(k));
   if (pool.length === 0) return null;
   const kind = pool[Math.floor(rng() * pool.length)];
   const startAbs = absRound(g);
@@ -192,7 +194,6 @@ function newGoal(g: GameState, inbox: InboxState, rng: Rng): Goal | null {
     post: { text: 'Publicar 2 posts nas redes sociais', target: 2, reward: 70_000 },
     win: { text: 'Vencer 2 jogos', target: 2, reward: 120_000 },
     followers: { text: `Chegar a ${Math.round((f * 1.03 + 60) / 10) * 10} seguidores`, target: Math.round((f * 1.03 + 60) / 10) * 10, reward: 90_000 },
-    sellout: { text: 'Lotar o estádio (95%) em um jogo em casa', target: 1, reward: 100_000 },
     reply: { text: 'Responder 2 mensagens', target: 2, reward: 50_000 },
   };
   const sp = spec[kind];

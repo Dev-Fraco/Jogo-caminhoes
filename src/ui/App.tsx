@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { pyramidOf, slotsOfLeague } from '../data/pyramid';
 import { getLeague } from '../data/world';
 import { audio } from '../audio/audio';
@@ -41,6 +41,10 @@ export function App() {
   const [screen, setScreen] = useState<Screen>('menu');
   const [tab, setTab] = useState<Tab>('home');
   const [phoneOpen, setPhoneOpen] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
+  const [navMore, setNavMore] = useState(true);
+  const onNavScroll = () => { const n = navRef.current; if (n) setNavMore(n.scrollLeft + n.clientWidth < n.scrollWidth - 4); };
+  useEffect(() => { navRef.current?.querySelector<HTMLElement>('button.on')?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' }); }, [tab]);
   const [gateAt, setGateAt] = useState(0);
   const [phoneGate, setPhoneGate] = useState(false);
   const [tableView, setTableView] = useState<'div' | 'rounds' | 'hist'>('div');
@@ -153,7 +157,8 @@ export function App() {
           {!live && tab === 'table' && <Table game={game} initialView={tableView} />}
           {!live && !game.unemployed && tab === 'transfers' && <Transfers game={game} onChange={setGame} view={tfView} onView={setTfView} />}
         </main>
-        <nav>
+        <div className="nav-wrap">
+        <nav ref={navRef} onScroll={onNavScroll} aria-label="Menu principal (arraste para o lado para ver mais)">
           {([['home', '🏠', 'Início'], ['squad', '👕', 'Elenco'], ['table', '📊', 'Tabela'], ['transfers', '🔁', 'Transf.'], ['stadium', '🏟️', 'Estádio'], ['finance', '💰', 'Finanças'], ['phone', '📱', 'Celular']] as const).map(([id, icon, label]) => {
             const on = tab === id || (id === 'home' && tab === 'lineup');
             return (
@@ -165,6 +170,8 @@ export function App() {
             );
           })}
         </nav>
+        {navMore && <span className="nav-more" aria-hidden="true">›</span>}
+        </div>
         {phoneGate && (
           <div className="phone-gate" role="dialog" aria-modal="true" aria-label="Pendências no celular">
             <div>
