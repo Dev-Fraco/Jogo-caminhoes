@@ -18,6 +18,7 @@ export const STORE_APPS: PhoneApp[] = [
   { id: 'concessionaria', name: 'Concessionária', icon: '🚗', blurb: 'Compre carros e motos.', category: 'Compras', size: '45 MB', rating: 4.4 },
   { id: 'corretor', name: 'Corretor de Imóveis', icon: '🏠', blurb: 'Casas para comprar e alugar.', category: 'Compras', size: '36 MB', rating: 4.2 },
   { id: 'internetchip', name: 'Internet de Chip', icon: '📲', blurb: 'Plano mensal de internet ilimitada.', category: 'Telefonia', size: '12 MB', rating: 4.1 },
+  { id: 'netfibra', name: 'NetFibra', icon: '🛜', blurb: 'Internet Wi-Fi de 1 GB para a sua casa.', category: 'Telefonia', size: '15 MB', rating: 4.3 },
   { id: 'cassino', name: 'Cassino', icon: '🎰', blurb: 'Aposte no vermelho, preto ou azul.', category: 'Jogos', size: '60 MB', rating: 3.9 },
 ];
 export const APPS: PhoneApp[] = [...SYSTEM_APPS, ...STORE_APPS];
@@ -138,14 +139,16 @@ export function connectWifi(g: GameState, name: string): GameState {
 export const disconnectWifi = (g: GameState): GameState => updatePhoneSettings(g, { wifiNet: undefined });
 
 export type NetSpeed = 'none' | 'slow' | 'fast';
-export interface NetState { kind: 'none' | 'wifi' | '5g'; speed: NetSpeed; label: string; note: string }
+export interface NetState { kind: 'none' | 'wifi' | '5g' | 'fibra'; speed: NetSpeed; label: string; note: string }
 /** Qual internet o celular tem agora: dados móveis (5G, rápido) ou Wi-Fi grátis (ruim). Sem nada ligado ou conectado, não há internet. */
 export function netState(g: Pick<GameState, 'phone' | 'season' | 'round'>): NetState {
   const s = phoneOf(g).settings;
   if (s.airplane) return { kind: 'none', speed: 'none', label: 'Modo avião', note: 'Desligue o modo avião e conecte-se a uma rede.' };
+  if (s.wifi && s.wifiNet && fibraReady(g) && phoneOf(g).fibra!.ssid === s.wifiNet) return { kind: 'fibra', speed: 'fast', label: `NetFibra · ${s.wifiNet}`, note: '1 GB de download e 1 GB de upload: o dobro da velocidade do 5G.' };
   if (s.mobileData && !chipOf(g) && !s.wifiNet) return chipBlocked(g) ? { kind: 'none', speed: 'none', label: 'Chip bloqueado', note: 'O chip venceu (1 ano). Compre um novo na Mega-zona Luiz.' } : { kind: 'none', speed: 'none', label: 'Dados móveis sem chip', note: 'Compre um chip na Mega-zona Luiz.' };
   if (s.mobileData && chipOf(g) && planActive(g)) return { kind: '5g', speed: 'fast', label: '5G', note: 'Conexão rápida.' };
   if (s.mobileData && chipOf(g) && !s.wifiNet) return { kind: 'none', speed: 'none', label: 'Dados móveis sem plano', note: 'Assine o plano no app Internet de Chip (use um Wi-Fi grátis para isso).' };
+  if (s.wifi && s.wifiNet && phoneOf(g).fibra?.ssid === s.wifiNet) return { kind: 'none', speed: 'none', label: 'Wi-Fi sem internet', note: fibraDown(g) ? 'A NetFibra caiu. Use os dados móveis (5G) até ela voltar.' : 'O plano da NetFibra venceu. Renove no app NetFibra.' };
   if (s.wifi && s.wifiNet) return { kind: 'wifi', speed: 'slow', label: `Wi-Fi · ${s.wifiNet}`, note: 'A conexão é ruim: apps e downloads vão demorar.' };
   if (s.wifi) return { kind: 'none', speed: 'none', label: 'Wi-Fi sem rede', note: 'Escolha uma rede Wi-Fi ou ligue os dados móveis.' };
   return { kind: 'none', speed: 'none', label: 'Sem conexão', note: 'Ligue o Wi-Fi ou os dados móveis no painel rápido.' };
@@ -154,8 +157,8 @@ export function netState(g: Pick<GameState, 'phone' | 'season' | 'round'>): NetS
 export const OFFLINE_SCREENS = ['home', 'config', 'calc', 'nonet', 'boot'];
 export const needsInternet = (screen: string) => !OFFLINE_SCREENS.includes(screen);
 /** Tempo (ms) para abrir um app e para baixar um app, conforme a conexão. */
-export const openDelayMs = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => Math.round((netState(g).speed === 'slow' ? 3600 : 450) * modelOf(g).speed);
-export const downloadMs = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => Math.round((netState(g).speed === 'slow' ? 9000 : 1600) * modelOf(g).speed);
+export const openDelayMs = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => Math.round((netState(g).speed === 'slow' ? 3600 : 450) * (netState(g).kind === 'fibra' ? 0.5 : 1) * modelOf(g).speed);
+export const downloadMs = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => Math.round((netState(g).speed === 'slow' ? 9000 : 1600) * (netState(g).kind === 'fibra' ? 0.5 : 1) * modelOf(g).speed);
 export const INSTALL_MS = 1800;
 
 /* ---------- plano de dados (app Internet de Chip) ---------- */
@@ -199,3 +202,21 @@ export const chipRaw = rawChip;
 /** Rodadas até o chip bloquear (undefined = nunca / sem chip). */
 export const chipLeft = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => { const u = phoneOf(g).chipUntil; return u === undefined || !rawChip(g) ? undefined : Math.max(0, u - (g.season * 200 + g.round)); };
 export const chipNumberOf = (g: Pick<GameState, 'phone'>) => phoneOf(g).chipNumber;
+
+/* ---------- NetFibra (Wi-Fi residencial) ---------- */
+export const FIBRA_MONTHLY = 100_000;
+export const FIBRA_ENTRY = 50_000;
+export const fibraOf = (g: Pick<GameState, 'phone'>) => phoneOf(g).fibra;
+export const fibraLeft = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => Math.max(0, (phoneOf(g).fibra?.until ?? 0) - nowAbs(g));
+export const fibraActive = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => fibraLeft(g) > 0;
+export const fibraDown = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => (phoneOf(g).fibra?.down ?? 0) > nowAbs(g);
+/** Rede configurada, plano em dia e sem queda. */
+export const fibraReady = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => !!phoneOf(g).fibra?.ssid && fibraActive(g) && !fibraDown(g);
+
+/** Conecta na sua rede NetFibra com a senha que você criou. */
+export function connectHome(g: GameState, password: string): { ok: true; state: GameState } | { ok: false; error: string } {
+  const f = phoneOf(g).fibra;
+  if (!f?.ssid) return { ok: false, error: 'Configure sua rede no app NetFibra.' };
+  if (f.password !== password) return { ok: false, error: 'Senha incorreta.' };
+  return { ok: true, state: updatePhoneSettings(g, { airplane: false, wifi: true, wifiNet: f.ssid }) };
+}

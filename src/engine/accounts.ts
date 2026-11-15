@@ -3,7 +3,7 @@ import { makeRng } from './rng';
 import type { GameState } from './types';
 
 /** Apps que pedem uma conta: o número do chip recebe um código por SMS para liberar o app. */
-export const ACCOUNT_APPS = ['banco', 'linstagra', 'tikiteko', 'cassino', 'concessionaria', 'corretor', 'internetchip'];
+export const ACCOUNT_APPS = ['banco', 'linstagra', 'tikiteko', 'cassino', 'concessionaria', 'corretor', 'internetchip', 'netfibra'];
 const isLegacy = (g: Pick<GameState, 'phone'>) => { const p = phoneOf(g); return !p.model && !p.noPhone; }; // saves de antes da loja: contas já existiam
 export const isVerified = (g: Pick<GameState, 'phone'>, app: string) => !ACCOUNT_APPS.includes(app) || isLegacy(g) || (phoneOf(g).verified ?? []).includes(app);
 export const needsAccount = (g: Pick<GameState, 'phone'>, app: string) => !isVerified(g, app);
@@ -22,7 +22,7 @@ export function requestCode(g: GameState, app: string, number: string): R {
   const p = phoneOf(g);
   const rng = makeRng(g.seed * 331 + g.season * 17 + g.round * 5 + (p.sms?.length ?? 0) * 101 + app.length);
   const code = String(100000 + Math.floor(rng() * 900000));
-  const name = app === 'internetchip' ? 'Internet de Chip' : app.charAt(0).toUpperCase() + app.slice(1);
+  const name = app === 'internetchip' ? 'Internet de Chip' : app === 'netfibra' ? 'NetFibra' : app.charAt(0).toUpperCase() + app.slice(1);
   const sms = { id: `S${(p.sms?.length ?? 0) + 1}-${g.season}-${g.round}`, text: `${name}: seu código de confirmação é ${code}. Não compartilhe.`, code, season: g.season, round: g.round };
   const s: GameState = { ...g, phone: { ...p, pendingCode: { app, code, number: chipNumberOf(g)! }, sms: [sms, ...(p.sms ?? [])].slice(0, 20) } };
   return { ok: true, state: notifyPhone(s, 'sms', `SMS: ${sms.text}`) };

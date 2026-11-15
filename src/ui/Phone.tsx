@@ -12,6 +12,7 @@ import { pendingCount } from '../engine/inbox';
 import { RealtorApp } from './RealtorApp';
 import { CalcApp, QuickPanel } from './QuickPanel';
 import { ChipApp } from './ChipApp';
+import { NetFibraApp } from './NetFibraApp';
 import { AccountGate } from './AccountGate';
 import { needsAccount, ACCOUNT_APPS } from '../engine/accounts';
 import { SocialApp } from './SocialApp';
@@ -135,10 +136,11 @@ export function Phone({ game, onChange, onClose }: Props) {
               {screen === 'cassino' && <CasinoApp game={game} onChange={onChange} onOpenApp={go} />}
               {screen === 'noticias' && <NewsApp game={game} />}
               {screen === 'calc' && <CalcApp />}
+              {screen === 'netfibra' && <NetFibraApp game={game} onChange={onChange} onOpenApp={go} />}
               {screen === 'internetchip' && <ChipApp game={game} onChange={onChange} onOpenApp={go} />}
               {screen === 'mensagens' && <MessagesApp game={game} onChange={onChange} />}
               {(screen === 'linstagra' || screen === 'tikiteko') && <SocialApp app={screen} game={game} onChange={onChange} />}
-              {!['home', 'loja', 'config', 'banco', 'concessionaria', 'corretor', 'linstagra', 'tikiteko', 'cassino', 'noticias', 'mensagens', 'calc', 'boot', 'nonet', 'internetchip'].includes(screen) && <SoonApp id={screen} />}
+              {!['home', 'loja', 'config', 'banco', 'concessionaria', 'corretor', 'linstagra', 'tikiteko', 'cassino', 'noticias', 'mensagens', 'calc', 'boot', 'nonet', 'internetchip', 'netfibra'].includes(screen) && <SoonApp id={screen} />}
               </>}
               <button className="ph-homebar" onClick={() => setScreen('home')} aria-label="Início do celular" />
             </>
@@ -305,7 +307,7 @@ function Store({ game, onChange, onOpen, getGame, onPanel }: { game: GameState; 
   return (
     <div className="ph-app-screen">
       <h2>🛍️ Loja de Apps</h2>
-      <p className={`ph-netline ${net.speed}`}>{net.kind === '5g' ? '⚡ 5G · downloads rápidos' : net.kind === 'wifi' ? '⚠️ Wi-Fi grátis: conexão ruim, downloads lentos' : '🚫 Sem internet'}</p>
+      <p className={`ph-netline ${net.speed}`}>{net.kind === 'fibra' ? '⚡ NetFibra · downloads ultrarrápidos' : net.kind === '5g' ? '⚡ 5G · downloads rápidos' : net.kind === 'wifi' ? '⚠️ Wi-Fi grátis: conexão ruim, downloads lentos' : '🚫 Sem internet'}</p>
       <p className="ph-netline">💾 Memória: {appsUsed(game)}/{modelOf(game).apps >= 99 ? '∞' : modelOf(game).apps} apps · {modelOf(game).name}</p>
       {msg && <p className="ph-warn" role="alert">{msg} {msg.startsWith('Sem internet') && <button className="ph-link" onClick={onPanel}>Abrir painel</button>}</p>}
       <input className="ph-search" placeholder="Buscar apps" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Buscar apps" />

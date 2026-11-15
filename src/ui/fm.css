@@ -670,3 +670,7 @@ button.home-tile { width: 100%; font: inherit; color: inherit; text-align: cente
 .yt-bar { display: block; height: 6px; border-radius: 3px; background: #10151c; margin-top: 6px; overflow: hidden; } .yt-bar i { display: block; height: 100%; background: linear-gradient(90deg, #2f8bff, #3ddc84); }
 .yt-btns { grid-column: 1 / -1; display: grid; grid-template-columns: 1.4fr 1fr; gap: 8px; }
 .yt-btns .primary small { color: #dbe7ff; font-size: 11px; font-weight: 500; text-transform: none; letter-spacing: 0; }
+.qs-bars i.strong { background: #3ddc84; }
+.qs-pass { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 8px 8px; } .qs-pass input { flex: 1; min-width: 0; min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid #2d4a7c; background: rgba(0, 0, 0, .35); color: inherit; font-size: 16px; } .qs-pass .ph-btn { min-height: 44px; } .qs-pass .ph-pad-msg { flex: 1 0 100%; margin: 0; }
+.nf-show { display: flex; align-items: center; gap: 8px; font-size: 13px; opacity: .85; } .nf input[type=text], .nf input[type=password], .nf .ph-form input:not([type=checkbox]) { width: 100%; min-height: 48px; padding: 0 14px; border-radius: 12px; border: 1px solid #2d4a7c; background: rgba(0, 0, 0, .35); color: inherit; font-size: 16px; }
+.nf-show { justify-content: flex-start; } .nf-show input[type=checkbox] { width: 20px !important; min-height: 20px !important; padding: 0 !important; flex: none; }

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { CALC_START, calcPress, type CalcKey, type CalcState } from '../engine/calculator';
-import { chipOf, connectWifi, connOf, disconnectWifi, FREE_WIFI, netState, phoneOf, toggleConn, updatePhoneSettings, type Conn } from '../engine/phone';
+import { chipOf, connectHome, connectWifi, fibraOf, connOf, disconnectWifi, FREE_WIFI, netState, phoneOf, toggleConn, updatePhoneSettings, type Conn } from '../engine/phone';
 import type { GameState } from '../engine/types';
 import { loadSettings, saveSettings } from '../settings/settings';
 
@@ -11,6 +11,10 @@ export function QuickPanel({ game, onChange, onClose, onCalc, canCalc }: Props) 
   const c = connOf(game);
   const s = phoneOf(game).settings;
   const net = netState(game);
+  const [homePass, setHomePass] = useState('');
+  const [homeAsk, setHomeAsk] = useState(false);
+  const [homeErr, setHomeErr] = useState<string | undefined>();
+  const fibra = fibraOf(game);
   const [vol, setVol] = useState(() => { const a = loadSettings().audio; return a.muted ? 0 : a.master; });
   const startY = useRef<number | null>(null);
   const setVolume = (v: number) => {
@@ -28,7 +32,7 @@ export function QuickPanel({ game, onChange, onClose, onCalc, canCalc }: Props) 
       <div className="qs" onPointerDown={(e) => { startY.current = e.clientY; }} onPointerUp={(e) => { if (startY.current !== null && startY.current - e.clientY > 50) onClose(); startY.current = null; }}>
         <div className="qs-grid">
           {tile('wifi', '📶', 'Wi-Fi', c.wifi ? (s.wifiNet ? s.wifiNet : 'Escolha uma rede') : 'Desligado')}
-          {tile('mobileData', '📡', 'Dados móveis', c.mobileData ? (chipOf(game) ? `${chipOf(game)!.name} · ${net.kind === '5g' ? '5G' : 'sem plano'}` : 'Sem chip') : 'Desligado')}
+          {tile('mobileData', '📡', 'Dados móveis', c.mobileData ? (chipOf(game) ? `${chipOf(game)!.name} · ${net.kind === '5g' || net.kind === 'fibra' ? '5G' : 'sem plano'}` : 'Sem chip') : 'Desligado')}
           {tile('airplane', '✈️', 'Modo avião', c.airplane ? 'Ligado' : 'Desligado')}
           <button className="qs-tile" disabled={!canCalc} onClick={() => { onClose(); onCalc(); }}><span aria-hidden="true">🧮</span><b>Calculadora</b><small>{canCalc ? 'Abrir' : 'Desbloqueie'}</small></button>
         </div>
@@ -36,6 +40,22 @@ export function QuickPanel({ game, onChange, onClose, onCalc, canCalc }: Props) 
           <div className="qs-wifi" aria-label="Redes Wi-Fi disponíveis">
             <p>Redes grátis por perto</p>
             <ul>
+              {fibra?.ssid && (
+                <li>
+                  <button className={s.wifiNet === fibra.ssid ? 'on' : ''} onClick={() => { if (s.wifiNet === fibra.ssid) onChange(disconnectWifi(game)); else { setHomeAsk(!homeAsk); setHomeErr(undefined); } }}>
+                    <span className="qs-bars" aria-label="Sinal forte">{[1, 2, 3].map((i) => <i key={i} className="on strong" style={{ height: 4 + i * 4 }} />)}</span>
+                    <span className="grow"><b>🔒 {fibra.ssid}</b><small>{s.wifiNet === fibra.ssid ? (net.kind === 'fibra' ? 'Conectado · NetFibra 1 GB' : 'Conectado · sem internet') : 'Sua rede NetFibra · pede senha'}</small></span>
+                    <em>{s.wifiNet === fibra.ssid ? 'Desconectar' : 'Conectar'}</em>
+                  </button>
+                  {homeAsk && s.wifiNet !== fibra.ssid && (
+                    <div className="qs-pass">
+                      <input type="password" placeholder="Senha da rede" value={homePass} onChange={(e) => setHomePass(e.target.value)} aria-label="Senha da rede" onKeyDown={(e) => { if (e.key === 'Enter') (document.getElementById('qs-home-go') as HTMLButtonElement | null)?.click(); }} />
+                      <button id="qs-home-go" className="ph-btn pri" onClick={() => { const r = connectHome(game, homePass); if (!r.ok) { setHomeErr(r.error); return; } setHomeErr(undefined); setHomeAsk(false); setHomePass(''); onChange(r.state); }}>Entrar</button>
+                      {homeErr && <p className="ph-pad-msg err" role="alert">{homeErr}</p>}
+                    </div>
+                  )}
+                </li>
+              )}
               {FREE_WIFI.map((w) => {
                 const on = s.wifiNet === w.name;
                 return (
@@ -51,7 +71,7 @@ export function QuickPanel({ game, onChange, onClose, onCalc, canCalc }: Props) 
             </ul>
           </div>
         )}
-        <p className={`qs-net ${net.speed}`} role="status">{net.kind === '5g' ? '⚡ 5G · conexão rápida' : net.kind === 'wifi' ? '⚠️ Conexão ruim: apps e downloads vão demorar.' : `🚫 ${net.label}. ${net.note}`}</p>
+        <p className={`qs-net ${net.speed}`} role="status">{net.kind === 'fibra' ? '⚡ NetFibra · conexão ultrarrápida' : net.kind === '5g' ? '⚡ 5G · conexão rápida' : net.kind === 'wifi' ? '⚠️ Conexão ruim: apps e downloads vão demorar.' : `🚫 ${net.label}. ${net.note}`}</p>
         <label className="qs-slider"><span aria-hidden="true">☀️</span><input type="range" min={30} max={100} value={s.brightness} aria-label="Brilho" onChange={(e) => onChange(updatePhoneSettings(game, { brightness: Number(e.target.value) }))} /><b>{s.brightness}%</b></label>
         <label className="qs-slider"><span aria-hidden="true">{vol === 0 ? '🔇' : '🔊'}</span><input type="range" min={0} max={100} value={vol} aria-label="Volume" onChange={(e) => setVolume(Number(e.target.value))} /><b>{vol}%</b></label>
         <button className="qs-handle" onClick={onClose} aria-label="Fechar painel"><i /></button>
