@@ -44,3 +44,11 @@ describe('áudio', () => {
     expect(volumes(s).sfx).toBeGreaterThan(0);
   });
 });
+
+describe('cantos da torcida', () => {
+  it('o canto original tem 2 compassos de 4 tempos e vogais válidas', async () => {
+    const { CHANT, VOWELS } = await import('../src/audio/audio');
+    expect(CHANT.reduce((t, s) => t + s.beats, 0)).toBe(8);
+    expect(CHANT.every((s) => s.vowel in VOWELS && s.midi > 40 && s.midi < 90)).toBe(true);
+  });
+});

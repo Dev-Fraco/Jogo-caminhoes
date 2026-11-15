@@ -4,7 +4,7 @@ import { loadSettings, type Settings } from '../settings/settings';
  * Som do jogo, gerado na hora (sem arquivos), no espírito dos jogos de futebol do PlayStation 1:
  * música de menu em tom maior com melodia de onda quadrada, baixo, bumbo e caixa; efeitos de "blip" de 8 bits; apito de árbitro e torcida.
  */
-export type Sfx = 'click' | 'goal' | 'whistle' | 'cash' | 'error' | 'whoosh' | 'notify' | 'unlock' | 'back';
+export type Sfx = 'click' | 'goal' | 'concede' | 'whistle' | 'cash' | 'error' | 'whoosh' | 'notify' | 'unlock' | 'back';
 
 export const noteFreq = (midi: number) => 440 * 2 ** ((midi - 69) / 12);
 
@@ -34,6 +34,22 @@ export const MELODY: (number | null)[][] = [
   [83, 81, 79, 77, 74, 77, 79, null],
 ];
 
+/** Vogais (formantes F1/F2 em Hz) para as vozes sintetizadas da torcida. */
+export const VOWELS = { a: [800, 1200], e: [450, 2000], o: [500, 900], u: [300, 700] } as const;
+export type Vowel = keyof typeof VOWELS;
+
+/**
+ * Canto da torcida (original, feito no jogo): "ô-lê ô-lê ô-lê ô-lê", "ô-lê ô-lê ô-lá". Cada sílaba: nota MIDI, duração em tempos e vogal.
+ * Dois compassos de 4 tempos por frase; o bumbo bate nos tempos 1 e 3 e as palmas nos tempos 2 e 4.
+ */
+export const CHANT_BPM = 104;
+export const CHANT: { midi: number; beats: number; vowel: Vowel }[] = [
+  { midi: 62, beats: 0.5, vowel: 'o' }, { midi: 67, beats: 0.5, vowel: 'e' }, { midi: 62, beats: 0.5, vowel: 'o' }, { midi: 67, beats: 0.5, vowel: 'e' },
+  { midi: 62, beats: 0.5, vowel: 'o' }, { midi: 67, beats: 0.5, vowel: 'e' }, { midi: 62, beats: 0.5, vowel: 'o' }, { midi: 67, beats: 0.5, vowel: 'e' },
+  { midi: 65, beats: 0.5, vowel: 'o' }, { midi: 69, beats: 0.5, vowel: 'e' }, { midi: 65, beats: 0.5, vowel: 'o' }, { midi: 69, beats: 0.5, vowel: 'e' },
+  { midi: 62, beats: 0.5, vowel: 'o' }, { midi: 67, beats: 0.5, vowel: 'e' }, { midi: 62, beats: 1, vowel: 'a' },
+];
+
 export function volumes(s: Settings) {
   const m = s.audio.muted ? 0 : s.audio.master / 100;
   return { music: m * (s.audio.music / 100) * 0.16, sfx: m * (s.audio.sfx / 100) * 0.5 };
@@ -45,6 +61,10 @@ class AudioSys {
   private sfxGain!: GainNode;
   private crowdGain!: GainNode;
   private crowdSrc: AudioBufferSourceNode | null = null;
+  private chantGain!: GainNode;
+  private chantTimer: ReturnType<typeof setInterval> | null = null;
+  private chantNext = 0;
+  private chantOn = false;
   private timer: ReturnType<typeof setInterval> | null = null;
   private nextBar = 0;
   private bar = 0;
@@ -62,6 +82,7 @@ class AudioSys {
       this.musicGain = this.ctx.createGain(); this.musicGain.connect(this.ctx.destination);
       this.sfxGain = this.ctx.createGain(); this.sfxGain.connect(this.ctx.destination);
       this.crowdGain = this.ctx.createGain(); this.crowdGain.gain.value = 0; this.crowdGain.connect(this.ctx.destination);
+      this.chantGain = this.ctx.createGain(); this.chantGain.gain.value = 0; this.chantGain.connect(this.ctx.destination);
       this.refresh();
     }
     if (this.ctx.state === 'suspended') void this.ctx.resume();
@@ -75,6 +96,7 @@ class AudioSys {
     const v = volumes(s);
     this.musicGain.gain.setTargetAtTime(v.music * (this.ducked ? 0.2 : 1), this.ctx.currentTime, 0.08);
     this.sfxGain.gain.setTargetAtTime(v.sfx, this.ctx.currentTime, 0.05);
+    this.chantGain.gain.setTargetAtTime(this.chantOn ? v.sfx * 0.55 : 0, this.ctx.currentTime, 0.2);
   }
 
   setMusic(on: boolean) {
@@ -129,6 +151,71 @@ class AudioSys {
     this.noise(t, dur, 0.1, dest, 3200, 3300);
   }
 
+  /** Voz de torcida: 3 ondas serra levemente desafinadas passando por dois filtros de vogal. */
+  private voice(freq: number, t: number, dur: number, vowel: Vowel, vol: number, dest: AudioNode, glideTo?: number) {
+    const c = this.ctx!;
+    const [f1, f2] = VOWELS[vowel];
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + Math.min(0.06, dur * 0.3)); g.gain.setValueAtTime(vol, t + dur * 0.65); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    for (const [f, q, k] of [[f1, 5, 1], [f2, 8, 0.6]] as const) {
+      const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q;
+      const mix = c.createGain(); mix.gain.value = k; bp.connect(mix); mix.connect(g);
+      for (const det of [-9, 0, 9]) {
+        const o = c.createOscillator(); o.type = 'sawtooth'; o.detune.value = det + (Math.random() - 0.5) * 8;
+        o.frequency.setValueAtTime(freq, t); if (glideTo) o.frequency.exponentialRampToValueAtTime(glideTo, t + dur);
+        o.connect(bp); o.start(t); o.stop(t + dur + 0.05);
+      }
+    }
+    g.connect(dest);
+  }
+
+  /** Gol do seu time: a torcida explode (rugido, "aaaah" subindo e palmas). */
+  private cheer(t: number, o: AudioNode) {
+    this.noise(t, 2.6, 0.9, o, 500, 1500); this.noise(t + 0.2, 2.2, 0.5, o, 1500, 700);
+    for (const base of [196, 247, 294, 330]) this.voice(base * (0.97 + Math.random() * 0.06), t + Math.random() * 0.1, 1.7, 'a', 0.22, o, base * 1.35);
+    for (let i = 0; i < 14; i++) this.noise(t + 0.4 + i * 0.11 + Math.random() * 0.05, 0.05, 0.2, o, 3500, 4500, 'highpass'); // palmas
+  }
+
+  /** Gol sofrido: "uuuuh" grave e descendo, murmúrio abafado e assobios de vaia. */
+  private groan(t: number, o: AudioNode) {
+    this.noise(t, 2.0, 0.35, o, 400, 200, 'lowpass');
+    for (const base of [150, 180, 220]) this.voice(base * (0.97 + Math.random() * 0.06), t + Math.random() * 0.15, 1.5, 'u', 0.25, o, base * 0.68);
+    this.voice(170, t + 0.1, 1.3, 'o', 0.12, o, 120);
+    for (let i = 0; i < 5; i++) { // assobios (vaia)
+      const at = t + 0.5 + i * 0.22 + Math.random() * 0.12;
+      this.tone(2400 + Math.random() * 500, at, 0.5, 'sine', 0.07, o, 2900 + Math.random() * 400);
+    }
+  }
+
+  /** Canto da torcida em loop durante a partida (ligue com `chants(true)`). */
+  chants(on: boolean) {
+    this.chantOn = on;
+    this.refresh(this.settings ?? loadSettings());
+    if (!this.ctx) return;
+    if (!on) { if (this.chantTimer) { clearInterval(this.chantTimer); this.chantTimer = null; } return; }
+    if (this.chantTimer) return;
+    const beat = 60 / CHANT_BPM, barLen = beat * 4;
+    this.chantNext = this.ctx.currentTime + 0.2;
+    const schedule = () => {
+      const c = this.ctx!;
+      while (this.chantNext < c.currentTime + 0.8) {
+        const t0 = this.chantNext; let at = 0;
+        for (const syl of CHANT) {
+          const dur = syl.beats * beat;
+          for (const m of [syl.midi - 12, syl.midi, syl.midi + 12]) this.voice(noteFreq(m) * (0.99 + Math.random() * 0.02), t0 + at * beat, dur * 0.9, syl.vowel, 0.1, this.chantGain);
+          at += syl.beats;
+        }
+        for (let b = 0; b < 8; b++) { // 2 compassos de percussão: bumbo (tempos 1 e 3) e palmas (2 e 4)
+          const bt = t0 + b * beat;
+          if (b % 2 === 0) this.tone(120, bt, 0.16, 'sine', 0.7, this.chantGain, 45); else for (let k = 0; k < 3; k++) this.noise(bt + k * 0.012, 0.05, 0.25, this.chantGain, 2800, 3600, 'highpass');
+        }
+        this.chantNext += barLen * 2;
+      }
+    };
+    schedule();
+    this.chantTimer = setInterval(schedule, 300);
+  }
+
   sfx(name: Sfx) {
     const c = this.ctx;
     if (!c || c.state !== 'running') return;
@@ -145,9 +232,10 @@ class AudioSys {
       case 'whistle': this.whistle(t, 0.25, o); this.whistle(t + 0.34, 0.7, o); break;
       case 'goal': {
         [72, 76, 79, 84, 79, 84, 88].forEach((m, i) => sq(m, i * 0.075, 0.12, 0.26)); // fanfarra de gol
-        this.noise(t, 1.6, 0.8, o, 600, 1500); // a torcida explode
+        this.cheer(t, o); // a torcida explode de alegria
         break;
       }
+      case 'concede': this.groan(t, o); break; // gol sofrido: murmúrio, "uuuh" e vaia
     }
   }
 

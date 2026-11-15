@@ -65,7 +65,14 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
   const shown = useMemo(() => result.events.filter((e) => e.minute <= Math.floor(minute)), [result.events, minute]);
   const [hg, ag] = scoreAt(result.events, Math.floor(minute));
   const goalCount = shown.filter((e) => e.type === 'goal').length;
-  useEffect(() => { if (goalCount > goalsSeen.current) audio.sfx('goal'); goalsSeen.current = goalCount; }, [goalCount]);
+  useEffect(() => {
+    if (goalCount > goalsSeen.current) { const last = shown.filter((e) => e.type === 'goal').pop(); audio.sfx(last && last.side !== userSide ? 'concede' : 'goal'); } // gol seu: festa; gol sofrido: vaia
+    goalsSeen.current = goalCount;
+  }, [goalCount]); // eslint-disable-line react-hooks/exhaustive-deps
+  // cantos da torcida (ligados por padrão; o botão 🎺 desliga)
+  const [chants, setChants] = useState(() => { try { return localStorage.getItem('vr-chants') !== '0'; } catch { return true; } });
+  useEffect(() => { audio.chants(chants && phase === 'play' && !paused); return () => audio.chants(false); }, [chants, phase, paused]);
+  const toggleChants = () => { const n = !chants; setChants(n); try { localStorage.setItem('vr-chants', n ? '1' : '0'); } catch { /* sem armazenamento */ } };
   const goals = result.events.filter((e) => e.type === 'goal');
   const skip = () => { setMinute(90); setPhase(result.penKicks ? 'pens' : 'done'); };
   const feed = [...shown].reverse();
@@ -112,6 +119,7 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
             {SPEEDS.map((s) => <button key={s} className={speed === s ? 'on' : ''} aria-pressed={speed === s} onClick={() => setSpeed(s)}>{s}x</button>)}
           </div>
           <button className="btn lm-pause" onClick={() => setPaused((p) => !p)} aria-pressed={paused}>{paused ? '▶ Continuar' : '⏸ Pausar'}</button>
+          <button className="btn lm-pause" onClick={toggleChants} aria-pressed={chants} aria-label="Cantos da torcida">{chants ? '🎺 Cantos: sim' : '🎺 Cantos: não'}</button>
           <button className="btn lm-pause" onClick={skip}>⏭ Pular</button>
         </div>
       ) : (
