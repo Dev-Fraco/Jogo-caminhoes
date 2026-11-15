@@ -3,7 +3,7 @@ import { ScreenTitle } from './FmParts';
 import { COMPS, CONTINENTALS, groupTable, type Comp } from '../engine/continental';
 import { clubOf } from '../engine/lookup';
 import { GROUP_ROUNDS, groupTables, isGroups, knockoutView } from '../engine/groups';
-import { estadualOfUser, estadualTable } from '../engine/estadual';
+import { estadualOfUser, estadualTable, playoffOf, stepLabel } from '../engine/estadual';
 import { HistoryView, TrophyRoom } from './HistoryView';
 import { divisionTable, slotsOf, userDivisionIndex } from '../engine/game';
 import type { GameState } from '../engine/types';
@@ -291,6 +291,7 @@ function EstadualView({ game }: { game: GameState }) {
   const played = e.done ? e.totalSteps : e.step - 1;
   const [round, setRound] = useState(Math.max(1, played));
   const rows = estadualTable(game, div);
+  const po = playoffOf(game, div);
   const name = (id: string) => clubOf(game, id).name;
   const list = div.matches.filter((m) => m[0] === round);
   const maxRound = Math.max(...div.matches.map((m) => m[0]), 0);
@@ -307,7 +308,7 @@ function EstadualView({ game }: { game: GameState }) {
             {comp.divisions.map((d, i) => <button key={d.name} role="tab" aria-selected={i === divIdx} className={i === divIdx ? 'on' : ''} onClick={() => setDivIdx(i)}>{d.name}</button>)}
           </div>
         )}
-        <p className="hint" style={{ margin: '8px 0 0' }}>{e.done ? 'Estadual encerrado.' : `Rodada ${Math.min(e.step, e.totalSteps)} de ${e.totalSteps}.`} Turno único; o líder é o campeão.</p>
+        <p className="hint" style={{ margin: '8px 0 0' }}>{e.done ? 'Estadual encerrado.' : `Rodada ${Math.min(e.step, e.totalSteps)} de ${e.totalSteps}.`} {div.clubIds.length >= 6 && e.leagueSteps !== undefined ? 'Turno único; os 4 primeiros vão ao mata-mata (semifinais ida e volta, final em jogo único).' : 'Turno único; o líder é o campeão.'}</p>
       </div>
       <div className="tb-wrap">
         <table className="tb">
@@ -327,11 +328,26 @@ function EstadualView({ game }: { game: GameState }) {
         </table>
       </div>
       {comp.divisions.length > 1 && <p className="legend"><i className="k acc" /> Sobem à Série A (2) <i className="k rel" /> Caem à Série B (2)</p>}
+      {po && (
+        <div className="card">
+          <h3 style={{ margin: '0 0 6px' }}>Mata-mata</h3>
+          {po.semis.map((t, i) => (
+            <p key={i} style={{ margin: '4px 0' }}>
+              <b>Semifinal {i + 1}:</b> {name(t.lo)} {t.leg1 ? `${t.leg1[0]}-${t.leg1[1]}` : 'x'} {name(t.hi)} · volta: {name(t.hi)} {t.leg2 ? `${t.leg2[0]}-${t.leg2[1]}` : 'x'} {name(t.lo)}
+              {t.pens && ` (pên. ${t.pens[0]}-${t.pens[1]} para ${name(t.winner!)})`}{t.winner && ` → ${name(t.winner)}`}
+            </p>
+          ))}
+          {po.final && (
+            <p style={{ margin: '4px 0' }}><b>Final:</b> {name(po.final.home)} {po.final.score ? `${po.final.score[0]}-${po.final.score[1]}` : 'x'} {name(po.final.away)}{po.final.pens && ` (pên. ${po.final.pens[0]}-${po.final.pens[1]})`}</p>
+          )}
+          {po.champion && <p style={{ margin: '6px 0 0' }}>🏆 <b>Campeão: {name(po.champion)}</b></p>}
+        </div>
+      )}
       {maxRound > 0 && (
         <>
           <div className="round-nav">
             <button className="btn" disabled={round <= 1} onClick={() => setRound(round - 1)} aria-label="Rodada anterior">‹</button>
-            <b>Rodada {round}</b>
+            <b>{stepLabel(e, round)}</b>
             <button className="btn" disabled={round >= maxRound} onClick={() => setRound(round + 1)} aria-label="Próxima rodada">›</button>
           </div>
           <ul className="list">

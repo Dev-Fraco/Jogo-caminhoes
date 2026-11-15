@@ -209,9 +209,9 @@ export interface RetiredPlayer { name: string; age: number; pos: Position; stren
 export interface CoachTitle { season: number; clubId: string; clubName: string; competition: string; kind: 'liga' | 'copa' | 'continental' | 'mundial' | 'estadual' }
 
 /** Um estadual: Série A (e, em CE, RJ e SP, Série B). Os resultados ficam compactos: [rodada, mandante (índice), visitante (índice), gols, gols]. */
-export interface EstadualDivision { name: string; clubIds: string[]; matches: [number, number, number, number, number][] }
+export interface EstadualDivision { name: string; clubIds: string[]; matches: [number, number, number, number, number][]; /** Pênaltis do mata-mata: [rodada, mandante (índice), visitante (índice), pên. mandante, pên. visitante]. */ pens?: [number, number, number, number, number][] }
 export interface EstadualComp { uf: string; name: string; divisions: EstadualDivision[] }
-export interface EstadualState { id: string; comps: EstadualComp[]; step: number; totalSteps: number; due: boolean; done: boolean }
+export interface EstadualState { id: string; comps: EstadualComp[]; step: number; totalSteps: number; due: boolean; done: boolean; /** Rodadas da fase de pontos corridos; depois vêm semifinais (ida e volta) e final. Ausente = save antigo (sem mata-mata). */ leagueSteps?: number; /** O aviso de fim do estadual já foi lido. */ ack?: boolean }
 
 export interface SeasonSummary {
   /** Campeões dos estaduais da temporada (todos os estados). */

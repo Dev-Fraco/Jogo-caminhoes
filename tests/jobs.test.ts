@@ -157,7 +157,7 @@ describe('aposentadoria', () => {
     let g = makeCareer('flamengo', 4);
     const old = g.teams.flamengo.players.map((p, i) => (i < 3 ? { ...p, age: 38 } : p));
     g = { ...g, teams: { ...g.teams, flamengo: { ...g.teams.flamengo, players: old } } };
-    g = simulateToEnd(g); g = { ...g, morale: { ...g.morale, board: 60 } };
+    for (let i = 0; i < 400 && !isSeasonOver(g); i++) { g = playNext(g).state; g = { ...g, unemployed: undefined, morale: { ...g.morale, board: 60 } }; } // a diretoria não demite durante o teste
     const n = startNextSeason(g);
     expect((n.retired ?? []).length).toBeGreaterThan(3);
     expect(n.retired!.some((r) => r.clubId === 'flamengo')).toBe(true);

@@ -1,4 +1,4 @@
-import { estadualOfUser, estadualTable, playEstadualStep, userEstadualMatch } from './estadual';
+import { estadualOfUser, estadualTable, playEstadualStep, stepLabel, userEstadualMatch } from './estadual';
 import { playHomeGate } from './stadium';
 import { inboxTick } from './inbox';
 import './dataplan';
@@ -13,7 +13,7 @@ export interface PendingEvent { kind: EventKind; /** id da competição (divisio
 
 /** Jogo especial esperando o seu clube (copa nacional, Libertadores, Champions ou Mundial), se houver. */
 export function pendingEvent(g: GameState): PendingEvent | undefined {
-  if (g.estadual?.due) { const m = userEstadualMatch(g); const mine = estadualOfUser(g); if (m && mine) return { kind: 'estadual', id: 'estadual', label: `🏟️ ${mine.comp.name}${mine.divIndex ? ' (Série B)' : ''} · Rodada ${g.estadual.step}`, match: m }; }
+  if (g.estadual?.due) { const m = userEstadualMatch(g); const mine = estadualOfUser(g); if (m && mine) return { kind: 'estadual', id: 'estadual', label: `🏟️ ${mine.comp.name}${mine.divIndex ? ' (Série B)' : ''} · ${stepLabel(g.estadual, g.estadual.step)}`, match: m }; }
   if (cupMatchDue(g) && g.cup) { const t = userCupTie(g); if (t) return { kind: 'cup', id: COPA_DO_BRASIL, label: `🏆 ${g.cup.name} · ${g.cup.rounds[g.cup.roundIndex].name}`, match: t }; }
   for (const key of ['lib', 'sula', 'ucl'] as Comp[]) {
     const l = g[key];

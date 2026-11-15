@@ -1,5 +1,5 @@
 import { calOf, matchDayOf } from './calendar';
-import { estadualOfUser, userEstadualMatchAt } from './estadual';
+import { estadualOfUser, stepLabel, userEstadualMatchAt } from './estadual';
 import { pendingEvent } from './events';
 import { fixturesOfRound, userDivision } from './game';
 import type { GameState } from './types';
@@ -25,7 +25,7 @@ export function upcomingMatches(g: GameState, limit = 12): UpcomingMatch[] {
   if (g.estadual?.due) {
     const mine = estadualOfUser(g);
     const from = ev && ev.kind === 'estadual' ? g.estadual.step + 1 : g.estadual.step;
-    for (let s = from; s <= g.estadual.totalSteps && out.length < limit; s++) push(userEstadualMatchAt(g, s), mine ? `${mine.comp.name} · Rodada ${s}` : `Estadual · Rodada ${s}`);
+    for (let s = from; s <= g.estadual.totalSteps && out.length < limit; s++) push(userEstadualMatchAt(g, s), mine ? `${mine.comp.name} · ${stepLabel(g.estadual, s)}` : `Estadual · ${stepLabel(g.estadual, s)}`);
   }
   const div = userDivision(g);
   if (div && div.format !== 'outside') {

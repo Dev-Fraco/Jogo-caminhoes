@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { fixturesOfRound, leagueNameOf, seasonOutcome, slotsOf, userDivision } from '../engine/game';
-import { estadualOfUser, estadualTable } from '../engine/estadual';
+import { estadualOfUser, estadualRanking, estadualSummary, stepLabel } from '../engine/estadual';
 import { userInCup } from '../engine/cup';
 import { pendingEvent } from '../engine/events';
 import { CONTINENTALS, COMPS, mundialStepName, stepName, userIn } from '../engine/continental';
@@ -44,8 +44,26 @@ function Meter({ label, value, note }: { label: string; value: number; note?: st
 function EstadualResult({ game }: { game: GameState }) {
   const mine = estadualOfUser(game);
   if (!mine) return <p>Temporada encerrada.</p>;
-  const pos = estadualTable(game, mine.div).findIndex((r) => r.clubId === game.userClubId) + 1;
+  const pos = estadualRanking(game, mine.div).indexOf(game.userClubId) + 1;
   return <p>No <b>{mine.comp.name}</b>{mine.divIndex ? ' (Série B)' : ''} você terminou em <b>{pos}º</b> lugar.</p>;
+}
+
+/** Aviso de fim de estadual: campeão, sua posição e (para clubes fora da pirâmide) se a vaga na Série D veio. */
+function EstadualNotice({ game, onChange }: { game: GameState; onChange: (g: GameState) => void }) {
+  const s = game.estadual && !game.estadual.ack ? estadualSummary(game) : undefined;
+  if (!s || !game.estadual) return null;
+  const champ = clubOf(game, s.championId).name;
+  return (
+    <div className="card center" role="alert">
+      <h2>🏁 {s.compName} encerrado!</h2>
+      <p>🏆 Campeão: <b>{champ}</b>{s.runnerUpId && s.playoff ? <> · Vice: <b>{clubOf(game, s.runnerUpId).name}</b></> : null}</p>
+      <p>{s.pos === 1 ? <b>Você é o campeão! 🎉</b> : <>Você terminou em <b>{s.pos}º</b> de {s.size} clubes{s.divName !== 'Série A' ? ` (${s.divName})` : ''}.</>}</p>
+      {s.outside && (s.serieD
+        ? <p className="outcome promoted">✅ Classificado para a Série D! Você sobe na virada da temporada.</p>
+        : <p className="outcome relegated">❌ Não classificado para a Série D. {s.divName === 'Série A' ? 'Só sobem os 2 primeiros do estado (e o melhor clube fora das Séries A–D).' : 'A vaga é só para a Série A do estadual: suba de divisão e tente de novo.'}</p>)}
+      <button className="primary" onClick={() => onChange({ ...game, estadual: { ...game.estadual!, ack: true } })}>Entendi</button>
+    </div>
+  );
 }
 
 /** Início: próxima partida, escalação, humor (equipe, dirigentes e torcida), propostas e resultados da rodada. */
@@ -67,6 +85,7 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
       : out.userPosition === 1 && game.divisions[0].id === division.id ? `🏆 CAMPEÃO — ${leagueNameOf(game).toUpperCase()}!` : 'Você permanece na divisão.';
     return (
       <>
+        <EstadualNotice game={game} onChange={onChange} />
         <div className="card center">
           <h2>Temporada {game.season} encerrada</h2>
           {division.format === 'outside' ? <EstadualResult game={game} /> : <p>Você terminou em <b>{out.userPosition}º</b> lugar na {division.name}.</p>}
@@ -122,8 +141,9 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
 
   return (
     <>
+      <EstadualNotice game={game} onChange={onChange} />
       <div className="card center">
-        <small>{ev ? ev.label : game.estadual?.due ? `🏟️ Estaduais · rodada ${game.estadual.step} de ${game.estadual.totalSteps}` : `${division.name} · Rodada ${Math.min(game.round, game.totalRounds)} de ${game.totalRounds}`}</small>
+        <small>{ev ? ev.label : game.estadual?.due ? `🏟️ Estaduais · ${stepLabel(game.estadual, game.estadual.step)} (${game.estadual.step} de ${game.estadual.totalSteps})` : `${division.name} · Rodada ${Math.min(game.round, game.totalRounds)} de ${game.totalRounds}`}</small>
         {!next && !ev && <p className="hint">Seu clube não joga nesta rodada.</p>}
         {next && <h2>{name(next.homeId)} <span className="vs">x</span> {name(next.awayId)}</h2>}
         <p className="cal-today">📅 {formatDayLong(calOf(game).day)}</p>
