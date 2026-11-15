@@ -23,7 +23,7 @@ import { EXPECTATION_LABEL, formatBudget } from '../newgame/format';
 
 interface Props {
   game: GameState; onChange: (g: GameState) => void; last: MatchResult[]; over: boolean;
-  onPlay: () => void; onSkip: (years: number) => void; onSeeTables: () => void; onSeeResults: () => void; onNextSeason: () => void; onEditLineup: () => void; onFinance: () => void; onStadium: () => void; onAdvance: () => void; onAdvanceToMatch: () => void; onTab: (t: 'squad' | 'table' | 'transfers') => void; onNews: () => void; onSeeHist: () => void; onSeeOffers: () => void;
+  onPlay: () => void; onSkip: (years: number) => void; onSeeTables: () => void; onSeeResults: () => void; onNextSeason: () => void; onEditLineup: () => void; onFinance: () => void; onStadium: () => void; onAdvance: () => void; onAdvanceToMatch: () => void; onTab: (t: 'squad' | 'table' | 'transfers' | 'profile') => void; onNews: () => void; onSeeHist: () => void; onSeeOffers: () => void;
 }
 
 function Meter({ label, value, note }: { label: string; value: number; note?: string }) {
@@ -152,6 +152,7 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
         )}
         <button className="btn home-lineup" onClick={onFinance}>💰 Finanças e salários</button>
         <button className="btn home-lineup" onClick={onStadium}>🏟️ Estádio e ingressos</button>
+        <button className="btn home-lineup" onClick={() => onTab('profile')}>🧑‍💼 Perfil do treinador</button>
       </div>
 
       <section className="fm-hero">

@@ -680,3 +680,34 @@ button.home-tile { width: 100%; font: inherit; color: inherit; text-align: cente
 .cal-next { margin: 4px 0 8px; font-size: 14px; color: var(--muted); } .cal-next b { color: #fff; display: inline-block; }
 .ph-toggle-row { display: flex; align-items: center; gap: 12px; padding: 4px 0 8px; } .ph-toggle-row b { display: block; font-size: 14px; } .ph-toggle-row small { display: block; opacity: .75; font-size: 12px; }
 .ph-toggle-row input[type=checkbox] { width: 46px; height: 26px; flex: none; accent-color: #3ddc84; }
+
+/* ===== Tela inicial (nova): cena do treinador, logotipo, botões inclinados azuis e nomes embaixo sem clique ===== */
+.hm { position: relative; min-height: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; overflow: hidden auto; background: #03060c; padding: max(12px, env(safe-area-inset-top)) 16px max(12px, env(safe-area-inset-bottom)); box-sizing: border-box; color: #fff; }
+.hm > * { position: relative; z-index: 2; width: 100%; max-width: 520px; }
+.hm .hm-scene { position: absolute; z-index: 0; inset: 0; width: 100%; max-width: none; pointer-events: none; display: flex; align-items: center; justify-content: center; }
+.hm-scene img { width: 100%; max-width: 760px; height: auto; max-height: 100%; object-fit: cover; opacity: .95; -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 16%, #000 78%, transparent 100%); mask-image: linear-gradient(180deg, transparent 0, #000 16%, #000 78%, transparent 100%); }
+.hm .hm-shade { position: absolute; z-index: 1; inset: 0; max-width: none; pointer-events: none; background: radial-gradient(ellipse at 55% 42%, rgba(3, 6, 12, .1), rgba(3, 6, 12, .55) 70%), linear-gradient(180deg, rgba(3, 6, 12, .75), rgba(3, 6, 12, 0) 22%, rgba(3, 6, 12, 0) 70%, rgba(3, 6, 12, .9)); }
+.hm-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.hm-badge { padding: 9px 14px; border: 1px solid #2f7de8; border-radius: 10px; background: rgba(6, 18, 44, .75); box-shadow: 0 0 14px rgba(47, 125, 232, .35), inset 0 0 8px rgba(47, 125, 232, .2); font: italic 800 12px/1.2 var(--font-head); text-transform: uppercase; letter-spacing: .04em; text-align: center; color: #fff; }
+.hm-badge.right b { display: block; color: #6db5ff; font-size: 14px; } .hm-badge.right small { display: block; color: #9fcbff; font-size: 11px; font-style: normal; text-transform: none; }
+.hm-logo { margin-top: 6px; text-align: center; }
+.hm-logo b { display: block; font: italic 900 clamp(40px, 13vw, 62px)/.95 var(--font-head); letter-spacing: -.01em; text-transform: uppercase; background: linear-gradient(180deg, #fff 0%, #dfe5ee 42%, #9aa3b2 52%, #eef2f7 100%); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, .7)); }
+.hm-logo span { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: -6px; }
+.hm-logo i { flex: 1; max-width: 120px; height: 3px; background: linear-gradient(90deg, transparent, #2f9bff); box-shadow: 0 0 10px #2f9bff; } .hm-logo i:last-child { background: linear-gradient(270deg, transparent, #2f9bff); }
+.hm-logo em { font: italic 900 clamp(46px, 15vw, 72px)/1 var(--font-head); background: linear-gradient(180deg, #2fc4ff, #0a62f0); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 12px rgba(30, 140, 255, .65)); }
+.hm-slogan { margin: 6px 0 0; text-align: center; font: 600 clamp(8px, 2.4vw, 11px)/1.3 var(--font-head); letter-spacing: .26em; text-transform: uppercase; color: #cfd9ee; }
+.hm-menu { display: grid; gap: 12px; margin-top: 22px; justify-items: center; }
+.hm-btn { width: 66%; min-height: 54px; display: grid; place-items: center; background: linear-gradient(180deg, rgba(14, 22, 40, .9), rgba(6, 12, 26, .92)); border: 1.5px solid #6d8fd0; color: #fff; transform: skewX(-14deg); box-shadow: 0 0 14px rgba(70, 130, 230, .25); cursor: pointer; animation: hm-in .5s ease-out both; animation-delay: calc(var(--i) * 80ms); }
+.hm-btn span { transform: skewX(14deg); font: italic 800 clamp(18px, 5.4vw, 24px)/1 var(--font-head); text-transform: uppercase; letter-spacing: .01em; text-shadow: 0 2px 6px rgba(0, 0, 0, .6); }
+.hm-btn.primary { width: 72%; min-height: 62px; background: linear-gradient(180deg, #1f6fff, #0a3fb8 55%, #0a2f8a); border-color: #6db5ff; box-shadow: 0 0 22px rgba(47, 125, 232, .7), inset 0 0 12px rgba(120, 180, 255, .4); }
+.hm-btn:hover, .hm-btn:focus-visible { border-color: #9fcbff; box-shadow: 0 0 22px rgba(90, 160, 255, .65); } .hm-btn:active { filter: brightness(1.2); }
+.hm-btn.is-empty { opacity: .45; }
+@keyframes hm-in { from { opacity: 0; transform: translateX(-26px) skewX(-14deg); } to { opacity: 1; transform: skewX(-14deg); } }
+.hm-sub { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: auto; padding-top: 18px; }
+.hm-small { min-height: 46px; display: flex; align-items: center; gap: 10px; padding: 0 14px; background: rgba(6, 12, 26, .78); border: 1px solid #2d4a7c; border-left: 3px solid #2f7de8; border-radius: 10px; color: #fff; font: 700 13px var(--font-head); text-align: left; }
+.hm-small:hover, .hm-small:focus-visible { border-color: #6db5ff; background: rgba(20, 40, 80, .8); }
+.hm-ico { width: 22px; height: 22px; flex: none; color: #6db5ff; display: grid; place-items: center; } .hm-ico svg { width: 100%; height: 100%; }
+.hm-feats { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 0; pointer-events: none; user-select: none; }
+.hm-feats li { padding: 0 10px; font: 600 11px/1 var(--font-head); text-transform: uppercase; color: #dbe5f5; border-left: 2px solid #2f7de8; } .hm-feats li:first-child { border-left: 0; }
+.hm-foot { margin: 12px 0 0; text-align: center; font: 600 12px var(--font-head); color: #b8c6de; }
+.menu-bg::after { display: none; }

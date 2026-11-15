@@ -13,7 +13,7 @@ import { formatBudget } from '../newgame/format';
 import { Backdrop } from './Backdrop';
 import { tintColor } from './badge';
 import { ClubBadge } from './ClubBadge';
-import { MainMenu, MENU_OPTIONS, type FeatureId, type MenuOptionId } from './MainMenu';
+import { MainMenu, MENU_OPTIONS, type MenuOptionId } from './MainMenu';
 import { NewGame } from './NewGame';
 import { Options } from './Options';
 import { Placeholder } from './Placeholder';
@@ -99,15 +99,8 @@ export function App() {
     if (id === 'salao-campeoes') { setScreen('hall'); return; }
     setScreen(id);
   };
-  const feature = (id: FeatureId) => {
-    if (!game) { setScreen('novo-jogo'); return; } // sem carreira salva: começa uma
-    const to: Record<FeatureId, Tab> = { competicoes: 'table', transferencias: 'transfers', elenco: 'squad', financas: 'finance', estadio: 'stadium', base: 'youth', perfil: 'profile' };
-    const t = to[id];
-    if (game.unemployed && ['squad', 'transfers', 'finance', 'stadium', 'youth'].includes(t)) setTab('home'); else setTab(t);
-    setScreen('game');
-  };
 
-  if (screen === 'menu') return <MainMenu onSelect={select} onFeature={feature} hasSave={!!game} />;
+  if (screen === 'menu') return <MainMenu onSelect={select} hasSave={!!game} />;
 
   if (screen === 'novo-jogo') return <NewGame onBack={toMenu} onStart={startCareer} hasSave={!!game} />;
 
