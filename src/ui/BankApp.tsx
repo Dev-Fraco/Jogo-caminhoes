@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { audio } from '../audio/audio';
 import { FingerButton } from './AccountGate';
+import { formatDay } from '../engine/calendar';
+import { FIBRA_MONTHLY, fibraUntil, phoneOf, PLAN_PRICE, planUntil } from '../engine/phone';
+import { setAutoDebit } from '../engine/bank';
 import { FINGER, balanceOf, bankOf, boletoTotal, brl, clubCharge, hasBank, myPixKey, openBoletos, payBoleto, payPix, quotePix, registerBank, MIN_PASSWORD } from '../engine/bank';
 import type { BankTx, Boleto, GameState, PixCharge } from '../engine/types';
 import { copyText, pasteText } from './clipboard';
@@ -16,7 +19,7 @@ export function BankApp({ game, onChange }: Props) {
   const home = () => setView({ name: 'home' });
   return (
     <div className="ph-app-screen bk">
-      {view.name === 'home' && <BankHome game={game} go={go} />}
+      {view.name === 'home' && <BankHome game={game} go={go} onChange={onChange} />}
       {view.name === 'pix' && <PixScreen game={game} go={go} back={home} />}
       {view.name === 'club' && <ClubPix game={game} onChange={onChange} go={go} back={home} />}
       {view.name === 'confirm' && <Confirm game={game} onChange={onChange} keyText={view.key} charge={view.charge} go={go} back={() => go({ name: 'pix' })} />}
@@ -56,7 +59,7 @@ function Register({ game, onChange }: Props) {
   );
 }
 
-function BankHome({ game, go }: { game: GameState; go: (v: View) => void }) {
+function BankHome({ game, go, onChange }: { game: GameState; go: (v: View) => void; onChange: (g: GameState) => void }) {
   const [hide, setHide] = useState(false);
   const open = openBoletos(game);
   const late = open.filter((b) => b.status === 'late').length;
@@ -75,8 +78,36 @@ function BankHome({ game, go }: { game: GameState; go: (v: View) => void }) {
         <button onClick={() => go({ name: 'club' })}><span>🏟️</span>Ajudar o clube</button>
       </div>
       {late > 0 && <p className="ph-pad-msg err" role="alert">⚠️ Você tem {late} {late === 1 ? 'boleto vencido' : 'boletos vencidos'} com multa.</p>}
+      <AutoDebit game={game} onChange={onChange} />
       <h3>Últimas movimentações</h3>
       <TxList txs={bankOf(game)!.txs.slice(0, 4)} />
+    </>
+  );
+}
+
+/** Débito automático: mensalidades que saem sozinhas do saldo no dia do vencimento. */
+function AutoDebit({ game, onChange }: { game: GameState; onChange: (g: GameState) => void }) {
+  const on = game.autoDebit !== false;
+  const plan = planUntil(game);
+  const fibra = fibraUntil(game);
+  const contracts = (game.assets?.contracts ?? []).filter((c) => c.nextDay !== undefined);
+  const rows: { label: string; day: number; amount: number }[] = [
+    ...(plan !== undefined && phoneOf(game).plan ? [{ label: 'Internet de Chip', day: plan, amount: PLAN_PRICE }] : []),
+    ...(fibra !== undefined && phoneOf(game).fibra?.ssid ? [{ label: 'NetFibra', day: fibra, amount: FIBRA_MONTHLY }] : []),
+    ...contracts.map((c) => ({ label: c.kind === 'rent' ? `Aluguel — ${c.description}` : `Parcela — ${c.description}`, day: c.nextDay!, amount: c.monthly })),
+  ].sort((a, b) => a.day - b.day);
+  return (
+    <>
+      <h3>Débito automático</h3>
+      <div className="ph-card">
+        <label className="ph-toggle-row">
+          <span className="grow"><b>Mensalidades no débito automático</b><small>Plano de dados, NetFibra, aluguel e parcelas saem do saldo no dia, sem você pagar.</small></span>
+          <input type="checkbox" role="switch" checked={on} onChange={(e) => onChange(setAutoDebit(game, e.target.checked))} aria-label="Débito automático" />
+        </label>
+        {rows.length === 0 ? <p className="hint">Nenhuma mensalidade ativa.</p> : (
+          <ul className="bk-tx">{rows.map((r, i) => <li key={i}><div className="grow"><b>{r.label}</b><small>{on ? 'Debita em' : 'Vence em'} {formatDay(r.day)}</small></div><b className="out">− {brl(r.amount)}</b></li>)}</ul>
+        )}
+      </div>
     </>
   );
 }
@@ -86,7 +117,7 @@ function TxList({ txs }: { txs: BankTx[] }) {
   return (
     <ul className="bk-tx">
       {txs.map((t) => (
-        <li key={t.id}><div className="grow"><b>{t.title}</b><small>{t.detail} · Temp. {t.season}, rodada {t.round}</small></div><b className={t.amount < 0 ? 'out' : 'in'}>{t.amount < 0 ? '−' : '+'} {brl(Math.abs(t.amount))}</b></li>
+        <li key={t.id}><div className="grow"><b>{t.title}</b><small>{t.detail} · {t.day !== undefined ? formatDay(t.day) : `Temp. ${t.season}, rodada ${t.round}`}</small></div><b className={t.amount < 0 ? 'out' : 'in'}>{t.amount < 0 ? '−' : '+'} {brl(Math.abs(t.amount))}</b></li>
       ))}
     </ul>
   );

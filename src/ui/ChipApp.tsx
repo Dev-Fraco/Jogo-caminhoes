@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { brl } from '../engine/bank';
 import { buyPlan } from '../engine/dataplan';
-import { chipNumberOf, chipLeft, chipOf, netState, PLAN_PRICE, PLAN_ROUNDS, planActive, planLeft } from '../engine/phone';
+import { autoDebitOn } from '../engine/bank';
+import { formatDay } from '../engine/calendar';
+import { chipNumberOf, chipLeft, chipOf, netState, PLAN_PRICE, planActive, planLeft, planUntil } from '../engine/phone';
 import type { GameState } from '../engine/types';
 import { audio } from '../audio/audio';
 import { ChargeView, getPending, setPending } from './AppKit';
@@ -23,9 +25,9 @@ export function ChipApp({ game, onChange, onOpenApp }: Props) {
       <h2>📲 Internet de Chip</h2>
       <div className={`ph-card chip-status ${active ? 'on' : ''}`}>
         <div className="ph-row static"><span className="grow">Seu plano</span><b>{active ? 'Ativo' : 'Sem plano'}</b></div>
-        {active && <div className="ph-row static"><span className="grow">Restam</span><b>{left} {left === 1 ? 'rodada' : 'rodadas'}</b></div>}
+        {active && <div className="ph-row static"><span className="grow">{autoDebitOn(game) ? 'Renova em (débito automático)' : 'Vence em'}</span><b>{formatDay(planUntil(game)!)} · {left} {left === 1 ? 'dia' : 'dias'}</b></div>}
         <div className="ph-row static"><span className="grow">Chip</span><b>{chipOf(game) ? `${chipOf(game)!.name} · ${chipNumberOf(game) ?? '—'}` : 'nenhum / bloqueado'}</b></div>
-        {chipLeft(game) !== undefined && chipOf(game) && <div className="ph-row static"><span className="grow">Chip bloqueia em</span><b>{chipLeft(game)} rodadas</b></div>}
+        {chipLeft(game) !== undefined && chipOf(game) && <div className="ph-row static"><span className="grow">Chip bloqueia em</span><b>{chipLeft(game)} dias</b></div>}
         <div className="ph-row static"><span className="grow">Conexão agora</span><b>{net.label}</b></div>
       </div>
       <div className="ph-card chip-plan">
@@ -33,15 +35,15 @@ export function ChipApp({ game, onChange, onOpenApp }: Props) {
         <h3>Plano Mensal Ilimitado</h3>
         <p className="chip-price">{brl(PLAN_PRICE)}<small> / mês</small></p>
         <ul>
-          <li>Internet ilimitada o mês inteiro ({PLAN_ROUNDS} rodadas)</li>
+          <li>Internet ilimitada o mês inteiro (1 mês de calendário)</li>
           <li>5G: apps abrem rápido e downloads voam</li>
-          <li>Pagamento por Pix no app Banco</li>
+          <li>1ª contratação por Pix; depois renova sozinho por débito automático no banco</li>
         </ul>
         <button className="ph-btn pri bk-wide" onClick={() => {
           const r = buyPlan(game);
           if (!r.ok) { setMsg(r.error); audio.sfx('error'); return; }
           setMsg(undefined); onChange(r.state); setPending('chip', { chargeId: r.charge.id, selId: 'plan' }); setChargeId(r.charge.id);
-        }}>{active ? `Renovar (+${PLAN_ROUNDS} rodadas)` : 'Assinar plano'}</button>
+        }}>{active ? 'Renovar (+1 mês)' : 'Assinar plano'}</button>
         {msg && <p className="ph-pad-msg err" role="alert">{msg}</p>}
       </div>
       <p className="bk-sub">Os dados móveis só têm internet com plano ativo. Sem plano, use um Wi-Fi grátis (conexão ruim).</p>

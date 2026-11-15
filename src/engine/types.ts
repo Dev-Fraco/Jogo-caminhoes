@@ -157,7 +157,7 @@ export interface LibState {
 export interface PhoneSettings { wallpaper: 'neon' | 'ouro' | 'noite' | 'campo' | 'aurora'; dark: boolean; brightness: number; bigText: boolean; dnd: boolean; sounds: boolean; vibration: boolean; /** desbloqueio por digital (sem digitar o PIN) */ fingerprint?: boolean; /** conexões (painel rápido) */ wifi?: boolean; mobileData?: boolean; airplane?: boolean; /** rede Wi-Fi conectada */ wifiNet?: string }
 export interface PhoneNotification { id: string; app: string; text: string; season: number; round: number; read: boolean }
 /** Celular do treinador: PIN, apps instalados, configurações e notificações. */
-export interface PhoneState { pinHash?: string; installed: string[]; settings: PhoneSettings; notifications: PhoneNotification[]; /** modelo do aparelho (Mega-zona Luiz), chip e se o treinador ainda não tem celular */ model?: string; chip?: string; chipNumber?: string; chipUntil?: number; chipCount?: number; chipWarn?: string; noPhone?: boolean; /** apps com conta criada (código por SMS confirmado) */ verified?: string[]; /** código enviado por SMS aguardando confirmação */ pendingCode?: { app: string; code: string; number: string }; sms?: { id: string; text: string; code?: string; season: number; round: number }[]; /** plano de dados: vale até a rodada absoluta `until` */ plan?: { until: number; warned?: boolean; expiredNotified?: boolean};
+export interface PhoneState { pinHash?: string; installed: string[]; settings: PhoneSettings; notifications: PhoneNotification[]; /** modelo do aparelho (Mega-zona Luiz), chip e se o treinador ainda não tem celular */ model?: string; chip?: string; chipNumber?: string; chipUntil?: number; chipCount?: number; chipWarn?: string; noPhone?: boolean; /** apps com conta criada (código por SMS confirmado) */ verified?: string[]; /** código enviado por SMS aguardando confirmação */ pendingCode?: { app: string; code: string; number: string }; sms?: { id: string; text: string; code?: string; season: number; round: number }[]; /** plano de dados: vale até a rodada absoluta `until` */ plan?: { until: number /* dia do calendário */; warned?: boolean; expiredNotified?: boolean};
   /** NetFibra (Wi-Fi residencial): vale até a rodada absoluta `until`; rede e senha escolhidas na contratação; `down` = a rede caiu até essa rodada */
   fibra?: { until: number; entryPaid: boolean; ssid?: string; password?: string; down?: number; warned?: boolean; expiredNotified?: boolean } }
 
@@ -165,12 +165,12 @@ export interface PhoneState { pinHash?: string; installed: string[]; settings: P
 export interface PayPurpose { type: string; ref?: string; data?: Record<string, number | string> }
 export interface PixCharge { id: string; key: string; merchant: string; description: string; amount: number; purpose: PayPurpose; status: 'open' | 'paid'; season: number; round: number }
 export interface Boleto { id: string; code: string; merchant: string; description: string; amount: number; dueSeason: number; dueRound: number; status: 'open' | 'paid' | 'late'; fine: number; notified: boolean; purpose: PayPurpose; paidTxId?: string }
-export interface BankTx { id: string; kind: 'pix' | 'boleto' | 'income'; title: string; detail: string; /** negativo = saiu da conta */ amount: number; season: number; round: number }
+export interface BankTx { id: string; kind: 'pix' | 'boleto' | 'income'; title: string; detail: string; /** negativo = saiu da conta */ amount: number; season: number; round: number; /** dia do calendário em que aconteceu */ day?: number }
 /** Conta bancária do treinador (o saldo é o dinheiro pessoal dele, `coachMoney`). */
 export interface BankState { name: string; passHash: string; txs: BankTx[]; charges: PixCharge[]; boletos: Boleto[]; seq: number }
 
 /** Financiamento (parcelas mensais) ou aluguel (sem fim até encerrar). Um "mês" do jogo = 3 rodadas. */
-export interface Contract { id: string; kind: 'loan' | 'rent'; assetKind: 'vehicle' | 'house'; assetId: string; merchant: string; description: string; monthly: number; /** parcelas que ainda faltam gerar boleto (null = aluguel) */ remaining: number | null; total: number; paid: number; nextSeason: number; nextRound: number }
+export interface Contract { id: string; kind: 'loan' | 'rent'; assetKind: 'vehicle' | 'house'; assetId: string; merchant: string; description: string; monthly: number; /** parcelas que ainda faltam gerar boleto (null = aluguel) */ remaining: number | null; total: number; paid: number; nextSeason: number; nextRound: number; /** próximo vencimento (dia do calendário): todo mês, no mesmo dia */ nextDay?: number }
 export interface OwnedAsset { id: string; price: number; season: number; contractId?: string }
 /** Bens do treinador: veículos, imóveis, aluguel atual e contratos. */
 export interface AssetsState { vehicles: OwnedAsset[]; houses: OwnedAsset[]; contracts: Contract[]; seq: number }
@@ -331,6 +331,8 @@ export interface GameState {
   wageCover?: number;
   /** Categorias de base do seu clube: academia (nível 0–5) e jovens em formação. */
   youth?: import('./youth').YouthState;
+  /** Débito automático das mensalidades (plano de dados, NetFibra, aluguel e parcelas): ligado a menos que seja desligado. */
+  autoDebit?: boolean;
   /** Calendário: dia atual, início da temporada e quantos jogos (eventos) já aconteceram nela. */
   cal?: { day: number; start: number; slot: number };
   /** Mensagens (patrocínios, coletivas, diretoria, torcida) e metas do celular. */

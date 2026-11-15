@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buyHome, buyVehicle, currentRental, endRent, HOUSES_BUY, HOUSES_RENT, houseQuote, loanQuote, ownsHouse, ownsVehicle, prestigeScore, rentHome, resaleValue, sellAsset, tickContracts, vehicleQuote, VEHICLES, assetsOf, MONTH_ROUNDS } from '../src/engine/assets';
+import { calOf } from '../src/engine/calendar';
+import { processDays } from '../src/engine/daily';
 import { balanceOf, payBoleto, payPix, registerBank, tickBoletos } from '../src/engine/bank';
 import { makeCareer } from './helpers';
 import type { GameState } from '../src/engine/types';
@@ -11,6 +13,9 @@ const rich = (money = 5_000_000): GameState => {
 };
 const pay = (g: GameState, key: string) => { const r = payPix(g, key, 'segredo1'); if (!r.ok) throw new Error(r.error); return r.state; };
 const at = (g: GameState, round: number): GameState => ({ ...g, round });
+/** Passa `n` dias do calendário (processa vencimentos de cada dia). */
+const days = (g: GameState, n: number): GameState => { const d0 = calOf(g).day; return processDays(g, d0, d0 + n); };
+const manual = (g: GameState): GameState => ({ ...g, autoDebit: false }); // sem débito automático: parcelas viram boleto
 
 describe('catálogos', () => {
   it('15 veículos (de baratos a milhões), casas para comprar e para alugar de R$ 600 a R$ 50 mil', () => {
@@ -55,7 +60,7 @@ describe('concessionária', () => {
   });
   it('financiado: entrada por Pix, parcelas mensais em boleto e quitação', () => {
     const g = rich();
-    const r = buyVehicle(g, 'sedan-compacto', { type: 'finance', installments: 12 });
+    const r = buyVehicle(manual(g), 'sedan-compacto', { type: 'finance', installments: 12 });
     if (!r.ok) throw new Error(r.error);
     let s = pay(r.state, r.charge.key);
     const q = vehicleQuote(105_000, 12);
@@ -70,7 +75,7 @@ describe('concessionária', () => {
       const p = payBoleto(s, open.id, 'segredo1');
       if (!p.ok) throw new Error(p.error);
       s = p.state;
-      if (i < 12) { s = tickContracts(at({ ...s }, s.round + MONTH_ROUNDS)); s = { ...s }; }
+      if (i < 12) { s = days(s, 31); }
     }
     expect(assetsOf(s).contracts.length).toBe(0);
     expect(assetsOf(s).vehicles[0].contractId).toBeUndefined();
@@ -91,10 +96,10 @@ describe('concessionária', () => {
     expect(balanceOf(sold.state)).toBe(balanceOf(s) + 10_560);
   });
   it('2 boletos vencidos: o veículo é retomado', () => {
-    const r = buyVehicle(rich(), 'suv-familia', { type: 'finance', installments: 24 });
+    const r = buyVehicle(manual(rich()), 'suv-familia', { type: 'finance', installments: 24 });
     if (!r.ok) throw new Error(r.error);
     let s = pay(r.state, r.charge.key);
-    for (let i = 0; i < 40 && ownsVehicle(s, 'suv-familia'); i++) { s = tickContracts(tickBoletos({ ...s, round: s.round + 1 })); }
+    for (let i = 0; i < 40 && ownsVehicle(s, 'suv-familia'); i++) { s = tickContracts(tickBoletos(days({ ...s, round: s.round + 1 }, 10))); }
     expect(ownsVehicle(s, 'suv-familia')).toBe(false);
     expect(assetsOf(s).contracts.length).toBe(0);
     expect(s.news[0].text).toMatch(/retomado/);
@@ -116,7 +121,7 @@ describe('corretor de imóveis', () => {
     expect(prestigeScore(s2)).toBeGreaterThan(0);
   });
   it('aluguel: 1º mês no Pix, depois boleto todo mês; não deixa alugar dois; encerra se estiver em dia', () => {
-    const g = rich();
+    const g = manual(rich());
     const r = rentHome(g, 'r-kitnet');
     if (!r.ok) throw new Error(r.error);
     expect(r.charge.amount).toBe(600);
@@ -124,22 +129,61 @@ describe('corretor de imóveis', () => {
     expect(currentRental(s)?.monthly).toBe(600);
     expect(rentHome(s, 'r-casa-2q').ok).toBe(false);
     expect(s.bank!.boletos.length).toBe(0);
-    s = tickContracts({ ...s, round: s.round + MONTH_ROUNDS });
+    s = days(s, 31);
     expect(s.bank!.boletos.length).toBe(1);
     expect(s.bank!.boletos[0].description).toMatch(/Aluguel/);
     expect(endRent(s)).toMatchObject({ ok: false });
     const p = payBoleto(s, s.bank!.boletos[0].id, 'segredo1');
     if (!p.ok) throw new Error(p.error);
-    s = tickContracts({ ...p.state, round: p.state.round + MONTH_ROUNDS });
+    s = days(p.state, 31);
     s = { ...s, bank: { ...s.bank!, boletos: s.bank!.boletos.map((b) => ({ ...b, status: 'paid' as const })) } };
     expect(endRent(s).ok).toBe(true);
   });
   it('aluguel atrasado em 2 meses: despejo', () => {
-    const r = rentHome(rich(), 'r-quarto-sala');
+    const r = rentHome(manual(rich()), 'r-quarto-sala');
     if (!r.ok) throw new Error(r.error);
     let s = pay(r.state, r.charge.key);
-    for (let i = 0; i < 40 && currentRental(s); i++) s = tickContracts(tickBoletos({ ...s, round: s.round + 1 }));
+    for (let i = 0; i < 40 && currentRental(s); i++) s = tickContracts(tickBoletos(days({ ...s, round: s.round + 1 }, 10)));
     expect(currentRental(s)).toBeUndefined();
     expect(s.news[0].text).toMatch(/Despejo/);
+  });
+});
+
+describe('débito automático das mensalidades (aluguel e parcelas)', () => {
+  it('aluguel: todo mês o valor sai direto do saldo, sem boleto', () => {
+    const r = rentHome(rich(), 'r-kitnet');
+    if (!r.ok) throw new Error(r.error);
+    let s = pay(r.state, r.charge.key);
+    const cash = balanceOf(s);
+    s = days(s, 31);
+    expect(s.bank!.boletos.length).toBe(0);
+    expect(balanceOf(s)).toBe(cash - 600);
+    expect(s.bank!.txs[0].title).toMatch(/Débito automático/);
+    s = days(s, 31);
+    expect(balanceOf(s)).toBe(cash - 1_200);
+    expect(currentRental(s)).toBeTruthy();
+  });
+  it('parcela do financiamento: débito automático até quitar', () => {
+    const r = buyVehicle(rich(), 'sedan-compacto', { type: 'finance', installments: 12 });
+    if (!r.ok) throw new Error(r.error);
+    let s = pay(r.state, r.charge.key);
+    const q = vehicleQuote(105_000, 12);
+    expect(s.bank!.boletos.length).toBe(0); // com débito automático nem a 1ª parcela vira boleto
+    const cash = balanceOf(s);
+    for (let i = 0; i < 12; i++) s = days(s, 31);
+    expect(balanceOf(s)).toBe(cash - q.monthly * 12);
+    expect(assetsOf(s).contracts.length).toBe(0);
+    expect(assetsOf(s).vehicles[0].contractId).toBeUndefined();
+    expect(q.monthly).toBeGreaterThan(0);
+  });
+  it('sem saldo: cai para boleto (com multa se atrasar); com o débito desligado também', () => {
+    const r = rentHome(rich(), 'r-kitnet');
+    if (!r.ok) throw new Error(r.error);
+    const s0 = pay(r.state, r.charge.key);
+    const broke = days({ ...s0, coachMoney: 100 }, 31);
+    expect(broke.bank!.boletos.length).toBe(1);
+    expect(balanceOf(broke)).toBe(100);
+    const off = days({ ...s0, autoDebit: false }, 31);
+    expect(off.bank!.boletos.length).toBe(1);
   });
 });

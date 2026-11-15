@@ -103,7 +103,7 @@ export function ShopScreen({ game, onChange, onOpenPhone }: Props) {
         {own ? (
           <>
             <p>Seu aparelho: <b>{cur.name}</b> · memória {appsUsed(game)}/{cur.apps >= 99 ? '∞' : cur.apps} apps</p>
-            <p>Chip: <b>{chip ? chip.name : chipBlocked(game) ? 'bloqueado' : 'nenhum'}</b>{chipNumberOf(game) && <> · número <b className="shop-num">{chipNumberOf(game)}</b></>}{chip && chipLeft(game) !== undefined && <> · bloqueia em {chipLeft(game)} rodadas</>}</p>
+            <p>Chip: <b>{chip ? chip.name : chipBlocked(game) ? 'bloqueado' : 'nenhum'}</b>{chipNumberOf(game) && <> · número <b className="shop-num">{chipNumberOf(game)}</b></>}{chip && chipLeft(game) !== undefined && <> · bloqueia em {chipLeft(game)} dias</>}</p>
           </>
         ) : (
           <p className="shop-warn">📵 Você está sem celular. Compre um aqui: a primeira compra é em <b>dinheiro</b>, sem Pix.</p>

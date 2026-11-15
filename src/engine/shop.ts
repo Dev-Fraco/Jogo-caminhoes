@@ -1,6 +1,7 @@
 import { createCharge, registerPurpose } from './bank';
 import { coachMoneyOf } from './finance';
-import { CHIPS, chipBlocked, DEFAULT_PHONE, notifyPhone, ownsPhone, PHONE_MODELS, phoneOf, type ChipId } from './phone';
+import { CHIPS, chipBlocked, chipLeft, DEFAULT_PHONE, notifyPhone, ownsPhone, PHONE_MODELS, phoneOf, type ChipId } from './phone';
+import { calOf, YEAR_DAYS } from './calendar';
 import { makeRng } from './rng';
 import type { GameState, PixCharge } from './types';
 
@@ -59,20 +60,20 @@ export function buyChip(g: GameState, id: ChipId): Buy {
   if (p.chip === id && !chipBlocked(g)) return { ok: false, error: 'Você já usa este chip.' };
   if (coachMoneyOf(g) < c.price) return { ok: false, error: `Você só tem ${brl0(coachMoneyOf(g))} em dinheiro.` };
   const number = newChipNumber(g);
-  const until = g.season * 200 + g.round + g.totalRounds; // 1 ano = 1 temporada
+  const until = calOf(g).day + YEAR_DAYS; // 1 ano de calendário
   const s = { ...g, coachMoney: coachMoneyOf(g) - c.price, phone: { ...p, chip: id, chipNumber: number, chipUntil: until, chipCount: (p.chipCount ?? 0) + 1 } };
   return { ok: true, state: notifyPhone(s, 'config', `Chip ${c.name} instalado. Seu número: ${number}. Vale por 1 ano.`) };
 }
 
-/** Aviso quando o chip está perto de bloquear e quando bloqueou. */
-export function chipTick(g: GameState): GameState {
+/** Aviso diário: chip perto de bloquear (14 dias) e bloqueado. */
+export function chipDay(g: GameState): GameState {
   const p = phoneOf(g);
   if (!p.chipUntil || !p.chip) return g;
-  const left = p.chipUntil - (g.season * 200 + g.round);
+  const left = (chipLeft(g) ?? 0);
   const key = `${p.chipNumber}`;
   const seen = p.chipWarn ?? '';
   const mark = (tag: string, text: string) => notifyPhone({ ...g, phone: { ...p, chipWarn: `${seen}${key}:${tag};` } }, 'config', text);
   if (left <= 0 && !seen.includes(`${key}:b;`)) return mark('b', `Seu chip ${p.chipNumber} foi bloqueado (1 ano). Compre um novo na Mega-zona Luiz.`);
-  if (left > 0 && left <= Math.max(3, Math.round(g.totalRounds / 10)) && !seen.includes(`${key}:w;`)) return mark('w', `Seu chip ${p.chipNumber} vai bloquear em ${left} rodada(s). Compre um novo.`);
+  if (left > 0 && left <= 14 && !seen.includes(`${key}:w;`)) return mark('w', `Seu chip ${p.chipNumber} vai bloquear em ${left} dias. Compre um novo.`);
   return g;
 }

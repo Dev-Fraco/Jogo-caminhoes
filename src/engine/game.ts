@@ -13,11 +13,11 @@ import { tickBoletos } from './bank';
 import { roundFinance } from './finance';
 import { playHomeGate } from './stadium';
 import { inboxTick } from './inbox';
-import { planTick } from './dataplan';
-import { chipTick } from './shop';
+import './shop';
+import { processDays } from './daily';
 import { youthSeason, youthTick } from './youth';
 import { fibraTick } from './netfibra';
-import { afterMatch, newSeasonCalendar } from './calendar';
+import { afterMatch, calOf, newSeasonCalendar } from './calendar';
 import { createCup, cupAfterLeagueRound, playCupRound, shootout } from './cup';
 import { MORALE_START, moraleFactor, updateMorale } from './morale';
 import { simulateMatch } from './match';
@@ -149,7 +149,7 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
   const myHome = my && !g.unemployed && my.homeId === g.userClubId ? my : undefined;
   state = socialAds(tickContracts(tickBoletos(roundFinance(state, new Set(results.map((r) => r.homeId)), !!myHome))));
   if (myHome) state = playHomeGate(state, myHome.awayId).state; // público e bilheteria do seu jogo em casa (preço do ingresso)
-  state = youthTick(fibraTick(chipTick(planTick(inboxTick(state))))); // mensagens, metas, fatura e plano de dados do celular
+  state = youthTick(fibraTick(inboxTick(state))); // mensagens, metas, fatura e plano de dados do celular
   state = boardTick(state, makeRng(g.seed * 19 + g.season * 7 + g.round)); // diretoria (demissão) ou, sem clube, propostas de emprego
   state = mundialAfterLeagueRound(contAfterLeagueRound(cupAfterLeagueRound(state)));
   // propostas dos outros clubes pelos jogadores listados
@@ -162,7 +162,8 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
 /** Próximo jogo do seu clube: a fase da copa (se for a data) ou a rodada do campeonato. */
 export function playNext(g: GameState) {
   const r = playNextRaw(g);
-  return { ...r, state: afterMatch(g, r.state) };
+  const st = afterMatch(g, r.state);
+  return { ...r, state: processDays(st, calOf(g).day, calOf(st).day) }; // mensalidades e vencimentos dos dias que passaram
 }
 function playNextRaw(g: GameState) {
   const ev = pendingEvent(g);

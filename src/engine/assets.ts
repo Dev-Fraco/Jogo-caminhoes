@@ -1,5 +1,6 @@
 import { inflate } from './economy';
-import { balanceOf, brl, createBoleto, createCharge, creditAccount, registerPurpose } from './bank';
+import { autoDebitOn, balanceOf, brl, createBoleto, createCharge, creditAccount, debitNow, registerPurpose } from './bank';
+import { addMonths, calOf } from './calendar';
 import { notifyPhone } from './phone';
 import type { AssetsState, Contract, GameState, NewsItem, OwnedAsset, PayPurpose, PixCharge } from './types';
 
@@ -128,7 +129,7 @@ export function rentHome(g: GameState, id: string): Started | Fail {
 function newContract(g: GameState, c: Omit<Contract, 'id' | 'paid' | 'nextSeason' | 'nextRound'>): { state: GameState; contract: Contract } {
   const a = assetsOf(g);
   const nx = addMonth(g, g.season, g.round);
-  const contract: Contract = { ...c, id: `K${a.seq}`, paid: 0, nextSeason: nx.season, nextRound: nx.round };
+  const contract: Contract = { ...c, id: `K${a.seq}`, paid: 0, nextSeason: nx.season, nextRound: nx.round, nextDay: addMonths(calOf(g).day, 1) };
   return { state: { ...g, assets: { ...a, seq: a.seq + 1, contracts: [...a.contracts, contract] } }, contract };
 }
 
@@ -144,8 +145,9 @@ registerPurpose('buy-vehicle', (g, _amount, p) => {
   let s = g;
   let contractId: string | undefined;
   if (n > 0) {
-    const r = newContract(s, { kind: 'loan', assetKind: 'vehicle', assetId: id, merchant: 'Concessionária', description: v.name, monthly, remaining: n - 1, total: n });
-    s = spawnBoleto(r.state, r.contract); contractId = r.contract.id;
+    const auto = autoDebitOn(s); // com débito automático todas as parcelas saem do saldo no dia; sem ele, a 1ª já vem como boleto
+    const r = newContract(s, { kind: 'loan', assetKind: 'vehicle', assetId: id, merchant: 'Concessionária', description: v.name, monthly, remaining: auto ? n : n - 1, total: n });
+    s = auto ? r.state : spawnBoleto(r.state, r.contract); contractId = r.contract.id;
   }
   const a = assetsOf(s);
   s = { ...s, assets: { ...a, vehicles: [...a.vehicles, { id, price, season: g.season, contractId }] } };
@@ -158,8 +160,9 @@ registerPurpose('buy-house', (g, _amount, p) => {
   let s = g;
   let contractId: string | undefined;
   if (n > 0) {
-    const r = newContract(s, { kind: 'loan', assetKind: 'house', assetId: id, merchant: 'Corretor de Imóveis', description: h.name, monthly, remaining: n - 1, total: n });
-    s = spawnBoleto(r.state, r.contract); contractId = r.contract.id;
+    const auto = autoDebitOn(s); // com débito automático todas as parcelas saem do saldo no dia; sem ele, a 1ª já vem como boleto
+    const r = newContract(s, { kind: 'loan', assetKind: 'house', assetId: id, merchant: 'Corretor de Imóveis', description: h.name, monthly, remaining: auto ? n : n - 1, total: n });
+    s = auto ? r.state : spawnBoleto(r.state, r.contract); contractId = r.contract.id;
   }
   const a = assetsOf(s);
   s = { ...s, assets: { ...a, houses: [...a.houses, { id, price, season: g.season, contractId }] } };
@@ -213,7 +216,6 @@ export function endRent(g: GameState): { ok: true; state: GameState } | Fail {
 
 /* ---------- a cada rodada ---------- */
 
-const isDue = (g: GameState, c: Contract) => g.season > c.nextSeason || (g.season === c.nextSeason && g.round >= c.nextRound);
 
 /** Gera os boletos mensais, e retoma o bem (ou despeja) se houver 2 boletos vencidos do mesmo contrato. */
 export function tickContracts(g: GameState): GameState {
@@ -236,15 +238,6 @@ export function tickContracts(g: GameState): GameState {
       s = notifyPhone(news(s, `⚠️ ${msg}`, 'bad'), c.assetKind === 'vehicle' ? 'concessionaria' : 'corretor', msg);
       continue;
     }
-    if (!isDue(s, c)) continue;
-    const nx = addMonth(s, s.season, s.round);
-    if (c.kind === 'rent' || (c.remaining ?? 0) > 0) {
-      const spawned = c.kind === 'rent'
-        ? createBoleto(s, { merchant: c.merchant, description: `Aluguel — ${c.description}`, amount: c.monthly, dueInRounds: MONTH_ROUNDS, purpose: { type: 'installment', ref: c.id } })
-        : createBoleto(s, { merchant: c.merchant, description: `Parcela ${c.total - (c.remaining ?? 0) + 1}/${c.total} — ${c.description}`, amount: c.monthly, dueInRounds: MONTH_ROUNDS, purpose: { type: 'installment', ref: c.id } });
-      const a = assetsOf(spawned);
-      s = { ...spawned, assets: { ...a, contracts: a.contracts.map((x) => (x.id === c.id ? { ...x, remaining: x.remaining === null ? null : x.remaining - 1, nextSeason: nx.season, nextRound: nx.round } : x)) } };
-    }
   }
   return s;
 }
@@ -260,3 +253,35 @@ export function prestigeScore(g: Pick<GameState, 'assets'>): number {
 /** Preço de hoje (base × inflação) de um veículo, imóvel ou aluguel. */
 export const priceOf = (g: GameState, base: number) => inflate(g, base);
 export const canAfford = (g: GameState, amount: number) => balanceOf(g) >= amount;
+
+/** Todo dia: contratos (aluguel e parcelas) que vencem hoje. Com débito automático, o valor sai direto do saldo do banco; sem saldo (ou com o débito desligado), vira boleto. */
+export function monthlyContracts(g: GameState): GameState {
+  const a0 = assetsOf(g);
+  if (a0.contracts.length === 0) return g;
+  const today = calOf(g).day;
+  let s = g;
+  for (const c0 of a0.contracts) {
+    let c = assetsOf(s).contracts.find((x) => x.id === c0.id);
+    if (!c) continue;
+    if (c.nextDay === undefined) { // contrato de um save antigo: o 1º vencimento é daqui a 1 mês
+      const a = assetsOf(s);
+      s = { ...s, assets: { ...a, contracts: a.contracts.map((x) => (x.id === c!.id ? { ...x, nextDay: addMonths(today, 1) } : x)) } };
+      continue;
+    }
+    let guard = 0;
+    while (c && c.nextDay !== undefined && c.nextDay <= today && guard++ < 24) {
+      if (!(c.kind === 'rent' || (c.remaining ?? 0) > 0)) break;
+      const label = c.kind === 'rent' ? `Aluguel — ${c.description}` : `Parcela ${c.total - (c.remaining ?? 0) + 1}/${c.total} — ${c.description}`;
+      const a = assetsOf(s);
+      const nextDay = addMonths(c.nextDay, 1);
+      const remaining = c.remaining === null ? null : c.remaining - 1;
+      s = { ...s, assets: { ...a, contracts: a.contracts.map((x) => (x.id === c!.id ? { ...x, remaining, nextDay } : x)) } };
+      const purpose = { type: 'installment', ref: c.id };
+      const paid = autoDebitOn(s) ? debitNow(s, { merchant: c.merchant, description: label, amount: c.monthly, purpose }) : null;
+      if (paid) s = notifyPhone(paid, 'banco', `Débito automático: ${label} (${brl(c.monthly)}).`);
+      else s = createBoleto(s, { merchant: c.merchant, description: label, amount: c.monthly, dueInRounds: MONTH_ROUNDS, purpose });
+      c = assetsOf(s).contracts.find((x) => x.id === c0.id);
+    }
+  }
+  return s;
+}

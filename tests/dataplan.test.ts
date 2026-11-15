@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { brazilPyramid } from '../src/data/pyramid';
-import { payPix, registerBank, balanceOf } from '../src/engine/bank';
-import { buyPlan, planTick } from '../src/engine/dataplan';
-import { newCareer, playNext } from '../src/engine/game';
-import { netState, phoneOf, PLAN_PRICE, PLAN_ROUNDS, planActive, planLeft, toggleConn } from '../src/engine/phone';
+import { payPix, registerBank, balanceOf, setAutoDebit } from '../src/engine/bank';
+import { addMonths, calOf } from '../src/engine/calendar';
+import { processDays } from '../src/engine/daily';
+import { buyPlan } from '../src/engine/dataplan';
+import { newCareer } from '../src/engine/game';
+import { netState, phoneOf, PLAN_PRICE, planActive, planLeft, planUntil, toggleConn } from '../src/engine/phone';
 import type { GameState } from '../src/engine/types';
 
 const mk = (): GameState => {
@@ -13,43 +15,59 @@ const mk = (): GameState => {
   return { ...g, coachMoney: 100_000 };
 };
 const pay = (g: GameState) => { const b = buyPlan(g); if (!b.ok) throw new Error(b.error); const r = payPix(b.state, b.charge.key, 'segredo1'); if (!r.ok) throw new Error(r.error); return r.state; };
+const days = (g: GameState, n: number) => { const d0 = calOf(g).day; return processDays(g, d0, d0 + n); };
+const withChip = (g: GameState): GameState => ({ ...g, phone: { ...phoneOf(g), chip: 'morto', chipNumber: '(11) 91111-2222', chipUntil: calOf(g).day + 400 } });
 
 describe('plano de dados (Internet de Chip)', () => {
   it('sem conta no banco não dá para assinar', () => {
-    const g = { ...mk(), bank: undefined };
-    const r = buyPlan(g);
-    expect(r.ok).toBe(false);
+    expect(buyPlan({ ...mk(), bank: undefined }).ok).toBe(false);
   });
-  it('custa R$ 5.000 por Pix e ativa por 3 rodadas; dados móveis só funcionam com plano', () => {
-    let g = toggleConn(mk(), 'mobileData');
+  it('custa R$ 5.000 por Pix e vale 1 mês de calendário; dados móveis só funcionam com plano', () => {
+    let g = toggleConn(withChip(mk()), 'mobileData');
     expect(netState(g)).toMatchObject({ kind: 'none', speed: 'none' });
     expect(netState(g).label).toMatch(/sem plano/i);
     const cash = balanceOf(g);
+    const day = calOf(g).day;
     g = pay(g);
     expect(balanceOf(g)).toBe(cash - PLAN_PRICE);
     expect(planActive(g)).toBe(true);
-    expect(planLeft(g)).toBe(PLAN_ROUNDS);
+    expect(planUntil(g)).toBe(addMonths(day, 1));
+    expect(planLeft(g)).toBeGreaterThanOrEqual(28);
+    expect(planLeft(g)).toBeLessThanOrEqual(31);
     expect(netState(g)).toMatchObject({ kind: '5g', speed: 'fast' });
-    expect(phoneOf(g).notifications.some((n) => n.app === 'internetchip')).toBe(true);
   });
-  it('renovar soma mais um mês ao que sobrou', () => {
+  it('renovar por Pix soma mais um mês ao que sobrou', () => {
     let g = pay(mk());
+    const first = planUntil(g)!;
     g = pay(g);
-    expect(planLeft(g)).toBe(PLAN_ROUNDS * 2);
+    expect(planUntil(g)).toBe(addMonths(first, 1));
   });
-  it('o plano vence com o passar das rodadas, avisando antes e depois', () => {
-    let g = toggleConn(pay(mk()), 'mobileData');
-    let guard = 0;
-    while (g.estadual?.due && guard++ < 60) g = playNext(g).state;
-    const start = g.round;
-    g = { ...g, phone: { ...phoneOf(g), plan: { until: g.season * 200 + g.round + 2 } } };
-    for (let i = 0; i < 3; i++) g = planTick(playNext(g).state);
-    expect(g.round).toBeGreaterThan(start);
+  it('débito automático: no dia do vencimento o banco desconta e o plano renova sozinho', () => {
+    let g = pay(mk());
+    const cash = balanceOf(g);
+    g = days(g, 31);
+    expect(planActive(g)).toBe(true);
+    expect(balanceOf(g)).toBe(cash - PLAN_PRICE);
+    expect(g.bank!.txs[0].title).toMatch(/Débito automático/);
+    expect(phoneOf(g).notifications.some((n) => /Débito automático: Internet de Chip/.test(n.text))).toBe(true);
+    g = days(g, 31 + 30);
+    expect(balanceOf(g)).toBe(cash - PLAN_PRICE * 3);
+  });
+  it('sem saldo o plano vence, avisa uma vez e volta a renovar quando houver saldo', () => {
+    let g = pay({ ...mk(), coachMoney: 5_100 });
+    g = days(g, 40);
     expect(planActive(g)).toBe(false);
-    expect(netState(g).speed).toBe('none');
-    const texts = phoneOf(g).notifications.filter((n) => n.app === 'internetchip').map((n) => n.text).join(' | ');
-    expect(texts).toMatch(/vence na próxima rodada/);
-    expect(texts).toMatch(/venceu/);
-    expect(planTick(g)).toEqual(g); // não repete o aviso
+    const n = phoneOf(g).notifications.filter((x) => /recusado|venceu/.test(x.text)).length;
+    expect(n).toBe(1);
+    g = days({ ...g, coachMoney: 50_000 }, 1);
+    expect(planActive(g)).toBe(true);
+  });
+  it('com o débito desligado o plano vence e é preciso renovar na mão; avisa antes', () => {
+    let g = setAutoDebit(pay(mk()), false);
+    g = days(g, 29);
+    expect(phoneOf(g).notifications.some((n) => /vence em/.test(n.text))).toBe(true);
+    g = days(g, 5);
+    expect(planActive(g)).toBe(false);
+    expect(phoneOf(g).notifications[0].text).toMatch(/venceu/);
   });
 });

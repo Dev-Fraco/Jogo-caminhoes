@@ -678,3 +678,5 @@ button.home-tile { width: 100%; font: inherit; color: inherit; text-align: cente
 /* Calendário */
 .cal-today { margin: 6px 0 4px; font: 700 14px var(--font-head); color: #cfe0ff; } .cal-today::first-letter, .cal-next b::first-letter { text-transform: uppercase; }
 .cal-next { margin: 4px 0 8px; font-size: 14px; color: var(--muted); } .cal-next b { color: #fff; display: inline-block; }
+.ph-toggle-row { display: flex; align-items: center; gap: 12px; padding: 4px 0 8px; } .ph-toggle-row b { display: block; font-size: 14px; } .ph-toggle-row small { display: block; opacity: .75; font-size: 12px; }
+.ph-toggle-row input[type=checkbox] { width: 46px; height: 26px; flex: none; accent-color: #3ddc84; }

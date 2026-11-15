@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { brazilPyramid } from '../src/data/pyramid';
 import { balanceOf, payPix, registerBank } from '../src/engine/bank';
+import { calOf, addMonths } from '../src/engine/calendar';
+import { processDays } from '../src/engine/daily';
 import { buyFibra, fibraBill, fibraTick, OUTAGE_CHANCE, setupWifi } from '../src/engine/netfibra';
-import { connectHome, connectWifi, downloadMs, FIBRA_ENTRY, FIBRA_MONTHLY, FREE_WIFI, fibraActive, fibraDown, fibraReady, netState, openDelayMs, phoneOf, PLAN_ROUNDS, toggleConn, updatePhoneSettings } from '../src/engine/phone';
+import { connectHome, connectWifi, downloadMs, FIBRA_ENTRY, FIBRA_MONTHLY, FREE_WIFI, fibraActive, fibraDown, fibraReady, fibraUntil, netState, openDelayMs, phoneOf, toggleConn, updatePhoneSettings } from '../src/engine/phone';
 import { newCareer } from '../src/engine/game';
 import type { GameState } from '../src/engine/types';
 
@@ -13,8 +15,9 @@ const mk = (): GameState => {
 };
 const pay = (g: GameState) => { const b = buyFibra(g); if (!b.ok) throw new Error(b.error); const r = payPix(b.state, b.charge.key, 'segredo1'); if (!r.ok) throw new Error(r.error); return r.state; };
 const set = (g: GameState) => { const r = setupWifi(g, 'Casa do Mister', 'senha1234'); if (!r.ok) throw new Error(r.error); return r.state; };
-const longFibra = (g: GameState): GameState => ({ ...g, phone: { ...phoneOf(g), fibra: { ...phoneOf(g).fibra!, until: g.season * 200 + 5_000 } } });
-const withPlan = (g: GameState) => ({ ...g, phone: { ...phoneOf(g), plan: { until: g.season * 200 + g.round + 99 }, chip: 'morto', chipNumber: '(11) 91111-2222', chipUntil: g.season * 200 + g.round + 99 } });
+const longFibra = (g: GameState): GameState => ({ ...g, phone: { ...phoneOf(g), fibra: { ...phoneOf(g).fibra!, until: calOf(g).day + 900 } } });
+const days = (g: GameState, n: number) => { const d0 = calOf(g).day; return processDays(g, d0, d0 + n); };
+const withPlan = (g: GameState) => ({ ...g, phone: { ...phoneOf(g), plan: { until: calOf(g).day + 900 }, chip: 'morto', chipNumber: '(11) 91111-2222', chipUntil: calOf(g).day + 900 } });
 
 describe('NetFibra', () => {
   it('1ª contratação: entrada de R$ 50 mil + mensalidade de R$ 100 mil, por Pix; renovação só a mensalidade', () => {
@@ -24,12 +27,13 @@ describe('NetFibra', () => {
     g = pay(g);
     expect(balanceOf(g)).toBe(cash - 150_000);
     expect(fibraActive(g)).toBe(true);
-    expect(phoneOf(g).fibra!.until - (g.season * 200 + g.round)).toBe(PLAN_ROUNDS);
+    const day = calOf(g).day;
+    expect(fibraUntil(g)).toBe(addMonths(day, 1));
     expect(fibraBill(g)).toBe(FIBRA_MONTHLY);
     const c2 = balanceOf(g);
     g = pay(g);
     expect(balanceOf(g)).toBe(c2 - 100_000);
-    expect(phoneOf(g).fibra!.until - (g.season * 200 + g.round)).toBe(PLAN_ROUNDS * 2);
+    expect(fibraUntil(g)).toBe(addMonths(day, 2));
   });
   it('sem conta no banco não contrata', () => {
     expect(buyFibra({ ...mk(), bank: undefined }).ok).toBe(false);
@@ -68,7 +72,7 @@ describe('NetFibra', () => {
     let dropped: GameState | undefined;
     for (let r = 1; r < 200 && !dropped; r++) {
       const t = fibraTick({ ...g, round: r });
-      if (fibraDown({ ...t, round: r })) dropped = { ...t, round: r };
+      if (fibraDown(t)) dropped = t;
     }
     expect(dropped).toBeTruthy();
     const d = dropped!;
@@ -80,9 +84,9 @@ describe('NetFibra', () => {
     expect(netState(only).label).toMatch(/sem internet/i);
     expect(netState(d).kind).toBe('5g');
     // volta sozinha
-    const back = fibraTick({ ...d, round: d.round + 3 });
+    const back = days(d, 8);
     expect(fibraDown(back)).toBe(false);
-    expect(phoneOf(back).notifications[0].text).toMatch(/voltou/);
+    expect(phoneOf(back).notifications.some((n) => /voltou/.test(n.text))).toBe(true);
   });
   it('quedas acontecem com frequência razoável (cerca de 1 em 5 rodadas)', () => {
     const g = longFibra(set(pay(mk())));
@@ -91,13 +95,26 @@ describe('NetFibra', () => {
     expect(n / trials).toBeGreaterThan(OUTAGE_CHANCE / 3);
     expect(n / trials).toBeLessThan(OUTAGE_CHANCE * 2.5);
   });
-  it('mensalidade vencida deixa o Wi-Fi sem internet e avisa', () => {
+  it('débito automático: a mensalidade sai do banco todo mês, sem pagar na mão', () => {
     let g = set(pay(mk()));
-    g = { ...g, round: g.round + PLAN_ROUNDS + 1 };
+    const cash = balanceOf(g);
+    g = days(g, 31);
+    expect(fibraActive(g)).toBe(true);
+    expect(balanceOf(g)).toBe(cash - FIBRA_MONTHLY);
+    expect(g.bank!.txs[0].title).toMatch(/Débito automático/);
+    g = days(g, 31);
+    expect(balanceOf(g)).toBe(cash - FIBRA_MONTHLY * 2);
+  });
+  it('sem saldo ou com o débito desligado: o Wi-Fi fica sem internet e avisa', () => {
+    const base = set(pay({ ...mk(), coachMoney: 150_100 }));
+    let g = days(base, 40);
     expect(fibraActive(g)).toBe(false);
     expect(netState(g).kind).toBe('none');
-    const t = fibraTick(g);
-    expect(phoneOf(t).notifications[0].text).toMatch(/venceu/);
-    expect(fibraTick(t)).toEqual(t);
+    expect(phoneOf(g).notifications.some((n) => /recusado|venceu/.test(n.text))).toBe(true);
+    const off = days({ ...base, autoDebit: false }, 40);
+    expect(fibraActive(off)).toBe(false);
+    expect(phoneOf(off).notifications.some((n) => /venceu/.test(n.text))).toBe(true);
+    const again = days(off, 5);
+    expect(phoneOf(again).notifications.filter((n) => /venceu/.test(n.text)).length).toBe(1); // avisa uma vez
   });
 });

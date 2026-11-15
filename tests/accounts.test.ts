@@ -6,7 +6,9 @@ import { coachMoneyOf } from '../src/engine/finance';
 import { confirmCode, isVerified, needsAccount, requestCode, smsOf } from '../src/engine/accounts';
 import { newCareer, playNext } from '../src/engine/game';
 import { chipBlocked, chipLeft, chipNumberOf, chipOf, CHIP_PRICE, DEFAULT_PHONE, netState, phoneOf, toggleConn, updatePhoneSettings } from '../src/engine/phone';
-import { buyChip, buyPhoneCash, chipTick } from '../src/engine/shop';
+import { buyChip, buyPhoneCash } from '../src/engine/shop';
+import { addMonths, calOf } from '../src/engine/calendar';
+import { processDays } from '../src/engine/daily';
 import type { GameState } from '../src/engine/types';
 
 const start = (): GameState => {
@@ -26,21 +28,20 @@ describe('chip: número, preço e validade', () => {
     const g = withChip();
     expect(coachMoneyOf(g)).toBe(cash - CHIP_PRICE);
     expect(chipNumberOf(g)).toMatch(/^\(\d{2}\) 9\d{4}-\d{4}$/);
-    expect(chipLeft(g)).toBe(g.totalRounds);
+    expect(chipLeft(g)).toBe(365);
     expect(phoneOf(g).notifications.some((n) => n.text.includes(chipNumberOf(g)!))).toBe(true);
   });
   it('depois de 1 ano o chip bloqueia: os dados morrem e um chip novo traz outro número', () => {
     let g = toggleConn(withChip(), 'mobileData');
-    g = { ...g, phone: { ...phoneOf(g), plan: { until: g.season * 200 + g.round + 999 } } };
+    g = { ...g, phone: { ...phoneOf(g), plan: { until: calOf(g).day + 9999 } } };
     expect(netState(g).kind).toBe('5g');
     const old = chipNumberOf(g)!;
-    g = { ...g, season: g.season + 1 };
+    g = processDays(g, calOf(g).day, calOf(g).day + 366);
     expect(chipBlocked(g)).toBe(true);
     expect(chipOf(g)).toBeUndefined();
     expect(netState(g)).toMatchObject({ speed: 'none', label: 'Chip bloqueado' });
-    const t = chipTick(g);
-    expect(phoneOf(t).notifications[0].text).toMatch(/bloqueado/);
-    expect(chipTick(t)).toEqual(t); // só avisa uma vez
+    expect(phoneOf(g).notifications.some((n) => /bloqueado/.test(n.text))).toBe(true);
+    expect(phoneOf(g).notifications.filter((n) => /bloqueado/.test(n.text)).length).toBe(1); // só avisa uma vez
     const again = buyChip({ ...g, coachMoney: 50_000 }, 'morto'); if (!again.ok) throw new Error(again.error);
     expect(chipBlocked(again.state)).toBe(false);
     expect(chipNumberOf(again.state)).not.toBe(old);
@@ -48,8 +49,8 @@ describe('chip: número, preço e validade', () => {
   });
   it('avisa antes de bloquear', () => {
     let g = withChip();
-    g = { ...g, phone: { ...phoneOf(g), chipUntil: g.season * 200 + g.round + 2 } };
-    expect(phoneOf(chipTick(g)).notifications[0].text).toMatch(/vai bloquear/);
+    g = processDays(g, calOf(g).day, calOf(g).day + 360);
+    expect(phoneOf(g).notifications.some((n) => /vai bloquear/.test(n.text))).toBe(true);
   });
 });
 
@@ -60,7 +61,7 @@ describe('conta nos apps com código por SMS', () => {
     expect(needsAccount(a.state, 'noticias')).toBe(false);
     expect(requestCode(a.state, 'banco', '(11) 91234-5678')).toMatchObject({ ok: false });
     const g = withChip();
-    const blocked = { ...g, season: g.season + 1 };
+    const blocked = { ...g, cal: { ...calOf(g), day: calOf(g).day + 400 } };
     expect(requestCode(blocked, 'banco', chipNumberOf(g)!)).toMatchObject({ ok: false });
   });
   it('só o número do seu chip recebe o código; o código chega por SMS e libera o app', () => {

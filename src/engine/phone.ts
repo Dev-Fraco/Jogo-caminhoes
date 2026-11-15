@@ -1,3 +1,4 @@
+import { calOf } from './calendar';
 import type { GameState, PhoneNotification, PhoneSettings, PhoneState } from './types';
 
 export interface PhoneApp { id: string; name: string; icon: string; blurb: string; category: string; size: string; rating: number }
@@ -141,7 +142,7 @@ export const disconnectWifi = (g: GameState): GameState => updatePhoneSettings(g
 export type NetSpeed = 'none' | 'slow' | 'fast';
 export interface NetState { kind: 'none' | 'wifi' | '5g' | 'fibra'; speed: NetSpeed; label: string; note: string }
 /** Qual internet o celular tem agora: dados móveis (5G, rápido) ou Wi-Fi grátis (ruim). Sem nada ligado ou conectado, não há internet. */
-export function netState(g: Pick<GameState, 'phone' | 'season' | 'round'>): NetState {
+export function netState(g: Pick<GameState, 'phone' | 'season' | 'round' | 'cal'>): NetState {
   const s = phoneOf(g).settings;
   if (s.airplane) return { kind: 'none', speed: 'none', label: 'Modo avião', note: 'Desligue o modo avião e conecte-se a uma rede.' };
   if (s.wifi && s.wifiNet && fibraReady(g) && phoneOf(g).fibra!.ssid === s.wifiNet) return { kind: 'fibra', speed: 'fast', label: `NetFibra · ${s.wifiNet}`, note: '1 GB de download e 1 GB de upload: o dobro da velocidade do 5G.' };
@@ -157,19 +158,22 @@ export function netState(g: Pick<GameState, 'phone' | 'season' | 'round'>): NetS
 export const OFFLINE_SCREENS = ['home', 'config', 'calc', 'nonet', 'boot'];
 export const needsInternet = (screen: string) => !OFFLINE_SCREENS.includes(screen);
 /** Tempo (ms) para abrir um app e para baixar um app, conforme a conexão. */
-export const openDelayMs = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => Math.round((netState(g).speed === 'slow' ? 3600 : 450) * (netState(g).kind === 'fibra' ? 0.5 : 1) * modelOf(g).speed);
-export const downloadMs = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => Math.round((netState(g).speed === 'slow' ? 9000 : 1600) * (netState(g).kind === 'fibra' ? 0.5 : 1) * modelOf(g).speed);
+export const openDelayMs = (g: Pick<GameState, 'phone' | 'season' | 'round' | 'cal'>) => Math.round((netState(g).speed === 'slow' ? 3600 : 450) * (netState(g).kind === 'fibra' ? 0.5 : 1) * modelOf(g).speed);
+export const downloadMs = (g: Pick<GameState, 'phone' | 'season' | 'round' | 'cal'>) => Math.round((netState(g).speed === 'slow' ? 9000 : 1600) * (netState(g).kind === 'fibra' ? 0.5 : 1) * modelOf(g).speed);
 export const INSTALL_MS = 1800;
 
 /* ---------- plano de dados (app Internet de Chip) ---------- */
 export const PLAN_PRICE = 5_000;
-/** O "mês" do jogo: 3 rodadas, o mesmo ciclo das receitas de publicidade. */
-export const PLAN_ROUNDS = 3;
 const ABS = 200;
 const nowAbs = (g: Pick<GameState, 'season' | 'round'>) => g.season * ABS + g.round;
-/** Rodadas que ainda restam no plano (0 = sem plano ou vencido). */
-export const planLeft = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => Math.max(0, (phoneOf(g).plan?.until ?? 0) - nowAbs(g));
-export const planActive = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => planLeft(g) > 0;
+type TG = Pick<GameState, 'phone' | 'season' | 'round' | 'cal'>;
+const nowDay = (g: TG) => calOf(g).day;
+/** Validades agora são DIAS do calendário. Saves antigos guardavam rodadas: convertemos (1 rodada ≈ 3 dias). */
+export const asDay = (v: number, g: TG) => (v > 100_000 ? nowDay(g) + Math.round((v - nowAbs(g)) * 3) : v);
+/** Dias que ainda restam no plano (0 = sem plano ou vencido). */
+export const planLeft = (g: TG) => { const u = phoneOf(g).plan?.until; return u === undefined ? 0 : Math.max(0, asDay(u, g) - nowDay(g)); };
+export const planUntil = (g: TG) => { const u = phoneOf(g).plan?.until; return u === undefined ? undefined : asDay(u, g); };
+export const planActive = (g: Pick<GameState, 'phone' | 'season' | 'round' | 'cal'>) => planLeft(g) > 0;
 
 /* ---------- aparelhos e chips (Mega-zona Luiz) ---------- */
 export interface PhoneModel { id: string; name: string; brand: string; price: number; /** quantos apps da Loja cabem */ apps: number; /** multiplicador do tempo de abrir/baixar (menor = mais rápido) */ speed: number; storage: string; ram: string; color: string; blurb: string }
@@ -195,23 +199,24 @@ export const CHIP_PRICE = 2_000;
 export const CHIPS: ChipInfo[] = [{ id: 'morto', name: 'Morto', price: CHIP_PRICE }, { id: 'escuro', name: 'Escuro', price: CHIP_PRICE }, { id: 'toim', name: 'Toim', price: CHIP_PRICE }];
 /** Chip em uso (null se bloqueado). Saves antigos (sem aparelho da loja) mantêm um chip que nunca bloqueia. */
 const rawChip = (g: Pick<GameState, 'phone'>): ChipInfo | undefined => { const p = phoneOf(g); return CHIPS.find((c) => c.id === (p.chip ?? (p.model || p.noPhone ? undefined : 'toim'))); };
-/** O chip vale 1 ano (uma temporada) desde a compra; depois disso é bloqueado. */
-export const chipBlocked = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => { const u = phoneOf(g).chipUntil; return !!rawChip(g) && u !== undefined && g.season * 200 + g.round >= u; };
-export const chipOf = (g: Pick<GameState, 'phone' | 'season' | 'round'>): ChipInfo | undefined => (chipBlocked(g) ? undefined : rawChip(g));
+/** O chip vale 1 ano de calendário desde a compra; depois disso é bloqueado. */
+export const chipBlocked = (g: Pick<GameState, 'phone' | 'season' | 'round' | 'cal'>) => { const u = phoneOf(g).chipUntil; return !!rawChip(g) && u !== undefined && nowDay(g) >= asDay(u, g); };
+export const chipOf = (g: Pick<GameState, 'phone' | 'season' | 'round' | 'cal'>): ChipInfo | undefined => (chipBlocked(g) ? undefined : rawChip(g));
 export const chipRaw = rawChip;
-/** Rodadas até o chip bloquear (undefined = nunca / sem chip). */
-export const chipLeft = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => { const u = phoneOf(g).chipUntil; return u === undefined || !rawChip(g) ? undefined : Math.max(0, u - (g.season * 200 + g.round)); };
+/** Dias até o chip bloquear (undefined = nunca / sem chip). */
+export const chipLeft = (g: Pick<GameState, 'phone' | 'season' | 'round' | 'cal'>) => { const u = phoneOf(g).chipUntil; return u === undefined || !rawChip(g) ? undefined : Math.max(0, asDay(u, g) - nowDay(g)); };
 export const chipNumberOf = (g: Pick<GameState, 'phone'>) => phoneOf(g).chipNumber;
 
 /* ---------- NetFibra (Wi-Fi residencial) ---------- */
 export const FIBRA_MONTHLY = 100_000;
 export const FIBRA_ENTRY = 50_000;
 export const fibraOf = (g: Pick<GameState, 'phone'>) => phoneOf(g).fibra;
-export const fibraLeft = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => Math.max(0, (phoneOf(g).fibra?.until ?? 0) - nowAbs(g));
-export const fibraActive = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => fibraLeft(g) > 0;
-export const fibraDown = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => (phoneOf(g).fibra?.down ?? 0) > nowAbs(g);
+export const fibraLeft = (g: TG) => { const u = phoneOf(g).fibra?.until; return u === undefined ? 0 : Math.max(0, asDay(u, g) - nowDay(g)); };
+export const fibraUntil = (g: TG) => { const u = phoneOf(g).fibra?.until; return u === undefined ? undefined : asDay(u, g); };
+export const fibraActive = (g: Pick<GameState, 'phone' | 'season' | 'round' | 'cal'>) => fibraLeft(g) > 0;
+export const fibraDown = (g: TG) => { const d = phoneOf(g).fibra?.down; return d !== undefined && asDay(d, g) > nowDay(g); };
 /** Rede configurada, plano em dia e sem queda. */
-export const fibraReady = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => !!phoneOf(g).fibra?.ssid && fibraActive(g) && !fibraDown(g);
+export const fibraReady = (g: Pick<GameState, 'phone' | 'season' | 'round' | 'cal'>) => !!phoneOf(g).fibra?.ssid && fibraActive(g) && !fibraDown(g);
 
 /** Conecta na sua rede NetFibra com a senha que você criou. */
 export function connectHome(g: GameState, password: string): { ok: true; state: GameState } | { ok: false; error: string } {

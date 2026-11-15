@@ -1,3 +1,4 @@
+import { calOf } from './calendar';
 import { coachMoneyOf } from './finance';
 import { notifyPhone, phoneOf } from './phone';
 import type { BankState, BankTx, Boleto, GameState, PayPurpose, PixCharge } from './types';
@@ -36,7 +37,7 @@ export function registerBank(g: GameState, name: string, password: string, confi
 export const myPixKey = (g: GameState) => `${(g.bank?.name || g.coach.name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]+/g, '.').replace(/^\.|\.$/g, '')}@vrbank.com`;
 
 const addTx = (b: BankState, g: GameState, kind: BankTx['kind'], title: string, detail: string, amount: number): { bank: BankState; tx: BankTx } => {
-  const tx: BankTx = { id: `E${hash(`${b.seq}${g.season}${g.round}${title}`).toUpperCase()}${String(b.seq).padStart(6, '0')}`, kind, title, detail, amount, season: g.season, round: g.round };
+  const tx: BankTx = { id: `E${hash(`${b.seq}${g.season}${g.round}${title}`).toUpperCase()}${String(b.seq).padStart(6, '0')}`, kind, title, detail, amount, season: g.season, round: g.round, day: calOf(g).day };
   return { bank: { ...b, seq: b.seq + 1, txs: [tx, ...b.txs].slice(0, MAX_TXS) }, tx };
 };
 
@@ -170,3 +171,15 @@ export function tickBoletos(g: GameState): GameState {
 }
 
 export const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+/* ---------- débito automático ---------- */
+export const autoDebitOn = (g: GameState) => g.autoDebit !== false && hasBank(g);
+export const setAutoDebit = (g: GameState, on: boolean): GameState => ({ ...g, autoDebit: on });
+
+/** Desconta direto do saldo do banco (sem boleto e sem Pix). Devolve null se não houver conta ou saldo. */
+export function debitNow(g: GameState, d: { merchant: string; description: string; amount: number; purpose: PayPurpose }): GameState | null {
+  if (!hasBank(g) || balanceOf(g) < d.amount) return null;
+  const { bank } = addTx(g.bank!, g, 'boleto', `Débito automático — ${d.merchant}`, d.description, -d.amount);
+  const s: GameState = { ...g, coachMoney: balanceOf(g) - d.amount, bank };
+  return applyPurpose(s, d.amount, d.purpose);
+}

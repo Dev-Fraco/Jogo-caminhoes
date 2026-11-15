@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { audio } from '../audio/audio';
 import { brl } from '../engine/bank';
 import { buyFibra, fibraBill, setupWifi } from '../engine/netfibra';
-import { FIBRA_ENTRY, FIBRA_MONTHLY, fibraActive, fibraDown, fibraLeft, fibraOf, netState, PLAN_ROUNDS } from '../engine/phone';
+import { autoDebitOn } from '../engine/bank';
+import { formatDay } from '../engine/calendar';
+import { FIBRA_ENTRY, FIBRA_MONTHLY, fibraActive, fibraDown, fibraLeft, fibraOf, fibraUntil, netState } from '../engine/phone';
 import type { GameState } from '../engine/types';
 import { ChargeView, getPending, setPending } from './AppKit';
 
@@ -51,7 +53,7 @@ export function NetFibraApp({ game, onChange, onOpenApp }: Props) {
         <div className={`ph-card chip-status ${active && !fibraDown(game) ? 'on' : ''}`}>
           <div className="ph-row static"><span className="grow">Rede</span><b>{f.ssid}</b></div>
           <div className="ph-row static"><span className="grow">Situação</span><b className={fibraDown(game) || !active ? 'out' : ''}>{!active ? 'Mensalidade vencida' : fibraDown(game) ? 'Fora do ar (caiu)' : 'No ar'}</b></div>
-          {active && <div className="ph-row static"><span className="grow">Mensalidade vence em</span><b>{left} {left === 1 ? 'rodada' : 'rodadas'}</b></div>}
+          {active && <div className="ph-row static"><span className="grow">{autoDebitOn(game) ? 'Próximo débito automático' : 'Mensalidade vence em'}</span><b>{formatDay(fibraUntil(game)!)} · {left} {left === 1 ? 'dia' : 'dias'}</b></div>}
           <div className="ph-row static"><span className="grow">Conexão agora</span><b>{net.label}</b></div>
           {fibraDown(game) && <p className="ph-pad-msg err">A rede caiu. Ligue os dados móveis (5G) para continuar online até ela voltar.</p>}
         </div>
@@ -63,9 +65,10 @@ export function NetFibraApp({ game, onChange, onOpenApp }: Props) {
           <li>1 GB de download e 1 GB de upload</li>
           <li>2x mais rápida que o chip 5G</li>
           <li>Você escolhe o nome e a senha da sua rede</li>
+          <li>Depois da 1ª contratação, a mensalidade sai sozinha do banco todo mês (débito automático)</li>
           <li>De vez em quando a rede pode cair: tenha o 5G de reserva</li>
         </ul>
-        <p className="chip-price">{brl(FIBRA_MONTHLY)}<small> / mês ({PLAN_ROUNDS} rodadas)</small></p>
+        <p className="chip-price">{brl(FIBRA_MONTHLY)}<small> / mês</small></p>
         {!f?.entryPaid && <p className="bk-sub">+ entrada de instalação de {brl(FIBRA_ENTRY)} (só na 1ª contratação)</p>}
         <button className="ph-btn pri bk-wide" onClick={() => {
           const r = buyFibra(game);

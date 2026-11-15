@@ -35,9 +35,20 @@ export function matchDayOf(seed: number, season: number, start: number, slot: nu
   return start + week * 7 + offset;
 }
 
-export const calOf = (g: GameState): Calendar => g.cal ?? { day: seasonStart(g.season), start: seasonStart(g.season), slot: 0 };
+/** Soma meses de calendário (mesmo dia do mês; se o mês não tem esse dia, vai para o último). */
+export function addMonths(day: number, n: number): number {
+  const { y, m, d } = fromDay(day);
+  const total = y * 12 + (m - 1) + n;
+  const ny = Math.floor(total / 12), nm = total % 12;
+  const last = new Date(Date.UTC(ny, nm + 1, 0)).getUTCDate();
+  return toDay(ny, nm + 1, Math.min(d, last));
+}
+export const YEAR_DAYS = 365;
+
+export const calOf = (g: Pick<GameState, 'cal' | 'season'>): Calendar => g.cal ?? { day: seasonStart(g.season), start: seasonStart(g.season), slot: 0 };
 export function ensureCalendar(g: GameState): GameState { return g.cal ? g : { ...g, cal: calOf(g) }; }
 /** Dia do próximo jogo (evento) da temporada. */
+export const todayOf = (g: Pick<GameState, 'cal' | 'season'>) => calOf(g).day;
 export const nextMatchDay = (g: GameState) => { const c = calOf(g); return matchDayOf(g.seed, g.season, c.start, c.slot); };
 /** Hoje é dia de jogo (ou já passou o dia)? */
 export const isMatchDay = (g: GameState) => calOf(g).day >= nextMatchDay(g);
