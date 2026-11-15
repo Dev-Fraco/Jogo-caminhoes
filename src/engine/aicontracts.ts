@@ -8,6 +8,7 @@ import { AI_MAX_SQUAD, developPlayer } from './ai';
 import { longInjured, RETIRING_AGE, squadNeeds } from './aineeds';
 import { autoLineup, spotOf } from './squad';
 import { forgetClub } from './aisales';
+import { loanedIds } from './aiyouth';
 import type { GameState, NewsItem, Player } from './types';
 
 /* =====================================================================
@@ -101,7 +102,7 @@ export function decideRenewal(g: GameState, clubId: string, p: Player, prof: Clu
 export function aiRenewals(g: GameState, _rng: Rng, mode: 'meio' | 'virada', lastSeason = g.season): GameState {
   let s = ensureAiContracts(g, lastSeason);
   const ctx = profileCtx(s);
-  const onLoan = new Set(s.loans.map((l) => l.playerId));
+  const onLoan = loanedIds(s);
   const free: Player[] = [...(s.freeAgents ?? [])];
   const teams = { ...s.teams };
   let notable = 0;
@@ -115,7 +116,8 @@ export function aiRenewals(g: GameState, _rng: Rng, mode: 'meio' | 'virada', las
     // mais importantes primeiro: se a folha apertar, eles têm prioridade
     const order = [...expiring].sort((a, b) => importanceOf(s, id, b, ctx).value - importanceOf(s, id, a, ctx).value || b.strength - a.strength);
     for (const p of order) {
-      const cur = team.players.find((x) => x.id === p.id)!;
+      const cur = team.players.find((x) => x.id === p.id);
+      if (!cur) continue;
       const rosterWithout = team.players.filter((x) => x.id !== p.id);
       const forced = mode === 'virada' && !rosterOk(rosterWithout); // sem ele o elenco ficaria inválido: renova mesmo assim (com salário ajustado)
       const d = decideRenewal(s, id, cur, prof, ctx, payroll, forced);

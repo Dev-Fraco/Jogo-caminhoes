@@ -1,4 +1,5 @@
 import { coachLeaves, ensureAiCoaches } from './aicoaches';
+import { returnAiLoans } from './aiyouth';
 import { creditAccount } from './bank';
 import { coachSalary } from './finance';
 import { MORALE_START } from './morale';
@@ -173,6 +174,7 @@ export function hire(g: GameState, clubId: string): GameState {
     jobs: [...jobsOf(s), { clubId, fromSeason: g.season }],
     social: s.social ? { ...s.social, lastMatch: undefined } : s.social,
   };
+  s = returnAiLoans(s, clubId); // empréstimos entre clubes da IA que envolviam o clube acabam
   s = ensureAiCoaches(coachLeaves(s, clubId)); // o treinador da IA que estava lá sai; o clube que você deixou já tem treinador novo
   return news(s, `✍️ Você é o novo treinador do ${s.clubs[clubId].name}!`, 'good');
 }

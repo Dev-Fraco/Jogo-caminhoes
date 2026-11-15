@@ -19,13 +19,14 @@ const loanedIn = (g: GameState) => new Set((g.loansIn ?? []).map((l) => l.player
 /** Jogadores de outros clubes disponíveis para empréstimo (a lista é sorteada por temporada e é sempre a mesma na temporada). */
 export function loanMarket(g: GameState): LoanEntry[] {
   const taken = loanedIn(g);
+  const aiLoaned = new Set((g.aiLoans ?? []).map((l) => l.playerId));
   const out: LoanEntry[] = [];
   for (const [clubId, team] of Object.entries(g.teams)) {
     if (clubId === g.userClubId) continue;
     const di = divisionIndexOf(g, clubId);
     const ranked = [...team.players].sort((a, b) => b.strength - a.strength);
     ranked.forEach((p, i) => {
-      if (i < PROTECTED || taken.has(p.id) || hashString(`${g.seed}:${g.season}:${p.id}`) % 100 >= LISTED_PCT) return;
+      if (i < PROTECTED || taken.has(p.id) || aiLoaned.has(p.id) || hashString(`${g.seed}:${g.season}:${p.id}`) % 100 >= LISTED_PCT) return;
       const fee = Math.max(10_000, Math.round((inflate(g, playerValue(p, di)) * LOAN_IN_RATE) / 10_000) * 10_000);
       out.push({ player: p, clubId, fee, wage: Math.round((baseWage(g, g.userClubId, p) * 0.5) / 1_000) * 1_000 });
     });

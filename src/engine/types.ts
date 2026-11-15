@@ -243,6 +243,10 @@ export interface AiCoach {
   since: { season: number; round: number };
   past: { clubId: string; fromSeason: number; toSeason: number; ended: 'demitido' | 'saiu' | 'substituído' }[];
 }
+/** Jogador da categoria de base de um clube da IA: `pot` é o potencial (quanto pode chegar a render). */
+export interface Prospect extends Player { pot: number }
+/** Empréstimo entre clubes da IA: o jogador está no elenco do clube que o recebeu, mas é do dono (volta no fim da temporada). */
+export interface AiLoan { playerId: string; ownerId: string; hostId: string; season: number }
 export interface CoachTitle { season: number; clubId: string; clubName: string; competition: string; kind: 'liga' | 'copa' | 'continental' | 'mundial' | 'estadual' }
 
 /** Um estadual: Série A (e, em CE, RJ e SP, Série B). Os resultados ficam compactos: [rodada, mandante (índice), visitante (índice), gols, gols]. */
@@ -334,6 +338,9 @@ export interface GameState {
   /** Últimas transferências feitas pela IA (jogador → de onde, para onde e quando): impede revender ou recontratar o mesmo jogador logo em seguida. */
   /** Treinadores controlados pela IA (empregados e desempregados) e quem treina cada clube (clubId -> id do treinador). */
   aiCoaches?: Record<string, AiCoach>;
+  /** Categoria de base dos clubes da IA e empréstimos entre clubes da IA. */
+  aiYouth?: Record<string, Prospect[]>;
+  aiLoans?: AiLoan[];
   clubCoach?: Record<string, string>;
   /** Jogadores livres no mercado (contrato acabou e não foi renovado): os clubes podem contratá-los sem pagar transferência. */
   freeAgents?: Player[];
