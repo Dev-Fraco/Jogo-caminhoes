@@ -109,11 +109,13 @@ const effective = (p: Player, slot: Spot) => p.strength * spotFit(spotOf(p), slo
 /**
  * Escolhe os 11 titulares para a formação, vaga por vaga: primeiro quem joga na função exata (o lateral direito vai para a lateral direita),
  * depois, nas vagas que sobrarem, o melhor jogador da linha mesmo fora da função (rende um pouco menos).
+ * `unavailable` (lesionados) fica de fora, a não ser que falte gente na linha.
  */
-export function autoLineup(players: Player[], formation: FormationId): string[] {
+export function autoLineup(players: Player[], formation: FormationId, unavailable?: Set<string>): string[] {
   const ids: string[] = [];
   for (const pos of ['GK', 'DEF', 'MID', 'ATT'] as Position[]) {
-    const pool = players.filter((p) => p.pos === pos).sort((a, b) => b.strength - a.strength);
+    let pool = players.filter((p) => p.pos === pos && !unavailable?.has(p.id)).sort((a, b) => b.strength - a.strength);
+    if (unavailable && pool.length < slotsOfLine(formation, pos).length) pool = [...pool, ...players.filter((p) => p.pos === pos && unavailable.has(p.id)).sort((a, b) => b.strength - a.strength)]; // faltou gente: escala até o lesionado
     const slots = slotsOfLine(formation, pos);
     const chosen = new Map<number, Player>();
     const taken = new Set<string>();

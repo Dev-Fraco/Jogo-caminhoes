@@ -5,7 +5,8 @@ import { moraleFactor } from './morale';
 import { simulateCupMatch, simulateMatch } from './match';
 import { makeRng, type Rng } from './rng';
 import { buildFixtures } from './schedule';
-import { autoLineup, teamFromPlayers, teamRatings } from './squad';
+import { injuredSet, lineupWithout } from './injuries';
+import { teamFromPlayers, teamRatings } from './squad';
 import { computeTable } from './table';
 import type { ClubInfo, CupRound, CupTie, GameState, LibGroup, LibState, MatchResult, MundialState, NewsItem, PenKick, TeamState } from './types';
 import { penaltyTakers, shootoutKicks } from './cup';
@@ -127,7 +128,7 @@ export function groupTable(g: GameState, group: LibGroup) {
 
 const lineupTeam = (g: GameState, id: string): TeamState => {
   const t = teamOf(g, id);
-  return id === g.userClubId && !g.unemployed ? t : { ...t, lineup: autoLineup(t.players, t.formation) };
+  return id === g.userClubId && !g.unemployed ? t : { ...t, lineup: lineupWithout(t, injuredSet(g)) };
 };
 
 /** Simula um jogo e, se terminar empatado e for mata-mata, decide nos pênaltis. */

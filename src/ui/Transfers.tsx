@@ -5,6 +5,7 @@ import { Clubs } from './Clubs';
 import { ClubBadge } from './ClubBadge';
 import { SPOT_LABEL, SPOT_SHORT, type Spot } from '../engine/types';
 import { spotOf } from '../engine/squad';
+import { isInjured } from '../engine/injuries';
 import { NegotiationSheet } from './Negotiation';
 import { acceptOffer, myValue, rejectOffer, toggleLoanList, toggleTransferList } from '../engine/roster';
 import { BUY_BLOCK_TEXT, buyPlayer, MAX_SQUAD, marketEntries } from '../engine/transfers';
@@ -256,7 +257,7 @@ function Market({ game, onChange }: { game: GameState; onChange: (g: GameState) 
               <div className="tf-row">
                 <span className={`tf-ovr ${tier(p.strength)}`} title="Overall">{p.strength}</span>
                 <div className="tf-info">
-                  <strong>{p.name}</strong>
+                  <strong>{p.name}{isInjured(game, p.id) ? ' 🤕' : ''}</strong>
                   <small>{SPOT_SHORT[spotOf(p)]} · {p.age} anos · <span className="tf-club"><ClubBadge club={club} size={18} /> {club.name}</span> ({divisionOf.get(clubId)?.name})</small>
                 </div>
                 <span className={`tf-price ${tooExpensive ? 'no' : ''}`}>{formatBudget(price)}</span>

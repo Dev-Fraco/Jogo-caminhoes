@@ -65,11 +65,13 @@ export interface TeamState {
 
 export interface MatchEvent {
   minute: number;
-  type: 'kickoff' | 'tactic' | 'goal' | 'yellow' | 'red' | 'foul' | 'save' | 'miss' | 'corner' | 'halftime' | 'fulltime';
+  type: 'kickoff' | 'tactic' | 'injury' | 'goal' | 'yellow' | 'red' | 'foul' | 'save' | 'miss' | 'corner' | 'halftime' | 'fulltime';
   side: 'home' | 'away' | 'none';
   text: string;
   /** Jogador principal do lance (autor do gol, da falta, do chute...). */
   player?: string;
+  /** Lesão: id do jogador e quantas rodadas ele fica fora. */
+  injury?: { playerId: string; rounds: number; kind: string };
   /** Placar [casa, fora] depois do lance (gols, intervalo e fim de jogo). */
   score?: [number, number];
 }
@@ -253,6 +255,9 @@ export interface SeasonSummary {
   promotion?: { clubId: string; strong: boolean; bonus: number }[];
 }
 
+/** Lesão de um jogador: volta a poder jogar na rodada `untilRound` da temporada `season` (pode passar da última rodada e seguir na próxima temporada). */
+export interface Injury { season: number; untilRound: number; kind: string; /** quantas rodadas ficou fora no total */ rounds: number; clubId?: string }
+
 /** Registro de uma contratação (o jogador passa de um clube para outro). */
 export interface Transfer {
   /** buy = contratação, sale = venda, loan = empréstimo cedido, release = dispensa (toClubId vazio) */
@@ -316,7 +321,7 @@ export interface GameState {
   /** Últimas transferências feitas pela IA (jogador → de onde, para onde e quando): impede revender ou recontratar o mesmo jogador logo em seguida. */
   aiMoves?: Record<string, { season: number; round: number; from: string; to: string }>;
   /** Lesões (o jogo ainda não gera lesões; se existirem, a IA as considera): jogador → temporada e rodada em que volta. */
-  injuries?: Record<string, { season: number; untilRound: number }>;
+  injuries?: Record<string, Injury>;
   news: NewsItem[]; // últimas notícias (mais recente primeiro)
   divisions: DivisionState[]; // ordem: Série A, B, C, D
   teams: Record<string, TeamState>; // todos os clubes

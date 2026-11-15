@@ -3,6 +3,7 @@ import { setFormation, swapPlayer } from '../engine/game';
 import { teamRatings } from '../engine/squad';
 import { FORMATIONS, SPOT_LABEL, SPOT_SHORT, type FormationId, type GameState, type Player, type Position } from '../engine/types';
 import { spotOf } from '../engine/squad';
+import { isInjured, roundsLeft } from '../engine/injuries';
 import { badgeColors } from './badge';
 
 const POS_ONE: Record<Position, string> = { GK: 'Goleiro', DEF: 'Defensor', MID: 'Meio-campista', ATT: 'Atacante' };
@@ -26,7 +27,8 @@ function SwapSheet({ game, player, onSwap, onClose }: { game: GameState; player:
   const box = useRef<HTMLDivElement>(null);
   const team = game.teams[game.userClubId];
   const isStarter = team.lineup.includes(player.id);
-  const options = team.players.filter((p) => p.pos === player.pos && p.id !== player.id && team.lineup.includes(p.id) !== isStarter).sort((a, b) => b.strength - a.strength);
+  // lesionado não pode entrar no time (mas pode sair dele)
+  const options = team.players.filter((p) => p.pos === player.pos && p.id !== player.id && team.lineup.includes(p.id) !== isStarter && (isStarter ? !isInjured(game, p.id) : true)).sort((a, b) => b.strength - a.strength);
 
   useEffect(() => { box.current?.focus(); }, []);
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -117,7 +119,7 @@ export function Lineup({ game, onChange, onBack }: { game: GameState; onChange: 
           <button key={p.id} className="pp" style={{ left: `${x}%`, top: `${y}%`, '--pp-bg': bg, '--pp-fg': fg } as React.CSSProperties}
             aria-label={`${p.name}, ${SPOT_LABEL[spotOf(p)]}, overall ${p.strength}. Trocar jogador`} onClick={(e) => openFor(p, e.currentTarget)}>
             <span className="pp-c">{p.strength}</span>
-            <span className="pp-n">{shortName(p.name)}<small className="pp-s">{SPOT_SHORT[spotOf(p)]}</small></span>
+            <span className="pp-n">{isInjured(game, p.id) ? '🤕 ' : ''}{shortName(p.name)}<small className="pp-s">{SPOT_SHORT[spotOf(p)]}</small></span>
           </button>
         ))}
       </div>
@@ -129,7 +131,7 @@ export function Lineup({ game, onChange, onBack }: { game: GameState; onChange: 
             <li key={p.id}>
               <button className="row bench" aria-label={`${p.name}, reserva, ${SPOT_LABEL[spotOf(p)]}, overall ${p.strength}. Escolher quem sai`} onClick={(e) => openFor(p, e.currentTarget)}>
                 <span className="tag">{SPOT_SHORT[spotOf(p)]}</span>
-                <span className="grow">{p.name}<small>{p.age} anos</small></span>
+                <span className="grow">{isInjured(game, p.id) ? '🤕 ' : ''}{p.name}<small>{p.age} anos{isInjured(game, p.id) ? ` · lesionado (${roundsLeft(game, p.id)} rod.)` : ''}</small></span>
                 <b className="str">{p.strength}</b>
               </button>
             </li>

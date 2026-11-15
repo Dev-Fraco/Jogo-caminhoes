@@ -6,7 +6,8 @@ import { moraleFactor } from './morale';
 import { simulateMatch } from './match';
 import { makeRng, type Rng } from './rng';
 import { buildFixtures } from './schedule';
-import { autoLineup, teamRatings } from './squad';
+import { teamRatings } from './squad';
+import { injuredSet, lineupWithout } from './injuries';
 import { penaltyTakers, shootoutKicks } from './cup';
 import { computeTable } from './table';
 import type { EstadualComp, EstadualDivision, EstadualState, Fixture, GameState, MatchResult, TableRow, TeamState } from './types';
@@ -192,7 +193,8 @@ export function playEstadualStep(g: GameState): { state: GameState; results: Mat
   const results: MatchResult[] = [];
   const ratingCache = new Map<string, number>();
   const rating = (id: string) => { let r = ratingCache.get(id); if (r === undefined) { r = g.teams[id] ? teamRatings(g.teams[id]).overall : (estadualClub(id)?.rating ?? 45); ratingCache.set(id, r); } return r; };
-  const lineup = (id: string): TeamState => { const t = teamOf(g, id); return managed(g, id) ? t : { ...t, lineup: autoLineup(t.players, t.formation) }; };
+  const injSet = injuredSet(g);
+  const lineup = (id: string): TeamState => { const t = teamOf(g, id); return managed(g, id) ? t : { ...t, lineup: lineupWithout(t, injSet) }; };
   const factor = moraleFactor(g.morale.team);
 
   const comps: EstadualComp[] = e.comps.map((c) => ({

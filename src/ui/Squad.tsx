@@ -7,6 +7,7 @@ import { wageOf } from '../engine/finance';
 import { contractLeft, renew, renewalQuote } from '../engine/market';
 import { SPOT_LABEL, SPOT_SHORT, type GameState, type Player, type Position } from '../engine/types';
 import { spotOf } from '../engine/squad';
+import { isInjured, roundsLeft } from '../engine/injuries';
 import { ScreenTitle } from './FmParts';
 import { Face } from './Face';
 import { formatBudget } from '../newgame/format';
@@ -52,6 +53,7 @@ function PlayerSheet({ game, player: p, onChange, onClose, onDone }: SheetProps)
           <div className="grow">
             <h2 id="ps-title">{p.name}</h2>
             <p>{SPOT_LABEL[spotOf(p)]} · {p.age} anos · {starter ? 'Titular' : 'Reserva'}</p>
+            {isInjured(game, p.id) && <p className="ps-warn">🤕 Lesionado ({game.injuries?.[p.id]?.kind}): fora por mais {roundsLeft(game, p.id)} {roundsLeft(game, p.id) === 1 ? 'rodada' : 'rodadas'}.</p>}
             <p>Valor de mercado: <b>{formatBudget(value)}</b></p>
             <p>Salário: <b>{formatBudget(wageOf(game, game.userClubId, p))}/ano</b> · {left === null ? 'sem contrato fixo' : left <= 1 ? <b className="ps-warn">contrato termina no fim desta temporada</b> : `contrato por mais ${left} temporadas`}</p>
           </div>
@@ -118,6 +120,7 @@ export function Squad({ game, onChange }: { game: GameState; onChange: (g: GameS
   const avgAge = (team.players.reduce((t, p) => t + p.age, 0) / Math.max(1, team.players.length)).toFixed(1).replace('.', ',');
   const squadValue = team.players.reduce((t, p) => t + myValue(game, p), 0);
   const close = () => { setOpenId(null); opener.current?.focus(); };
+  const hurtList = team.players.filter((p) => isInjured(game, p.id)).sort((a, b) => roundsLeft(game, b.id) - roundsLeft(game, a.id));
 
   return (
     <>
@@ -130,6 +133,7 @@ export function Squad({ game, onChange }: { game: GameState; onChange: (g: GameS
         <div><small>À venda</small><b>{game.transferList.length}</b></div>
         <div><small>Emprestados</small><b>{loaned.length}</b></div>
       </div>
+      {hurtList.length > 0 && <p className="sq-hurtbar" role="status">🤕 <b>{hurtList.length} {hurtList.length === 1 ? 'lesionado' : 'lesionados'}:</b> {hurtList.slice(0, 4).map((p) => `${p.name} (${roundsLeft(game, p.id)} rod.)`).join(', ')}{hurtList.length > 4 ? '…' : ''}</p>}
       <p className="sq-info"><span aria-hidden="true">ℹ️</span> Toque em um jogador para vender, emprestar ou dispensar.</p>
       <div role="status" aria-live="polite">{notice && <p className="tf-notice">{notice}</p>}</div>
 
@@ -151,6 +155,7 @@ export function Squad({ game, onChange }: { game: GameState; onChange: (g: GameS
                         <span className={`sq-ovr ${p.strength >= 80 ? 'elite' : ''}`}>{p.strength}</span>
                       </span>
                       <span className="sq-role">{SPOT_SHORT[spotOf(p)]} · {starter ? 'TITULAR' : 'RESERVA'}</span>
+                      {isInjured(game, p.id) && <em className="sq-hurt" title={`Lesionado: ${roundsLeft(game, p.id)} rodadas`}>🤕 {roundsLeft(game, p.id)}</em>}
                       <span className="sq-name">{p.name}</span>
                       <span className="sq-meta">{p.age} anos
                         {game.transferList.includes(p.id) && <em className="pill sale">À venda</em>}

@@ -8,8 +8,8 @@ const ORDER: Position[] = ['GK', 'DEF', 'MID', 'ATT'];
 const hint = (f: FormationId) => { const b = attackBias(f); return b > 0.4 ? 'ataca mais' : b < -0.4 ? 'defende mais' : 'equilibrado'; };
 
 /** Mudança de formação e de jogadores durante a partida. O resultado vale do minuto atual em diante. */
-export function TacticsSheet({ team, minute, score, side, used, onApply, onClose }: {
-  team: TeamState; minute: number; score: [number, number]; side: 'home' | 'away'; used: number; onApply: (t: Tactic) => void; onClose: () => void;
+export function TacticsSheet({ team, minute, score, side, used, unavailable, onApply, onClose }: {
+  team: TeamState; unavailable?: Set<string>; minute: number; score: [number, number]; side: 'home' | 'away'; used: number; onApply: (t: Tactic) => void; onClose: () => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const [formation, setFormation] = useState<FormationId>(team.formation);
@@ -20,10 +20,10 @@ export function TacticsSheet({ team, minute, score, side, used, onApply, onClose
   const mine = side === 'home' ? score[0] - score[1] : score[1] - score[0];
   const changed = formation !== team.formation || lineup.some((id, i) => id !== team.lineup[i]) || lineup.length !== team.lineup.length;
   const left = MAX_TACTIC_CHANGES - used;
-  const pickFormation = (f: FormationId) => { setFormation(f); setLineup(autoLineup(team.players, f)); setPick(null); };
+  const pickFormation = (f: FormationId) => { setFormation(f); setLineup(autoLineup(team.players, f, unavailable)); setPick(null); };
   const swapIn = (inId: string) => { if (!pick) return; setLineup(lineup.map((id) => (id === pick ? inId : id))); setPick(null); };
   const picked = pick ? byId.get(pick) : undefined;
-  const bench = team.players.filter((p) => !lineup.includes(p.id));
+  const bench = team.players.filter((p) => !lineup.includes(p.id) && !unavailable?.has(p.id)); // lesionado não entra
   const need = FORMATIONS[formation];
   const countOf = (pos: Position) => lineup.filter((id) => byId.get(id)?.pos === pos).length;
   const valid = countOf('GK') === 1 && countOf('DEF') === need.DEF && countOf('MID') === need.MID && countOf('ATT') === need.ATT;

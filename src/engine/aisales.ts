@@ -4,6 +4,7 @@ import { inflate } from './economy';
 import { baseWage } from './finance';
 import { hashString } from './rng';
 import { autoLineup } from './squad';
+import { isInjured, roundsLeft } from './injuries';
 import { divisionIndexOf, MIN_BY_POS, playerValue } from './transfers';
 import type { GameState, Player } from './types';
 
@@ -14,7 +15,7 @@ import type { GameState, Player } from './types';
    Peça fundamental sem substituto à altura NÃO sai, por mais dinheiro que ofereçam (salvo clube desesperado).
    ===================================================================== */
 
-export type SaleReason = 'sem-espaco' | 'salario-alto' | 'quer-sair' | 'fim-contrato' | 'fora-dos-planos' | 'financas' | 'veterano';
+export type SaleReason = 'lesao-longa' | 'sem-espaco' | 'salario-alto' | 'quer-sair' | 'fim-contrato' | 'fora-dos-planos' | 'financas' | 'veterano';
 export type RefusalReason = 'fundamental' | 'sem-reposicao' | 'titular-sem-substituto' | 'nao-quer-descer' | 'limite-de-titulares';
 export type Role = 'craque' | 'titular' | 'reserva' | 'excedente';
 
@@ -75,6 +76,7 @@ export function saleReasons(g: GameState, clubId: string, p: Player, prof: ClubP
   if (r.role === 'excedente') out.push('fora-dos-planos');
   if (baseWage(g, clubId, p) > prof.revenue * 0.06 && r.role !== 'craque') out.push('salario-alto');
   if (p.contract && p.contract.until <= g.season) out.push('fim-contrato'); // (contratos só existem para quem foi contratado por contrato)
+  if (isInjured(g, p.id) && roundsLeft(g, p.id) >= 6) out.push('lesao-longa'); // lesionado por muito tempo: o clube aceita menos
   if (p.age >= RETIRING_AGE - 2) out.push('veterano');
   if (prof.sellPressure >= 0.5) out.push('financas');
   if (r.starter && p.strength >= level + 3 && itchingToLeave(g, p)) out.push('quer-sair');
@@ -116,6 +118,7 @@ export function stance(g: GameState, clubId: string, p: Player, buyerId?: string
   if (has('quer-sair') || (bdi < sdi && r.starter)) ask *= 0.92; // quer um clube maior
   if (has('fim-contrato')) ask *= 0.7;
   if (has('veterano')) ask *= 0.85;
+  if (has('lesao-longa')) ask *= 0.85;
   if (r.role === 'craque') ask = Math.max(ask, 1.4); // peça-chave nunca sai barato, nem para o clube sem dinheiro
   return { willing: true, ask: Math.max(0.5, ask), role: r.role, reasons, gap: r.gap };
 }

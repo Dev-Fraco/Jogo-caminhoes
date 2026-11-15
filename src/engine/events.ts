@@ -1,5 +1,6 @@
 import { estadualOfUser, estadualTable, playEstadualStep, stepLabel, userEstadualMatch } from './estadual';
 import { playHomeGate } from './stadium';
+import { applyInjuries, hitsFromEvents, pruneInjuries } from './injuries';
 import { inboxTick } from './inbox';
 import './dataplan';
 import { updateMorale } from './morale';
@@ -27,6 +28,7 @@ export function pendingEvent(g: GameState): PendingEvent | undefined {
 export function playEvent(g: GameState, kind: EventKind): { state: GameState; results: MatchResult[] } {
   const r = kind === 'estadual' ? playEstadualStep(g) : kind === 'cup' ? playCupRound(g) : kind === 'mundial' ? playMundialStep(g) : playContStep(g, kind);
   const my = r.results.find((x) => x.homeId === g.userClubId || x.awayId === g.userClubId);
+  if (my) r.state = pruneInjuries(applyInjuries(r.state, hitsFromEvents(my.events, my.homeId, my.awayId), g.round)); // lesões do seu jogo na copa/estadual/continental
   if (!my || g.unemployed) return r;
   const home = my.homeId === g.userClubId;
   const gf = home ? my.homeGoals : my.awayGoals, ga = home ? my.awayGoals : my.homeGoals;

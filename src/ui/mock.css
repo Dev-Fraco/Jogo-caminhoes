@@ -153,3 +153,9 @@
 .tf-age { font-weight: 600; font-size: .85em; color: #9fb4d8; }
 .cl-prof { display: block; margin-top: 3px; color: #9fe8b8 !important; }
 .ts-spot { font: 800 10px var(--font-head); font-style: normal; color: #ffd23f; margin-right: 3px; } .pp-s { display: block; font: 700 8px sans-serif; opacity: .85; line-height: 1; }
+
+/* Lesões */
+.sq-hurt { position: absolute; top: 4px; left: 4px; font: 800 10px var(--font-head); font-style: normal; padding: 1px 5px; border-radius: 6px; background: rgba(160, 30, 30, .9); color: #fff; }
+.sq-card { position: relative; }
+.sq-hurtbar { margin: 8px 0; padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(255, 120, 120, .5); background: rgba(120, 20, 30, .45); font-size: 12.5px; color: #ffe0e0; }
+.home2-hurt { width: 100%; margin-bottom: 8px; padding: 10px 12px; border-radius: 12px; text-align: left; color: #ffe0e0; border-color: rgba(255, 120, 120, .5) !important; font-size: 12.5px; }

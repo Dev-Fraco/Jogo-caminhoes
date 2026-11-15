@@ -1,5 +1,6 @@
 import { clamp, makeRng, type Rng } from './rng';
 import { autoLineup, spotOf, teamRatings } from './squad';
+import { INJURY_PER_MINUTE, FOUL_INJURY, rollInjury, type InjuryHit } from './injuries';
 import { FORMATIONS, type FormationId, type MatchEvent, type Player, type TeamState } from './types';
 
 /** Mudança tática feita pelo treinador durante a partida: vale a partir do minuto seguinte. */
@@ -15,6 +16,12 @@ export function tacticQuality(diff: number, minute: number, fromBias: number, to
 }
 
 let ACTIVE: { clubId: string; list: Tactic[] } | null = null;
+let UNAVAILABLE: Set<string> | null = null;
+/** Executa `fn` sabendo quem já está lesionado: a substituição por lesão em campo nunca usa um desses jogadores. */
+export function withInjured<T>(injured: Set<string>, fn: () => T): T {
+  UNAVAILABLE = injured;
+  try { return fn(); } finally { UNAVAILABLE = null; }
+}
 /** Executa `fn` com mudanças táticas do seu clube valendo nas partidas simuladas dentro dela. */
 export function withTactics<T>(clubId: string, list: Tactic[] | undefined, fn: () => T): T {
   if (!list?.length) return fn();
@@ -22,7 +29,7 @@ export function withTactics<T>(clubId: string, list: Tactic[] | undefined, fn: (
   try { return fn(); } finally { ACTIVE = null; }
 }
 
-export interface SimOutput { homeGoals: number; awayGoals: number; events: MatchEvent[] }
+export interface SimOutput { homeGoals: number; awayGoals: number; events: MatchEvent[]; /** lesões que aconteceram na partida (para o jogo registrar) */ injured?: InjuryHit[] }
 export interface Mods { home?: number; away?: number }
 export interface MatchNames { home: string; away: string }
 
@@ -45,8 +52,11 @@ export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, m
   const fx = { start: 0, bonus: 0, confUntil: 0 };
   let hTeam = home, aTeam = away;
   let hR = teamRatings(home), aR = teamRatings(away);
+  const injured: InjuryHit[] = [];
+  const handicap = { home: 1, away: 1 }; // sem reserva para repor o lesionado: joga com um a menos
+  const injCount = { home: 0, away: 0 };
   const ratings = (side: 'home' | 'away', minute: number) => {
-    const r = side === 'home' ? hR : aR, k = (side === 'home' ? mods.home : mods.away) ?? 1;
+    const r = side === 'home' ? hR : aR, k = ((side === 'home' ? mods.home : mods.away) ?? 1) * handicap[side];
     if (side !== mineSide) return scale(r, k);
     const fade = Math.max(0, 1 - (minute - fx.start) / 25), all = 1 + fx.bonus * fade + (minute < fx.confUntil ? -0.03 : 0), st = curBias - origBias;
     return scale({ ...r, mid: r.mid * all }, k, all * (1 + 0.08 * st), all * (1 - 0.08 * st));
@@ -66,6 +76,23 @@ export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, m
   const field = (side: 'home' | 'away') => lineup(side).filter((p) => p.pos !== 'GK' && !out.has(p.id));
   const keeper = (side: 'home' | 'away') => lineup(side).find((p) => p.pos === 'GK') ?? lineup(side)[0];
   const push = (minute: number, type: MatchEvent['type'], side: MatchEvent['side'], text: string, extra: Partial<MatchEvent> = {}) => events.push({ minute, type, side, text, ...extra });
+
+  // lesões em campo: o jogador sai e um reserva da mesma linha entra (ou o time segue com um a menos)
+  const hurtIds = new Set<string>();
+  const hurt = (side: 'home' | 'away', minute: number, p: Player) => {
+    const inj = rollInjury(rng, p.age);
+    injCount[side]++; hurtIds.add(p.id);
+    const team = side === 'home' ? hTeam : aTeam;
+    injured.push({ playerId: p.id, clubId: team.clubId, rounds: inj.rounds, kind: inj.kind });
+    const bench = team.players.filter((q) => q.pos === p.pos && !team.lineup.includes(q.id) && !UNAVAILABLE?.has(q.id) && !hurtIds.has(q.id)).sort((a, b) => b.strength - a.strength);
+    let text: string;
+    if (bench[0]) {
+      const next: TeamState = { ...team, lineup: team.lineup.map((id) => (id === p.id ? bench[0].id : id)) };
+      if (side === 'home') { hTeam = next; hR = teamRatings(next); hl = lineupOf(next); } else { aTeam = next; aR = teamRatings(next); al = lineupOf(next); }
+      text = `${p.name} (${club(side)}) se lesiona (${inj.kind}) e sai de campo. Entra ${bench[0].name}.`;
+    } else { handicap[side] *= 0.93; text = `${p.name} (${club(side)}) se lesiona (${inj.kind}) e o time segue com um a menos.`; }
+    push(minute, 'injury', side, text, { player: p.name, injury: { playerId: p.id, rounds: inj.rounds, kind: inj.kind } });
+  };
 
   const weighted = (list: Player[], weight: (p: Player) => number): Player => {
     const w = list.map(weight);
@@ -107,6 +134,11 @@ export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, m
         : `${c} muda para ${t.formation}.`;
       push(minute - 1, 'tactic', side, text);
     }
+    for (const side of ['home', 'away'] as const) { // lesão sem lance (desgaste, contusão): mais comum em veteranos
+      if (injCount[side] >= 2 || rng() >= INJURY_PER_MINUTE) continue;
+      const cands = lineup(side).filter((p) => !out.has(p.id) && !hurtIds.has(p.id));
+      if (cands.length) hurt(side, minute, weighted(cands, (p) => (p.pos === 'GK' ? 0.3 : 1) * (p.age >= 31 ? 1.5 : p.age <= 21 ? 0.8 : 1)));
+    }
     const H = ratings('home', minute), A = ratings('away', minute);
     if (minute === 46) push(45, 'halftime', 'none', `Fim do primeiro tempo: ${names.home} ${hg} x ${ag} ${names.away}.`, { score: [hg, ag] });
 
@@ -116,6 +148,7 @@ export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, m
       const vs = fs === 'home' ? 'away' : 'home';
       const offender = pickOf(field(fs)), victim = pickOf(field(vs));
       push(minute, 'foul', fs, `Falta de ${offender.name} (${club(fs)}) em ${victim.name} (${club(vs)}).`, { player: offender.name });
+      if (injCount[vs] < 2 && !hurtIds.has(victim.id) && rng() < FOUL_INJURY) hurt(vs, minute, victim); // a vítima da falta pode se machucar
       const r = rng();
       if (r < 0.012 && redCards[fs] < 2) {
         redCards[fs]++; out.add(offender.id);
@@ -165,7 +198,7 @@ export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, m
     }
   }
   push(90, 'fulltime', 'none', `Fim de jogo! ${names.home} ${hg} x ${ag} ${names.away}.`, { score: [hg, ag] });
-  return { homeGoals: hg, awayGoals: ag, events };
+  return { homeGoals: hg, awayGoals: ag, events, injured };
 }
 
 /** Taxa de empate de um jogo normal (medida no simulador) e o aumento de empates nas copas: +47% (de ~21% para ~31%), então mais jogos vão aos pênaltis. */

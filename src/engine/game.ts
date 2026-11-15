@@ -21,7 +21,8 @@ import { settleSalary } from './salary';
 import { afterMatch, calOf, newSeasonCalendar, nextMatchDay } from './calendar';
 import { createCup, cupAfterLeagueRound, penaltyTakers, playCupRound, shootoutKicks } from './cup';
 import { MORALE_START, moraleFactor, updateMorale } from './morale';
-import { simulateMatch, withTactics, type Tactic } from './match';
+import { simulateMatch, withInjured, withTactics, type Tactic } from './match';
+import { applyInjuries, healUserLineup, injuredSet, lineupWithout, pruneInjuries, rolloverInjuries, type InjuryHit } from './injuries';
 import { makeRng } from './rng';
 import { buildFixtures } from './schedule';
 import { generateOffers, returnLoans } from './roster';
@@ -119,16 +120,19 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
   for (const key of ['lib', 'sula', 'ucl'] as const) if (g[key]?.due) g = playContStep(g, key).state;
   const rng = makeRng(g.seed * 1000 + g.round + g.season * 100003);
   const teams = { ...g.teams };
-  // clubes controlados pela IA sempre escalam o melhor time
+  const inj = injuredSet(g);
+  // clubes controlados pela IA sempre escalam o melhor time disponível (sem lesionados)
   for (const id of Object.keys(teams)) {
     if (managed(g, id)) continue;
     const t = teams[id];
-    teams[id] = { ...t, lineup: autoLineup(t.players, t.formation) };
+    teams[id] = { ...t, lineup: lineupWithout(t, inj) };
   }
+  const hits: InjuryHit[] = [];
   const factor = moraleFactor(g.morale.team); // humor da equipe mexe um pouco na força do seu time
   const results: MatchResult[] = fixturesOfRound(g, g.round).map((f) => {
     const mods = { home: f.homeId === g.userClubId ? factor : 1, away: f.awayId === g.userClubId ? factor : 1 };
     const out = simulateMatch(teams[f.homeId], teams[f.awayId], rng, mods, { home: g.clubs[f.homeId].name, away: g.clubs[f.awayId].name });
+    if (out.injured) hits.push(...out.injured);
     const mine = f.homeId === g.userClubId || f.awayId === g.userClubId;
     // jogo eliminatório empatado: pênaltis
     const sk = f.ko && out.homeGoals === out.awayGoals ? shootoutKicks(rng, teamRatings(teams[f.homeId]).gk, teamRatings(teams[f.awayId]).gk, penaltyTakers(teams[f.homeId]), penaltyTakers(teams[f.awayId])) : undefined;
@@ -136,6 +140,7 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
     return { divisionId: f.divisionId, round: f.round, homeId: f.homeId, awayId: f.awayId, homeGoals: out.homeGoals, awayGoals: out.awayGoals, ...(pens ? { pens } : {}), ...(sk && mine ? { penKicks: { home: sk.home, away: sk.away } } : {}), events: mine ? out.events : [] };
   });
   let state: GameState = advanceKnockout({ ...g, teams, round: g.round + 1, results: [...g.results, ...results] });
+  state = pruneInjuries(applyInjuries(state, hits, g.round)); // lesões da rodada (valem a partir da próxima) e limpeza das vencidas
 
   // humor: depois do jogo do seu clube
   const my = results.find((r) => r.homeId === g.userClubId || r.awayId === g.userClubId);
@@ -166,7 +171,8 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
 
 /** Próximo jogo do seu clube: a fase da copa (se for a data) ou a rodada do campeonato. */
 export function playNext(g: GameState, tactics?: Tactic[]) {
-  const r = withTactics(g.userClubId, g.unemployed ? undefined : tactics, () => playNextRaw(g)); // mudanças táticas feitas na partida ao vivo
+  g = healUserLineup(g); // titular lesionado dá lugar a um reserva da mesma função
+  const r = withInjured(injuredSet(g), () => withTactics(g.userClubId, g.unemployed ? undefined : tactics, () => playNextRaw(g))); // mudanças táticas feitas na partida ao vivo
   const my = g.unemployed ? undefined : r.results.find((x) => x.homeId === g.userClubId || x.awayId === g.userClubId);
   if (my) { // registra o jogo (com a data) para o Calendário
     const ev = pendingEvent(g);
@@ -308,6 +314,7 @@ function startNextSeasonCore(g: GameState, calNew: ReturnType<typeof newSeasonCa
   }
   const inflation = nextInflation(g, makeRng(g.seed * 37 + g.season * 5 + 1)); // a inflação do ano que começa
   let next: GameState = { ...back, titles, inflation, news: [{ season: g.season + 1, round: 1, text: `📈 Inflação de ${(inflation.rate * 100).toFixed(1).replace('.', ',')}%: preços, salários e receitas sobem.`, tone: 'info' as const }, ...back.news].slice(0, 80), season: g.season + 1, round: 1, totalRounds, divisions, fixtures, results: [], budgets, offers: [], history: [...g.history, summary] };
+  next = rolloverInjuries(next, g.season, g.totalRounds); // lesões longas atravessam a virada
   for (const id of quals) next = adoptClub(next, id); // clubes de estadual que sobem ganham elenco, caixa e ficha
   if (quals.length && !g.observer) next = { ...next, news: [{ season: next.season, round: 1, text: `⬆️ Sobem dos estaduais para a Série D: ${quals.map((id) => anyClubName(next, id)).join(', ')}.`, tone: (quals.includes(g.userClubId) ? 'good' : 'info') as 'good' | 'info' }, ...next.news].slice(0, 80) };
   // a IA entra em ação: evolução dos jogadores, investimento dos promovidos, crises dos rebaixados e janela de transferências
