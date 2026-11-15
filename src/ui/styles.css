@@ -309,3 +309,12 @@ select option { background: #0a1c66; color: var(--ink); }
 .cup-view section{margin-top:.8rem}
 .fin-cash h2.neg,.neg{color:#ff6b6b}.pos{color:#5fd38d}
 .skip-ask{margin-top:10px;padding:10px;border:1px solid var(--gold,#4da3ff);border-radius:10px}.skip-ask .primary,.skip-ask .btn{margin:6px 6px 0 0}.over-actions{display:grid;gap:8px;margin:10px 0}.round-nav{display:flex;align-items:center;justify-content:space-between;margin:10px 0}
+
+/* Campo com os bonecos durante a partida */
+.pitch { border-radius: 12px; overflow: hidden; border: 1px solid #2c5a3a; box-shadow: 0 0 14px rgba(40, 160, 90, .25); background: #1f7a3a; margin: 2px 0 4px; }
+.pitch svg { display: block; width: 100%; height: auto; }
+.pitch-goal { animation: pitch-pop .8s ease-out both; }
+@keyframes pitch-pop { 0% { transform: scale(.4); opacity: 0; } 30% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .pitch g { transition: none !important; } .pitch-goal { animation: none; } }
+.pitch { aspect-ratio: 100 / 64; flex: none; width: 100%; }
+.pitch svg { height: 100%; }

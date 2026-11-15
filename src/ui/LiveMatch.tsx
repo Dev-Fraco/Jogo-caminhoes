@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ClubInfo, MatchEvent, MatchResult } from '../engine/types';
+import type { ClubInfo, FormationId, MatchEvent, MatchResult } from '../engine/types';
+import { PitchSim } from './PitchSim';
 import { audio } from '../audio/audio';
 import { ClubBadge } from './ClubBadge';
 import { PenaltyShootout } from './PenaltyShootout';
@@ -22,10 +23,12 @@ export function scoreAt(events: MatchEvent[], minute: number): [number, number] 
 interface Props {
   home: ClubInfo; away: ClubInfo; result: MatchResult; userSide: 'home' | 'away';
   divisionName: string; stadium: string; onFinish: () => void;
+  /** Formações para desenhar os bonecos (padrão 4-4-2). */
+  homeFormation?: FormationId; awayFormation?: FormationId;
 }
 
 /** Partida ao vivo: animação de entrada, relógio de 0 a 90 minutos, placar e narração dos lances com o nome dos jogadores. */
-export function LiveMatch({ home, away, result, userSide, divisionName, stadium, onFinish }: Props) {
+export function LiveMatch({ home, away, result, userSide, divisionName, stadium, onFinish, homeFormation = '4-4-2', awayFormation = '4-4-2' }: Props) {
   const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const [phase, setPhase] = useState<'intro' | 'play' | 'pens' | 'done'>(reduce ? 'play' : 'intro');
   const [speed, setSpeed] = useState<Speed>(1);
@@ -110,6 +113,8 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
           {goals.filter((g) => g.minute <= Math.floor(minute)).map((g, i) => <em key={i} className={g.side === userSide ? 'me' : 'op'} style={{ left: `${(g.minute / 90) * 100}%` }} title={`${g.minute}' ${g.player}`}>⚽</em>)}
         </div>
       </div>
+
+      {phase !== 'pens' && <PitchSim home={home} away={away} homeFormation={homeFormation} awayFormation={awayFormation} events={result.events} minute={phase === 'play' ? minute : 90} speed={speed} userSide={userSide} />}
 
       {phase === 'pens' && result.penKicks ? (
         <PenaltyShootout home={home} away={away} kicks={result.penKicks} userSide={userSide} onDone={() => setPhase('done')} />

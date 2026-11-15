@@ -5,7 +5,7 @@ import { audio } from '../audio/audio';
 import { isSeasonOver, newCareer, playNext, skipSeasons, startNextSeason, userDivision } from '../engine/game';
 import { pendingEvent } from '../engine/events';
 import { balanceOf } from '../engine/bank';
-import { clubOf } from '../engine/lookup';
+import { clubOf, teamOf } from '../engine/lookup';
 import { loadGame, saveGame } from '../engine/save';
 import type { GameState, MatchResult } from '../engine/types';
 import { START_MONEY, BUDGET_FACTOR, CHALLENGE_DIFFICULTY, CHALLENGE_REPUTATION, START_SEASON, type ChallengeId, type NewGameState } from '../newgame/state';
@@ -177,7 +177,7 @@ export function App() {
         <main>
           {live && liveResult && (
             <LiveMatch key={`${game.season}-${game.round}-${ev?.kind ?? 'l'}`} home={clubOf(game, liveResult.homeId)} away={clubOf(game, liveResult.awayId)} result={liveResult}
-              userSide={liveResult.homeId === game.userClubId ? 'home' : 'away'} divisionName={liveLabel} stadium={clubOf(game, liveResult.homeId).stadium} onFinish={finishMatch} />
+              homeFormation={teamOf(game, liveResult.homeId).formation} awayFormation={teamOf(game, liveResult.awayId).formation} userSide={liveResult.homeId === game.userClubId ? 'home' : 'away'} divisionName={liveLabel} stadium={clubOf(game, liveResult.homeId).stadium} onFinish={finishMatch} />
           )}
           {!live && game.unemployed && tab === 'home' && <Unemployed game={game} over={isSeasonOver(game)} onChange={setGame} onPlay={play} onAdvance={() => runAdvance(false)} onAdvanceToMatch={() => runAdvance(true)} onSkip={() => skipSeason(1)} onNextSeason={nextSeason} onSeeTables={() => { setTableView('rounds'); setTab('table'); }} />}
           {!live && !game.unemployed && tab === 'home' && <Home game={game} onChange={setGame} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onSkip={skipSeason} onSeeTables={() => { setTableView('div'); setTab('table'); }} onSeeResults={() => { setTableView('rounds'); setTab('table'); }} onEditLineup={() => setTab('lineup')} onFinance={() => setTab('finance')} onStadium={() => setTab('stadium')} onCalendar={() => setTab('calendar')} onTab={(t) => setTab(t)} onNews={() => setPhoneOpen(true)} onSeeHist={() => { setTableView('hist'); setTab('table'); }} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} onAdvance={() => runAdvance(false)} onAdvanceToMatch={() => runAdvance(true)} />}
