@@ -24,7 +24,7 @@ import { EXPECTATION_LABEL, formatBudget } from '../newgame/format';
 
 interface Props {
   game: GameState; onChange: (g: GameState) => void; last: MatchResult[]; over: boolean;
-  onPlay: () => void; onSkip: (years: number) => void; onSeeTables: () => void; onSeeResults: () => void; onNextSeason: () => void; onEditLineup: () => void; onFinance: () => void; onStadium: () => void; onAdvance: () => void; onAdvanceToMatch: () => void; onTab: (t: 'squad' | 'table' | 'transfers' | 'profile') => void; onNews: () => void; onSeeHist: () => void; onSeeOffers: () => void;
+  onPlay: () => void; onSkip: (years: number) => void; onSeeTables: () => void; onSeeResults: () => void; onNextSeason: () => void; onEditLineup: () => void; onFinance: () => void; onStadium: () => void; onCalendar: () => void; onAdvance: () => void; onAdvanceToMatch: () => void; onTab: (t: 'squad' | 'table' | 'transfers' | 'profile') => void; onNews: () => void; onSeeHist: () => void; onSeeOffers: () => void;
 }
 
 function Meter({ label, value, note }: { label: string; value: number; note?: string }) {
@@ -67,7 +67,7 @@ function EstadualNotice({ game, onChange }: { game: GameState; onChange: (g: Gam
 }
 
 /** Início: próxima partida, escalação, humor (equipe, dirigentes e torcida), propostas e resultados da rodada. */
-export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, onSeeResults, onNextSeason, onEditLineup, onFinance, onStadium, onSeeOffers, onTab, onNews, onSeeHist, onAdvance, onAdvanceToMatch }: Props) {
+export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, onSeeResults, onNextSeason, onEditLineup, onFinance, onStadium, onCalendar, onSeeOffers, onTab, onNews, onSeeHist, onAdvance, onAdvanceToMatch }: Props) {
   const name = (id: string) => clubOf(game, id).name;
   const [open, setOpen] = useState<string | null>(null);
   const [askSkip, setAskSkip] = useState(false);
@@ -173,6 +173,7 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
           </div>
         )}
         <button className="btn home-lineup" onClick={onFinance}>💰 Finanças e salários</button>
+        <button className="btn home-lineup" onClick={onCalendar}>📅 Calendário (todos os jogos)</button>
         <button className="btn home-lineup" onClick={onStadium}>🏟️ Estádio e ingressos</button>
         <button className="btn home-lineup" onClick={() => onTab('profile')}>🧑‍💼 Perfil do treinador</button>
       </div>

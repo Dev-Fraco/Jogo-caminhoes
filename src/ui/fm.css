@@ -760,3 +760,9 @@ button.home-tile { width: 100%; font: inherit; color: inherit; text-align: cente
 @keyframes pk-pop { 0% { transform: scale(.6); opacity: 0; } 70% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
 .pk-ctrl { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; } .pk-end { flex: 1 0 100%; margin: 0; text-align: center; }
 .salary-card .chips { flex-wrap: wrap; overflow: visible; }
+
+/* Calendário (todos os jogos) */
+.cal-row { display: flex; align-items: center; gap: 10px; }
+.cal-date { min-width: 74px; font-size: 13px; color: #cfe0ff; }
+.cal-score { font-size: 14px; padding: 2px 8px; border-radius: 8px; background: rgba(255,255,255,.08); white-space: nowrap; }
+.cal-score.w { color: #5ee08a; } .cal-score.l { color: #ff7a7a; } .cal-score.d { color: #ffd166; }

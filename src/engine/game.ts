@@ -18,7 +18,7 @@ import { processDays } from './daily';
 import { youthSeason, youthTick } from './youth';
 import { fibraTick } from './netfibra';
 import { settleSalary } from './salary';
-import { afterMatch, calOf, newSeasonCalendar } from './calendar';
+import { afterMatch, calOf, newSeasonCalendar, nextMatchDay } from './calendar';
 import { createCup, cupAfterLeagueRound, penaltyTakers, playCupRound, shootoutKicks } from './cup';
 import { MORALE_START, moraleFactor, updateMorale } from './morale';
 import { simulateMatch } from './match';
@@ -27,7 +27,7 @@ import { buildFixtures } from './schedule';
 import { generateOffers, returnLoans } from './roster';
 import { autoLineup, teamFromPlayers, teamRatings } from './squad';
 import { computeTable } from './table';
-import type { ClubInfo, DivisionState, FormationId, Fixture, GameState, MatchResult, Position, SeasonSummary, TableRow } from './types';
+import type { ClubInfo, DivisionState, FormationId, Fixture, GameState, MatchResult, PlayedMatch, Position, SeasonSummary, TableRow } from './types';
 
 export { DIVISION_INCOME, seasonIncome } from './economy';
 import { baseIncome } from './finance';
@@ -167,6 +167,13 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
 /** Próximo jogo do seu clube: a fase da copa (se for a data) ou a rodada do campeonato. */
 export function playNext(g: GameState) {
   const r = playNextRaw(g);
+  const my = g.unemployed ? undefined : r.results.find((x) => x.homeId === g.userClubId || x.awayId === g.userClubId);
+  if (my) { // registra o jogo (com a data) para o Calendário
+    const ev = pendingEvent(g);
+    const label = ev ? ev.label.replace(/^\S+\s/, '') : g.estadual?.due ? 'Estadual' : `${userDivision(g)?.name ?? ''} · Rodada ${g.round}`;
+    const entry: PlayedMatch = { season: g.season, day: nextMatchDay(g), homeId: my.homeId, awayId: my.awayId, homeGoals: my.homeGoals, awayGoals: my.awayGoals, ...(my.pens ? { pens: my.pens } : {}), label };
+    r.state = { ...r.state, played: [...(g.played ?? []).filter((x) => x.season === g.season), entry].slice(-140) };
+  }
   const st = afterMatch(g, r.state);
   return { ...r, state: processDays(st, calOf(g).day, calOf(st).day) }; // mensalidades e vencimentos dos dias que passaram
 }

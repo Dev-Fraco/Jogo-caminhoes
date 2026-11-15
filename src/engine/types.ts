@@ -70,6 +70,9 @@ export interface MatchResult {
   events: MatchEvent[];
 }
 
+/** Um jogo do seu clube já disputado (data, placar e competição). */
+export interface PlayedMatch { season: number; day: number; homeId: string; awayId: string; homeGoals: number; awayGoals: number; pens?: [number, number]; label: string }
+
 export interface Fixture {
   divisionId: string;
   round: number;
@@ -343,6 +346,8 @@ export interface GameState {
   salaryNeg?: { season: number; done: boolean; text: string };
   /** Calendário: dia atual, início da temporada e quantos jogos (eventos) já aconteceram nela. */
   cal?: { day: number; start: number; slot: number };
+  /** Jogos do seu clube já disputados nesta temporada, com a data (para o Calendário). */
+  played?: PlayedMatch[];
   /** Mensagens (patrocínios, coletivas, diretoria, torcida) e metas do celular. */
   inbox?: import('./inbox').InboxState;
   /** Estádio do seu clube: capacidade, conforto, preço do ingresso e público dos últimos jogos. */

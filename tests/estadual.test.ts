@@ -165,3 +165,16 @@ describe('estaduais na temporada', () => {
     }
   });
 });
+
+describe('calendário: jogos disputados', () => {
+  it('cada jogo do seu clube é registrado com data, placar e competição, e o calendário lista os próximos', async () => {
+    const { upcomingMatches } = await import('../src/engine/upcoming');
+    let g = fresh('palmeiras', 4);
+    expect(upcomingMatches(g, 100).length).toBeGreaterThan(30);
+    for (let i = 0; i < 3; i++) g = playNext(g).state;
+    expect(g.played!.length).toBe(3);
+    expect(g.played![0].label).toMatch(/Paulista/);
+    expect(g.played![1].day).toBeGreaterThan(g.played![0].day);
+    expect(g.played!.every((m) => m.homeId === 'palmeiras' || m.awayId === 'palmeiras')).toBe(true);
+  });
+});
