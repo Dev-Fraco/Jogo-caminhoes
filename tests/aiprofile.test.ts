@@ -102,4 +102,13 @@ describe('IA com personalidade nas transferências', () => {
     expect(calm.teams[id].players.length).toBe(g0.teams[id].players.length);
     expect(divisionIndexOf(s, id)).toBe(3);
   });
+
+  it('jogador seu emprestado a outro clube nunca é vendido pelo clube que o recebeu', () => {
+    const host = g0.divisions[1].clubIds[0], star = [...g0.teams[host].players].sort((a, b) => b.strength - a.strength)[0];
+    const g = { ...g0, loans: [{ playerId: star.id, hostClubId: host, season: g0.season }] };
+    for (let seed = 1; seed <= 15; seed++) {
+      const s = aiBalanceBooks(withBudget(aiWindow(g, makeRng(seed), 8), host, 1_000), makeRng(seed));
+      expect(s.teams[host].players.some((p) => p.id === star.id)).toBe(true);
+    }
+  });
 });

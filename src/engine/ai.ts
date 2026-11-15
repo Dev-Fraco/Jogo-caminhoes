@@ -109,6 +109,7 @@ function trimSquad(g: GameState, clubId: string, size: number): GameState {
 export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[]): GameState {
   let s = g;
   const ctx = profileCtx(s);
+  const onLoan = new Set(s.loans.map((l) => l.playerId)); // jogadores seus emprestados: o clube que os recebeu não pode vendê-los
   const ai = shuffle(Object.keys(s.teams).filter((id) => !managed(s, id)), rng);
   for (const buyerId of ai) {
     if (only && !only.includes(buyerId)) continue;
@@ -134,7 +135,7 @@ export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[
           if (sdi < bdi) continue; // clubes não compram de divisões acima da sua (o talento sobe, não desce)
           const sxi = new Set(autoLineup(seller.players, seller.formation));
           for (const p of seller.players) {
-            if (p.pos !== pos || p.strength < w + prof.minUpgrade || p.age > prof.maxAge) continue;
+            if (p.pos !== pos || p.strength < w + prof.minUpgrade || p.age > prof.maxAge || onLoan.has(p.id)) continue;
             if (sxi.has(p.id) && !(bdi < sdi)) continue; // titular só sai para clube de divisão mais alta
             const price = inflate(s, playerValue(p, sdi));
             if (price > cap) continue;
@@ -173,7 +174,7 @@ export function aiBalanceBooks(g: GameState, rng: Rng): GameState {
     const xi = new Set(autoLineup(team.players, team.formation));
     const di = divisionIndexOf(s, id);
     const value = (p: Player) => inflate(s, playerValue(p, di));
-    const pool = team.players.filter((p) => (prof.financial === 'crise' || !xi.has(p.id)) && rosterOk(team.players.filter((x) => x.id !== p.id)));
+    const pool = team.players.filter((p) => !s.loans.some((l) => l.playerId === p.id) && (prof.financial === 'crise' || !xi.has(p.id)) && rosterOk(team.players.filter((x) => x.id !== p.id)));
     const cand = [...pool].sort((a, b) => value(b) - value(a))[0];
     if (!cand) continue;
     const fee = value(cand);
