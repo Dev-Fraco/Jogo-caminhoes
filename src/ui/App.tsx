@@ -20,6 +20,8 @@ import { Placeholder } from './Placeholder';
 import { Home } from './Home';
 import { Finance } from './Finance';
 import { Stadium } from './Stadium';
+import { ShopScreen } from './ShopScreen';
+import { DEFAULT_PHONE, ownsPhone } from '../engine/phone';
 import { Phone } from './Phone';
 import { unreadCount } from '../engine/phone';
 import { absRound, pendingCount, urgentMessages } from '../engine/inbox';
@@ -32,7 +34,7 @@ import { Unemployed } from './Unemployed';
 import { Table } from './Table';
 import { Transfers } from './Transfers';
 
-type Tab = 'home' | 'squad' | 'table' | 'transfers' | 'lineup' | 'finance' | 'stadium'; // 'lineup' é uma tela dentro do Início
+type Tab = 'home' | 'squad' | 'table' | 'transfers' | 'lineup' | 'finance' | 'stadium' | 'shop'; // 'lineup' é uma tela dentro do Início
 /** Telas do app: menu inicial, uma das 8 opções (placeholder) ou a partida em andamento. */
 type Screen = 'menu' | MenuOptionId | 'game' | 'hall';
 
@@ -77,11 +79,12 @@ export function App() {
   // Termina o assistente: cria a carreira na liga escolhida (pirâmide completa) e abre o jogo.
   const startCareer = (s: NewGameState) => {
     const { name, nationality, reputation } = s.coach;
-    setGame(newCareer({
+    const career = newCareer({
       saveName: s.setup.saveName, coach: { name, nationality, reputation }, difficulty: s.setup.difficulty, mode: s.setup.mode,
       season: START_SEASON, userClubId: s.club!.id, divisions: pyramidOf(s.world.countryId, s.world.leagueId), outside: s.world.divisionId === 'br-estaduais' ? s.club! : undefined,
       leagueName: s.world.leagueId === 'brasileirao' ? undefined : getLeague(s.world.countryId, s.world.leagueId)?.name, slots: slotsOfLeague(s.world.leagueId), cup: s.world.leagueId === 'brasileirao',
-    }));
+    });
+    setGame({ ...career, phone: { ...DEFAULT_PHONE, noPhone: true } }); // carreira nova: o treinador começa sem celular (compra na Mega-zona Luiz)
     setLast([]); setTab('home'); setScreen('game');
   };
 
@@ -114,7 +117,7 @@ export function App() {
 
   const club = game.clubs[game.userClubId];
   const play = () => { // antes do jogo: avisa de mensagens que vencem e só se resolvem pelo celular
-    if (!game.unemployed && urgentMessages(game).length > 0 && gateAt !== absRound(game)) { setGateAt(absRound(game)); setPhoneGate(true); return; }
+    if (!game.unemployed && ownsPhone(game) && urgentMessages(game).length > 0 && gateAt !== absRound(game)) { setGateAt(absRound(game)); setPhoneGate(true); return; }
     doPlay();
   };
   const doPlay = () => { const r = playNext(game); const mine = r.results.some((x) => x.homeId === game.userClubId || x.awayId === game.userClubId); if (game.unemployed || !mine) { setLast(r.results); setGame(r.state); } else setLive(r); }; // sem clube (ou sem jogo seu nesta rodada, como na Série D eliminada): nada para assistir
@@ -150,6 +153,7 @@ export function App() {
           )}
           {!live && game.unemployed && tab === 'home' && <Unemployed game={game} over={isSeasonOver(game)} onChange={setGame} onPlay={play} onSkip={() => skipSeason(1)} onNextSeason={nextSeason} onSeeTables={() => { setTableView('rounds'); setTab('table'); }} />}
           {!live && !game.unemployed && tab === 'home' && <Home game={game} onChange={setGame} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onSkip={skipSeason} onSeeTables={() => { setTableView('div'); setTab('table'); }} onSeeResults={() => { setTableView('rounds'); setTab('table'); }} onEditLineup={() => setTab('lineup')} onFinance={() => setTab('finance')} onStadium={() => setTab('stadium')} onTab={(t) => setTab(t)} onNews={() => setPhoneOpen(true)} onSeeHist={() => { setTableView('hist'); setTab('table'); }} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} />}
+          {!live && tab === 'shop' && <ShopScreen game={game} onChange={setGame} onOpenPhone={() => setPhoneOpen(true)} />}
           {!live && !game.unemployed && tab === 'stadium' && <Stadium game={game} onChange={setGame} onBack={() => setTab('home')} />}
           {!live && !game.unemployed && tab === 'finance' && <Finance game={game} onChange={setGame} onBack={() => setTab('home')} />}
           {!live && !game.unemployed && tab === 'lineup' && <Lineup game={game} onChange={setGame} onBack={() => setTab('home')} />}
@@ -159,12 +163,12 @@ export function App() {
         </main>
         <div className="nav-wrap">
         <nav ref={navRef} onScroll={onNavScroll} aria-label="Menu principal (arraste para o lado para ver mais)">
-          {([['home', '🏠', 'Início'], ['squad', '👕', 'Elenco'], ['table', '📊', 'Tabela'], ['transfers', '🔁', 'Transf.'], ['stadium', '🏟️', 'Estádio'], ['finance', '💰', 'Finanças'], ['phone', '📱', 'Celular']] as const).map(([id, icon, label]) => {
+          {([['home', '🏠', 'Início'], ['squad', '👕', 'Elenco'], ['table', '📊', 'Tabela'], ['transfers', '🔁', 'Transf.'], ['stadium', '🏟️', 'Estádio'], ['finance', '💰', 'Finanças'], ['shop', '🛒', 'Loja'], ['phone', '📱', 'Celular']] as const).map(([id, icon, label]) => {
             const on = tab === id || (id === 'home' && tab === 'lineup');
             return (
-              <button key={id} className={on ? 'on' : ''} disabled={!!live || (!!game.unemployed && (id === 'squad' || id === 'transfers' || id === 'stadium' || id === 'finance'))} onClick={() => (id === 'phone' ? setPhoneOpen(true) : setTab(id))} aria-label={id === 'transfers' ? 'Transferências' : label} aria-current={on ? 'page' : undefined}>
+              <button key={id} className={on ? 'on' : ''} disabled={!!live || (!!game.unemployed && (id === 'squad' || id === 'transfers' || id === 'stadium' || id === 'finance'))} onClick={() => (id === 'phone' ? (ownsPhone(game) ? setPhoneOpen(true) : setTab('shop')) : setTab(id))} aria-label={id === 'transfers' ? 'Transferências' : label} aria-current={on ? 'page' : undefined}>
                 <span aria-hidden="true">{icon}</span>{label}
-                {id === 'phone' && unreadCount(game) + pendingCount(game) > 0 && <i className="nav-badge" aria-label={`${unreadCount(game) + pendingCount(game)} pendências`}>{unreadCount(game) + pendingCount(game)}</i>}
+                {id === 'phone' && ownsPhone(game) && unreadCount(game) + pendingCount(game) > 0 && <i className="nav-badge" aria-label={`${unreadCount(game) + pendingCount(game)} pendências`}>{unreadCount(game) + pendingCount(game)}</i>}
                 {id === 'transfers' && game.offers.length > 0 && <i className="nav-badge" aria-label={`${game.offers.length} propostas`}>{game.offers.length}</i>}
               </button>
             );

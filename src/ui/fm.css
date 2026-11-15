@@ -628,3 +628,17 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .chip-price { margin: 4px 0 10px; font: 800 30px var(--font-head); } .chip-price small { font: 600 14px var(--font-head); opacity: .7; }
 .chip-plan ul { margin: 0 0 14px; padding-left: 18px; line-height: 1.5; font-size: 14px; }
 .chip-status.on { border-color: #3ddc84; }
+
+/* Mega-zona Luiz */
+.shop-hero p { margin: 4px 0; } .shop-warn { color: #ffb347; } .shop-msg.ok { color: #6dffa0; } .shop-msg.bad { color: #ff8a8a; }
+.shop-list, .shop-chips { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.shop-item { display: grid; grid-template-columns: 60px 1fr; gap: 6px 12px; align-items: start; padding: 12px; border-radius: 14px; background: linear-gradient(180deg, rgba(14, 24, 48, .9), rgba(9, 17, 36, .9)); border: 1px solid #25406f; }
+.shop-item.mine { border-color: #3ddc84; }
+.shop-item .grow b { display: block; font: 800 17px var(--font-head); } .shop-item small { display: block; color: #aebfe0; font-size: 13px; } .shop-blurb { font-style: italic; }
+.shop-price { display: block; margin-top: 4px; font: 800 20px var(--font-head); color: #9fe8b8; }
+.shop-item > button { grid-column: 1 / -1; min-height: 46px; }
+.shop-chips { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.shop-chips li { display: grid; justify-items: center; gap: 4px; padding: 10px 6px; text-align: center; border-radius: 14px; background: rgba(9, 17, 36, .9); border: 1px solid #25406f; }
+.shop-chips small { color: #aebfe0; font-size: 11px; } .shop-chips button { width: 100%; min-height: 42px; font-size: 12px; padding: 0 4px; }
+.chip-art { max-width: 100%; height: auto; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, .5)); }
+.shop-pay { padding: 14px; }

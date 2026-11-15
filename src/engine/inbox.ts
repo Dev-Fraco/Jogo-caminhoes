@@ -218,7 +218,7 @@ function bills(g: GameState, inbox: InboxState): GameState {
 
 /** Depois de cada rodada: expira o que passou, sorteia mensagens novas, renova metas e gera a fatura. */
 export function inboxTick(g: GameState, rng: Rng = makeRng(g.seed * 37 + g.season * 17 + g.round * 3)): GameState {
-  if (g.unemployed) return g;
+  if (g.unemployed || g.phone?.noPhone) return g; // sem celular não chegam mensagens nem metas
   let s = expire(g);
   let inbox = inboxOf(s);
   // metas vencidas

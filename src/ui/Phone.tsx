@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { audio } from '../audio/audio';
-import { connOf, downloadMs, INSTALL_MS, needsInternet, netState, openDelayMs } from '../engine/phone';
+import { appsUsed, connOf, downloadMs, INSTALL_MS, modelOf, needsInternet, netState, openDelayMs } from '../engine/phone';
 import { changePin, checkPin, clearNotifications, hasPin, installApp, installedApps, isInstalled, markAllRead, phoneOf, PIN_LENGTH, registerPin, STORE_APPS, uninstallApp, updatePhoneSettings, WALLPAPERS, appById } from '../engine/phone';
 import type { GameState } from '../engine/types';
 import { BankApp } from './BankApp';
@@ -275,6 +275,7 @@ function Store({ game, onChange, onOpen, getGame, onPanel }: { game: GameState; 
   const list = STORE_APPS.filter((a) => `${a.name} ${a.category} ${a.blurb}`.toLowerCase().includes(q.toLowerCase()));
 
   const start = (id: string) => {
+    if (appsUsed(getGame()) + Object.keys(timers.current).length >= modelOf(getGame()).apps) { setMsg('Memória cheia: remova um app ou compre um celular melhor na Mega-zona Luiz.'); audio.sfx('error'); return; }
     if (netState(getGame()).speed === 'none') { setMsg('Sem internet: ligue o Wi-Fi (e escolha uma rede) ou os dados móveis para baixar.'); audio.sfx('error'); return; }
     setMsg(null);
     const dl = downloadMs(getGame());
@@ -296,7 +297,8 @@ function Store({ game, onChange, onOpen, getGame, onPanel }: { game: GameState; 
     <div className="ph-app-screen">
       <h2>🛍️ Loja de Apps</h2>
       <p className={`ph-netline ${net.speed}`}>{net.kind === '5g' ? '⚡ 5G · downloads rápidos' : net.kind === 'wifi' ? '⚠️ Wi-Fi grátis: conexão ruim, downloads lentos' : '🚫 Sem internet'}</p>
-      {msg && <p className="ph-warn" role="alert">{msg} <button className="ph-link" onClick={onPanel}>Abrir painel</button></p>}
+      <p className="ph-netline">💾 Memória: {appsUsed(game)}/{modelOf(game).apps >= 99 ? '∞' : modelOf(game).apps} apps · {modelOf(game).name}</p>
+      {msg && <p className="ph-warn" role="alert">{msg} {msg.startsWith('Sem internet') && <button className="ph-link" onClick={onPanel}>Abrir painel</button>}</p>}
       <input className="ph-search" placeholder="Buscar apps" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Buscar apps" />
       <ul className="ph-store">
         {list.map((a) => {

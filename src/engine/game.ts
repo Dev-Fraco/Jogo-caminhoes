@@ -14,6 +14,7 @@ import { roundFinance } from './finance';
 import { playHomeGate } from './stadium';
 import { inboxTick } from './inbox';
 import { planTick } from './dataplan';
+import './shop';
 import { createCup, cupAfterLeagueRound, playCupRound, shootout } from './cup';
 import { MORALE_START, moraleFactor, updateMorale } from './morale';
 import { simulateMatch } from './match';

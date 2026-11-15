@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { CALC_START, calcPress, type CalcKey, type CalcState } from '../engine/calculator';
-import { connectWifi, connOf, disconnectWifi, FREE_WIFI, netState, phoneOf, toggleConn, updatePhoneSettings, type Conn } from '../engine/phone';
+import { chipOf, connectWifi, connOf, disconnectWifi, FREE_WIFI, netState, phoneOf, toggleConn, updatePhoneSettings, type Conn } from '../engine/phone';
 import type { GameState } from '../engine/types';
 import { loadSettings, saveSettings } from '../settings/settings';
 
@@ -28,7 +28,7 @@ export function QuickPanel({ game, onChange, onClose, onCalc, canCalc }: Props) 
       <div className="qs" onPointerDown={(e) => { startY.current = e.clientY; }} onPointerUp={(e) => { if (startY.current !== null && startY.current - e.clientY > 50) onClose(); startY.current = null; }}>
         <div className="qs-grid">
           {tile('wifi', '📶', 'Wi-Fi', c.wifi ? (s.wifiNet ? s.wifiNet : 'Escolha uma rede') : 'Desligado')}
-          {tile('mobileData', '📡', 'Dados móveis', c.mobileData ? '5G' : 'Desligado')}
+          {tile('mobileData', '📡', 'Dados móveis', c.mobileData ? (chipOf(game) ? `${chipOf(game)!.name} · ${net.kind === '5g' ? '5G' : 'sem plano'}` : 'Sem chip') : 'Desligado')}
           {tile('airplane', '✈️', 'Modo avião', c.airplane ? 'Ligado' : 'Desligado')}
           <button className="qs-tile" disabled={!canCalc} onClick={() => { onClose(); onCalc(); }}><span aria-hidden="true">🧮</span><b>Calculadora</b><small>{canCalc ? 'Abrir' : 'Desbloqueie'}</small></button>
         </div>
