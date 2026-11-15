@@ -17,6 +17,7 @@ import { CalcApp, QuickPanel } from './QuickPanel';
 import { ChipApp } from './ChipApp';
 import { NetFibraApp } from './NetFibraApp';
 import { AccountGate } from './AccountGate';
+import { HoldScan } from './AppKit';
 import { needsAccount, ACCOUNT_APPS } from '../engine/accounts';
 import { SocialApp } from './SocialApp';
 import './phone.css';
@@ -167,21 +168,8 @@ export function Phone({ game, onChange, onClose }: Props) {
   );
 }
 
-/** Sensor de digital: tocar em cima faz a leitura e libera. */
-function Finger({ onDone, label }: { onDone: () => void; label: string }) {
-  const [scan, setScan] = useState(false);
-  const touch = () => {
-    if (scan) return;
-    setScan(true); audio.sfx('notify');
-    window.setTimeout(onDone, 650);
-  };
-  return (
-    <button className={`ph-finger ${scan ? 'scan' : ''}`} onClick={touch} aria-label="Sensor de impressão digital">
-      <span className="ph-finger-ico" aria-hidden="true">{scan ? '✅' : '🫆'}</span>
-      <small>{scan ? 'Reconhecido!' : label}</small>
-    </button>
-  );
-}
+/** Sensor de digital: é preciso segurar o dedo por 1,5 s para a leitura. */
+const Finger = ({ onDone, label }: { onDone: () => void; label: string }) => <HoldScan onDone={onDone} label={label} />;
 
 function FingerOffer({ onYes, onNo }: { onYes: () => void; onNo: () => void }) {
   const [reg, setReg] = useState(false);
@@ -189,13 +177,13 @@ function FingerOffer({ onYes, onNo }: { onYes: () => void; onNo: () => void }) {
     <div className="ph-lock">
       <div className="ph-offer">
         <h2>Desbloqueio por digital</h2>
-        <p>Quer abrir o celular só tocando no sensor, sem digitar o PIN?</p>
+        <p>Quer abrir o celular segurando o dedo no sensor, sem digitar o PIN?</p>
         {!reg ? (
           <>
             <button className="ph-btn pri" onClick={() => setReg(true)}>Cadastrar digital</button>
             <button className="ph-link" onClick={onNo}>Agora não</button>
           </>
-        ) : <Finger label="Toque no sensor para cadastrar" onDone={onYes} />}
+        ) : <Finger label="Segure o dedo no sensor (1,5 s) para cadastrar" onDone={onYes} />}
       </div>
     </div>
   );
@@ -260,7 +248,7 @@ function LockScreen({ game, now, onSubmit, firstPin, err, shake, onReset, onFing
         </div>
       ) : finger && !usePin ? (
         <>
-          <Finger label="Toque no sensor para desbloquear" onDone={onFinger} />
+          <Finger label="Segure o dedo no sensor (1,5 s) para desbloquear" onDone={onFinger} />
           <button className="ph-link" onClick={() => setUsePin(true)}>Usar PIN</button>
         </>
       ) : registering ? (

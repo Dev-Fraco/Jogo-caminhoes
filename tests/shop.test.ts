@@ -54,7 +54,7 @@ describe('Mega-zona Luiz', () => {
     const slow = buyPhoneCash(fresh(), 'zap'), fast = buyPhoneCash(fresh(), 'imperial');
     if (!slow.ok || !fast.ok) throw new Error();
     const wifi = (g: GameState) => connectWifi(toggleConn(g, 'wifi'), FREE_WIFI[0].name);
-    expect(openDelayMs(wifi(fast.state))).toBeLessThan(openDelayMs(wifi(slow.state)) / 3);
+    expect(openDelayMs(wifi(fast.state))).toBeLessThan(openDelayMs(wifi(slow.state)) * 0.6); // no Wi-Fi ruim os 3,5 s extras valem para todos os aparelhos
     expect(downloadMs(wifi(fast.state))).toBeLessThan(downloadMs(wifi(slow.state)) / 3);
   });
   it('troca de celular é por Pix no Banco e mantém chip e apps que cabem', () => {

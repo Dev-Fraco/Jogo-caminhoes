@@ -2,6 +2,7 @@ import { fromDay, toDay } from './calendar';
 import { DIVISION_INCOME, GATE_SHARE, priceIndex, WAGE_SHARE } from './economy';
 import { managed } from './lookup';
 import { divisionIndexOf } from './transfers';
+import { COUNTRY_ORDER, WORLD_DATA } from '../data/world';
 import type { GameState, Morale, NewsItem, Player } from './types';
 
 /** Dinheiro pessoal do treinador no início da carreira, conforme a reputação (R$). */
@@ -42,8 +43,29 @@ export function gateOf(g: GameState, clubId: string): number {
   const fans = clubId === g.userClubId ? g.morale.fans : 60;
   return Math.round((GATE_SHARE * baseIncome(idx, g.clubs[clubId].reputation, priceIndex(g)) * (0.8 + fans / 250)) / (g.totalRounds / 2) / 1_000) * 1_000;
 }
-/** Salário anual do treinador, pago pelo clube. */
-export const coachSalary = (g: GameState) => Math.max(30_000, Math.round((g.payMult ?? 1) * 0.02 * baseIncome(divisionIndexOf(g, g.userClubId), g.clubs[g.userClubId].reputation, priceIndex(g)) / 1_000) * 1_000);
+/**
+ * Salário MENSAL do treinador por divisão (R$): [mínimo, máximo]; a reputação do clube (1 a 5) escolhe o ponto dentro da faixa.
+ * Brasil e América do Sul: Série A de 100 mil a 450 mil. Europa: 1ª divisão de 100 mil a 850 mil. Divisões abaixo pagam bem menos, uma faixa por série.
+ */
+export const COACH_MONTHLY: Record<'sul' | 'europa', [number, number][]> = {
+  sul: [[100_000, 450_000], [35_000, 90_000], [15_000, 40_000], [6_000, 18_000], [2_000, 7_000]],
+  europa: [[100_000, 850_000], [45_000, 140_000], [20_000, 60_000], [8_000, 25_000], [3_000, 9_000]],
+};
+const EUROPE = new Set(['EN', 'ES', 'IT', 'DE', 'FR', 'PT']);
+/** Região da liga da carreira (pela 1ª divisão da pirâmide). */
+const regionOf = (g: Pick<GameState, 'divisions'>): 'sul' | 'europa' => {
+  const first = g.divisions[0]?.id;
+  for (const cid of COUNTRY_ORDER) for (const l of WORLD_DATA[cid].leagues) if (l.divisions[0].id === first) return EUROPE.has(cid) ? 'europa' : 'sul';
+  return 'sul';
+};
+/** Salário mensal-base do treinador (sem inflação nem aumentos negociados). */
+export function coachMonthlyBase(g: GameState): number {
+  const [lo, hi] = COACH_MONTHLY[regionOf(g)][Math.min(divisionIndexOf(g, g.userClubId), 4)];
+  const rep = Math.min(5, Math.max(1, g.clubs[g.userClubId]?.reputation ?? 1));
+  return lo + ((hi - lo) * (rep - 1)) / 4;
+}
+/** Salário anual do treinador, pago pelo clube (mensal x 12, com inflação e aumentos negociados). */
+export const coachSalary = (g: GameState) => Math.round(((g.payMult ?? 1) * coachMonthlyBase(g) * 12 * priceIndex(g)) / 1_000) * 1_000;
 
 export const coachMoneyOf = (g: Pick<GameState, 'coachMoney' | 'coach'>) => g.coachMoney ?? COACH_WALLET[g.coach.reputation] ?? 100_000;
 export const wageCoverOf = (g: Pick<GameState, 'wageCover'>) => g.wageCover ?? 0;

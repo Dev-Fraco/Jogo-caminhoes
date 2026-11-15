@@ -56,7 +56,7 @@ function Offers({ game, onChange }: { game: GameState; onChange: (g: GameState) 
                   <div className="tf-row">
                     <span className={`tf-ovr ${tier(p.strength)}`}>{p.strength}</span>
                     <div className="tf-info">
-                      <strong>{p.name}</strong>
+                      <strong>{p.name} <span className="tf-age">· {p.age} anos</span></strong>
                       <small><em className={`pill ${o.kind === 'buy' ? 'sale' : 'loan'}`}>{o.kind === 'buy' ? 'Compra' : 'Empréstimo'}</em> <span className="tf-club"><ClubBadge club={game.clubs[o.clubId]} size={18} /> {game.clubs[o.clubId].name}</span> · vale até a rodada {o.expiresRound}</small>
                     </div>
                     <span className="tf-price">{formatBudget(o.fee)}</span>

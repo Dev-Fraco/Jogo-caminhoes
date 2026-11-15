@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { audio } from '../audio/audio';
 import { brl } from '../engine/bank';
 import type { GameState, PixCharge } from '../engine/types';
 import { isInstalled } from '../engine/phone';
@@ -64,5 +65,48 @@ export function AppTabs({ items }: { items: { icon: string; label: string; on?: 
     <nav className="app-tabs" aria-label="Menu do aplicativo">
       {items.map((t) => <button key={t.label} className={`${t.on ? 'on' : ''} ${t.center ? 'center' : ''}`} aria-current={t.on ? 'page' : undefined} onClick={t.onClick}><span aria-hidden="true">{t.icon}</span><small>{t.label}</small></button>)}
     </nav>
+  );
+}
+
+/** Quanto tempo (ms) é preciso manter o dedo no sensor de digital. */
+export const HOLD_MS = 1500;
+
+/**
+ * Leitor de digital: é preciso segurar o dedo (ou a tecla Enter/Espaço) por 1,5 s. Soltar antes zera a leitura.
+ * Mostra um anel que se completa e a digital "escaneando".
+ */
+export function HoldScan({ onDone, label, variant = 'sensor', className = '' }: { onDone: () => void; label: string; variant?: 'sensor' | 'button'; className?: string }) {
+  const [holding, setHolding] = useState(false);
+  const [done, setDone] = useState(false);
+  const timer = useRef<number | undefined>(undefined);
+  const start = () => {
+    if (done || timer.current !== undefined) return;
+    setHolding(true);
+    timer.current = window.setTimeout(() => { timer.current = undefined; setHolding(false); setDone(true); audio.sfx('notify'); window.setTimeout(onDone, 250); }, HOLD_MS);
+  };
+  const cancel = () => { if (done) return; setHolding(false); if (timer.current !== undefined) { window.clearTimeout(timer.current); timer.current = undefined; } };
+  const handlers = {
+    onPointerDown: (e: React.PointerEvent) => { (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); start(); },
+    onPointerUp: cancel, onPointerCancel: cancel, onPointerLeave: cancel,
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(), // segurar no celular não abre o menu do sistema
+    onKeyDown: (e: React.KeyboardEvent) => { if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) { e.preventDefault(); start(); } },
+    onKeyUp: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') cancel(); },
+  };
+  const hint = done ? 'Reconhecido!' : holding ? 'Lendo… continue segurando' : label;
+  if (variant === 'button') {
+    return (
+      <button type="button" className={`ph-btn bk-wide finger hold ${holding ? 'holding' : ''} ${done ? 'ok' : ''} ${className}`} aria-label={`${label} (segure por 1,5 segundo)`} {...handlers}>
+        <i className="hold-bar" aria-hidden="true" /><span>{done ? '✅ Reconhecido!' : holding ? '👆 Lendo… continue segurando' : label}</span>
+      </button>
+    );
+  }
+  return (
+    <button type="button" className={`ph-finger hold ${holding ? 'holding' : ''} ${done ? 'scan' : ''} ${className}`} aria-label="Sensor de impressão digital: segure o dedo por 1,5 segundo" {...handlers}>
+      <span className="hold-ring" aria-hidden="true">
+        <svg viewBox="0 0 100 100"><circle className="bg" cx="50" cy="50" r="44" /><circle className="fg" cx="50" cy="50" r="44" /></svg>
+        <span className="ph-finger-ico">{done ? '✅' : '🫆'}</span>
+      </span>
+      <small>{hint}</small>
+    </button>
   );
 }

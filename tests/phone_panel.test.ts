@@ -76,7 +76,7 @@ describe('internet do celular', () => {
     expect(netState(g).kind).toBe('wifi'); // sem plano, os dados não valem: continua no Wi-Fi ruim
     g = { ...g, phone: { ...phoneOf(g), plan: { until: g.season * 200 + g.round + 3 } } };
     expect(netState(g)).toMatchObject({ kind: '5g', speed: 'fast', label: '5G' });
-    expect(openDelayMs(g)).toBeLessThan(slowOpen / 4);
+    expect(openDelayMs(g)).toBeLessThan(slowOpen / 2);
     expect(downloadMs(g)).toBeLessThan(slowDl / 3);
   });
   it('desligar o Wi-Fi ou ligar o avião derruba a rede; desconectar volta a ficar sem internet', () => {

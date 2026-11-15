@@ -150,3 +150,4 @@
 
 .tf-club { display: inline-flex; align-items: center; gap: 4px; vertical-align: middle; } .tf-club .cb { filter: none; }
 .team .cb { filter: none; margin-right: 6px; }
+.tf-age { font-weight: 600; font-size: .85em; color: #9fb4d8; }

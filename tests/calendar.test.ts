@@ -71,9 +71,9 @@ describe('calendário', () => {
     expect(calOf(n).slot).toBe(0);
     expect(calOf(n).day).toBeGreaterThan(calOf(g).day);
   });
-  it('salário do treinador caiu pela metade', () => {
+  it('salário do treinador: Série A de 100 mil a 450 mil por mês', () => {
     const g = mk();
-    expect(coachSalary(g)).toBeLessThan(2_500_000);
-    expect(coachSalary(g)).toBeGreaterThanOrEqual(30_000);
+    expect(coachSalary(g) / 12).toBeGreaterThanOrEqual(99_000);
+    expect(coachSalary(g) / 12).toBeLessThanOrEqual(451_000);
   });
 });

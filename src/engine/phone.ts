@@ -146,7 +146,7 @@ export interface NetState { kind: 'none' | 'wifi' | '5g' | 'fibra'; speed: NetSp
 export function netState(g: Pick<GameState, 'phone' | 'season' | 'round' | 'cal'>): NetState {
   const s = phoneOf(g).settings;
   if (s.airplane) return { kind: 'none', speed: 'none', label: 'Modo avião', note: 'Desligue o modo avião e conecte-se a uma rede.' };
-  if (s.wifi && s.wifiNet && fibraReady(g) && phoneOf(g).fibra!.ssid === s.wifiNet) return { kind: 'fibra', speed: 'fast', label: `NetFibra · ${s.wifiNet}`, note: '1 GB de download e 1 GB de upload: o dobro da velocidade do 5G.' };
+  if (s.wifi && s.wifiNet && fibraReady(g) && phoneOf(g).fibra!.ssid === s.wifiNet) return { kind: 'fibra', speed: 'fast', label: `NetFibra · ${s.wifiNet}`, note: '1 GB de download e 1 GB de upload: muito mais rápida que o 5G (abre os apps 70% mais rápido).' };
   if (s.mobileData && !chipOf(g) && !s.wifiNet) return chipBlocked(g) ? { kind: 'none', speed: 'none', label: 'Chip bloqueado', note: 'O chip venceu (1 ano). Compre um novo na Mega-zona Luiz.' } : { kind: 'none', speed: 'none', label: 'Dados móveis sem chip', note: 'Compre um chip na Mega-zona Luiz.' };
   if (s.mobileData && chipOf(g) && planActive(g)) return { kind: '5g', speed: 'fast', label: '5G', note: 'Conexão rápida.' };
   if (s.mobileData && chipOf(g) && !s.wifiNet) return { kind: 'none', speed: 'none', label: 'Dados móveis sem plano', note: 'Assine o plano no app Internet de Chip (use um Wi-Fi grátis para isso).' };
@@ -159,7 +159,13 @@ export function netState(g: Pick<GameState, 'phone' | 'season' | 'round' | 'cal'
 export const OFFLINE_SCREENS = ['home', 'config', 'calc', 'nonet', 'boot'];
 export const needsInternet = (screen: string) => !OFFLINE_SCREENS.includes(screen);
 /** Tempo (ms) para abrir um app e para baixar um app, conforme a conexão. */
-export const openDelayMs = (g: Pick<GameState, 'phone' | 'season' | 'round' | 'cal'>) => Math.round((netState(g).speed === 'slow' ? 3600 : 450) * (netState(g).kind === 'fibra' ? 0.5 : 1) * modelOf(g).speed);
+/** Tempo base (ms) para abrir um app, multiplicado pela velocidade do aparelho. Wi-Fi ruim soma 3,5 s; 5G reduz 44%; NetFibra (Wi-Fi próprio) reduz 70%. */
+export const OPEN_BASE_MS = 2500;
+export const WIFI_BAD_EXTRA_MS = 3500;
+export const openDelayMs = (g: Pick<GameState, 'phone' | 'season' | 'round' | 'cal'>) => {
+  const n = netState(g), base = OPEN_BASE_MS * modelOf(g).speed;
+  return Math.round(n.kind === 'fibra' ? base * 0.3 : n.kind === '5g' ? base * 0.56 : n.speed === 'slow' ? base + WIFI_BAD_EXTRA_MS : base);
+};
 export const downloadMs = (g: Pick<GameState, 'phone' | 'season' | 'round' | 'cal'>) => Math.round((netState(g).speed === 'slow' ? 9000 : 1600) * (netState(g).kind === 'fibra' ? 0.5 : 1) * modelOf(g).speed);
 export const INSTALL_MS = 1800;
 

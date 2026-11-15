@@ -55,7 +55,7 @@ describe('NetFibra', () => {
     g = toggleConn(set(pay(g)), 'wifi'); // set() já ligou o wifi; toggle desliga, liga de novo abaixo
     g = connectHome(g, 'senha1234').ok ? (connectHome(g, 'senha1234') as { state: GameState }).state : g;
     expect(netState(g).kind).toBe('fibra');
-    expect(openDelayMs(g) * 2).toBeLessThanOrEqual(fast5.open + 1);
+    expect(openDelayMs(g) * 1.8).toBeLessThanOrEqual(fast5.open + 1); // fibra -70% x 5G -44%
     expect(downloadMs(g) * 2).toBeLessThanOrEqual(fast5.dl + 1);
   });
   it('conectar na rede de casa exige a senha certa; rede grátis continua ruim', () => {

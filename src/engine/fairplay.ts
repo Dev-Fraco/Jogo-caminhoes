@@ -3,11 +3,11 @@ import { notifyPhone } from './phone';
 import type { GameState, NewsItem } from './types';
 
 /* =====================================================================
-   Fair play financeiro: no máximo 3 contratações por temporada (compra ou empréstimo recebido).
-   Na 3ª, o jogo avisa que a meta foi atingida. Se o treinador fizer a 4ª, o clube sofre um transfer ban de 1 ano.
+   Fair play financeiro: no máximo 5 contratações por temporada (compra ou empréstimo recebido).
+   Na 5ª, o jogo avisa que a meta foi atingida. Se o treinador fizer a 6ª, o clube sofre um transfer ban de 1 ano.
    ===================================================================== */
 
-export const FAIRPLAY_LIMIT = 3;
+export const FAIRPLAY_LIMIT = 5;
 
 /** Contratações do seu clube na temporada (compras e empréstimos recebidos). Vendas e empréstimos cedidos não contam. */
 export const signingsThisSeason = (g: GameState): number =>

@@ -225,7 +225,7 @@ function Confirm({ game, onChange, keyText, charge, go, back }: { game: GameStat
         <div className="ph-form">
           <input type="password" autoFocus placeholder="Senha do banco" value={pass} onChange={(e) => setPass(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && pay()} aria-label="Senha do banco" />
           <button className="ph-btn pri bk-wide" onClick={() => pay()}>Pagar {brl(charge.amount)}</button>
-          <FingerButton game={game} onOk={() => pay(FINGER)} label={`👆 Pagar ${brl(charge.amount)} com a digital`} />
+          <FingerButton game={game} onOk={() => pay(FINGER)} label={`👆 Segure para pagar ${brl(charge.amount)} com a digital`} />
         </div>
       )}
       {err && <p className="ph-pad-msg err" role="alert">{err}</p>}
@@ -298,7 +298,7 @@ function BoletoPay({ game, onChange, boleto, go, back }: { game: GameState; onCh
         <input type="password" placeholder="Senha do banco" value={pass} onChange={(e) => setPass(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && pay()} aria-label="Senha do banco" />
         {err && <p className="ph-pad-msg err" role="alert">{err}</p>}
         <button className="ph-btn pri bk-wide" onClick={() => pay()}>Pagar {brl(total)}</button>
-        <FingerButton game={game} onOk={() => pay(FINGER)} label={`👆 Pagar ${brl(total)} com a digital`} />
+        <FingerButton game={game} onOk={() => pay(FINGER)} label={`👆 Segure para pagar ${brl(total)} com a digital`} />
       </div>
     </>
   );

@@ -1,3 +1,4 @@
+import { HoldScan } from './AppKit';
 import { useState } from 'react';
 import { audio } from '../audio/audio';
 import { confirmCode, requestCode } from '../engine/accounts';
@@ -45,13 +46,8 @@ export function AccountGate({ game, app, onChange }: { game: GameState; app: str
   );
 }
 
-/** Botão de digital: confirma no lugar da senha (só aparece se a digital estiver ativada nas Configurações). */
-export function FingerButton({ game, onOk, label = '👆 Usar digital' }: { game: GameState; onOk: () => void; label?: string }) {
-  const [scan, setScan] = useState(false);
+/** Botão de digital: confirma no lugar da senha (só aparece se a digital estiver ativada nas Configurações). Segure por 1,5 s. */
+export function FingerButton({ game, onOk, label = '👆 Segure para usar a digital' }: { game: GameState; onOk: () => void; label?: string }) {
   if (!phoneOf(game).settings.fingerprint) return null;
-  return (
-    <button className={`ph-btn bk-wide finger ${scan ? 'scan' : ''}`} disabled={scan} onClick={() => { setScan(true); window.setTimeout(() => { setScan(false); onOk(); }, 700); }}>
-      {scan ? 'Lendo digital…' : label}
-    </button>
-  );
+  return <HoldScan variant="button" label={label} onDone={onOk} />;
 }

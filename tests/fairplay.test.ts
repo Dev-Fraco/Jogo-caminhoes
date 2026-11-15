@@ -12,20 +12,20 @@ import { makeCareer } from './helpers';
 
 const rich = (g: GameState): GameState => ({ ...g, budgets: { ...g.budgets, [g.userClubId]: 900_000_000 }, teams: { ...g.teams, [g.userClubId]: (() => { const t = g.teams[g.userClubId]; const players = t.players.slice(0, 22); return { ...t, players, lineup: autoLineup(players, t.formation) }; })() } });
 /** Um reserva barato de cada um dos primeiros clubes (para contratar). */
-const targets = (g: GameState) => Object.keys(g.teams).filter((id) => id !== g.userClubId).slice(0, 8).map((id) => ({ id, p: [...g.teams[id].players].sort((a, b) => a.strength - b.strength)[10] }));
+const targets = (g: GameState) => Object.keys(g.teams).filter((id) => id !== g.userClubId).slice(0, 10).map((id) => ({ id, p: [...g.teams[id].players].sort((a, b) => a.strength - b.strength)[10] }));
 
 describe('fair play financeiro', () => {
-  it('3 contratações avisam; a 4ª gera transfer ban de 1 ano; durante o ban ninguém é contratado', () => {
+  it('5 contratações avisam; a 6ª gera transfer ban de 1 ano; durante o ban ninguém é contratado', () => {
     let g = rich(makeCareer('flamengo', 4));
     const t = targets(g);
-    for (let i = 0; i < 3; i++) { const r = quickSign(g, t[i].id, t[i].p.id); expect(r.deal).toBe(true); g = r.state; }
+    for (let i = 0; i < FAIRPLAY_LIMIT; i++) { const r = quickSign(g, t[i].id, t[i].p.id); expect(r.deal).toBe(true); g = r.state; }
     expect(signingsThisSeason(g)).toBe(FAIRPLAY_LIMIT);
     expect(fairplayWarning(g)).toMatch(/meta de transferência/);
     expect(banOf(g)).toBeUndefined();
-    const r4 = quickSign(g, t[3].id, t[3].p.id); expect(r4.deal).toBe(true); g = r4.state;
+    const r4 = quickSign(g, t[FAIRPLAY_LIMIT].id, t[FAIRPLAY_LIMIT].p.id); expect(r4.deal).toBe(true); g = r4.state;
     expect(banOf(g)).toBeTruthy();
     expect(g.news.some((n) => /transfer ban/i.test(n.text))).toBe(true);
-    const r5 = quickSign(g, t[4].id, t[4].p.id);
+    const r5 = quickSign(g, t[FAIRPLAY_LIMIT + 1].id, t[FAIRPLAY_LIMIT + 1].p.id);
     expect(r5.deal).toBe(false); expect(r5.blocked).toMatch(/Transfer ban/);
     // passado 1 ano o ban acaba
     g = { ...g, cal: { ...calOf(g), day: g.transferBan!.since + YEAR_DAYS } };
