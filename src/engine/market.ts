@@ -3,6 +3,7 @@ import { estadualClub } from '../data/estaduais_clubs';
 import { COUNTRY_ORDER, WORLD_DATA } from '../data/world';
 import { developPlayer } from './ai';
 import { inflate } from './economy';
+import { afterSigning, fairplayBlock } from './fairplay';
 import { baseWage } from './finance';
 import { clubOf } from './lookup';
 import { clamp, hashString, makeRng } from './rng';
@@ -134,6 +135,8 @@ const fmt = (n: number) => `R$ ${Math.round(n).toLocaleString('pt-BR')}`;
 /** Confere regras que independem da conversa: elenco cheio, orçamento, clube vendedor sem jogadores e rodadas de negociação. */
 function blocker(g: GameState, q: Quote, fee: number): string | undefined {
   if (g.unemployed) return 'Você está sem clube.';
+  const ban = fairplayBlock(g);
+  if (ban) return ban;
   if (g.teams[g.userClubId].players.some((p) => p.id === q.player.id)) return 'Este jogador já é do seu clube.';
   if (g.teams[g.userClubId].players.length >= MAX_SQUAD) return `Elenco cheio (máximo de ${MAX_SQUAD} jogadores).`;
   if ((g.budgets[g.userClubId] ?? 0) < fee) return 'Orçamento do clube insuficiente para essa proposta.';
@@ -194,7 +197,7 @@ export function sign(g: GameState, q: Quote, fee: number, wage: number, years: n
     };
   }
   s = { ...s, transfers: [...s.transfers, log] };
-  return news(s, `✍️ Contratado: ${player.name} (overall ${player.strength}) do ${q.club.name} por ${fmt(fee)}, contrato de ${years} ${years === 1 ? 'ano' : 'anos'}.`, 'good');
+  return afterSigning(news(s, `✍️ Contratado: ${player.name} (overall ${player.strength}) do ${q.club.name} por ${fmt(fee)}, contrato de ${years} ${years === 1 ? 'ano' : 'anos'}.`, 'good'));
 }
 
 /** Contratação direta pelo preço pedido (aba Mercado), com um contrato padrão. */

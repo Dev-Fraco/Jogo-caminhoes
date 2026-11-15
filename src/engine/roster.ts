@@ -51,6 +51,7 @@ export type ReleaseCheck = { ok: true } | { ok: false; text: string };
 
 export function checkRelease(g: GameState, playerId: string): ReleaseCheck {
   if (!mine(g, playerId)) return { ok: false, text: 'Este jogador não é do seu clube.' };
+  if ((g.loansIn ?? []).some((l) => l.playerId === playerId)) return { ok: false, text: 'Jogador emprestado: ele volta ao clube dono no fim da temporada.' };
   const left = g.teams[g.userClubId].players.filter((p) => p.id !== playerId);
   return rosterOk(left) ? { ok: true } : { ok: false, text: `Não dá para dispensar: o elenco ficaria abaixo do mínimo (${MIN_SQUAD} jogadores; ${MIN_BY_POS.GK} goleiros, ${MIN_BY_POS.DEF} defensores, ${MIN_BY_POS.MID} meias e ${MIN_BY_POS.ATT} atacantes).` };
 }
@@ -141,6 +142,7 @@ export function acceptOffer(g: GameState, offerId: string): { state: GameState; 
   if (!offer) return { state: g, result: { ok: false, text: 'Proposta não encontrada.' } };
   const p = mine(g, offer.playerId);
   if (!p) return drop('O jogador não está mais no seu clube.');
+  if ((g.loansIn ?? []).some((l) => l.playerId === p.id)) return drop('Jogador emprestado não pode ser vendido.');
   const host = g.teams[offer.clubId];
   if ((g.budgets[offer.clubId] ?? 0) < offer.fee) return drop('O clube não tem mais orçamento para essa proposta.');
   if (host.players.length >= MAX_SQUAD) return drop('O clube não tem mais vaga no elenco.');
@@ -169,5 +171,14 @@ export function returnLoans(g: GameState): GameState {
     const owner = teams[g.userClubId];
     teams = { ...teams, [l.hostClubId]: { ...host, players: host.players.filter((x) => x.id !== l.playerId) }, [g.userClubId]: { ...owner, players: [...owner.players, p] } };
   }
-  return { ...g, teams, loans: [] };
+  // jogadores que vieram emprestados de outros clubes voltam ao dono
+  for (const l of g.loansIn ?? []) {
+    const me = teams[g.userClubId];
+    const p = me?.players.find((x) => x.id === l.playerId);
+    const owner = teams[l.ownerClubId];
+    if (!p || !owner) continue;
+    const { contract: _c, ...back } = p;
+    teams = { ...teams, [g.userClubId]: repairLineup({ ...me, players: me.players.filter((x) => x.id !== l.playerId) }), [l.ownerClubId]: { ...owner, players: [...owner.players, back] } };
+  }
+  return { ...g, teams, loans: [], loansIn: [] };
 }

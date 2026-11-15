@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { audio } from '../audio/audio';
 import { baseWage } from '../engine/finance';
+import { fairplayBlock, fairplayWarning } from '../engine/fairplay';
 import { dirClub, MAX_TALKS_PER_ROUND, negotiate, quote, talksLeft, type NegotiationResult } from '../engine/market';
 import type { GameState, Position } from '../engine/types';
 import { formatBudget } from '../newgame/format';
@@ -31,7 +32,7 @@ export function NegotiationSheet({ game, clubId, playerId, onChange, onClose, on
     setRes(r);
     if (r.blocked) { audio.sfx('error'); return; }
     onChange(r.state);
-    if (r.deal) { audio.sfx('cash'); onDone(`${p.name} é o novo reforço do clube! ${brl(fee)} · ${brl(wage)} por ano · ${years} ${years === 1 ? 'ano' : 'anos'}.`); }
+    if (r.deal) { audio.sfx('cash'); onDone(`${p.name} é o novo reforço do clube! ${brl(fee)} · ${brl(wage)} por ano · ${years} ${years === 1 ? 'ano' : 'anos'}.${fairplayBlock(r.state) ?? fairplayWarning(r.state) ? ` ${fairplayBlock(r.state) ?? fairplayWarning(r.state)}` : ''}`); }
     else audio.sfx('error');
   };
   const step = (v: number, pct: number) => Math.max(0, Math.round((v * (1 + pct)) / (v > 1_000_000 ? 10_000 : 1_000)) * (v > 1_000_000 ? 10_000 : 1_000));
@@ -49,6 +50,7 @@ export function NegotiationSheet({ game, clubId, playerId, onChange, onClose, on
           <button className="ps-x" aria-label="Fechar" onClick={onClose}>✕</button>
         </div>
 
+        {(fairplayBlock(game) || fairplayWarning(game)) && <p className="un-warn" role="alert">{fairplayBlock(game) ?? fairplayWarning(game)}</p>}
         <p className="ng-budget">Orçamento do clube: <b>{formatBudget(budget)}</b> · Negociações restantes nesta rodada: <b>{left}/{MAX_TALKS_PER_ROUND}</b></p>
 
         <fieldset className="ng-box">

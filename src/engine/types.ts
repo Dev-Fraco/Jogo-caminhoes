@@ -237,7 +237,7 @@ export interface SeasonSummary {
 /** Registro de uma contratação (o jogador passa de um clube para outro). */
 export interface Transfer {
   /** buy = contratação, sale = venda, loan = empréstimo cedido, release = dispensa (toClubId vazio) */
-  kind: 'buy' | 'sale' | 'loan' | 'release';
+  kind: 'buy' | 'sale' | 'loan' | 'release' | 'loanin';
   season: number;
   round: number;
   playerId: string;
@@ -265,6 +265,10 @@ export interface Offer {
 
 /** Jogador seu emprestado: volta no fim da temporada. */
 export interface Loan { playerId: string; hostClubId: string; season: number }
+/** Jogador de outro clube que você pegou emprestado (volta ao dono no fim da temporada). */
+export interface LoanIn { playerId: string; ownerClubId: string; season: number }
+/** Punição do fair play financeiro: o clube não pode contratar até o dia indicado (dias desde 1970). */
+export interface TransferBan { clubId: string; since: number; until: number }
 
 export interface GameState {
   version: 5;
@@ -288,6 +292,8 @@ export interface GameState {
   loanList: string[]; // jogadores do seu clube disponíveis para empréstimo
   offers: Offer[]; // propostas recebidas
   loans: Loan[]; // jogadores seus emprestados
+  loansIn?: LoanIn[]; // jogadores de outros clubes emprestados ao seu
+  transferBan?: TransferBan; // transfer ban do fair play financeiro
   news: NewsItem[]; // últimas notícias (mais recente primeiro)
   divisions: DivisionState[]; // ordem: Série A, B, C, D
   teams: Record<string, TeamState>; // todos os clubes

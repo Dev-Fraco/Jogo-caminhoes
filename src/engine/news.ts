@@ -65,7 +65,7 @@ export function transferFeed(g: GameState, limit = 30): { season: number; round:
   const mine = g.transfers.map((t) => {
     const from = t.fromClubId ? anyClubName(g, t.fromClubId) : undefined;
     const to = t.toClubId ? anyClubName(g, t.toClubId) : undefined;
-    const verb = t.kind === 'buy' ? `Seu clube contratou ${t.playerName}${from ? ` do ${from}` : ''}` : t.kind === 'sale' ? `Seu clube vendeu ${t.playerName}${to ? ` ao ${to}` : ''}` : t.kind === 'loan' ? `Seu clube emprestou ${t.playerName}${to ? ` ao ${to}` : ''}` : `Seu clube dispensou ${t.playerName}`;
+    const verb = t.kind === 'buy' ? `Seu clube contratou ${t.playerName}${from ? ` do ${from}` : ''}` : t.kind === 'sale' ? `Seu clube vendeu ${t.playerName}${to ? ` ao ${to}` : ''}` : t.kind === 'loanin' ? `Seu clube pegou emprestado ${t.playerName}${from ? ` do ${from}` : ''}` : t.kind === 'loan' ? `Seu clube emprestou ${t.playerName}${to ? ` ao ${to}` : ''}` : `Seu clube dispensou ${t.playerName}`;
     return { season: t.season, round: t.round, text: `${verb}${t.fee ? ` por R$ ${t.fee.toLocaleString('pt-BR')}` : ''}.`, mine: true };
   });
   const rest = (g.market ?? []).map((m) => ({ season: m.season, round: m.round, text: m.text }));

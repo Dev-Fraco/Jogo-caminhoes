@@ -5,6 +5,8 @@ import { Clubs } from './Clubs';
 import { NegotiationSheet } from './Negotiation';
 import { acceptOffer, myValue, rejectOffer, toggleLoanList, toggleTransferList } from '../engine/roster';
 import { BUY_BLOCK_TEXT, buyPlayer, MAX_SQUAD, marketEntries } from '../engine/transfers';
+import { banOf, FAIRPLAY_LIMIT, fairplayBlock, fairplayWarning, signingsThisSeason } from '../engine/fairplay';
+import { loanIn, loanMarket } from '../engine/loanin';
 import type { GameState, Position, Transfer } from '../engine/types';
 import { formatBudget } from '../newgame/format';
 
@@ -18,7 +20,7 @@ const tier = (n: number) => (n >= 75 ? 'hi' : n >= 62 ? 'mid' : 'lo');
 /** Minúsculas e sem acentos, para a busca. */
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-const KIND_LABEL: Record<Transfer['kind'], string> = { buy: 'Contratação', sale: 'Venda', loan: 'Empréstimo', release: 'Dispensa' };
+const KIND_LABEL: Record<Transfer['kind'], string> = { buy: 'Contratação', sale: 'Venda', loan: 'Empréstimo cedido', release: 'Dispensa', loanin: 'Empréstimo recebido' };
 
 /** Propostas recebidas, listas de venda/empréstimo e movimentações da temporada. */
 function Offers({ game, onChange }: { game: GameState; onChange: (g: GameState) => void }) {
@@ -116,6 +118,18 @@ function News({ game }: { game: GameState }) {
   );
 }
 
+/** Fair play financeiro: contratações da temporada, aviso de meta atingida e transfer ban. */
+function FairplayBar({ game }: { game: GameState }) {
+  const n = signingsThisSeason(game);
+  const block = fairplayBlock(game), warn = fairplayWarning(game);
+  return (
+    <div className="card" role={block || warn ? 'alert' : undefined}>
+      <p style={{ margin: 0 }}>⚖️ <b>Fair play financeiro:</b> {Math.min(n, 99)}/{FAIRPLAY_LIMIT} contratações nesta temporada (compra ou empréstimo).</p>
+      {block ? <p className="un-warn" style={{ margin: '6px 0 0' }}>{block}</p> : warn ? <p className="un-warn" style={{ margin: '6px 0 0' }}>{warn}</p> : <p className="hint" style={{ margin: '6px 0 0' }}>Passou de {FAIRPLAY_LIMIT} contratações na temporada, o clube fica 1 ano sem poder contratar (transfer ban).</p>}
+    </div>
+  );
+}
+
 /** Transferências: comprar jogadores de outros clubes e responder às propostas pelos seus. */
 export function Transfers({ game, onChange, view, onView }: { game: GameState; onChange: (g: GameState) => void; view: 'clubs' | 'buy' | 'offers' | 'news'; onView: (v: 'clubs' | 'buy' | 'offers' | 'news') => void }) {
   return (
@@ -127,6 +141,7 @@ export function Transfers({ game, onChange, view, onView }: { game: GameState; o
         { icon: '📄', label: `Propostas${game.offers.length > 0 ? ` (${game.offers.length})` : ''}`, on: view === 'offers', onClick: () => onView('offers') },
         { icon: '📰', label: 'Notícias', on: view === 'news', onClick: () => onView('news') },
       ]} />
+      <FairplayBar game={game} />
       {view === 'clubs' ? <Clubs game={game} onChange={onChange} /> : view === 'buy' ? <Market game={game} onChange={onChange} /> : view === 'offers' ? <Offers game={game} onChange={onChange} /> : <News game={game} />}
     </>
   );
@@ -137,6 +152,7 @@ function Market({ game, onChange }: { game: GameState; onChange: (g: GameState) 
   const [pos, setPos] = useState<'ALL' | Position>('ALL');
   const [division, setDivision] = useState('all');
   const [afford, setAfford] = useState(true);
+  const [mode, setMode] = useState<'buy' | 'loan'>('buy');
   const [sort, setSort] = useState<Sort>('ovr');
   const [shown, setShown] = useState(PAGE);
   const [neg, setNeg] = useState<{ clubId: string; id: string } | null>(null);
@@ -151,7 +167,7 @@ function Market({ game, onChange }: { game: GameState; onChange: (g: GameState) 
     for (const d of game.divisions) for (const id of d.clubIds) m.set(id, { id: d.id, name: d.name });
     return m;
   }, [game.divisions]);
-  const entries = useMemo(() => marketEntries(game), [game.teams, game.userClubId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const entries = useMemo(() => (mode === 'loan' ? loanMarket(game).map((e) => ({ player: e.player, clubId: e.clubId, price: e.fee })) : marketEntries(game)), [game.teams, game.userClubId, game.season, game.loansIn, mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = useMemo(() => {
     const nq = norm(q.trim());
@@ -170,8 +186,16 @@ function Market({ game, onChange }: { game: GameState; onChange: (g: GameState) 
   }, [entries, pos, division, afford, q, sort, budget, divisionOf, game.clubs]);
 
   const reset = (fn: () => void) => { fn(); setShown(PAGE); setConfirmId(null); };
+  const banned = !!banOf(game);
 
   const confirm = (id: string) => {
+    if (mode === 'loan') {
+      const lr = loanIn(game, id);
+      if (!lr.check.ok) { setNotice({ text: lr.check.reason, error: true }); setConfirmId(null); return; }
+      onChange(lr.state); setConfirmId(null);
+      setNotice({ text: `🤝 ${lr.check.entry.player.name} emprestado do ${game.clubs[lr.check.entry.clubId].name} até o fim da temporada por ${formatBudget(lr.check.entry.fee)}.${fairplayWarning(lr.state) ? ` ${fairplayWarning(lr.state)}` : ''}` });
+      return;
+    }
     const r = buyPlayer(game, id);
     if (!r.check.ok) { setNotice({ text: BUY_BLOCK_TEXT[r.check.reason], error: true }); setConfirmId(null); return; }
     const e = entries.find((x) => x.player.id === id)!;
@@ -180,7 +204,6 @@ function Market({ game, onChange }: { game: GameState; onChange: (g: GameState) 
     setNotice({ text: `✔ ${e.player.name} contratado do ${game.clubs[e.clubId].name} por ${formatBudget(r.check.price)}.` });
   };
 
-  const mine = game.transfers.filter((t) => t.season === game.season && t.kind === 'buy');
 
   return (
     <>
@@ -188,8 +211,13 @@ function Market({ game, onChange }: { game: GameState; onChange: (g: GameState) 
         <div className="tf-top">
           <div><small>Orçamento</small><b>{formatBudget(budget)}</b></div>
           <div><small>Elenco</small><b>{squadSize}/{MAX_SQUAD}</b></div>
-          <div><small>Contratações na temporada</small><b>{mine.length}</b></div>
+          <div><small>Contratações (fair play)</small><b>{signingsThisSeason(game)}/{FAIRPLAY_LIMIT}</b></div>
         </div>
+        <div className="chips" role="tablist" aria-label="Tipo de contratação" style={{ marginBottom: 8 }}>
+          <button role="tab" aria-selected={mode === 'buy'} className={mode === 'buy' ? 'on' : ''} onClick={() => reset(() => setMode('buy'))}>💰 Comprar</button>
+          <button role="tab" aria-selected={mode === 'loan'} className={mode === 'loan' ? 'on' : ''} onClick={() => reset(() => setMode('loan'))}>🤝 Empréstimo</button>
+        </div>
+        {mode === 'loan' && <p className="hint" style={{ margin: '0 0 8px' }}>Jogadores que os clubes colocaram na lista de empréstimo. Você paga uma taxa, o jogador fica até o fim da temporada e volta ao clube dono. Conta como contratação no fair play.</p>}
         <div className="tf-filters">
           <input type="search" aria-label="Buscar jogador ou clube" placeholder="Buscar jogador ou clube" value={q} onChange={(e) => reset(() => setQ(e.target.value))} />
           <div className="tf-pos" role="group" aria-label="Posição">
@@ -223,12 +251,15 @@ function Market({ game, onChange }: { game: GameState; onChange: (g: GameState) 
                   <small>{POS_SHORT[p.pos]} · {p.age} anos · {club.name} ({divisionOf.get(clubId)?.name})</small>
                 </div>
                 <span className={`tf-price ${tooExpensive ? 'no' : ''}`}>{formatBudget(price)}</span>
-                <button className="tf-buy" disabled={tooExpensive || full} onClick={() => { setNotice(null); setNeg({ clubId, id: p.id }); }} aria-label={`Negociar ${p.name}`}>Negociar</button>
+                {mode === 'loan'
+                  ? <button className="tf-buy" disabled={tooExpensive || full || banned} onClick={() => { setNotice(null); setConfirmId(open ? null : p.id); }} aria-label={`Pegar ${p.name} emprestado`}>Emprestar</button>
+                  : <button className="tf-buy" disabled={tooExpensive || full || banned} onClick={() => { setNotice(null); setNeg({ clubId, id: p.id }); }} aria-label={`Negociar ${p.name}`}>Negociar</button>}
               </div>
               {open && (
                 <div className="tf-confirm">
-                  <p>Contratar <b>{p.name}</b> do <b>{club.name}</b> por <b>{formatBudget(price)}</b>? Orçamento depois: <b>{formatBudget(budget - price)}</b> · Elenco: {squadSize} → {squadSize + 1}.</p>
-                  <button className="primary" onClick={() => confirm(p.id)}>Confirmar contratação</button>
+                  <p>{mode === 'loan' ? 'Pegar emprestado' : 'Contratar'} <b>{p.name}</b> do <b>{club.name}</b> por <b>{formatBudget(price)}</b>{mode === 'loan' ? ' (até o fim da temporada)' : ''}? Orçamento depois: <b>{formatBudget(budget - price)}</b> · Elenco: {squadSize} → {squadSize + 1}.</p>
+                  {fairplayWarning(game) && <p className="un-warn">{fairplayWarning(game)}</p>}
+                  <button className="primary" onClick={() => confirm(p.id)}>{mode === 'loan' ? 'Confirmar empréstimo' : 'Confirmar contratação'}</button>
                   <button className="btn" onClick={() => setConfirmId(null)}>Cancelar</button>
                 </div>
               )}

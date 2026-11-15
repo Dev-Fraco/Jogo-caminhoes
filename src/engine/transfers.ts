@@ -1,4 +1,5 @@
 import { inflate } from './economy';
+import { afterSigning, fairplayBlock } from './fairplay';
 import { autoLineup } from './squad';
 import type { GameState, Player, Position } from './types';
 
@@ -38,9 +39,10 @@ export function marketEntries(g: GameState): MarketEntry[] {
   return out;
 }
 
-export type BuyBlock = 'not-found' | 'own-player' | 'budget' | 'squad-full' | 'seller-short';
+export type BuyBlock = 'ban' | 'not-found' | 'own-player' | 'budget' | 'squad-full' | 'seller-short';
 
 export const BUY_BLOCK_TEXT: Record<BuyBlock, string> = {
+  ban: 'Transfer ban (fair play financeiro): o clube não pode contratar agora.',
   'not-found': 'Jogador não encontrado.',
   'own-player': 'Este jogador já é do seu clube.',
   budget: 'Orçamento insuficiente.',
@@ -51,6 +53,7 @@ export const BUY_BLOCK_TEXT: Record<BuyBlock, string> = {
 export type BuyCheck = { ok: true; price: number; fromClubId: string } | { ok: false; reason: BuyBlock; price?: number; fromClubId?: string };
 
 export function checkBuy(g: GameState, playerId: string): BuyCheck {
+  if (fairplayBlock(g)) return { ok: false, reason: 'ban' };
   const user = g.teams[g.userClubId];
   if (user.players.some((p) => p.id === playerId)) return { ok: false, reason: 'own-player' };
   const fromClubId = Object.keys(g.teams).find((id) => g.teams[id].players.some((p) => p.id === playerId));
@@ -85,5 +88,5 @@ export function buyPlayer(g: GameState, playerId: string): { state: GameState; c
     budgets: { ...g.budgets, [g.userClubId]: g.budgets[g.userClubId] - price, [fromClubId]: (g.budgets[fromClubId] ?? 0) + price },
     transfers: [...g.transfers, { kind: 'buy', season: g.season, round: g.round, playerId, playerName: player.name, pos: player.pos, strength: player.strength, fromClubId, toClubId: g.userClubId, fee: price }],
   };
-  return { state, check };
+  return { state: afterSigning(state), check };
 }

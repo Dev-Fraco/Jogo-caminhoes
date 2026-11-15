@@ -25,6 +25,7 @@ import { advanceOneDay, advanceToMatchDays } from '../engine/daily';
 import { homeBlocked, housingSteps } from '../engine/housing';
 import { DayCalendar } from './DayCalendar';
 import { CalendarScreen } from './CalendarScreen';
+import { ResultsSheet } from './ResultsSheet';
 import { ShopScreen } from './ShopScreen';
 import { CoachProfile } from './CoachProfile';
 import { YouthScreen } from './YouthScreen';
@@ -63,6 +64,7 @@ export function App() {
   // partida em andamento: o resultado já foi calculado, mas só entra no jogo quando a partida termina
   const [live, setLive] = useState<{ state: GameState; results: MatchResult[] } | null>(null);
   const [last, setLast] = useState<MatchResult[]>([]);
+  const [sheet, setSheet] = useState<MatchResult[] | null>(null); // resultados de todos os jogos, ao fim de cada partida
 
   useEffect(() => { if (game) saveGame(game); }, [game]);
   // salão de campeões: guarda os campeões de cada temporada encerrada
@@ -145,8 +147,8 @@ export function App() {
     if (!game.unemployed && ownsPhone(game) && urgentMessages(game).length > 0 && gateAt !== absRound(game)) { setGateAt(absRound(game)); setPhoneGate(true); return; }
     doPlay();
   };
-  const doPlay = () => { const r = playNext(game); const mine = r.results.some((x) => x.homeId === game.userClubId || x.awayId === game.userClubId); if (game.unemployed || !mine) { setLast(r.results); setGame(r.state); } else setLive(r); }; // sem clube (ou sem jogo seu nesta rodada, como na Série D eliminada): nada para assistir
-  const finishMatch = () => { if (live) { setLast(live.results); setGame(live.state); } setLive(null); };
+  const doPlay = () => { const r = playNext(game); const mine = r.results.some((x) => x.homeId === game.userClubId || x.awayId === game.userClubId); if (game.unemployed || !mine) { setLast(r.results); setGame(r.state); if (!game.unemployed && r.results.length) setSheet(r.results); } else setLive(r); }; // sem clube (ou sem jogo seu nesta rodada, como na Série D eliminada): nada para assistir
+  const finishMatch = () => { if (live) { setLast(live.results); setGame(live.state); setSheet(live.results); } setLive(null); };
   const liveResult = live?.results.find((r) => r.homeId === game.userClubId || r.awayId === game.userClubId);
   const ev = live ? pendingEvent(game) : undefined;
   const liveLabel = ev ? ev.label : userDivision(game).name;
@@ -204,6 +206,7 @@ export function App() {
         </nav>
         {navMore && <span className="nav-more" aria-hidden="true">›</span>}
         </div>
+        {sheet && !live && <ResultsSheet game={game} results={sheet} onClose={() => setSheet(null)} />}
         {calAnim && <DayCalendar game={game} from={calAnim.from} to={calAnim.to} onClose={() => setCalAnim(null)} />}
         {homeGate && (
           <div className="phone-gate" role="dialog" aria-modal="true" aria-label="Moradia necessária">
