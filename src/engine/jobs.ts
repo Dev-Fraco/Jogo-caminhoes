@@ -5,7 +5,9 @@ import { notifyPhone } from './phone';
 import { makeRng, type Rng } from './rng';
 import { returnLoans } from './roster';
 import { autoLineup } from './squad';
-import type { GameState, JobOffer, JobSpell, NewsItem } from './types';
+import { CLUBS_DATA, type ClubData } from '../data/clubs';
+import { COUNTRY_ORDER, WORLD_DATA } from '../data/world';
+import type { ClubInfo, ForeignOffer, GameState, JobOffer, JobSpell, NewsItem } from './types';
 
 export const COACH_LEVEL: Record<string, number> = { unknown: 1, amateur: 2, 'semi-pro': 3, pro: 4, legend: 5 };
 export const MAX_OFFERS = 4;
@@ -89,11 +91,43 @@ export function eligibleClubs(g: GameState, stretch = 0): string[] {
   return g.divisions.flatMap((d) => d.clubIds).filter((id) => id !== g.userClubId || g.unemployed).filter((id) => id !== former(g) && g.clubs[id].reputation <= lvl);
 }
 
+/** Clube de uma proposta (do seu mundo ou de outro país). */
+export const offerClub = (g: GameState, o: JobOffer): ClubInfo => o.foreign?.club ?? g.clubs[o.clubId];
+export const toInfo = (c: ClubData): ClubInfo => ({ id: c.id, name: c.name, shortName: c.shortName, badge: c.badge, primaryColor: c.primaryColor, secondaryColor: c.secondaryColor, stadium: c.stadium, city: c.city, reputation: c.reputation, boardExpectation: c.boardExpectation });
+
+/** Clubes do mundo inteiro (fora da liga em que o jogo está) que aceitariam o treinador pelo nível dele. */
+export function foreignClubs(g: GameState, stretch = 0): ForeignOffer[] {
+  const lvl = coachLevel(g) + stretch;
+  const here = new Set(g.divisions.map((d) => d.id));
+  const out: ForeignOffer[] = [];
+  for (const cid of COUNTRY_ORDER) {
+    const country = WORLD_DATA[cid];
+    if (!country) continue;
+    for (const league of country.leagues) {
+      if (league.divisions.some((d) => here.has(d.id))) continue; // é a liga atual
+      for (const d of league.divisions) {
+        if (d.format === 'estadual') continue;
+        for (const c of CLUBS_DATA[d.id] ?? []) if (c.reputation <= lvl && !g.clubs[c.id]) out.push({ countryId: cid, leagueId: league.id, countryName: country.name, leagueName: league.name, divisionName: d.alias ?? d.name, club: toInfo(c) });
+      }
+    }
+  }
+  return out;
+}
+
 export function generateJobOffers(g: GameState, rng: Rng, force = 0): GameState {
   const now = absRound(g);
   let offers = (g.jobOffers ?? []).filter((o) => now - absRound(g, o.season, o.round) <= OFFER_LIFE);
   const tries = force || (rng() < 0.3 ? 1 : 0);
   for (let i = 0; i < tries && offers.length < MAX_OFFERS; i++) {
+    // demitido: clubes do mundo inteiro podem contratar o treinador (cerca de 4 em cada 10 propostas vêm de fora)
+    if (g.unemployed && rng() < 0.4) {
+      const abroad = foreignClubs(g, rng() < 0.25 ? 1 : 0).filter((f) => !offers.some((o) => o.clubId === f.club.id));
+      if (abroad.length) {
+        const f = abroad[Math.floor(rng() * abroad.length)];
+        offers = [...offers, { clubId: f.club.id, season: g.season, round: g.round, expires: OFFER_LIFE, foreign: f }];
+        continue;
+      }
+    }
     const pool = eligibleClubs(g, rng() < 0.25 ? 1 : 0).filter((id) => !offers.some((o) => o.clubId === id));
     if (!pool.length) break;
     const clubId = pool[Math.floor(rng() * pool.length)];
@@ -101,7 +135,7 @@ export function generateJobOffers(g: GameState, rng: Rng, force = 0): GameState 
   }
   const fresh = offers.filter((o) => !(g.jobOffers ?? []).some((x) => x.clubId === o.clubId));
   let s: GameState = { ...g, jobOffers: offers };
-  for (const o of fresh) s = notifyPhone(news(s, `📨 ${s.clubs[o.clubId].name} quer contratar você como treinador!`, 'good'), 'noticias', `O ${s.clubs[o.clubId].name} quer contratar você!`);
+  for (const o of fresh) { const nm = offerClub(s, o).name + (o.foreign ? ` (${o.foreign.countryName})` : ''); s = notifyPhone(news(s, `📨 ${nm} quer contratar você como treinador!`, 'good'), 'noticias', `O ${nm} quer contratar você!`); }
   return s;
 }
 

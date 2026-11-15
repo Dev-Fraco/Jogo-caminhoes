@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { acceptOffer, applicationOdds, applyForJob, coachLevel, declineOffer } from '../engine/jobs';
+import { applicationOdds, applyForJob, coachLevel, declineOffer, offerClub } from '../engine/jobs';
+import { acceptAnyOffer } from '../engine/abroad';
 import type { GameState } from '../engine/types';
 import { EXPECTATION_LABEL } from '../newgame/format';
 import { ClubBadge } from './ClubBadge';
@@ -20,7 +21,7 @@ export function Unemployed({ game, over, onChange, onPlay, onSkip, onNextSeason,
   const clubs = [...game.divisions[div].clubIds].sort((a, b) => game.clubs[b].reputation - game.clubs[a].reputation);
 
   const accept = (clubId: string) => {
-    const r = acceptOffer(game, clubId);
+    const r = acceptAnyOffer(game, clubId);
     if (r.ok) onChange(r.state); else setNotice({ text: r.error, ok: false });
   };
   const apply = (clubId: string) => {
@@ -59,11 +60,11 @@ export function Unemployed({ game, over, onChange, onPlay, onSkip, onNextSeason,
         {offers.length === 0 && <p className="hint">Nenhuma proposta por enquanto. Os clubes procuram treinadores a cada rodada, e novas propostas chegam na virada de temporada. Você também pode se candidatar abaixo.</p>}
         <ul className="un-list">
           {offers.map((o) => {
-            const c = game.clubs[o.clubId];
+            const c = offerClub(game, o);
             return (
               <li key={o.clubId} className="un-offer">
                 <ClubBadge club={c} size={44} />
-                <div className="grow"><b>{c.name}</b><small>{divName(o.clubId)} · {stars(c.reputation)} · meta: {EXPECTATION_LABEL[c.boardExpectation]}</small></div>
+                <div className="grow"><b>{c.name}</b><small>{o.foreign ? `🌍 ${o.foreign.countryName} · ${o.foreign.leagueName} · ${o.foreign.divisionName}` : divName(o.clubId)} · {stars(c.reputation)} · meta: {EXPECTATION_LABEL[c.boardExpectation]}</small></div>
                 <div className="un-btns"><button className="btn main" onClick={() => accept(o.clubId)}>Aceitar</button><button className="btn" onClick={() => onChange(declineOffer(game, o.clubId))}>Recusar</button></div>
               </li>
             );

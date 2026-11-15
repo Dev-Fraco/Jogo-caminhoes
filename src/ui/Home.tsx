@@ -8,7 +8,8 @@ import { clubOf } from '../engine/lookup';
 import { moodLabel } from '../engine/morale';
 import type { GameState, MatchResult } from '../engine/types';
 import { PROMOTED_STRONG_CHANCE } from '../engine/ai';
-import { acceptOffer, declineOffer, resign } from '../engine/jobs';
+import { declineOffer, offerClub, resign } from '../engine/jobs';
+import { acceptAnyOffer } from '../engine/abroad';
 import { firingWarning } from '../engine/game';
 import { ClubBadge } from './ClubBadge';
 import { stadiumOf } from '../engine/stadium';
@@ -198,13 +199,13 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
           <h3>Propostas de emprego</h3>
           <ul className="un-list">
             {(game.jobOffers ?? []).map((o) => {
-              const c = game.clubs[o.clubId];
+              const c = offerClub(game, o);
               return (
                 <li key={o.clubId} className="un-offer">
                   <ClubBadge club={c} size={40} />
-                  <div className="grow"><b>{c.name}</b><small>Reputação {'★'.repeat(c.reputation)} · meta: {EXPECTATION_LABEL[c.boardExpectation]}</small></div>
+                  <div className="grow"><b>{c.name}</b><small>{o.foreign ? `🌍 ${o.foreign.countryName} · ${o.foreign.leagueName} · ` : ''}Reputação {'★'.repeat(c.reputation)} · meta: {EXPECTATION_LABEL[c.boardExpectation]}</small></div>
                   {askJob === o.clubId ? (
-                    <div className="un-btns"><button className="btn main" onClick={() => { const r = acceptOffer(game, o.clubId); if (r.ok) onChange(r.state); setAskJob(null); }}>Confirmar saída</button><button className="btn" onClick={() => setAskJob(null)}>Voltar</button></div>
+                    <div className="un-btns"><button className="btn main" onClick={() => { const r = acceptAnyOffer(game, o.clubId); if (r.ok) onChange(r.state); setAskJob(null); }}>Confirmar saída</button><button className="btn" onClick={() => setAskJob(null)}>Voltar</button></div>
                   ) : (
                     <div className="un-btns"><button className="btn main" onClick={() => setAskJob(o.clubId)}>Aceitar</button><button className="btn" onClick={() => onChange(declineOffer(game, o.clubId))}>Recusar</button></div>
                   )}

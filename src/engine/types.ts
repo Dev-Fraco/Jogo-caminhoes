@@ -195,7 +195,9 @@ export interface MundialState {
   championId?: string;
 }
 
-export interface JobOffer { clubId: string; season: number; round: number; /** vale até esta rodada da mesma temporada (ou da seguinte) */ expires: number }
+/** Clube de outro país que quer contratar o treinador (aceitar leva a carreira para a liga dele). */
+export interface ForeignOffer { countryId: string; leagueId: string; countryName: string; leagueName: string; divisionName: string; club: ClubInfo }
+export interface JobOffer { clubId: string; season: number; round: number; /** vale até esta rodada da mesma temporada (ou da seguinte) */ expires: number; foreign?: ForeignOffer }
 export interface JobSpell { clubId: string; fromSeason: number; toSeason?: number; ended?: 'demitido' | 'pediu demissão' | 'contratado por outro clube' }
 export interface RetiredPlayer { name: string; age: number; pos: Position; strength: number; clubId: string; season: number }
 
