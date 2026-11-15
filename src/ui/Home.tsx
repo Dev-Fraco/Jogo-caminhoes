@@ -14,6 +14,7 @@ import { firingWarning } from '../engine/game';
 import { ClubBadge } from './ClubBadge';
 import { stadiumOf } from '../engine/stadium';
 import { calOf, daysToMatch, formatDayLong, formatDayShort, isMatchDay, nextMatchDay } from '../engine/calendar';
+import { SalaryCard } from './SalaryCard';
 import { FmCard, Jersey, ScreenTitle, StatStrip, SubTabs } from './FmParts';
 import { transferFeed } from '../engine/news';
 import { divisionTable } from '../engine/game';
@@ -78,6 +79,7 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
           </div>
           <button className="primary" onClick={onNextSeason}>Próxima temporada</button>
         </div>
+        <SalaryCard key={game.season} game={game} onChange={onChange} />
         {[game.cup, game.lib, game.sula, game.ucl, game.mundial].some((c) => c?.championId) && (
           <section>
             <h3>Campeões das copas</h3>

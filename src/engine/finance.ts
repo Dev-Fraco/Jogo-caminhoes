@@ -43,7 +43,7 @@ export function gateOf(g: GameState, clubId: string): number {
   return Math.round((GATE_SHARE * baseIncome(idx, g.clubs[clubId].reputation, priceIndex(g)) * (0.8 + fans / 250)) / (g.totalRounds / 2) / 1_000) * 1_000;
 }
 /** Salário anual do treinador, pago pelo clube. */
-export const coachSalary = (g: GameState) => Math.max(30_000, Math.round(0.02 * baseIncome(divisionIndexOf(g, g.userClubId), g.clubs[g.userClubId].reputation, priceIndex(g)) / 1_000) * 1_000);
+export const coachSalary = (g: GameState) => Math.max(30_000, Math.round((g.payMult ?? 1) * 0.02 * baseIncome(divisionIndexOf(g, g.userClubId), g.clubs[g.userClubId].reputation, priceIndex(g)) / 1_000) * 1_000);
 
 export const coachMoneyOf = (g: Pick<GameState, 'coachMoney' | 'coach'>) => g.coachMoney ?? COACH_WALLET[g.coach.reputation] ?? 100_000;
 export const wageCoverOf = (g: Pick<GameState, 'wageCover'>) => g.wageCover ?? 0;

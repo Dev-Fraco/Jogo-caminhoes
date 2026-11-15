@@ -17,6 +17,7 @@ import './shop';
 import { processDays } from './daily';
 import { youthSeason, youthTick } from './youth';
 import { fibraTick } from './netfibra';
+import { settleSalary } from './salary';
 import { afterMatch, calOf, newSeasonCalendar } from './calendar';
 import { createCup, cupAfterLeagueRound, penaltyTakers, playCupRound, shootoutKicks } from './cup';
 import { MORALE_START, moraleFactor, updateMorale } from './morale';
@@ -245,6 +246,7 @@ export function seasonSummary(g: GameState, out: SeasonOutcome = seasonOutcome(g
 export function startNextSeason(g: GameState): GameState {
   if (!isSeasonOver(g)) return g;
   // novembro, dezembro e janeiro passam antes da virada: salários e mensalidades continuam saindo (e a IA acerta o caixa depois)
+  g = settleSalary(g); // rebaixado que não negociou pode levar um corte
   const calNew = newSeasonCalendar({ ...g, season: g.season + 1 });
   const pre = processDays(g, calOf(g).day, calNew.day);
   return startNextSeasonCore(pre, calNew);

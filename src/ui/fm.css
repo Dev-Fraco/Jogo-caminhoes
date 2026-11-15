@@ -759,3 +759,4 @@ button.home-tile { width: 100%; font: inherit; color: inherit; text-align: cente
 .pk-say.goal { font: 900 26px var(--font-head); color: #3ddc84; animation: pk-pop .5s ease-out; } .pk-say.saved { font: 900 22px var(--font-head); color: #ffd86a; animation: pk-pop .5s ease-out; } .pk-say.wide { font: 900 22px var(--font-head); color: #ff8a8a; animation: pk-pop .5s ease-out; }
 @keyframes pk-pop { 0% { transform: scale(.6); opacity: 0; } 70% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
 .pk-ctrl { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; } .pk-end { flex: 1 0 100%; margin: 0; text-align: center; }
+.salary-card .chips { flex-wrap: wrap; overflow: visible; }

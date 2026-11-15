@@ -338,6 +338,9 @@ export interface GameState {
   autoDebit?: boolean;
   /** Carreira nova: só dá para avançar dias e jogar depois de alugar ou comprar uma casa. */
   homeRequired?: boolean;
+  /** Negociação de salário: multiplicador sobre o salário-base do clube e a rodada de negociação do fim da temporada. */
+  payMult?: number;
+  salaryNeg?: { season: number; done: boolean; text: string };
   /** Calendário: dia atual, início da temporada e quantos jogos (eventos) já aconteceram nela. */
   cal?: { day: number; start: number; slot: number };
   /** Mensagens (patrocínios, coletivas, diretoria, torcida) e metas do celular. */
