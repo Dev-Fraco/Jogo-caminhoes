@@ -41,17 +41,8 @@ export function ChipArt({ id, size = 120 }: { id: ChipId; size?: number }) {
 }
 
 function PhoneArt({ m }: { m: PhoneModel }) {
-  return (
-    <svg viewBox="0 0 60 100" width="56" height="94" aria-hidden="true" className="shop-phone">
-      <rect x="3" y="2" width="54" height="96" rx="9" fill={m.color} stroke="#000" strokeOpacity=".4" strokeWidth="2" />
-      <rect x="8" y="9" width="44" height="80" rx="5" fill="#0b1220" />
-      <rect x="8" y="9" width="44" height="80" rx="5" fill="url(#g)" opacity=".0" />
-      <rect x="10" y="12" width="40" height="40" rx="4" fill={m.color} opacity=".55" />
-      <circle cx="30" cy="6" r="1.6" fill="#000" opacity=".6" />
-      <rect x="20" y="93" width="20" height="2" rx="1" fill="#fff" opacity=".4" />
-      {m.price >= 28_000 && <circle cx="45" cy="18" r="4" fill="#fff" opacity=".35" />}
-    </svg>
-  );
+  const i = PHONE_MODELS.findIndex((x) => x.id === m.id);
+  return <img className="shop-phone" src={`assets/ui/phone${(i % 6) + 1}.jpg`} alt="" width={64} height={110} loading="lazy" draggable={false} />;
 }
 
 interface Props { game: GameState; onChange: (g: GameState) => void; onOpenPhone: () => void }
@@ -98,7 +89,8 @@ export function ShopScreen({ game, onChange, onOpenPhone }: Props) {
   return (
     <>
       <ScreenTitle icon="🛒" title="Mega-zona Luiz" />
-      <div className="card shop-hero">
+      <div className="card mk-card shop-hero2">
+        <div className="shop-hero2-l">
         <p><b>Seu dinheiro:</b> {brl0(wallet)}</p>
         {own ? (
           <>
@@ -108,6 +100,8 @@ export function ShopScreen({ game, onChange, onOpenPhone }: Props) {
         ) : (
           <p className="shop-warn">📵 Você está sem celular. Compre um aqui: a primeira compra é em <b>dinheiro</b>, sem Pix.</p>
         )}
+        </div>
+        <img className="shop-hero-art" src="assets/ui/shop-hero.jpg" alt="" />
         {msg && <p className={`shop-msg ${msg.ok ? 'ok' : 'bad'}`} role="status">{msg.text}</p>}
       </div>
 
@@ -118,35 +112,37 @@ export function ShopScreen({ game, onChange, onOpenPhone }: Props) {
         </section>
       )}
 
-      <section>
-        <h3>Celulares</h3>
-        <ul className="shop-list">
+      {!pickChip && own && (
+        <section className="mk-sec">
+          <h3><span aria-hidden="true">📶</span> Chips (dados móveis)</h3>
+          <ChipList onBuy={buyC} current={chip?.id} wallet={wallet} />
+          <p className="mk-info"><span aria-hidden="true">ℹ️</span> O chip vale 1 ano e traz um número novo: ele recebe o SMS de confirmação para criar conta nos apps. Para os dados móveis, assine o plano no app Internet de Chip.</p>
+        </section>
+      )}
+
+      <section className="mk-sec">
+        <h3><span aria-hidden="true">📱</span> Celulares</h3>
+        <ul className="shop-grid">
           {PHONE_MODELS.map((m) => {
             const mine = own && phoneOf(game).model === m.id;
             return (
-              <li key={m.id} className={`shop-item ${mine ? 'mine' : ''}`}>
+              <li key={m.id} className={`mk-card shop-ph ${mine ? 'mine' : ''}`}>
+                {mine && <em className="shop-badge">SEU APARELHO ✓</em>}
                 <PhoneArt m={m} />
-                <div className="grow">
-                  <b>{m.name}</b>
-                  <small>{m.ram} RAM · {m.storage}</small>
-                  <small>{m.apps >= 99 ? 'Memória de sobra para todos os apps' : `Cabem ${m.apps} apps`} · {speedLabel(m)}</small>
-                  <small className="shop-blurb">{m.blurb}</small>
-                  <strong className="shop-price">{brl0(m.price)}</strong>
-                </div>
-                <button className="primary" disabled={mine} onClick={() => buy(m)}>{mine ? 'Seu aparelho' : own ? 'Comprar por Pix' : 'Comprar em dinheiro'}</button>
+                <b>{m.name}</b>
+                <ul className="shop-spec">
+                  <li>🧠 {m.ram} RAM</li>
+                  <li>💾 {m.storage}</li>
+                  <li>▦ {m.apps >= 99 ? 'Todos os apps' : `${m.apps} apps`}</li>
+                  <li>⚡ {speedLabel(m)}</li>
+                </ul>
+                <strong className="shop-price">{brl0(m.price)}</strong>
+                <button className="primary" disabled={mine} onClick={() => buy(m)}>{mine ? '✓ Seu aparelho' : own ? '🛒 Comprar por Pix' : '🛒 Comprar em dinheiro'}</button>
               </li>
             );
           })}
         </ul>
       </section>
-
-      {!pickChip && own && (
-        <section>
-          <h3>Chips (dados móveis)</h3>
-          <ChipList onBuy={buyC} current={chip?.id} wallet={wallet} />
-          <p className="hint">O chip vale 1 ano e traz um número novo: ele recebe o SMS de confirmação para criar conta nos apps. Para os dados móveis, assine o plano no app Internet de Chip.</p>
-        </section>
-      )}
     </>
   );
 }
@@ -155,7 +151,7 @@ function ChipList({ onBuy, current, wallet }: { onBuy: (id: ChipId) => void; cur
   return (
     <ul className="shop-chips">
       {CHIPS.map((c) => (
-        <li key={c.id}>
+        <li key={c.id} className="mk-card">
           <ChipArt id={c.id} />
           <b>{c.name}</b>
           <small>{brl0(c.price)} · dinheiro · vale 1 ano</small>
