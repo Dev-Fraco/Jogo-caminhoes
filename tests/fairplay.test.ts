@@ -5,6 +5,7 @@ import { loanIn, loanMarket } from '../src/engine/loanin';
 import { quickSign } from '../src/engine/market';
 import { startNextSeason, simulateToEnd } from '../src/engine/game';
 import { autoLineup } from '../src/engine/squad';
+import { returnLoans } from '../src/engine/roster';
 import { MAX_SQUAD } from '../src/engine/transfers';
 import type { GameState } from '../src/engine/types';
 import { makeCareer } from './helpers';
@@ -35,7 +36,7 @@ describe('fair play financeiro', () => {
     const list = loanMarket(g);
     expect(list.length).toBeGreaterThan(50);
     expect(list.every((e) => e.clubId !== 'flamengo')).toBe(true);
-    const e = list[0];
+    const e = list.find((x) => x.player.age <= 27)!; // jovem: não se aposenta na virada
     const before = g.budgets.flamengo, ownerBefore = g.teams[e.clubId].players.length;
     const r = loanIn(g, e.player.id);
     expect(r.check.ok).toBe(true); g = r.state;
@@ -45,9 +46,11 @@ describe('fair play financeiro', () => {
     expect(signingsThisSeason(g)).toBe(1);
     expect(loanMarket(g).some((x) => x.player.id === e.player.id)).toBe(false);
     g = simulateToEnd({ ...g, morale: { ...g.morale, board: 60 } });
-    g = { ...g, unemployed: undefined, morale: { ...g.morale, board: 60 } };
-    const n = startNextSeason(g);
-    if (!n.unemployed) { expect(n.teams[e.clubId].players.some((p) => p.id === e.player.id)).toBe(true); expect(n.teams.flamengo.players.some((p) => p.id === e.player.id)).toBe(false); }
+    const back = returnLoans(g);
+    expect(back.teams[e.clubId].players.some((p) => p.id === e.player.id)).toBe(true);
+    expect(back.teams.flamengo.players.some((p) => p.id === e.player.id)).toBe(false);
+    expect(back.loansIn).toEqual([]);
+    expect(startNextSeason({ ...g, unemployed: undefined, morale: { ...g.morale, board: 60 } }).loansIn).toEqual([]);
   });
   it('elenco cheio bloqueia empréstimo', () => {
     let g = makeCareer('flamengo', 4);
