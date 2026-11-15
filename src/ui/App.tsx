@@ -35,6 +35,7 @@ import { unreadCount } from '../engine/phone';
 import { absRound, pendingCount, urgentMessages } from '../engine/inbox';
 import { Lineup } from './Lineup';
 import { LiveMatch } from './LiveMatch';
+import type { Tactic } from '../engine/match';
 import { recordHall } from '../engine/hall';
 import { Credits, ExitScreen, HallScreen, LoadGame, Mods } from './MenuScreens';
 import { Squad } from './Squad';
@@ -63,6 +64,7 @@ export function App() {
   const [tfView, setTfView] = useState<'clubs' | 'buy' | 'offers' | 'news'>('clubs');
   // partida em andamento: o resultado já foi calculado, mas só entra no jogo quando a partida termina
   const [live, setLive] = useState<{ state: GameState; results: MatchResult[] } | null>(null);
+  const [tactics, setTactics] = useState<Tactic[]>([]); // mudanças táticas feitas na partida ao vivo
   const [last, setLast] = useState<MatchResult[]>([]);
   const [sheet, setSheet] = useState<MatchResult[] | null>(null); // resultados de todos os jogos, ao fim de cada partida
 
@@ -147,11 +149,16 @@ export function App() {
     if (!game.unemployed && ownsPhone(game) && urgentMessages(game).length > 0 && gateAt !== absRound(game)) { setGateAt(absRound(game)); setPhoneGate(true); return; }
     doPlay();
   };
-  const doPlay = () => { const r = playNext(game); const mine = r.results.some((x) => x.homeId === game.userClubId || x.awayId === game.userClubId); if (game.unemployed || !mine) { setLast(r.results); setGame(r.state); if (!game.unemployed && r.results.length) setSheet(r.results); } else setLive(r); }; // sem clube (ou sem jogo seu nesta rodada, como na Série D eliminada): nada para assistir
-  const finishMatch = () => { if (live) { setLast(live.results); setGame(live.state); setSheet(live.results); } setLive(null); };
+  const doPlay = () => { const r = playNext(game); const mine = r.results.some((x) => x.homeId === game.userClubId || x.awayId === game.userClubId); if (game.unemployed || !mine) { setLast(r.results); setGame(r.state); if (!game.unemployed && r.results.length) setSheet(r.results); } else { setTactics([]); setLive(r); } }; // sem clube (ou sem jogo seu nesta rodada, como na Série D eliminada): nada para assistir
+  /** Refaz a partida do mesmo ponto com a nova mudança: o que já passou fica igual e o resto muda conforme a mexida. */
+  const applyTactic = (t: Tactic) => { const list = [...tactics, t]; setTactics(list); setLive(playNext(game, list)); };
+  const finishMatch = () => { setTactics([]); if (live) { setLast(live.results); setGame(live.state); setSheet(live.results); } setLive(null); };
   const liveResult = live?.results.find((r) => r.homeId === game.userClubId || r.awayId === game.userClubId);
   const ev = live ? pendingEvent(game) : undefined;
   const liveLabel = ev ? ev.label : userDivision(game).name;
+  // seu time com as mudanças táticas já feitas (formação e escalação); serve para a tela de formação e para os bonecos
+  const liveUserTeam = (() => { const t = game.teams[game.userClubId]; const last = tactics[tactics.length - 1]; return t && last ? { ...t, formation: last.formation, lineup: last.lineup } : t; })();
+  const liveFormation = (side: 'home' | 'away') => { const id = side === 'home' ? liveResult?.homeId : liveResult?.awayId; return id === game.userClubId && liveUserTeam ? liveUserTeam.formation : teamOf(game, id ?? game.userClubId).formation; };
   const skipSeason = (years = 1) => { if (blocked()) return; audio.sfx('whoosh'); setLast([]); setGame(skipSeasons(game, years)); setTableView('hist'); setTab('table'); };
   const nextSeason = () => { setLast([]); setGame(startNextSeason(game)); };
 
@@ -177,7 +184,7 @@ export function App() {
         <main>
           {live && liveResult && (
             <LiveMatch key={`${game.season}-${game.round}-${ev?.kind ?? 'l'}`} home={clubOf(game, liveResult.homeId)} away={clubOf(game, liveResult.awayId)} result={liveResult}
-              homeFormation={teamOf(game, liveResult.homeId).formation} awayFormation={teamOf(game, liveResult.awayId).formation} userSide={liveResult.homeId === game.userClubId ? 'home' : 'away'} divisionName={liveLabel} stadium={clubOf(game, liveResult.homeId).stadium} onFinish={finishMatch} />
+              homeFormation={liveFormation('home')} awayFormation={liveFormation('away')} userTeam={liveUserTeam} tacticsUsed={tactics.length} onTactic={applyTactic} userSide={liveResult.homeId === game.userClubId ? 'home' : 'away'} divisionName={liveLabel} stadium={clubOf(game, liveResult.homeId).stadium} onFinish={finishMatch} />
           )}
           {!live && game.unemployed && tab === 'home' && <Unemployed game={game} over={isSeasonOver(game)} onChange={setGame} onPlay={play} onAdvance={() => runAdvance(false)} onAdvanceToMatch={() => runAdvance(true)} onSkip={() => skipSeason(1)} onNextSeason={nextSeason} onSeeTables={() => { setTableView('rounds'); setTab('table'); }} />}
           {!live && !game.unemployed && tab === 'home' && <Home game={game} onChange={setGame} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onSkip={skipSeason} onSeeTables={() => { setTableView('div'); setTab('table'); }} onSeeResults={() => { setTableView('rounds'); setTab('table'); }} onEditLineup={() => setTab('lineup')} onFinance={() => setTab('finance')} onStadium={() => setTab('stadium')} onCalendar={() => setTab('calendar')} onTab={(t) => setTab(t)} onNews={() => setPhoneOpen(true)} onSeeHist={() => { setTableView('hist'); setTab('table'); }} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} onAdvance={() => runAdvance(false)} onAdvanceToMatch={() => runAdvance(true)} />}

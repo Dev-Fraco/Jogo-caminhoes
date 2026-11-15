@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ClubInfo, FormationId, MatchEvent, MatchResult } from '../engine/types';
+import type { ClubInfo, FormationId, MatchEvent, MatchResult, TeamState } from '../engine/types';
+import { TacticsSheet } from './TacticsSheet';
+import type { Tactic } from '../engine/match';
 import { PitchSim } from './PitchSim';
 import { audio } from '../audio/audio';
 import { ClubBadge } from './ClubBadge';
@@ -11,7 +13,7 @@ export type Speed = (typeof SPEEDS)[number];
 export const MS_PER_MINUTE_AT_1X = 500;
 export const INTRO_MS = 3600;
 
-const ICON: Record<MatchEvent['type'], string> = { kickoff: '⏱️', goal: '⚽', yellow: '🟨', red: '🟥', foul: '🦵', save: '🧤', miss: '🎯', corner: '🚩', halftime: '⏸️', fulltime: '🏁' };
+const ICON: Record<MatchEvent['type'], string> = { kickoff: '⏱️', tactic: '🔄', goal: '⚽', yellow: '🟨', red: '🟥', foul: '🦵', save: '🧤', miss: '🎯', corner: '🚩', halftime: '⏸️', fulltime: '🏁' };
 
 /** Placar [casa, fora] até o minuto indicado. */
 export function scoreAt(events: MatchEvent[], minute: number): [number, number] {
@@ -25,14 +27,17 @@ interface Props {
   divisionName: string; stadium: string; onFinish: () => void;
   /** Formações para desenhar os bonecos (padrão 4-4-2). */
   homeFormation?: FormationId; awayFormation?: FormationId;
+  /** Seu time (com as mudanças já feitas) e como aplicar uma nova mudança tática. */
+  userTeam?: TeamState; tacticsUsed?: number; onTactic?: (t: Tactic) => void;
 }
 
 /** Partida ao vivo: animação de entrada, relógio de 0 a 90 minutos, placar e narração dos lances com o nome dos jogadores. */
-export function LiveMatch({ home, away, result, userSide, divisionName, stadium, onFinish, homeFormation = '4-4-2', awayFormation = '4-4-2' }: Props) {
+export function LiveMatch({ home, away, result, userSide, divisionName, stadium, onFinish, homeFormation = '4-4-2', awayFormation = '4-4-2', userTeam, tacticsUsed = 0, onTactic }: Props) {
   const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const [phase, setPhase] = useState<'intro' | 'play' | 'pens' | 'done'>(reduce ? 'play' : 'intro');
   const [speed, setSpeed] = useState<Speed>(1);
   const [paused, setPaused] = useState(false);
+  const [tactics, setTactics] = useState(false);
   const [minute, setMinute] = useState(0);
   const speedRef = useRef(speed); speedRef.current = speed;
 
@@ -114,6 +119,7 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
         </div>
       </div>
 
+      {tactics && userTeam && onTactic && <TacticsSheet team={userTeam} minute={Math.floor(minute)} score={[hg, ag]} side={userSide} used={tacticsUsed} onClose={() => { setTactics(false); setPaused(false); }} onApply={(t) => { onTactic(t); setTactics(false); setPaused(false); }} />}
       {phase !== 'pens' && <PitchSim home={home} away={away} homeFormation={homeFormation} awayFormation={awayFormation} events={result.events} minute={phase === 'play' ? minute : 90} speed={speed} userSide={userSide} />}
 
       {phase === 'pens' && result.penKicks ? (
@@ -124,6 +130,7 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
             {SPEEDS.map((s) => <button key={s} className={speed === s ? 'on' : ''} aria-pressed={speed === s} onClick={() => setSpeed(s)}>{s}x</button>)}
           </div>
           <button className="btn lm-pause" onClick={() => setPaused((p) => !p)} aria-pressed={paused}>{paused ? '▶ Continuar' : '⏸ Pausar'}</button>
+          {userTeam && onTactic && <button className="btn lm-pause lm-tac" onClick={() => { setPaused(true); setTactics(true); }}>⚙️ Formação</button>}
           <button className="btn lm-pause" onClick={toggleChants} aria-pressed={chants} aria-label="Cantos da torcida">{chants ? '🎺 Cantos: sim' : '🎺 Cantos: não'}</button>
           <button className="btn lm-pause" onClick={skip}>⏭ Pular</button>
         </div>

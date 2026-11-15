@@ -21,7 +21,7 @@ import { settleSalary } from './salary';
 import { afterMatch, calOf, newSeasonCalendar, nextMatchDay } from './calendar';
 import { createCup, cupAfterLeagueRound, penaltyTakers, playCupRound, shootoutKicks } from './cup';
 import { MORALE_START, moraleFactor, updateMorale } from './morale';
-import { simulateMatch } from './match';
+import { simulateMatch, withTactics, type Tactic } from './match';
 import { makeRng } from './rng';
 import { buildFixtures } from './schedule';
 import { generateOffers, returnLoans } from './roster';
@@ -165,8 +165,8 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
 }
 
 /** Próximo jogo do seu clube: a fase da copa (se for a data) ou a rodada do campeonato. */
-export function playNext(g: GameState) {
-  const r = playNextRaw(g);
+export function playNext(g: GameState, tactics?: Tactic[]) {
+  const r = withTactics(g.userClubId, g.unemployed ? undefined : tactics, () => playNextRaw(g)); // mudanças táticas feitas na partida ao vivo
   const my = g.unemployed ? undefined : r.results.find((x) => x.homeId === g.userClubId || x.awayId === g.userClubId);
   if (my) { // registra o jogo (com a data) para o Calendário
     const ev = pendingEvent(g);

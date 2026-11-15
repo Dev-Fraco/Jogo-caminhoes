@@ -46,7 +46,7 @@ export interface TeamState {
 
 export interface MatchEvent {
   minute: number;
-  type: 'kickoff' | 'goal' | 'yellow' | 'red' | 'foul' | 'save' | 'miss' | 'corner' | 'halftime' | 'fulltime';
+  type: 'kickoff' | 'tactic' | 'goal' | 'yellow' | 'red' | 'foul' | 'save' | 'miss' | 'corner' | 'halftime' | 'fulltime';
   side: 'home' | 'away' | 'none';
   text: string;
   /** Jogador principal do lance (autor do gol, da falta, do chute...). */

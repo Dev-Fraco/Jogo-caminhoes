@@ -94,7 +94,7 @@ describe('estaduais na temporada', () => {
     let g = fresh('palmeiras', 7);
     const t = g.teams.palmeiras; g = { ...g, teams: { ...g.teams, palmeiras: { ...t, players: t.players.map((p) => ({ ...p, strength: 97 })) } } };
     g = runEstadual(g);
-    expect(g.news.some((n) => /Campeão do Campeonato Paulista|Paulista: você terminou/.test(n.text))).toBe(true);
+    expect(g.news.some((n) => /Campeão do Campeonato Paulista|Campeonato Paulista encerrado/.test(n.text))).toBe(true);
     let guard = 0;
     while (!isSeasonOver(g) && guard++ < 400) { g = playNext(g).state; g = { ...g, morale: { ...g.morale, board: 60 } }; }
     const n = startNextSeason(g);

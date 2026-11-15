@@ -13,6 +13,13 @@ const endOf = (club: string, strength?: number, seed = 5): GameState => {
   return g;
 };
 
+/** Tenta algumas sementes até o clube terminar na situação desejada (o resultado de uma temporada depende da "sorte" da semente). */
+const endWith = (club: string, strength: number, want: 'great' | 'bad'): GameState => {
+  let last: GameState | undefined;
+  for (let seed = 5; seed < 20; seed++) { last = endOf(club, strength, seed); if (standingOf(last) === want) return last; }
+  return last!;
+};
+
 describe('negociar o salário no fim da temporada', () => {
   it('quem sobe de divisão pode pedir bem mais; quem fica quase nada; rebaixado não pede', () => {
     expect(MAX_RAISE.great).toBeGreaterThan(MAX_RAISE.good);
@@ -24,11 +31,11 @@ describe('negociar o salário no fim da temporada', () => {
     expect(RAISE_STEPS.bad).toEqual([]);
   });
   it('a situação do clube vem do resultado da temporada', () => {
-    expect(standingOf(endOf('csa', 95))).toBe('great'); // time fortíssimo na D: acesso ou título
-    expect(standingOf(endOf('csa', 20))).toBe('bad'); // time fraquíssimo: rebaixado
+    expect(standingOf(endWith('csa', 95, 'great'))).toBe('great'); // time fortíssimo na D: acesso ou título
+    expect(standingOf(endWith('csa', 20, 'bad'))).toBe('bad'); // time fraquíssimo: rebaixado
   });
   it('a chance de aceitarem cai quando o pedido sobe, e é maior com acesso do que sem', () => {
-    const g = endOf('csa', 95);
+    const g = endWith('csa', 95, 'great');
     const small = raiseChance(g, 5), big = raiseChance(g, 40);
     expect(small).toBeGreaterThan(big);
     expect(small).toBeGreaterThan(0.7);
@@ -37,7 +44,7 @@ describe('negociar o salário no fim da temporada', () => {
     if (standingOf(mid) === 'meh') { expect(raiseChance(mid, 5)).toBeGreaterThan(0.1); expect(raiseChance(mid, 5)).toBeLessThan(raiseChance(g, 5)); }
   });
   it('pedir aumento: aceita, contraproposta ou recusa; muda o salário mensal; só uma vez por temporada', () => {
-    const g = endOf('csa', 95);
+    const g = endWith('csa', 95, 'great');
     const before = coachSalary(g);
     const seen = new Set<string>();
     for (let s = 1; s <= 80; s++) {
@@ -55,7 +62,7 @@ describe('negociar o salário no fim da temporada', () => {
     expect(negotiateRaise(g, 33)).toMatchObject({ ok: false }); // valor que não está nas opções
   });
   it('rebaixado: o corte pode vir (55%) e dá para tentar manter (50%)', () => {
-    const g = endOf('csa', 20);
+    const g = endWith('csa', 20, 'bad');
     expect(standingOf(g)).toBe('bad');
     expect(negotiateRaise(g, 5)).toMatchObject({ ok: false });
     let cuts = 0, kept = 0;
@@ -72,7 +79,7 @@ describe('negociar o salário no fim da temporada', () => {
     expect(settleSalary(d.state)).toBe(d.state);
   });
   it('o aumento vale na virada e fica; quem fica sem clube ou muda de clube volta ao salário do clube', () => {
-    const g = endOf('csa', 95);
+    const g = endWith('csa', 95, 'great');
     let r = negotiateRaise({ ...g, seed: 4 }, 5); if (!r.ok) throw new Error();
     const next = startNextSeason(r.state);
     expect(next.payMult).toBe(r.state.payMult);

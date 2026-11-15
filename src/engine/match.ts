@@ -1,6 +1,26 @@
-import { clamp, type Rng } from './rng';
-import { teamRatings } from './squad';
-import type { MatchEvent, Player, TeamState } from './types';
+import { clamp, makeRng, type Rng } from './rng';
+import { autoLineup, teamRatings } from './squad';
+import { FORMATIONS, type FormationId, type MatchEvent, type Player, type TeamState } from './types';
+
+/** Mudança tática feita pelo treinador durante a partida: vale a partir do minuto seguinte. */
+export interface Tactic { minute: number; formation: FormationId; lineup: string[] }
+export const MAX_TACTIC_CHANGES = 5;
+/** Quanto a formação "ataca" (0 = 4-4-2; positivo ataca mais, negativo defende mais). */
+export const attackBias = (f: FormationId) => { const x = FORMATIONS[f]; return (x.ATT - 2) + (x.MID - 4) * 0.5 - (x.DEF - 4) * 0.5; };
+/** Efeito de uma troca na hora certa/errada: quem perde deve atacar, quem ganha deve fechar. Positivo = acertou. */
+export function tacticQuality(diff: number, minute: number, fromBias: number, toBias: number): number {
+  const want = diff < 0 ? 1 : diff > 0 ? -1 : 0; // perdendo: atacar; ganhando: fechar
+  if (!want) return 0;
+  return want * (toBias - fromBias) * (minute >= 70 ? 1.3 : 1);
+}
+
+let ACTIVE: { clubId: string; list: Tactic[] } | null = null;
+/** Executa `fn` com mudanças táticas do seu clube valendo nas partidas simuladas dentro dela. */
+export function withTactics<T>(clubId: string, list: Tactic[] | undefined, fn: () => T): T {
+  if (!list?.length) return fn();
+  ACTIVE = { clubId, list: [...list].sort((a, b) => a.minute - b.minute).slice(0, MAX_TACTIC_CHANGES) };
+  try { return fn(); } finally { ACTIVE = null; }
+}
 
 export interface SimOutput { homeGoals: number; awayGoals: number; events: MatchEvent[] }
 export interface Mods { home?: number; away?: number }
@@ -13,16 +33,30 @@ export interface MatchNames { home: string; away: string }
  * Além dos gols, gera faltas, cartões, escanteios, defesas e chutes para fora, sempre com o nome do jogador.
  * `mods` multiplica a força do time (ex.: humor da equipe: 0,96 a 1,04); `names` traz os nomes dos clubes para o texto.
  */
-export function simulateMatch(home: TeamState, away: TeamState, rng: Rng, mods: Mods = {}, names: MatchNames = { home: 'Mandante', away: 'Visitante' }): SimOutput {
-  const scale = (r: ReturnType<typeof teamRatings>, k: number) => ({ ...r, gk: r.gk * k, def: r.def * k, mid: r.mid * k, att: r.att * k });
-  const H = scale(teamRatings(home), mods.home ?? 1);
-  const A = scale(teamRatings(away), mods.away ?? 1);
+export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, mods: Mods = {}, names: MatchNames = { home: 'Mandante', away: 'Visitante' }): SimOutput {
+  // um único sorteio do gerador geral decide a partida inteira (assim dá para refazer a partida a partir de um minuto com a mesma "sorte")
+  const rng = makeRng(Math.floor(rngOuter() * 2 ** 31));
+  const scale = (r: ReturnType<typeof teamRatings>, k: number, att = 1, def = 1) => ({ ...r, gk: r.gk * k, def: r.def * k * def, mid: r.mid * k, att: r.att * k * att });
+  const mineSide: 'home' | 'away' | null = ACTIVE ? (home.clubId === ACTIVE.clubId ? 'home' : away.clubId === ACTIVE.clubId ? 'away' : null) : null;
+  const tactics = mineSide && ACTIVE ? ACTIVE.list : [];
+  let tIdx = 0, changes = 0, lastChange = -99;
+  const origBias = attackBias(mineSide === 'home' ? home.formation : away.formation);
+  let curBias = origBias;
+  const fx = { start: 0, bonus: 0, confUntil: 0 };
+  let hTeam = home, aTeam = away;
+  let hR = teamRatings(home), aR = teamRatings(away);
+  const ratings = (side: 'home' | 'away', minute: number) => {
+    const r = side === 'home' ? hR : aR, k = (side === 'home' ? mods.home : mods.away) ?? 1;
+    if (side !== mineSide) return scale(r, k);
+    const fade = Math.max(0, 1 - (minute - fx.start) / 25), all = 1 + fx.bonus * fade + (minute < fx.confUntil ? -0.03 : 0), st = curBias - origBias;
+    return scale({ ...r, mid: r.mid * all }, k, all * (1 + 0.08 * st), all * (1 - 0.08 * st));
+  };
   const homeAdv = 1.08;
   const events: MatchEvent[] = [];
   let hg = 0, ag = 0;
 
   const lineupOf = (t: TeamState) => t.lineup.map((id) => t.players.find((p) => p.id === id)!);
-  const hl = lineupOf(home), al = lineupOf(away);
+  let hl = lineupOf(home), al = lineupOf(away);
   const redCards = { home: 0, away: 0 };
   const yellows = new Set<string>();
   const out = new Set<string>(); // expulsos
@@ -47,6 +81,29 @@ export function simulateMatch(home: TeamState, away: TeamState, rng: Rng, mods: 
   push(0, 'kickoff', 'none', `Começa o jogo! ${names.home} x ${names.away}.`);
 
   for (let minute = 1; minute <= 90; minute++) {
+    // mudanças táticas do treinador (valem a partir deste minuto)
+    while (tIdx < tactics.length && tactics[tIdx].minute < minute) {
+      const t = tactics[tIdx++];
+      const side = mineSide!;
+      const team = side === 'home' ? hTeam : aTeam;
+      const ok = t.lineup.length === 11 && new Set(t.lineup).size === 11 && t.lineup.every((id) => team.players.some((p) => p.id === id)) && t.lineup.filter((id) => team.players.find((p) => p.id === id)!.pos === 'GK').length === 1;
+      const next: TeamState = { ...team, formation: t.formation, lineup: ok ? t.lineup : autoLineup(team.players, t.formation) };
+      const oldR = side === 'home' ? hR : aR, newR = teamRatings(next);
+      const diff = side === 'home' ? hg - ag : ag - hg;
+      const q = tacticQuality(diff, minute, curBias, attackBias(t.formation));
+      fx.bonus = clamp(0.1 * q + 0.01 * (newR.overall - oldR.overall), -0.2, 0.15); fx.start = minute;
+      fx.confUntil = minute - lastChange < 10 ? minute + 10 : 0; // mexer toda hora desorganiza
+      lastChange = minute; changes++;
+      curBias = attackBias(t.formation);
+      if (side === 'home') { hTeam = next; hR = newR; hl = lineupOf(next); } else { aTeam = next; aR = newR; al = lineupOf(next); }
+      const c = club(side);
+      const text = q >= 0.75 ? (diff < 0 ? `${c} mexeu bem: ${t.formation} e o time sobe, pressionando atrás do resultado!` : `${c} mexeu bem: ${t.formation} fecha o time e protege o resultado.`)
+        : q <= -0.75 ? (diff < 0 ? `${c} mexeu mal: ${t.formation} fecha demais quando precisa do gol!` : `${c} mexeu mal: ${t.formation} abre espaços na defesa!`)
+        : fx.confUntil ? `${c}: mais uma mudança em pouco tempo (${t.formation}); o time se perde um pouco.`
+        : `${c} muda para ${t.formation}.`;
+      push(minute - 1, 'tactic', side, text);
+    }
+    const H = ratings('home', minute), A = ratings('away', minute);
     if (minute === 46) push(45, 'halftime', 'none', `Fim do primeiro tempo: ${names.home} ${hg} x ${ag} ${names.away}.`, { score: [hg, ag] });
 
     // falta (e cartão), independente dos ataques
