@@ -19,6 +19,13 @@ describe('pacote de elencos', () => {
     const over = validatePack(many(5001)); expect(over.ok).toBe(false); if (!over.ok) expect(over.error).toMatch(/5\.000/);
     const ok = validatePack(many(5000)); if (!ok.ok) expect(ok.error).not.toMatch(/grande demais/); // passa do limite de tamanho (falha só por não ter clubes válidos)
   });
+  it('aceita nomes de campos em português (nome, clubes, jogadores, posicao, idade, escudo)', () => {
+    const c = first();
+    const txt = JSON.stringify({ nome: 'Meu', clubes: [{ id: c.id, escudo: 'a.png', jogadores: [{ nome: 'Beltrano Silva', posicao: 'ZAG', idade: 29, ovr: 66 }] }] });
+    const r = validatePack(txt, ['a.png']);
+    expect(r.ok).toBe(true);
+    if (r.ok) { expect(r.report.players).toBe(1); expect(r.report.badges).toBe(1); expect(r.pack.clubs[0].players![0]).toMatchObject({ name: 'Beltrano Silva', pos: 'DEF', age: 29, overall: 66 }); }
+  });
   it('aceita posições em português', () => {
     expect(normPos('zag')).toBe('DEF'); expect(normPos('Gol')).toBe('GK'); expect(normPos('xx')).toBeUndefined();
   });

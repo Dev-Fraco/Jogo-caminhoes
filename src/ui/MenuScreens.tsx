@@ -144,6 +144,19 @@ export function Mods({ onBack }: { onBack: () => void }) {
   const file = useRef<HTMLInputElement>(null);
   const commit = (next: Mod[]) => { setMods(next); saveMods(next); applyMods(next); };
 
+  const [bump, setBump] = useState(0);
+  /** Pacote com jogadores/escudos vai para o instalador de elencos (mesmo que tenha sido colado aqui); o resto é pacote de nomes, cores e estádios. */
+  const addFiles = async (files: File[]) => {
+    const json = files.find((f) => /\.json$/i.test(f.name));
+    let isPack = files.some((f) => /\.zip$/i.test(f.name) || /\.(png|jpe?g|webp)$/i.test(f.name));
+    if (!isPack && json) { try { const j = JSON.parse(await json.text()); const cl = j?.clubs ?? j?.clubes ?? j?.times; isPack = Array.isArray(cl) && cl.some((c: Record<string, unknown>) => c && (c.players || c.jogadores || c.elenco || c.badge || c.escudo || c.logo)); } catch { /* o JSON inválido é tratado abaixo */ } }
+    if (!isPack) { if (json) add(await json.text()); return; }
+    const r = await preparePack(files);
+    if (!r.ok) { setMsg({ text: r.error, err: true }); return; }
+    try { await installPack(r.p); localStorage.setItem('vr-pack-name', r.p.pack.name); } catch { setMsg({ text: 'Não consegui guardar o pacote neste aparelho.', err: true }); return; }
+    setBump((n) => n + 1); setText('');
+    setMsg({ text: `Pacote de elencos "${r.p.pack.name}" instalado: ${r.p.report.clubs} clubes, ${r.p.report.players} jogadores e ${r.p.report.badges} escudos${r.p.report.warnings.length ? ` (${r.p.report.warnings.length} avisos na seção "Elencos e escudos")` : ''}. Comece uma nova carreira para ver.` });
+  };
   const add = (src: string) => {
     const r = parseMod(src);
     if (!r.ok) { setMsg({ text: r.error, err: true }); return; }
@@ -175,15 +188,15 @@ export function Mods({ onBack }: { onBack: () => void }) {
           ))}
         </ul>
       </section>
-      <PackSection />
+      <PackSection key={bump} />
       <section>
-        <h3>Instalar pacote</h3>
+        <h3>Instalar pacote (JSON, ZIP ou colar)</h3>
         <div className="card">
-          <input ref={file} type="file" accept="application/json,.json" aria-label="Arquivo do pacote" onChange={async (e) => { const f = e.target.files?.[0]; if (f) add(await f.text()); e.target.value = ''; }} />
+          <input ref={file} type="file" accept=".json,.zip,image/png,image/jpeg,image/webp" multiple aria-label="Arquivo do pacote" onChange={async (e) => { const fs = Array.from(e.target.files ?? []); if (fs.length) await addFiles(fs); e.target.value = ''; }} />
           <p className="hint">Ou cole o conteúdo do pacote (JSON):</p>
           <textarea className="md-text" rows={6} value={text} onChange={(e) => setText(e.target.value)} aria-label="Conteúdo do pacote" placeholder='{ "name": "Meu pacote", "clubs": [ { "id": "flamengo", "name": "Meu Time" } ] }' />
           <div className="un-btns" style={{ flexDirection: 'row', marginTop: 8 }}>
-            <button className="btn main" disabled={!text.trim()} onClick={() => add(text)}>Instalar</button>
+            <button className="btn main" disabled={!text.trim()} onClick={() => void addFiles([new File([text], 'pacote.json', { type: 'application/json' })])}>Instalar</button>
             <button className="btn" onClick={download}>Baixar modelo</button>
           </div>
           {msg && <p className={`tf-notice ${msg.err ? 'err' : ''}`} role="status" style={{ marginTop: 10 }}>{msg.text}</p>}

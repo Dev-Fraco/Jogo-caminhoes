@@ -25,6 +25,8 @@ const POS: Record<string, Position> = {
   ATT: 'ATT', A: 'ATT', ATA: 'ATT', CA: 'ATT', PE: 'ATT', PD: 'ATT', ATACANTE: 'ATT',
 };
 export const normPos = (s: unknown): Position | undefined => (typeof s === 'string' ? POS[s.trim().toUpperCase()] : undefined);
+/** Primeiro campo existente entre vários nomes possíveis (o pacote pode vir em português ou inglês). */
+const pick = (o: Record<string, unknown> | undefined, ...keys: string[]): unknown => { if (!o) return undefined; for (const k of keys) if (o[k] !== undefined && o[k] !== null) return o[k]; return undefined; };
 const IMG = /\.(png|jpe?g|webp)$/i;
 export const isImageName = (n: string) => IMG.test(n);
 export const baseName = (n: string) => n.split('/').pop()!.toLowerCase();
@@ -33,8 +35,9 @@ export const baseName = (n: string) => n.split('/').pop()!.toLowerCase();
 export function validatePack(text: string, badgeFiles: string[] = []): PackResult {
   let raw: unknown;
   try { raw = JSON.parse(text); } catch { return { ok: false, error: 'O arquivo não é um JSON válido.' }; }
-  const r = raw as { name?: unknown; author?: unknown; version?: unknown; clubs?: unknown };
-  if (!r || typeof r !== 'object' || typeof r.name !== 'string' || !r.name.trim()) return { ok: false, error: 'O pacote precisa de um "name".' };
+  const r0 = raw as Record<string, unknown>;
+  const r = { name: pick(r0, 'name', 'nome'), author: pick(r0, 'author', 'autor'), version: pick(r0, 'version', 'versao', 'versão'), clubs: pick(r0, 'clubs', 'clubes', 'times') };
+  if (!r0 || typeof r0 !== 'object' || typeof r.name !== 'string' || !r.name.trim()) return { ok: false, error: 'O pacote precisa de um "name".' };
   if (!Array.isArray(r.clubs) || r.clubs.length === 0) return { ok: false, error: 'O pacote precisa de uma lista "clubs" com pelo menos 1 clube.' };
   if (r.clubs.length > MAX_PACK_CLUBS) return { ok: false, error: `Pacote grande demais (máximo de ${MAX_PACK_CLUBS.toLocaleString('pt-BR')} clubes).` };
   const known = new Set(Object.values(CLUBS_DATA).flat().map((c) => c.id));
@@ -44,8 +47,9 @@ export function validatePack(text: string, badgeFiles: string[] = []): PackResul
   const seen = new Set<string>();
   const clubs: PackClub[] = [];
   let players = 0, badges = 0;
-  for (const c of r.clubs as Record<string, unknown>[]) {
-    const id = typeof c?.id === 'string' ? c.id : '';
+  for (const c0 of r.clubs as Record<string, unknown>[]) {
+    const c = { id: pick(c0, 'id', 'clubId', 'clube_id', 'clubeId'), badge: pick(c0, 'badge', 'escudo', 'logo'), players: pick(c0, 'players', 'jogadores', 'elenco') } as Record<string, unknown>;
+    const id = typeof c.id === 'string' ? c.id : '';
     if (!id || !known.has(id)) { warn(`Clube que o jogo não tem: "${id || '(sem id)'}" (ignorado).`); continue; }
     if (seen.has(id)) { warn(`Clube repetido: "${id}" (usei o primeiro).`); continue; }
     seen.add(id);
@@ -58,9 +62,10 @@ export function validatePack(text: string, badgeFiles: string[] = []): PackResul
     if (Array.isArray(c.players)) {
       const list: PackPlayer[] = [];
       const names = new Set<string>();
-      for (const p of c.players as Record<string, unknown>[]) {
-        const name = typeof p?.name === 'string' ? p.name.trim() : '';
-        const pos = normPos(p?.pos);
+      for (const p0 of c.players as Record<string, unknown>[]) {
+        const p = { name: pick(p0, 'name', 'nome'), pos: pick(p0, 'pos', 'posicao', 'posição', 'position'), age: pick(p0, 'age', 'idade'), overall: pick(p0, 'overall', 'ovr', 'forca', 'força', 'strength') } as Record<string, unknown>;
+        const name = typeof p.name === 'string' ? p.name.trim() : '';
+        const pos = normPos(p.pos);
         if (name.length < 2 || name.length > 40) { warn(`${id}: jogador sem nome válido (ignorado).`); continue; }
         if (!pos) { warn(`${id}: posição inválida de "${name}" (use GK, DEF, MID ou ATT).`); continue; }
         if (names.has(name)) { warn(`${id}: "${name}" repetido (ignorado).`); continue; }
