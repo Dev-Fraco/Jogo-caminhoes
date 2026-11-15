@@ -87,3 +87,26 @@
 .fin-pill { white-space: nowrap; padding: 6px 9px; border-radius: 10px; border: 1px solid var(--mk-line); background: rgba(8, 18, 40, .9); color: #fff; font: 800 12.5px var(--font-head); }
 
 .fm-title h2 { font-size: clamp(22px, 6.6vw, 32px) !important; }
+
+/* Base (categorias de base) */
+.yt-hero2 { display: grid; grid-template-columns: 46% 1fr; gap: 10px; align-items: center; }
+.yt-art { width: 100%; border-radius: 10px; display: block; }
+.yt-hero2-r { display: grid; gap: 6px; min-width: 0; }
+.yt-lv { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; } .yt-lv b { font: italic 800 17px var(--font-head); color: #fff; text-transform: uppercase; } .yt-lv span { font: 700 12px var(--font-head); color: #cfe0ff; }
+.yt-hero2-r p { margin: 0; font-size: 11.5px; line-height: 1.35; color: #cfe0ff; }
+.yt-hero2 .mk-big, .yt-info, .yt-hero2 .shop-msg { grid-column: 1 / -1; }
+.yt-info { display: flex; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--mk-line); background: rgba(8, 18, 40, .9); font-size: 12px; color: #cfe0ff; } .yt-info b { color: #fff; }
+.yt-bar2 { width: 4px; height: 18px; border-radius: 2px; background: var(--mk-blue); display: inline-block; }
+.yt-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.yt-card { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 6px !important; text-align: center; }
+.yt-face { position: relative; display: block; }
+.yt-face .face { border-radius: 12px; }
+.yt-ovr { position: absolute; top: -4px; right: -14px; font: 800 12px var(--font-head); font-style: normal; min-width: 26px; padding: 2px 4px; border-radius: 7px; background: rgba(12, 22, 46, .95); border: 1px solid var(--mk-line); color: #fff; }
+.yt-n { font: 800 12.5px/1.12 var(--font-head); color: #fff; min-height: 28px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.yt-card small { font-size: 10.5px; color: #aac0e6; line-height: 1.25; }
+.yt-pot .stars { color: #ffd23f; letter-spacing: -1px; }
+.yt-card .yt-bar { width: 100%; height: 5px; border-radius: 3px; background: rgba(255,255,255,.08); overflow: hidden; display: block; margin: 2px 0; } .yt-card .yt-bar i { display: block; height: 100%; background: linear-gradient(90deg, #2f8bff, #2ee2c8); }
+.yt-pro, .yt-del { width: 100%; padding: 7px 2px !important; font-size: 11px !important; border-radius: 9px !important; display: grid; gap: 1px; }
+.yt-pro small { font-size: 9.5px; color: #e6f0ff; }
+.yt-hero2 .mk-big { font-size: 13px; padding: 12px 8px; }
+.yt-info { font-size: 11px; } .yt-info span { white-space: nowrap; }

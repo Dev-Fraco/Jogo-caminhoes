@@ -4,7 +4,10 @@ import { MAX_SQUAD } from '../engine/transfers';
 import { academyCost, ensureYouth, MAX_LEVEL, MAX_PROSPECTS, promoteProspect, releaseProspect, stars, upgradeAcademy, youthOf, youthWage } from '../engine/youth';
 import type { GameState, Position } from '../engine/types';
 import { formatBudget } from '../newgame/format';
-import { Avatar, ovrClass, POS_ONE, ScreenTitle } from './FmParts';
+import { ovrClass, POS_ONE, ScreenTitle } from './FmParts';
+import { Face } from './Face';
+
+const POS_ICON: Record<Position, string> = { GK: '🧤', DEF: '🛡️', MID: '🏟️', ATT: '⚽' };
 
 const star = (n: number) => '★'.repeat(n) + '☆'.repeat(5 - n);
 
@@ -32,33 +35,31 @@ export function YouthScreen({ game, onChange }: { game: GameState; onChange: (g:
   return (
     <>
       <ScreenTitle icon="🌱" title="Base" />
-      <section className="card yt-hero">
-        <div className="row"><span className="grow">Academia</span><b>Nível {y.level} / {MAX_LEVEL}</b></div>
-        <div className="cp-bar" role="progressbar" aria-valuenow={y.level} aria-valuemin={0} aria-valuemax={MAX_LEVEL}><i style={{ width: `${(y.level / MAX_LEVEL) * 100}%` }} /></div>
-        <p className="hint">Academia melhor = safras maiores (4 + nível jovens), jovens mais fortes e evolução mais rápida. A cada temporada chega uma safra nova; quem faz 20 anos sai da base.</p>
-        <button className="primary" disabled={y.level >= MAX_LEVEL} onClick={upgrade}>{y.level >= MAX_LEVEL ? 'Nível máximo' : `Melhorar a academia · ${formatBudget(cost)}`}</button>
-        <small className="yt-cash">Caixa do clube: {formatBudget(game.budgets[game.userClubId])} · Elenco principal: {squad}/{MAX_SQUAD}</small>
+      <section className="card mk-card yt-hero2">
+        <img className="yt-art" src="assets/ui/academy.jpg" alt="" />
+        <div className="yt-hero2-r">
+          <div className="yt-lv"><b>Academia</b><span>Nível {y.level} / {MAX_LEVEL}</span></div>
+          <div className="cp-bar" role="progressbar" aria-valuenow={y.level} aria-valuemin={0} aria-valuemax={MAX_LEVEL}><i style={{ width: `${(y.level / MAX_LEVEL) * 100}%` }} /></div>
+          <p>Academia melhor = safras maiores (4 + nível jovens), jovens mais fortes e evolução mais rápida. A cada temporada chega uma safra nova; quem faz 20 anos sai da base.</p>
+        </div>
+        <button className="primary mk-big" disabled={y.level >= MAX_LEVEL} onClick={upgrade}>{y.level >= MAX_LEVEL ? 'Nível máximo' : `⏫ Melhorar a academia · ${formatBudget(cost)}`}</button>
+        <div className="yt-info"><span>🏦 Caixa: <b>{formatBudget(game.budgets[game.userClubId])}</b></span><span>👥 Elenco principal: <b>{squad}/{MAX_SQUAD}</b></span></div>
         {msg && <p className={`shop-msg ${msg.ok ? 'ok' : 'bad'}`} role="status">{msg.text}</p>}
       </section>
 
-      <section>
-        <h3>Jovens na base ({y.prospects.length}/{MAX_PROSPECTS})</h3>
+      <section className="mk-sec">
+        <h3><span className="yt-bar2" aria-hidden="true" />Jovens na base ({y.prospects.length}/{MAX_PROSPECTS})</h3>
         {list.length === 0 && <p className="hint">Nenhum jovem na base agora. A próxima safra chega no início da temporada.</p>}
-        <ul className="yt-list">
+        <ul className="yt-grid">
           {list.map((p) => (
-            <li key={p.player.id} className="yt-item">
-              <Avatar pos={p.player.pos} />
-              <div className="grow">
-                <b>{p.player.name}</b>
-                <small>{POS_ONE[p.player.pos]} · {p.player.age} anos</small>
-                <small className="yt-pot" title={`Potencial ${p.potential}`}>Potencial {star(stars(p.potential))} ({p.potential})</small>
-                <span className="yt-bar" aria-hidden="true"><i style={{ width: `${(p.exact / p.potential) * 100}%` }} /></span>
-              </div>
-              <em className={`fm-ovr ${ovrClass(p.player.strength)}`}>{p.player.strength}</em>
-              <div className="yt-btns">
-                <button className="primary" onClick={() => promote(p.player.id)}>Promover<small>{formatBudget(youthWage(game, p))}/ano</small></button>
-                <button className="btn" onClick={() => onChange(releaseProspect(game, p.player.id))}>Dispensar</button>
-              </div>
+            <li key={p.player.id} className="mk-card yt-card">
+              <span className="yt-face"><Face id={p.player.id} age={Math.min(p.player.age, 20)} size={64} /><em className={`yt-ovr ${ovrClass(p.player.strength)}`}>{p.player.strength}</em></span>
+              <b className="yt-n">{p.player.name}</b>
+              <small>{POS_ICON[p.player.pos]} {POS_ONE[p.player.pos]} · {p.player.age} anos</small>
+              <small className="yt-pot" title={`Potencial ${p.potential}`}>Potencial <span className="stars">{star(stars(p.potential))}</span> ({p.potential})</small>
+              <span className="yt-bar" aria-hidden="true"><i style={{ width: `${(p.exact / p.potential) * 100}%` }} /></span>
+              <button className="primary yt-pro" onClick={() => promote(p.player.id)}>⏫ Promover<small>{formatBudget(youthWage(game, p))}/ano</small></button>
+              <button className="btn yt-del" onClick={() => onChange(releaseProspect(game, p.player.id))}>🗑️ Dispensar</button>
             </li>
           ))}
         </ul>
