@@ -15,6 +15,7 @@ import { playHomeGate } from './stadium';
 import { inboxTick } from './inbox';
 import { planTick } from './dataplan';
 import { chipTick } from './shop';
+import { youthSeason, youthTick } from './youth';
 import { createCup, cupAfterLeagueRound, playCupRound, shootout } from './cup';
 import { MORALE_START, moraleFactor, updateMorale } from './morale';
 import { simulateMatch } from './match';
@@ -146,7 +147,7 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
   const myHome = my && !g.unemployed && my.homeId === g.userClubId ? my : undefined;
   state = socialAds(tickContracts(tickBoletos(roundFinance(state, new Set(results.map((r) => r.homeId)), !!myHome))));
   if (myHome) state = playHomeGate(state, myHome.awayId).state; // público e bilheteria do seu jogo em casa (preço do ingresso)
-  state = chipTick(planTick(inboxTick(state))); // mensagens, metas, fatura e plano de dados do celular
+  state = youthTick(chipTick(planTick(inboxTick(state)))); // mensagens, metas, fatura e plano de dados do celular
   state = boardTick(state, makeRng(g.seed * 19 + g.season * 7 + g.round)); // diretoria (demissão) ou, sem clube, propostas de emprego
   state = mundialAfterLeagueRound(contAfterLeagueRound(cupAfterLeagueRound(state)));
   // propostas dos outros clubes pelos jogadores listados
@@ -288,7 +289,7 @@ export function startNextSeason(g: GameState): GameState {
   const { state, promotion } = offseason(next, rng, { promoted: arrivals('promoted', -1), relegated: arrivals('relegated', 1) });
   const cupped: GameState = g.cup ? { ...state, cup: createCup(state), estadual: g.estadual ? nextEstaduais(g, g.estadual) : undefined } : state;
   const withCup: GameState = createContinentals({ ...cupped, mundial: undefined }, moves[0].table.map((r) => r.clubId), g.cup?.championId);
-  let result: GameState = { ...withCup, history: withCup.history.map((h, i) => (i === withCup.history.length - 1 ? { ...h, promotion } : h)) };
+  let result: GameState = youthSeason({ ...withCup, history: withCup.history.map((h, i) => (i === withCup.history.length - 1 ? { ...h, promotion } : h)) });
   // carreira do treinador: pontos, demissão ou propostas de clubes maiores
   const relegatedU = out.movement === 'relegated', promotedU = out.movement === 'promoted';
   const reason = seasonEndFiring(g, out.userPosition, relegatedU);

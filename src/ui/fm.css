@@ -661,3 +661,12 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 button.home-tile { width: 100%; font: inherit; color: inherit; text-align: center; cursor: pointer; } button.home-tile:hover, button.home-tile:focus-visible { border-color: var(--gold); background: #1c2735; }
 .home-tiles > li { list-style: none; min-width: 0; }
 .menu-btn { min-height: 54px; } .home-menu { gap: 6px; }
+
+/* Categorias de base */
+.yt-hero .primary { width: 100%; margin: 6px 0; } .yt-cash { display: block; color: var(--muted); margin-top: 4px; }
+.yt-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.yt-item { display: grid; grid-template-columns: 52px 1fr 46px; gap: 6px 12px; align-items: center; padding: 12px; border-radius: 14px; background: linear-gradient(180deg, rgba(14, 24, 48, .9), rgba(9, 17, 36, .9)); border: 1px solid #25406f; }
+.yt-item .grow b { display: block; font: 800 16px var(--font-head); } .yt-item small { display: block; color: #aebfe0; font-size: 13px; } .yt-pot { color: #f5c542 !important; }
+.yt-bar { display: block; height: 6px; border-radius: 3px; background: #10151c; margin-top: 6px; overflow: hidden; } .yt-bar i { display: block; height: 100%; background: linear-gradient(90deg, #2f8bff, #3ddc84); }
+.yt-btns { grid-column: 1 / -1; display: grid; grid-template-columns: 1.4fr 1fr; gap: 8px; }
+.yt-btns .primary small { color: #dbe7ff; font-size: 11px; font-weight: 500; text-transform: none; letter-spacing: 0; }

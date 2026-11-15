@@ -22,6 +22,7 @@ import { Finance } from './Finance';
 import { Stadium } from './Stadium';
 import { ShopScreen } from './ShopScreen';
 import { CoachProfile } from './CoachProfile';
+import { YouthScreen } from './YouthScreen';
 import { DEFAULT_PHONE, ownsPhone } from '../engine/phone';
 import { Phone } from './Phone';
 import { unreadCount } from '../engine/phone';
@@ -35,7 +36,7 @@ import { Unemployed } from './Unemployed';
 import { Table } from './Table';
 import { Transfers } from './Transfers';
 
-type Tab = 'home' | 'squad' | 'table' | 'transfers' | 'lineup' | 'finance' | 'stadium' | 'shop' | 'profile'; // 'lineup' é uma tela dentro do Início
+type Tab = 'home' | 'squad' | 'table' | 'transfers' | 'lineup' | 'finance' | 'stadium' | 'shop' | 'profile' | 'youth'; // 'lineup' é uma tela dentro do Início
 /** Telas do app: menu inicial, uma das 8 opções (placeholder) ou a partida em andamento. */
 type Screen = 'menu' | MenuOptionId | 'game' | 'hall';
 
@@ -60,7 +61,7 @@ export function App() {
   // salão de campeões: guarda os campeões de cada temporada encerrada
   useEffect(() => { if (game) recordHall(game); }, [game?.history.length]); // eslint-disable-line react-hooks/exhaustive-deps
   // sem clube: some Elenco, Transferências, Finanças e Escalação
-  useEffect(() => { if (game?.unemployed && ['squad', 'transfers', 'lineup', 'finance', 'stadium'].includes(tab)) setTab('home'); }, [game?.unemployed, tab]);
+  useEffect(() => { if (game?.unemployed && ['squad', 'transfers', 'lineup', 'finance', 'stadium', 'youth'].includes(tab)) setTab('home'); }, [game?.unemployed, tab]);
 
   // som: o navegador só libera o áudio depois de um toque; a música toca em todas as telas
   useEffect(() => {
@@ -98,9 +99,9 @@ export function App() {
   };
   const feature = (id: FeatureId) => {
     if (!game) { setScreen('novo-jogo'); return; } // sem carreira salva: começa uma
-    const to: Record<FeatureId, Tab> = { competicoes: 'table', transferencias: 'transfers', elenco: 'squad', financas: 'finance', estadio: 'stadium', perfil: 'profile' };
+    const to: Record<FeatureId, Tab> = { competicoes: 'table', transferencias: 'transfers', elenco: 'squad', financas: 'finance', estadio: 'stadium', base: 'youth', perfil: 'profile' };
     const t = to[id];
-    if (game.unemployed && ['squad', 'transfers', 'finance', 'stadium'].includes(t)) setTab('home'); else setTab(t);
+    if (game.unemployed && ['squad', 'transfers', 'finance', 'stadium', 'youth'].includes(t)) setTab('home'); else setTab(t);
     setScreen('game');
   };
 
@@ -162,6 +163,7 @@ export function App() {
           )}
           {!live && game.unemployed && tab === 'home' && <Unemployed game={game} over={isSeasonOver(game)} onChange={setGame} onPlay={play} onSkip={() => skipSeason(1)} onNextSeason={nextSeason} onSeeTables={() => { setTableView('rounds'); setTab('table'); }} />}
           {!live && !game.unemployed && tab === 'home' && <Home game={game} onChange={setGame} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onSkip={skipSeason} onSeeTables={() => { setTableView('div'); setTab('table'); }} onSeeResults={() => { setTableView('rounds'); setTab('table'); }} onEditLineup={() => setTab('lineup')} onFinance={() => setTab('finance')} onStadium={() => setTab('stadium')} onTab={(t) => setTab(t)} onNews={() => setPhoneOpen(true)} onSeeHist={() => { setTableView('hist'); setTab('table'); }} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} />}
+          {!live && !game.unemployed && tab === 'youth' && <YouthScreen game={game} onChange={setGame} />}
           {!live && tab === 'profile' && <CoachProfile game={game} onNext={(t) => setTab(t)} />}
           {!live && tab === 'shop' && <ShopScreen game={game} onChange={setGame} onOpenPhone={() => setPhoneOpen(true)} />}
           {!live && !game.unemployed && tab === 'stadium' && <Stadium game={game} onChange={setGame} onBack={() => setTab('home')} />}
@@ -173,10 +175,10 @@ export function App() {
         </main>
         <div className="nav-wrap">
         <nav ref={navRef} onScroll={onNavScroll} aria-label="Menu principal (arraste para o lado para ver mais)">
-          {([['home', '🏠', 'Início'], ['squad', '👕', 'Elenco'], ['table', '📊', 'Tabela'], ['transfers', '🔁', 'Transf.'], ['stadium', '🏟️', 'Estádio'], ['finance', '💰', 'Finanças'], ['shop', '🛒', 'Loja'], ['phone', '📱', 'Celular']] as const).map(([id, icon, label]) => {
+          {([['home', '🏠', 'Início'], ['squad', '👕', 'Elenco'], ['table', '📊', 'Tabela'], ['transfers', '🔁', 'Transf.'], ['stadium', '🏟️', 'Estádio'], ['finance', '💰', 'Finanças'], ['youth', '🌱', 'Base'], ['shop', '🛒', 'Loja'], ['phone', '📱', 'Celular']] as const).map(([id, icon, label]) => {
             const on = tab === id || (id === 'home' && tab === 'lineup');
             return (
-              <button key={id} className={on ? 'on' : ''} disabled={!!live || (!!game.unemployed && (id === 'squad' || id === 'transfers' || id === 'stadium' || id === 'finance'))} onClick={() => (id === 'phone' ? (ownsPhone(game) ? setPhoneOpen(true) : setTab('shop')) : setTab(id))} aria-label={id === 'transfers' ? 'Transferências' : label} aria-current={on ? 'page' : undefined}>
+              <button key={id} className={on ? 'on' : ''} disabled={!!live || (!!game.unemployed && (id === 'squad' || id === 'transfers' || id === 'stadium' || id === 'finance' || id === 'youth'))} onClick={() => (id === 'phone' ? (ownsPhone(game) ? setPhoneOpen(true) : setTab('shop')) : setTab(id))} aria-label={id === 'transfers' ? 'Transferências' : label} aria-current={on ? 'page' : undefined}>
                 <span aria-hidden="true">{icon}</span>{label}
                 {id === 'phone' && ownsPhone(game) && unreadCount(game) + pendingCount(game) > 0 && <i className="nav-badge" aria-label={`${unreadCount(game) + pendingCount(game)} pendências`}>{unreadCount(game) + pendingCount(game)}</i>}
                 {id === 'transfers' && game.offers.length > 0 && <i className="nav-badge" aria-label={`${game.offers.length} propostas`}>{game.offers.length}</i>}

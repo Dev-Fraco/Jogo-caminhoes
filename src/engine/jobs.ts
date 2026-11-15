@@ -164,7 +164,7 @@ export function hire(g: GameState, clubId: string): GameState {
   }
   const t = s.teams[clubId];
   s = {
-    ...s, userClubId: clubId, unemployed: false, firedInfo: g.firedInfo, jobOffers: [], boardLow: 0, appliedKey: undefined,
+    ...s, youth: undefined, userClubId: clubId, unemployed: false, firedInfo: g.firedInfo, jobOffers: [], boardLow: 0, appliedKey: undefined,
     morale: { ...MORALE_START, board: 55 }, transferList: [], loanList: [], offers: [], loans: [], wageCover: 0,
     teams: { ...s.teams, [clubId]: { ...t, lineup: autoLineup(t.players, t.formation) } },
     jobs: [...jobsOf(s), { clubId, fromSeason: g.season }],

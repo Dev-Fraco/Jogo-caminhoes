@@ -327,6 +327,8 @@ export interface GameState {
   /** Dinheiro pessoal do treinador (R$) e quanto da folha ele paga (0/25/50/100). */
   coachMoney?: number;
   wageCover?: number;
+  /** Categorias de base do seu clube: academia (nível 0–5) e jovens em formação. */
+  youth?: import('./youth').YouthState;
   /** Mensagens (patrocínios, coletivas, diretoria, torcida) e metas do celular. */
   inbox?: import('./inbox').InboxState;
   /** Estádio do seu clube: capacidade, conforto, preço do ingresso e público dos últimos jogos. */

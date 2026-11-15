@@ -24,6 +24,7 @@ export const FEATURES = [
   { id: 'elenco', label: 'Elenco', hint: 'Gerenciar jogadores' },
   { id: 'financas', label: 'Finanças', hint: 'Saldo, salários e investimentos' },
   { id: 'estadio', label: 'Estádio', hint: 'Ampliações e melhorias' },
+  { id: 'base', label: 'Categorias de Base', hint: 'Revelar novos talentos' },
   { id: 'perfil', label: 'Perfil do Treinador', hint: 'Carreira, títulos e histórico' },
 ] as const;
 
