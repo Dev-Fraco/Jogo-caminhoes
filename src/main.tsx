@@ -4,11 +4,14 @@ import { App } from './ui/App';
 import './ui/styles.css';
 import './ui/fm.css';
 import { applyMods, loadMods } from './data/mods';
+import { loadInstalledPack } from './data/packStore';
 
 applyMods(loadMods());
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+loadInstalledPack().finally(() => {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  );
+});

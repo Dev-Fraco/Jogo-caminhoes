@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { installPack, preparePack, removePack, type Prepared } from '../data/packStore';
+import { packTemplate } from '../data/playerpack';
 import { applyMods, loadMods, modTemplate, parseMod, saveMods, type Mod } from '../data/mods';
 import { clearHall, loadHall, type HallEntry } from '../engine/hall';
 import { isValidSave, readRawSave } from '../engine/save';
@@ -69,6 +71,71 @@ export function LoadGame({ onBack, onLoaded }: { onBack: () => void; onLoaded: (
 
 /* ---------------- Mods da Comunidade ---------------- */
 
+
+/** Elencos e escudos: instala um pacote (.zip com .json + imagens) feito pelo próprio jogador. */
+function PackSection() {
+  const [prep, setPrep] = useState<Prepared | null>(null);
+  const [msg, setMsg] = useState<{ text: string; err?: boolean } | null>(null);
+  const [installed, setInstalled] = useState<string | null>(() => { try { return localStorage.getItem('vr-pack-name'); } catch { return null; } });
+  const [busy, setBusy] = useState(false);
+  const pick = async (list: FileList | null) => {
+    if (!list?.length) return;
+    setBusy(true); setMsg(null); setPrep(null);
+    const r = await preparePack(Array.from(list));
+    setBusy(false);
+    if (r.ok) setPrep(r.p); else setMsg({ text: r.error, err: true });
+  };
+  const doInstall = async () => {
+    if (!prep) return;
+    setBusy(true);
+    try {
+      await installPack(prep);
+      try { localStorage.setItem('vr-pack-name', prep.pack.name); } catch { /* sem armazenamento */ }
+      setInstalled(prep.pack.name); setMsg({ text: `Pacote "${prep.pack.name}" instalado. Vale para as próximas carreiras (e para clubes que você ver a partir de agora).` }); setPrep(null);
+    } catch { setMsg({ text: 'Não consegui guardar o pacote neste aparelho.', err: true }); }
+    setBusy(false);
+  };
+  const doRemove = async () => { await removePack(); try { localStorage.removeItem('vr-pack-name'); } catch { /* ok */ } setInstalled(null); setMsg({ text: 'Pacote removido. Dados originais de volta.' }); };
+  const download = () => {
+    const url = URL.createObjectURL(new Blob([packTemplate(2)], { type: 'application/json' }));
+    const a = document.createElement('a'); a.href = url; a.download = 'modelo-elencos-escudos.json'; a.click(); URL.revokeObjectURL(url);
+  };
+  return (
+    <section>
+      <h3>Elencos e escudos</h3>
+      <div className="card">
+        <p style={{ margin: 0 }}>Troque os <b>nomes dos jogadores</b> e os <b>escudos</b> dos clubes por um pacote feito por você (ou por dados livres/que você tem direito de usar).</p>
+        {installed && <p className="hint">Instalado: <b>{installed}</b></p>}
+        <input type="file" accept=".zip,.json,image/png,image/jpeg,image/webp" multiple aria-label="Arquivos do pacote de elencos" onChange={(e) => { void pick(e.target.files); e.target.value = ''; }} />
+        {busy && <p className="hint">Lendo…</p>}
+        {prep && (
+          <div style={{ marginTop: 8 }}>
+            <p style={{ margin: 0 }}><b>{prep.pack.name}</b>: {prep.report.clubs} clubes · {prep.report.players} jogadores · {prep.report.badges} escudos</p>
+            {prep.report.warnings.length > 0 && <details><summary className="hint">{prep.report.warnings.length} aviso(s)</summary><ul className="hint">{prep.report.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul></details>}
+            <button className="btn main" disabled={busy} onClick={() => void doInstall()}>Instalar pacote</button>
+          </div>
+        )}
+        <div className="un-btns" style={{ flexDirection: 'row', marginTop: 8 }}>
+          <button className="btn" onClick={download}>Baixar modelo</button>
+          {installed && <button className="btn" onClick={() => void doRemove()}>Remover pacote</button>}
+        </div>
+        {msg && <p className={`tf-notice ${msg.err ? 'err' : ''}`} role="status" style={{ marginTop: 10 }}>{msg.text}</p>}
+        <details style={{ marginTop: 8 }}>
+          <summary><b>Como instalar (passo a passo)</b></summary>
+          <ol className="hint">
+            <li>Toque em <b>Baixar modelo</b>. Ele traz clubes do jogo com os <b>ids certos</b>.</li>
+            <li>Abra o modelo num editor de texto e troque os jogadores: <code>name</code>, <code>pos</code> (GK, DEF, MID ou ATT), <code>age</code> e <code>overall</code> (opcionais). Pode acrescentar mais clubes com os ids do jogo.</li>
+            <li>Ponha as imagens dos escudos (PNG/JPG/WEBP) com o mesmo nome do campo <code>badge</code>.</li>
+            <li>Junte tudo num <b>.zip</b> (o .json + as imagens) — ou escolha o .json e as imagens soltas, de uma vez.</li>
+            <li>Toque no campo acima, escolha o arquivo, confira o resumo e toque <b>Instalar pacote</b>.</li>
+            <li>Inicie uma <b>nova carreira</b>. Clubes sem jogadores no pacote continuam com o elenco original; elencos curtos são completados com nomes fictícios.</li>
+          </ol>
+        </details>
+      </div>
+    </section>
+  );
+}
+
 /** Importa pacotes de dados (JSON) que trocam nomes, cores e estádios dos clubes nas próximas carreiras. */
 export function Mods({ onBack }: { onBack: () => void }) {
   const [mods, setMods] = useState<Mod[]>(() => loadMods());
@@ -108,6 +175,7 @@ export function Mods({ onBack }: { onBack: () => void }) {
           ))}
         </ul>
       </section>
+      <PackSection />
       <section>
         <h3>Instalar pacote</h3>
         <div className="card">
