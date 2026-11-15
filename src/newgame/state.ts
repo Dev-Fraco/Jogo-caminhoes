@@ -43,10 +43,45 @@ export const REPUTATIONS: Reputation[] = [
   { id: 'legend', label: 'Lenda', description: 'Nome forte, clubes grandes te procuram.', level: 5 },
 ];
 
+/** Desafios (substituem a reputação inicial): decidem os clubes permitidos, a verba e a dificuldade. */
+export type ChallengeId = 'easy' | 'normal' | 'hard' | 'legend' | 'create';
+export interface Challenge { id: ChallengeId; label: string; description: string; level: number }
+export const CHALLENGES: Challenge[] = [
+  { id: 'easy', label: 'Fácil', description: 'Escolha qualquer time do mundo. Verba cheia e diretoria paciente.', level: 1 },
+  { id: 'normal', label: 'Médio', description: 'Qualquer time, mas a verba do clube é cortada pela metade.', level: 2 },
+  { id: 'hard', label: 'Difícil', description: 'Só clubes da Série B ou C, com verba ainda menor (1/4) e diretoria exigente.', level: 3 },
+  { id: 'legend', label: 'Lendário', description: 'Só clubes que jogam apenas estaduais. Comece lá embaixo e chegue ao topo.', level: 4 },
+  { id: 'create', label: 'Criar um clube', description: 'Crie o seu próprio clube e comece pelo estadual.', level: 5 },
+];
+/** Reputação do treinador de cada desafio (define o nível inicial e o dinheiro pessoal). */
+export const CHALLENGE_REPUTATION: Record<ChallengeId, ReputationId> = { easy: 'pro', normal: 'semi-pro', hard: 'amateur', legend: 'unknown', create: 'unknown' };
+export const CHALLENGE_DIFFICULTY: Record<ChallengeId, DifficultyId> = { easy: 'easy', normal: 'normal', hard: 'hard', legend: 'legend', create: 'legend' };
+/** Quanto da verba do clube sobra em cada desafio. */
+export const BUDGET_FACTOR: Record<ChallengeId, number> = { easy: 1, normal: 0.5, hard: 0.25, legend: 0.5, create: 1 };
+
+/** O que cada desafio permite escolher no Mundo (null = tudo). */
+export function challengeWorld(c: ChallengeId | ''): { countries: string[]; leagues: string[]; divisions: string[] } | null {
+  if (c === 'hard') return { countries: ['BR'], leagues: ['brasileirao'], divisions: ['serie-b', 'serie-c'] };
+  if (c === 'legend' || c === 'create') return { countries: ['BR'], leagues: ['brasileirao'], divisions: ['br-estaduais'] };
+  return null;
+}
+/** Seleção de mundo imposta pelo desafio (só quando há uma única opção). */
+export function lockedWorld(c: ChallengeId | ''): WorldSelection | null {
+  return c === 'legend' || c === 'create' ? { countryId: 'BR', leagueId: 'brasileirao', divisionId: 'br-estaduais' } : null;
+}
+/** O clube escolhido vale neste desafio? */
+export function clubAllowed(c: ChallengeId | '', divisionId: string, club: { custom?: boolean }): boolean {
+  if (c === 'create') return !!club.custom && divisionId === 'br-estaduais';
+  if (c === 'legend') return !club.custom && divisionId === 'br-estaduais';
+  if (c === 'hard') return divisionId === 'serie-b' || divisionId === 'serie-c';
+  return true;
+}
+
 export interface CoachProfile {
   name: string;
   nationality: string; // id de NATIONALITIES, '' = não escolhido
-  reputation: ReputationId | ''; // '' = não escolhido
+  reputation: ReputationId | ''; // derivada do desafio
+  challenge: ChallengeId | ''; // '' = não escolhido
 }
 
 /** Etapa 2: ids de data/world.ts ('' = ainda não escolhido). */
@@ -96,7 +131,7 @@ export interface NewGameState {
 }
 
 export const createNewGameState = (): NewGameState => ({
-  coach: { name: '', nationality: '', reputation: '' },
+  coach: { name: '', nationality: '', reputation: '', challenge: '' },
   world: { countryId: '', leagueId: '', divisionId: '' },
   club: null,
   setup: { difficulty: 'normal', mode: 'career', saveName: '', saveNameEdited: false },
@@ -110,7 +145,7 @@ export function applyWorld(state: NewGameState, world: WorldSelection): NewGameS
 export const NAME_MIN = 2;
 export const NAME_MAX = 40;
 
-export interface CoachErrors { name?: string; nationality?: string; reputation?: string }
+export interface CoachErrors { name?: string; nationality?: string; challenge?: string }
 
 export function validateCoach(c: CoachProfile): CoachErrors {
   const errors: CoachErrors = {};
@@ -119,7 +154,7 @@ export function validateCoach(c: CoachProfile): CoachErrors {
   else if (name.length < NAME_MIN) errors.name = `O nome precisa ter pelo menos ${NAME_MIN} caracteres.`;
   else if (name.length > NAME_MAX) errors.name = `O nome pode ter no máximo ${NAME_MAX} caracteres.`;
   if (!NATIONALITIES.some((n) => n.id === c.nationality)) errors.nationality = 'Selecione a nacionalidade.';
-  if (!REPUTATIONS.some((r) => r.id === c.reputation)) errors.reputation = 'Escolha a reputação inicial.';
+  if (!CHALLENGES.some((x) => x.id === c.challenge)) errors.challenge = 'Escolha o desafio.';
   return errors;
 }
 
@@ -177,8 +212,8 @@ export interface StepDef {
 export const STEPS: StepDef[] = [
   { id: 'coach', title: 'Perfil do Treinador', implemented: true, isValid: (s) => Object.keys(validateCoach(s.coach)).length === 0 },
   { id: 'world', title: 'Mundo', subtitle: 'País, Ligas, Divisões', implemented: true, isValid: (s) => Object.keys(validateWorld(s.world)).length === 0 },
-  { id: 'club', title: 'Escolha do Clube', implemented: true, isValid: (s) => !!s.club && (!!getClub(s.world.divisionId, s.club.id) || (!!s.club.custom && s.world.divisionId === 'br-estaduais')) },
-  { id: 'confirm', title: 'Confirmação', subtitle: 'Dificuldade, Modo de Jogo, Nome do Save', implemented: true, isValid: (s) => Object.keys(validateSetup(s.setup)).length === 0 },
+  { id: 'club', title: 'Escolha do Clube', implemented: true, isValid: (s) => !!s.club && (!!getClub(s.world.divisionId, s.club.id) || (!!s.club.custom && s.world.divisionId === 'br-estaduais')) && clubAllowed(s.coach.challenge, s.world.divisionId, s.club) },
+  { id: 'confirm', title: 'Confirmação', subtitle: 'Resumo, Modo de Jogo, Nome do Save', implemented: true, isValid: (s) => Object.keys(validateSetup(s.setup)).length === 0 },
 ];
 
 /** Tudo preenchido? (todas as etapas válidas) */

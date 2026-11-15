@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { applyWorld, createNewGameState, isWizardComplete, NAME_MAX, NATIONALITIES, REPUTATIONS, STEPS, syncSaveName, validateCoach, type CoachProfile, type NewGameState } from '../newgame/state';
+import { applyWorld, CHALLENGE_DIFFICULTY, CHALLENGE_REPUTATION, CHALLENGES, challengeWorld, createNewGameState, isWizardComplete, lockedWorld, NAME_MAX, NATIONALITIES, STEPS, syncSaveName, validateCoach, type ChallengeId, type CoachProfile, type NewGameState } from '../newgame/state';
 import { Backdrop } from './Backdrop';
 import type { ClubData } from '../data/clubs';
 import { ClubStep } from './ClubStep';
@@ -8,7 +8,7 @@ import { SquadSheet } from './SquadSheet';
 import { WorldStep } from './WorldStep';
 import './newgame.css';
 
-type Touched = { name?: boolean; nationality?: boolean; reputation?: boolean };
+type Touched = { name?: boolean; nationality?: boolean; challenge?: boolean };
 
 /** Etapa 1 — Perfil do Treinador. */
 function CoachStep({ coach, onChange, touched, setTouched, refs }: {
@@ -57,13 +57,13 @@ function CoachStep({ coach, onChange, touched, setTouched, refs }: {
       </div>
 
       <fieldset className="nw-field nw-rep-set" aria-describedby="nw-rep-msg">
-        <legend>Reputação inicial</legend>
-        <div className="nw-rep" role="radiogroup" aria-label="Reputação inicial" ref={refs.rep}>
-          {REPUTATIONS.map((r) => (
+        <legend>Desafio</legend>
+        <div className="nw-rep" role="radiogroup" aria-label="Desafio" ref={refs.rep}>
+          {CHALLENGES.map((r) => (
             <label key={r.id} className="nw-rep-card">
               <input
-                type="radio" name="nw-rep" value={r.id} checked={coach.reputation === r.id}
-                onChange={() => { onChange({ ...coach, reputation: r.id }); touch('reputation'); }}
+                type="radio" name="nw-challenge" value={r.id} checked={coach.challenge === r.id}
+                onChange={() => { onChange({ ...coach, challenge: r.id as ChallengeId, reputation: CHALLENGE_REPUTATION[r.id as ChallengeId] }); touch('challenge'); }}
               />
               <span className="nw-rep-body">
                 <span className="nw-pips" aria-hidden="true">
@@ -75,7 +75,7 @@ function CoachStep({ coach, onChange, touched, setTouched, refs }: {
             </label>
           ))}
         </div>
-        <div id="nw-rep-msg" className="nw-msg">{err('reputation') && <span className="nw-error" role="alert">{err('reputation')}</span>}</div>
+        <div id="nw-rep-msg" className="nw-msg">{err('challenge') && <span className="nw-error" role="alert">{err('challenge')}</span>}</div>
       </fieldset>
     </>
   );
@@ -103,6 +103,18 @@ export function NewGame({ onBack, onStart, hasSave }: { onBack: () => void; onSt
   const opener = useRef<HTMLElement | null>(null);
   const refs = { name: useRef<HTMLInputElement>(null), nat: useRef<HTMLSelectElement>(null), rep: useRef<HTMLDivElement>(null) };
 
+  // Escolher o desafio ajusta a dificuldade e o mundo (Lendário e Criar clube vão direto para os estaduais; Difícil só Série B e C)
+  const changeCoach = (coach: CoachProfile) => setState((s) => {
+    let next: NewGameState = { ...s, coach };
+    if (coach.challenge !== s.coach.challenge && coach.challenge) {
+      next = { ...next, setup: { ...next.setup, difficulty: CHALLENGE_DIFFICULTY[coach.challenge] }, club: null };
+      const lock = lockedWorld(coach.challenge);
+      const rule = challengeWorld(coach.challenge);
+      if (lock) next = { ...next, world: lock };
+      else if (rule && (!rule.countries.includes(next.world.countryId) || !rule.divisions.includes(next.world.divisionId))) next = { ...next, world: { countryId: 'BR', leagueId: 'brasileirao', divisionId: '' } };
+    }
+    return next;
+  });
   const step = STEPS[index];
   const last = index === STEPS.length - 1;
   // Placeholders bloqueiam o Avançar; na escolha do clube ele só libera depois de selecionar um clube.
@@ -122,14 +134,14 @@ export function NewGame({ onBack, onStart, hasSave }: { onBack: () => void; onSt
     const e = validateCoach(state.coach);
     if (e.name) refs.name.current?.focus();
     else if (e.nationality) refs.nat.current?.focus();
-    else if (e.reputation) refs.rep.current?.querySelector<HTMLInputElement>('input')?.focus();
+    else if (e.challenge) refs.rep.current?.querySelector<HTMLInputElement>('input')?.focus();
   };
 
   const next = () => {
     if (!canAdvance) return;
     if (!step.isValid(state)) {
       if (step.id === 'coach') {
-        setTouched({ name: true, nationality: true, reputation: true });
+        setTouched({ name: true, nationality: true, challenge: true });
         focusFirstError();
       } else if (step.id === 'world') {
         setWorldAttempted(true);
@@ -175,11 +187,11 @@ export function NewGame({ onBack, onStart, hasSave }: { onBack: () => void; onSt
           <section className="nw-card" aria-labelledby="nw-title">
             <h2 id="nw-title" className="nw-sr">{step.title}</h2>
             {step.id === 'coach' ? (
-              <CoachStep coach={state.coach} onChange={(coach) => setState({ ...state, coach })} touched={touched} setTouched={setTouched} refs={refs} />
+              <CoachStep coach={state.coach} onChange={changeCoach} touched={touched} setTouched={setTouched} refs={refs} />
             ) : step.id === 'world' ? (
-              <WorldStep world={state.world} onChange={(world) => setState(applyWorld(state, world))} attempted={worldAttempted} focusTick={worldFocus} />
+              <WorldStep challenge={state.coach.challenge} world={state.world} onChange={(world) => setState(applyWorld(state, world))} attempted={worldAttempted} focusTick={worldFocus} />
             ) : step.id === 'club' ? (
-              <ClubStep world={state.world} selected={state.club} onSelect={(club) => setState({ ...state, club })} onViewSquad={(club, el) => { opener.current = el; setViewing(club); }} />
+              <ClubStep challenge={state.coach.challenge} world={state.world} selected={state.club} onSelect={(club) => setState({ ...state, club })} onViewSquad={(club, el) => { opener.current = el; setViewing(club); }} />
             ) : step.id === 'confirm' ? (
               <SetupStep state={state} onChange={(setup) => setState({ ...state, setup })} />
             ) : (

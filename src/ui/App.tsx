@@ -8,7 +8,7 @@ import { balanceOf } from '../engine/bank';
 import { clubOf } from '../engine/lookup';
 import { loadGame, saveGame } from '../engine/save';
 import type { GameState, MatchResult } from '../engine/types';
-import { START_SEASON, type NewGameState } from '../newgame/state';
+import { BUDGET_FACTOR, CHALLENGE_DIFFICULTY, CHALLENGE_REPUTATION, START_SEASON, type ChallengeId, type NewGameState } from '../newgame/state';
 import { formatBudget } from '../newgame/format';
 import { Backdrop } from './Backdrop';
 import { tintColor } from './badge';
@@ -82,9 +82,11 @@ export function App() {
 
   // Termina o assistente: cria a carreira na liga escolhida (pirâmide completa) e abre o jogo.
   const startCareer = (s: NewGameState) => {
-    const { name, nationality, reputation } = s.coach;
+    const { name, nationality } = s.coach;
+    const challenge = s.coach.challenge as ChallengeId;
+    const reputation = CHALLENGE_REPUTATION[challenge];
     const career = newCareer({
-      saveName: s.setup.saveName, coach: { name, nationality, reputation }, difficulty: s.setup.difficulty, mode: s.setup.mode,
+      saveName: s.setup.saveName, coach: { name, nationality, reputation }, difficulty: CHALLENGE_DIFFICULTY[challenge], mode: s.setup.mode, budgetFactor: BUDGET_FACTOR[challenge],
       season: START_SEASON, userClubId: s.club!.id, divisions: pyramidOf(s.world.countryId, s.world.leagueId), outside: s.world.divisionId === 'br-estaduais' ? s.club! : undefined,
       leagueName: s.world.leagueId === 'brasileirao' ? undefined : getLeague(s.world.countryId, s.world.leagueId)?.name, slots: slotsOfLeague(s.world.leagueId), cup: s.world.leagueId === 'brasileirao',
     });

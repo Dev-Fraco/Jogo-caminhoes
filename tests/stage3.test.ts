@@ -34,9 +34,10 @@ describe('clubes só de estadual (vitrine)', () => {
     expect(brazilPyramid().length).toBe(4); // a vitrine não entra na pirâmide
   });
   it('o assistente aceita o clube criado e o clube só de estadual', () => {
-    const base = { ...createNewGameState(), coach: { name: 'Carlos', nationality: 'BR', reputation: 'unknown' as const }, world: { countryId: 'BR', leagueId: 'brasileirao', divisionId: 'br-estaduais' }, setup: { difficulty: 'normal' as const, mode: 'career' as const, saveName: 'Meu save', saveNameEdited: true } };
-    expect(isWizardComplete({ ...base, club: custom() })).toBe(true);
+    const base = { ...createNewGameState(), coach: { name: 'Carlos', nationality: 'BR', reputation: 'unknown' as const, challenge: 'legend' as const }, world: { countryId: 'BR', leagueId: 'brasileirao', divisionId: 'br-estaduais' }, setup: { difficulty: 'normal' as const, mode: 'career' as const, saveName: 'Meu save', saveNameEdited: true } };
+    expect(isWizardComplete({ ...base, coach: { ...base.coach, challenge: 'create' }, club: custom() })).toBe(true);
     expect(isWizardComplete({ ...base, club: getClubs('br-estaduais')[0] })).toBe(true);
+    expect(isWizardComplete({ ...base, club: custom() })).toBe(false); // criar clube só no desafio próprio
     expect(STEPS[2].isValid({ ...base, club: { ...custom(), custom: false } })).toBe(false);
     expect(STEPS[2].isValid({ ...base, world: { ...base.world, divisionId: 'serie-a' }, club: custom() })).toBe(false); // clube criado só vale na vitrine de estaduais
   });

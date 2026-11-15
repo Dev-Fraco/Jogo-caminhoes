@@ -7,7 +7,7 @@ import {
 
 const full = (): NewGameState => ({
   ...createNewGameState(),
-  coach: { name: 'Carlos Almeida', nationality: 'BR', reputation: 'pro' },
+  coach: { name: 'Carlos Almeida', nationality: 'BR', reputation: 'pro', challenge: 'easy' },
   world: { countryId: 'BR', leagueId: 'brasileirao', divisionId: 'serie-a' },
   club: getClub('serie-a', 'palmeiras')!,
 });

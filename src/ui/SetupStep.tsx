@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { getCountry, getDivision, getLeague } from '../data/world';
 import { EXPECTATION_LABEL, formatBudget } from '../newgame/format';
 import {
-  DIFFICULTIES, GAME_MODES, NATIONALITIES, REPUTATIONS, SAVE_NAME_MAX, suggestSaveName, validateSetup,
+  CHALLENGES, GAME_MODES, NATIONALITIES, SAVE_NAME_MAX, suggestSaveName, validateSetup,
   type GameSetup, type NewGameState,
 } from '../newgame/state';
 import { ClubBadge } from './ClubBadge';
@@ -15,15 +15,14 @@ function Summary({ state }: { state: NewGameState }) {
   const league = getLeague(world.countryId, world.leagueId);
   const division = getDivision(world.countryId, world.leagueId, world.divisionId);
   const nat = NATIONALITIES.find((n) => n.id === coach.nationality);
-  const rep = REPUTATIONS.find((r) => r.id === coach.reputation);
-  const diff = DIFFICULTIES.find((d) => d.id === setup.difficulty);
+  const diff = CHALLENGES.find((d) => d.id === coach.challenge);
   const mode = GAME_MODES.find((m) => m.id === setup.mode);
 
   return (
     <div className="sp-summary" aria-label="Resumo da seleção">
       <h3>Resumo</h3>
       <dl>
-        <div><dt>Treinador</dt><dd><strong>{coach.name.trim()}</strong><small>{nat?.label} · {rep?.label}</small></dd></div>
+        <div><dt>Treinador</dt><dd><strong>{coach.name.trim()}</strong><small>{nat?.label}</small></dd></div>
         <div><dt>País / Liga / Divisão</dt><dd><strong><span aria-hidden="true">{country?.flag}</span> {country?.name}</strong><small>{league?.name} › {division?.name}</small></dd></div>
         <div className="sp-club">
           <dt>Clube</dt>
@@ -35,7 +34,7 @@ function Summary({ state }: { state: NewGameState }) {
             </span>
           </dd>
         </div>
-        <div><dt>Dificuldade</dt><dd><strong>{diff?.label}</strong></dd></div>
+        <div><dt>Desafio</dt><dd><strong>{diff?.label}</strong><small>{diff?.description}</small></dd></div>
         <div><dt>Modo de jogo</dt><dd><strong>{mode?.label}</strong></dd></div>
         <div><dt>Nome do save</dt><dd><strong className="sp-savename">{setup.saveName.trim() || '—'}</strong></dd></div>
       </dl>
@@ -56,22 +55,6 @@ export function SetupStep({ state, onChange }: Props) {
   return (
     <div className="sp-layout">
       <div className="sp-form">
-        <fieldset className="nw-field sp-set">
-          <legend>Dificuldade</legend>
-          <div className="sp-diff" role="radiogroup" aria-label="Dificuldade">
-            {DIFFICULTIES.map((d) => (
-              <label key={d.id} className="nw-pick">
-                <input type="radio" name="nw-difficulty" value={d.id} checked={setup.difficulty === d.id} onChange={() => onChange({ ...setup, difficulty: d.id })} />
-                <span className="nw-pick-body">
-                  <span className="nw-pips sp-pips" aria-hidden="true">{[1, 2, 3, 4].map((i) => <i key={i} className={i <= d.level ? 'on' : ''} />)}</span>
-                  <strong>{d.label}</strong>
-                  <small>{d.description}</small>
-                </span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
         <div className="nw-field sp-set">
           <label htmlFor="nw-save">Nome do save</label>
           <input

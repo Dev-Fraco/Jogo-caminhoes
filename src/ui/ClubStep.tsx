@@ -4,7 +4,7 @@ import { getClubs, sortByName, type ClubData } from '../data/clubs';
 import { generateSquad } from '../engine/squad';
 import { getCountry, getDivision, getLeague } from '../data/world';
 import { EXPECTATION_LABEL, formatBudget } from '../newgame/format';
-import type { WorldSelection } from '../newgame/state';
+import { BUDGET_FACTOR, type ChallengeId, type WorldSelection } from '../newgame/state';
 import { squadOverall } from '../newgame/squadInfo';
 import { ClubBadge } from './ClubBadge';
 import './clubstep.css';
@@ -26,6 +26,7 @@ const Swatch = ({ club }: { club: ClubData }) => (
 );
 
 interface Props {
+  challenge?: ChallengeId | '';
   world: WorldSelection;
   selected: ClubData | null;
   onSelect: (club: ClubData) => void;
@@ -76,11 +77,13 @@ function CreateClub({ initial, onCreate, onCancel }: { initial: ClubData | null;
   );
 }
 
-export function ClubStep({ world, selected, onSelect, onViewSquad }: Props) {
+export function ClubStep({ challenge = '', world, selected, onSelect, onViewSquad }: Props) {
+  const factor = challenge ? BUDGET_FACTOR[challenge] : 1;
+  const createMode = challenge === 'create'; // só cria o clube
   const estadual = world.divisionId === 'br-estaduais';
   const [uf, setUf] = useState('all');
   const [q, setQ] = useState('');
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState(createMode && !selected?.custom); // desafio "Criar um clube": já abre o formulário
   const all = useMemo(() => sortByName(getClubs(world.divisionId)), [world.divisionId]);
   const clubs = estadual ? all.filter((c) => (uf === 'all' || c.uf === uf) && (!q || norm(c.name).includes(norm(q)))) : all;
   const country = getCountry(world.countryId);
@@ -96,11 +99,11 @@ export function ClubStep({ world, selected, onSelect, onViewSquad }: Props) {
 
       {estadual && (
         <div className="cc-estadual">
-          <p className="cc-note">Clubes que só jogam estadual começam pelo campeonato do estado e sonham em chegar à Série D. Ou crie o seu.</p>
-          {!creating && <button type="button" className="nw-btn go" onClick={() => setCreating(true)}>➕ {selected?.custom ? 'Editar meu clube' : 'Criar meu clube'}</button>}
+          <p className="cc-note">{createMode ? 'Crie o seu clube: ele começa pelo campeonato do estado e sonha em chegar à Série D.' : 'Clubes que só jogam estadual começam pelo campeonato do estado e sonham em chegar à Série D.'}</p>
+          {createMode && !creating && <button type="button" className="nw-btn go" onClick={() => setCreating(true)}>➕ {selected?.custom ? 'Editar meu clube' : 'Criar meu clube'}</button>}
           {selected?.custom && !creating && <p className="cc-note">Clube criado: <b>{selected.name}</b> ({selected.uf}).</p>}
           {creating && <CreateClub initial={selected?.custom ? selected : null} onCreate={(c) => { onSelect(c); setCreating(false); }} onCancel={() => setCreating(false)} />}
-          {!creating && (
+          {!creating && !createMode && (
             <div className="cc-filters">
               <input type="search" aria-label="Buscar clube" placeholder="Buscar clube" value={q} onChange={(e) => setQ(e.target.value)} />
               <select aria-label="Estado" value={uf} onChange={(e) => setUf(e.target.value)}>
@@ -112,7 +115,7 @@ export function ClubStep({ world, selected, onSelect, onViewSquad }: Props) {
         </div>
       )}
 
-      {creating ? null : clubs.length === 0 ? (
+      {creating || createMode ? null : clubs.length === 0 ? (
         <div className="nw-soon">
           <h2>Sem clubes ainda</h2>
           <p className="nw-soon-sub">Os clubes desta divisão ainda não foram cadastrados. Volte e escolha outra divisão.</p>
@@ -134,7 +137,7 @@ export function ClubStep({ world, selected, onSelect, onViewSquad }: Props) {
                   </span>
                   <span className="cc-venue"><PinIcon />{c.stadium} · {c.city}</span>
                   <span className="cc-meta">
-                    <span className="cc-budget"><small>Orçamento</small>{formatBudget(c.budget)}</span>
+                    <span className="cc-budget"><small>Orçamento</small>{formatBudget(c.custom ? c.budget : c.budget * factor)}</span>
                     <span className="cc-budget"><small>Overall</small>{squadOverall(c.squad)}</span>
                     <span className={`cc-exp ${c.boardExpectation}`} title="Meta da diretoria">{EXPECTATION_LABEL[c.boardExpectation]}</span>
                     <Stars n={c.reputation} />

@@ -55,6 +55,8 @@ export interface CareerInput {
   divisions: { id: string; name: string; clubs: ClubData[]; format?: 'groups' }[];
   /** Clube que só joga estadual (ou criado pelo jogador): fica fora da pirâmide e começa pelo estadual. */
   outside?: ClubData;
+  /** Parte da verba do seu clube que sobra (desafios: 1, 0,5, 0,25...). */
+  budgetFactor?: number;
 }
 
 function buildSeason(divisions: DivisionState[]): { fixtures: Fixture[]; totalRounds: number } {
@@ -86,6 +88,7 @@ export function newCareer(input: CareerInput, seed = Date.now() % 2147483647): G
     clubs[c.id] = { id: c.id, name: c.name, shortName: c.shortName, badge: c.badge, primaryColor: c.primaryColor, secondaryColor: c.secondaryColor, stadium: c.stadium, city: c.city, reputation: c.reputation, boardExpectation: c.boardExpectation };
     teams[c.id] = teamFromPlayers(c.id, c.squad);
   }
+  if (input.budgetFactor !== undefined && input.budgetFactor !== 1) budgets[input.userClubId] = Math.round(budgets[input.userClubId] * input.budgetFactor / 10_000) * 10_000;
   divisions = divisions.map((d, i) => withGroups(d, teams, seed * 7 + i));
   if (input.outside) divisions.push({ id: 'fora', name: 'Estadual', clubIds: [input.outside.id], format: 'outside' });
   const { fixtures, totalRounds } = buildSeason(divisions);

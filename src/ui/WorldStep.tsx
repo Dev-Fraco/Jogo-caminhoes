@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { COUNTRY_ORDER, getCountry, getDivision, getLeague, isPrincipal, WORLD_DATA } from '../data/world';
-import { validateWorld, type WorldSelection } from '../newgame/state';
+import { challengeWorld, validateWorld, type ChallengeId, type WorldSelection } from '../newgame/state';
 import './worldstep.css';
 
 interface Props {
+  challenge?: ChallengeId | '';
   world: WorldSelection;
   onChange: (w: WorldSelection) => void;
   /** Já tentou avançar? Só então as mensagens de erro aparecem. */
@@ -13,7 +14,8 @@ interface Props {
 }
 
 /** Etapa 2 — Mundo: país → liga → divisão. Trocar o país limpa liga e divisão; trocar a liga limpa a divisão. */
-export function WorldStep({ world, onChange, attempted, focusTick }: Props) {
+export function WorldStep({ challenge = '', world, onChange, attempted, focusTick }: Props) {
+  const rule = challengeWorld(challenge); // o desafio pode limitar países, ligas e divisões
   const root = useRef<HTMLDivElement>(null);
   const country = getCountry(world.countryId);
   const league = getLeague(world.countryId, world.leagueId);
@@ -29,7 +31,7 @@ export function WorldStep({ world, onChange, attempted, focusTick }: Props) {
       <fieldset className="nw-field nw-ws-set" data-err={!!errors.country}>
         <legend>País</legend>
         <div className="nw-countries" role="radiogroup" aria-label="País">
-          {COUNTRY_ORDER.map((id) => (
+          {COUNTRY_ORDER.filter((id) => !rule || rule.countries.includes(id)).map((id) => (
             <label key={id} className="nw-pick nw-country">
               <input type="radio" name="nw-country" value={id} checked={world.countryId === id}
                 onChange={() => onChange({ countryId: id, leagueId: '', divisionId: '' })} />
@@ -40,6 +42,7 @@ export function WorldStep({ world, onChange, attempted, focusTick }: Props) {
             </label>
           ))}
         </div>
+        {rule && <p className="nw-ws-hint">Desafio {challenge === 'hard' ? 'Difícil' : challenge === 'create' ? 'Criar um clube' : 'Lendário'}: escolha limitada.</p>}
         <div className="nw-msg">{errors.country && <span className="nw-error" role="alert">{errors.country}</span>}</div>
       </fieldset>
 
@@ -47,7 +50,7 @@ export function WorldStep({ world, onChange, attempted, focusTick }: Props) {
         <fieldset className={`nw-field nw-ws-set ${country ? '' : 'locked'}`} data-err={!!errors.league} disabled={!country}>
           <legend>Liga</legend>
           <div className="nw-ws-list" role="radiogroup" aria-label="Liga">
-            {country ? country.leagues.map((l) => (
+            {country ? country.leagues.filter((l) => !rule || rule.leagues.includes(l.id)).map((l) => (
               <label key={l.id} className="nw-pick">
                 <input type="radio" name="nw-league" value={l.id} checked={world.leagueId === l.id}
                   onChange={() => onChange({ ...world, leagueId: l.id, divisionId: '' })} />
@@ -63,7 +66,7 @@ export function WorldStep({ world, onChange, attempted, focusTick }: Props) {
         <fieldset className={`nw-field nw-ws-set ${league ? '' : 'locked'}`} data-err={!!errors.division} disabled={!league}>
           <legend>Divisão</legend>
           <div className="nw-ws-list" role="radiogroup" aria-label="Divisão">
-            {league ? league.divisions.map((d) => (
+            {league ? league.divisions.filter((d) => !rule || rule.divisions.includes(d.id)).map((d) => (
               <label key={d.id} className="nw-pick">
                 <input type="radio" name="nw-division" value={d.id} checked={world.divisionId === d.id}
                   onChange={() => onChange({ ...world, divisionId: d.id })} />
