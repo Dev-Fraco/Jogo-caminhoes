@@ -7,27 +7,38 @@ import { setAutoDebit } from '../engine/bank';
 import { FINGER, balanceOf, bankOf, boletoTotal, brl, clubCharge, hasBank, myPixKey, openBoletos, payBoleto, payPix, quotePix, registerBank, MIN_PASSWORD } from '../engine/bank';
 import type { BankTx, Boleto, GameState, PixCharge } from '../engine/types';
 import { copyText, pasteText } from './clipboard';
+import { AppHead, AppTabs } from './AppKit';
+import { ClubBadge } from './ClubBadge';
 
-interface Props { game: GameState; onChange: (g: GameState) => void }
+interface Props { game: GameState; onChange: (g: GameState) => void; onHome?: () => void }
 type View = { name: 'home' } | { name: 'pix' } | { name: 'confirm'; key: string; charge: PixCharge } | { name: 'boletos' } | { name: 'boleto'; boleto: Boleto } | { name: 'statement' } | { name: 'club' } | { name: 'receipt'; tx: BankTx; detail: string; to: string };
 
 /** App do Banco: cadastro, saldo do treinador, Pix (colar a chave, conferir, confirmar com a senha), boletos, extrato e comprovantes. */
-export function BankApp({ game, onChange }: Props) {
+export function BankApp({ game, onChange, onHome }: Props) {
   const [view, setView] = useState<View>({ name: 'home' });
   if (!hasBank(game)) return <Register game={game} onChange={onChange} />;
   const go = (v: View) => setView(v);
   const home = () => setView({ name: 'home' });
+  const tab = view.name === 'home' ? 'banco' : view.name === 'pix' || view.name === 'confirm' || view.name === 'club' ? 'pix' : view.name === 'statement' || view.name === 'receipt' ? 'hist' : 'banco';
   return (
-    <div className="ph-app-screen bk">
-      {view.name === 'home' && <BankHome game={game} go={go} onChange={onChange} />}
-      {view.name === 'pix' && <PixScreen game={game} go={go} back={home} />}
-      {view.name === 'club' && <ClubPix game={game} onChange={onChange} go={go} back={home} />}
-      {view.name === 'confirm' && <Confirm game={game} onChange={onChange} keyText={view.key} charge={view.charge} go={go} back={() => go({ name: 'pix' })} />}
-      {view.name === 'boletos' && <Boletos game={game} go={go} back={home} />}
-      {view.name === 'boleto' && <BoletoPay game={game} onChange={onChange} boleto={view.boleto} go={go} back={() => go({ name: 'boletos' })} />}
-      {view.name === 'statement' && <Statement game={game} back={home} />}
-      {view.name === 'receipt' && <Receipt game={game} tx={view.tx} detail={view.detail} to={view.to} done={home} />}
-    </div>
+    <>
+      <div className="ph-app-screen bk bk2">
+        {view.name === 'home' && <BankHome game={game} go={go} onChange={onChange} />}
+        {view.name === 'pix' && <PixScreen game={game} go={go} back={home} />}
+        {view.name === 'club' && <ClubPix game={game} onChange={onChange} go={go} back={home} />}
+        {view.name === 'confirm' && <Confirm game={game} onChange={onChange} keyText={view.key} charge={view.charge} go={go} back={() => go({ name: 'pix' })} />}
+        {view.name === 'boletos' && <Boletos game={game} go={go} back={home} />}
+        {view.name === 'boleto' && <BoletoPay game={game} onChange={onChange} boleto={view.boleto} go={go} back={() => go({ name: 'boletos' })} />}
+        {view.name === 'statement' && <Statement game={game} back={home} />}
+        {view.name === 'receipt' && <Receipt game={game} tx={view.tx} detail={view.detail} to={view.to} done={home} />}
+      </div>
+      <AppTabs items={[
+        { icon: '🏠', label: 'Início', onClick: () => onHome?.() },
+        { icon: '🏛️', label: 'Banco', on: tab === 'banco', onClick: home },
+        { icon: '💠', label: 'Pix', on: tab === 'pix', onClick: () => go({ name: 'pix' }) },
+        { icon: '🧾', label: 'Histórico', on: tab === 'hist', onClick: () => go({ name: 'statement' }) },
+      ]} />
+    </>
   );
 }
 
@@ -65,21 +76,22 @@ function BankHome({ game, go, onChange }: { game: GameState; go: (v: View) => vo
   const late = open.filter((b) => b.status === 'late').length;
   return (
     <>
-      <p className="bk-sub">Olá, {bankOf(game)!.name.split(' ')[0]}</p>
-      <div className="bk-balance">
-        <small>Saldo em conta (seu dinheiro pessoal)</small>
-        <b>{hide ? 'R$ ••••••' : brl(balanceOf(game))}</b>
-        <button className="ph-link" onClick={() => setHide(!hide)}>{hide ? '👁️ Mostrar' : '🙈 Ocultar'}</button>
+      <AppHead icon="🏛️" title="Banco" />
+      <div className="bk2-card">
+        <b className="bk2-hi">Olá, {bankOf(game)!.name.split(' ')[0]} 👋</b>
+        <small>Saldo em conta</small>
+        <strong>{hide ? 'R$ ••••••' : brl(balanceOf(game))}</strong>
+        <button className="bk2-eye" onClick={() => setHide(!hide)} aria-label={hide ? 'Mostrar saldo' : 'Ocultar saldo'} aria-pressed={hide}>{hide ? '👁️' : '🙈'}</button>
       </div>
-      <div className="bk-actions">
+      <div className="bk2-actions">
         <button onClick={() => go({ name: 'pix' })}><span>💠</span>Pix</button>
         <button onClick={() => go({ name: 'boletos' })}><span>🧾</span>Boletos{open.length > 0 && <em>{open.length}</em>}</button>
         <button onClick={() => go({ name: 'statement' })}><span>📄</span>Extrato</button>
-        <button onClick={() => go({ name: 'club' })}><span>🏟️</span>Ajudar o clube</button>
+        <button onClick={() => go({ name: 'club' })}><span className="bk2-clubico"><ClubBadge club={game.clubs[game.userClubId]} size={26} /></span>Ajudar o clube</button>
       </div>
       {late > 0 && <p className="ph-pad-msg err" role="alert">⚠️ Você tem {late} {late === 1 ? 'boleto vencido' : 'boletos vencidos'} com multa.</p>}
       <AutoDebit game={game} onChange={onChange} />
-      <h3>Últimas movimentações</h3>
+      <div className="bk2-h"><h3>Últimas movimentações</h3><button onClick={() => go({ name: 'statement' })}>Ver todas ›</button></div>
       <TxList txs={bankOf(game)!.txs.slice(0, 4)} />
     </>
   );
@@ -96,18 +108,17 @@ function AutoDebit({ game, onChange }: { game: GameState; onChange: (g: GameStat
     ...(fibra !== undefined && phoneOf(game).fibra?.ssid ? [{ label: 'NetFibra', day: fibra, amount: FIBRA_MONTHLY }] : []),
     ...contracts.map((c) => ({ label: c.kind === 'rent' ? `Aluguel — ${c.description}` : `Parcela — ${c.description}`, day: c.nextDay!, amount: c.monthly })),
   ].sort((a, b) => a.day - b.day);
+  const icon = (label: string) => (label.startsWith('Aluguel') ? '🏠' : label.startsWith('Parcela') ? '🚗' : '📶');
   return (
     <>
-      <h3>Débito automático</h3>
-      <div className="ph-card">
-        <label className="ph-toggle-row">
-          <span className="grow"><b>Mensalidades no débito automático</b><small>Plano de dados, NetFibra, aluguel e parcelas saem do saldo no dia, sem você pagar.</small></span>
-          <input type="checkbox" role="switch" checked={on} onChange={(e) => onChange(setAutoDebit(game, e.target.checked))} aria-label="Débito automático" />
-        </label>
-        {rows.length === 0 ? <p className="hint">Nenhuma mensalidade ativa.</p> : (
-          <ul className="bk-tx">{rows.map((r, i) => <li key={i}><div className="grow"><b>{r.label}</b><small>{on ? 'Debita em' : 'Vence em'} {formatDay(r.day)}</small></div><b className="out">− {brl(r.amount)}</b></li>)}</ul>
-        )}
+      <div className="bk2-h">
+        <h3>Débito automático</h3>
+        <input className="bk2-switch" type="checkbox" role="switch" checked={on} onChange={(e) => onChange(setAutoDebit(game, e.target.checked))} aria-label="Débito automático" />
       </div>
+      {rows.length === 0 ? <p className="hint">Nenhuma mensalidade ativa.</p> : (
+        <ul className="bk2-list">{rows.map((r, i) => <li key={i} className="bk2-row"><span className="bk2-tile blue">{icon(r.label)}</span><div className="grow"><b>{r.label}</b><small>{on ? 'Debita em' : 'Vence em'} {formatDay(r.day)}</small></div><b className="out">− {brl(r.amount)}</b></li>)}</ul>
+      )}
+      <p className="bk2-note">Plano de dados, NetFibra, aluguel e parcelas saem do saldo no dia, sem você pagar.</p>
     </>
   );
 }
@@ -115,9 +126,13 @@ function AutoDebit({ game, onChange }: { game: GameState; onChange: (g: GameStat
 function TxList({ txs }: { txs: BankTx[] }) {
   if (txs.length === 0) return <p className="ph-empty">Nenhuma movimentação ainda.</p>;
   return (
-    <ul className="bk-tx">
+    <ul className="bk2-list">
       {txs.map((t) => (
-        <li key={t.id}><div className="grow"><b>{t.title}</b><small>{t.detail} · {t.day !== undefined ? formatDay(t.day) : `Temp. ${t.season}, rodada ${t.round}`}</small></div><b className={t.amount < 0 ? 'out' : 'in'}>{t.amount < 0 ? '−' : '+'} {brl(Math.abs(t.amount))}</b></li>
+        <li key={t.id} className="bk2-row">
+          <span className={`bk2-tile ${t.amount >= 0 || t.kind === 'pix' ? 'green' : 'blue'}`}>{t.kind === 'boleto' ? '🧾' : t.kind === 'income' ? '💵' : '💠'}</span>
+          <div className="grow"><b>{t.title}</b><small>{t.detail}</small><small>{t.day !== undefined ? formatDay(t.day) : `Temp. ${t.season}, rodada ${t.round}`}</small></div>
+          <b className={t.amount < 0 ? 'out' : 'in'}>{t.amount < 0 ? '−' : '+'} {brl(Math.abs(t.amount))}</b>
+        </li>
       ))}
     </ul>
   );

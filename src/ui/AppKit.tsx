@@ -52,3 +52,17 @@ export const getPending = (app: string) => pending[app];
 export const setPending = (app: string, v: { chargeId: string; selId: string } | null) => { if (v) pending[app] = v; else delete pending[app]; };
 
 export const Stars = ({ n }: { n: number }) => <span className="ap-stars" aria-label={`Prestígio ${n} de 10`}>{'★'.repeat(Math.ceil(n / 2))}{'☆'.repeat(5 - Math.ceil(n / 2))}</span>;
+
+/** Cabeçalho dos apps do celular: ícone, nome e o brilho azul ao fundo. */
+export function AppHead({ icon, title, right }: { icon: string; title: string; right?: React.ReactNode }) {
+  return <div className="app-head"><span className="app-head-ico" aria-hidden="true">{icon}</span><h2>{title}</h2>{right && <div className="app-head-r">{right}</div>}</div>;
+}
+
+/** Barra de abas de baixo dos apps do celular (a primeira costuma levar ao Início do celular). */
+export function AppTabs({ items }: { items: { icon: string; label: string; on?: boolean; onClick: () => void }[] }) {
+  return (
+    <nav className="app-tabs" aria-label="Menu do aplicativo">
+      {items.map((t) => <button key={t.label} className={t.on ? 'on' : ''} aria-current={t.on ? 'page' : undefined} onClick={t.onClick}><span aria-hidden="true">{t.icon}</span><small>{t.label}</small></button>)}
+    </nav>
+  );
+}

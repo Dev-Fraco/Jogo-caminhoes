@@ -27,6 +27,17 @@ type Screen = 'home' | 'loja' | 'config' | string;
 const clock = () => new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 const MAX_TRIES = 5;
 
+/** Ícones da barra de status: Wi-Fi, sinal e bateria (desenhados, não emoji). */
+function StatusIcons({ wifi, signal = true }: { wifi: boolean; signal?: boolean }) {
+  return (
+    <span className="ph-sicons" aria-hidden="true">
+      {wifi && <svg viewBox="0 0 24 18" width="16" height="12"><path d="M2 6.5a14 14 0 0 1 20 0M5.5 10a9 9 0 0 1 13 0M9 13.3a4.3 4.3 0 0 1 6 0" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /><circle cx="12" cy="16" r="1.6" fill="currentColor" /></svg>}
+      {signal && <svg viewBox="0 0 20 16" width="16" height="12"><rect x="1" y="11" width="3" height="4" rx="1" fill="currentColor" /><rect x="6" y="8" width="3" height="7" rx="1" fill="currentColor" /><rect x="11" y="5" width="3" height="10" rx="1" fill="currentColor" /><rect x="16" y="1" width="3" height="14" rx="1" fill="currentColor" /></svg>}
+    </span>
+  );
+}
+const Battery = () => <span className="ph-batt" aria-hidden="true"><svg viewBox="0 0 28 14" width="24" height="12"><rect x="1" y="1" width="23" height="12" rx="3.5" fill="none" stroke="currentColor" strokeWidth="1.6" /><rect x="3" y="3" width="19" height="8" rx="2" fill="currentColor" /><rect x="25" y="5" width="2" height="4" rx="1" fill="currentColor" /></svg>92%</span>;
+
 /** Teclado numérico com bolinhas do PIN. `onDone` recebe os 4 dígitos. */
 function PinPad({ title, hint, error, onDone, shake }: { title: string; hint?: string; error?: string; onDone: (pin: string) => void; shake?: number }) {
   const [pin, setPin] = useState('');
@@ -117,9 +128,8 @@ export function Phone({ game, onChange, onClose }: Props) {
           <div className="ph-wall" style={{ background: wall }} />
           <div className="ph-status ph-pull" role="button" tabIndex={0} aria-label="Abrir painel rápido (puxe para baixo)" onClick={() => setPanel(true)} onKeyDown={(e) => { if (e.key === 'Enter') setPanel(true); }}
             onPointerDown={(e) => { pullY.current = e.clientY; }} onPointerMove={(e) => { if (pullY.current !== null && e.clientY - pullY.current > 30) { pullY.current = null; setPanel(true); } }} onPointerUp={() => { pullY.current = null; }}>
-            {locked
-              ? <><span>Vida Real FC {conn.wifi ? '📶' : ''}</span><span>{unread > 0 && !s.dnd ? `🔔 ${unread} ` : ''}{s.dnd ? '🌙 ' : ''}{conn.airplane ? '✈️ ' : ''}{conn.mobileData ? '5G ' : ''}📶 🔋 92%</span></>
-              : <><span>{now}</span><span>{unread > 0 && !s.dnd ? `🔔 ${unread} ` : ''}{s.dnd ? '🌙 ' : ''}{conn.airplane ? '✈️ ' : ''}{conn.wifi ? 'Wi-Fi ' : ''}{conn.mobileData ? '5G ' : ''}📶 🔋</span></>}
+            <span className="ph-sl">{locked ? 'Vida Real FC' : now}<StatusIcons wifi={conn.wifi} signal={false} /></span>
+            <span className="ph-sr">{unread > 0 && !s.dnd ? `🔔 ${unread} ` : ''}{s.dnd ? '🌙 ' : ''}{conn.airplane ? '✈️ ' : ''}{conn.mobileData ? '5G ' : ''}<StatusIcons wifi={false} /><Battery /></span>
           </div>
           {toast && !s.dnd && <button className="ph-toast" onClick={() => { setToast(null); setScreen('mensagens'); }} aria-live="polite">💬 {toast}</button>}
           {panel && <QuickPanel game={game} onChange={onChange} onClose={() => setPanel(false)} onCalc={() => setScreen('calc')} canCalc={!locked} />}
@@ -135,7 +145,7 @@ export function Phone({ game, onChange, onClose }: Props) {
               {screen === 'nonet' && <NoNet game={game} id={target} onPanel={() => setPanel(true)} />}
               {screen === 'loja' && <Store game={game} onChange={onChange} onOpen={go} getGame={() => gameRef.current} onPanel={() => setPanel(true)} />}
               {screen === 'config' && <Settings game={game} onChange={onChange} />}
-              {screen === 'banco' && <BankApp game={game} onChange={onChange} />}
+              {screen === 'banco' && <BankApp game={game} onChange={onChange} onHome={() => setScreen('home')} />}
               {screen === 'concessionaria' && <DealerApp game={game} onChange={onChange} onOpenApp={go} />}
               {screen === 'corretor' && <RealtorApp game={game} onChange={onChange} onOpenApp={go} />}
               {screen === 'cassino' && <CasinoApp game={game} onChange={onChange} onOpenApp={go} />}
