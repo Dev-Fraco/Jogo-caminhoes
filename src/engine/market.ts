@@ -53,7 +53,7 @@ export function directory(g: GameState): DirClub[] {
     const c = g.clubs[id];
     out.push({ id, name: c.name, shortName: c.shortName, badge: c.badge, ...home, divisionId: d.id, divisionName: d.name, divIndex: i, reputation: c.reputation, primaryColor: c.primaryColor, secondaryColor: c.secondaryColor, domestic: true });
   }));
-  for (const f of foreignIndex().values()) if (!g.teams[f.id]) { const { data: _d, ...rest } = f; out.push(rest); }
+  for (const f of foreignIndex().values()) if (!g.teams[f.id]) { const { data: d, ...rest } = f; out.push({ ...rest, badge: d.badge }); }
   return out;
 }
 
