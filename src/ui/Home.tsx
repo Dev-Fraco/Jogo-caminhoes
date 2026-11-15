@@ -13,7 +13,7 @@ import { acceptAnyOffer } from '../engine/abroad';
 import { firingWarning } from '../engine/game';
 import { ClubBadge } from './ClubBadge';
 import { stadiumOf } from '../engine/stadium';
-import { calOf, daysToMatch, formatDayLong, formatDayShort, isMatchDay, nextMatchDay } from '../engine/calendar';
+import { calOf, daysToMatch, formatDay, formatDayLong, formatDayShort, fromDay, isMatchDay, nextMatchDay } from '../engine/calendar';
 import { SalaryCard } from './SalaryCard';
 import { FmCard, Jersey, ScreenTitle, StatStrip, SubTabs } from './FmParts';
 import { transferFeed } from '../engine/news';
@@ -139,30 +139,57 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
   const gate = stadiumOf(game).log[0];
   const gateNow = gate && gate.season === game.season && gate.round === game.round - 1 && last.length > 0 ? gate : undefined; // jogo em casa que acabou de acontecer
 
+  const rawLabel = (ev ? ev.label.replace(/^\S+\s/, '') : game.estadual?.due ? `${estadualOfUser(game)?.comp.name ?? 'Estadual'} · ${stepLabel(game.estadual, game.estadual.step)}` : `${division.name} · Rodada ${Math.min(game.round, game.totalRounds)} de ${game.totalRounds}`);
+  const cut = rawLabel.lastIndexOf(' · ');
+  const compTitle = cut > 0 ? rawLabel.slice(0, cut) : rawLabel, compSub = cut > 0 ? rawLabel.slice(cut + 3) : '';
+  const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+  const matchTime = (day: number) => { const wd = fromDay(day).wd; return wd === 0 || wd === 6 ? '16:00' : '21:30'; }; // fim de semana à tarde; meio da semana à noite
+
   return (
     <>
       <EstadualNotice game={game} onChange={onChange} />
-      <div className="card center">
-        <small>{ev ? ev.label : game.estadual?.due ? `🏟️ Estaduais · ${stepLabel(game.estadual, game.estadual.step)} (${game.estadual.step} de ${game.estadual.totalSteps})` : `${division.name} · Rodada ${Math.min(game.round, game.totalRounds)} de ${game.totalRounds}`}</small>
-        {!next && !ev && <p className="hint">Seu clube não joga nesta rodada.</p>}
-        {next && <h2>{name(next.homeId)} <span className="vs">x</span> {name(next.awayId)}</h2>}
-        <p className="cal-today">📅 {formatDayLong(calOf(game).day)}</p>
-        {isMatchDay(game) ? (
-          <button className="primary" onClick={() => { setOpen(null); onPlay(); }}>{next || ev ? '▶ Iniciar partida' : '⏩ Simular a rodada'}</button>
-        ) : (
-          <>
-            <p className="cal-next">{next || ev ? 'Próximo jogo' : 'Próxima rodada'}: <b>{formatDayShort(nextMatchDay(game))}</b> · {daysToMatch(game) === 1 ? 'amanhã' : `em ${daysToMatch(game)} dias`}</p>
-            <button className="primary" onClick={onAdvance}>⏭ Avançar 1 dia</button>
-            <button className="btn home-lineup" onClick={onAdvanceToMatch}>⏩ Ir até o dia do jogo</button>
-          </>
-        )}
+      <div className="home2-top">
+        <div className="mk-card home2-pill"><span aria-hidden="true">💵</span><b>{formatBudget(game.budgets[game.userClubId])}</b></div>
+        <div className="mk-card home2-pill"><span aria-hidden="true">📅</span><span><small>Temporada {game.season}</small><b>{formatDay(calOf(game).day)}</b></span></div>
+      </div>
+      <div className="card mk-card home2-match">
+        <div className="home2-comp">
+          <span className="home2-trophy" aria-hidden="true">🏆</span>
+          <div><b>{compTitle}</b>{compSub && <small>{compSub}</small>}</div>
+        </div>
+        {next ? (
+          <div className="home2-vs">
+            <div><ClubBadge club={clubOf(game, next.homeId)} size={78} /><b>{name(next.homeId)}</b></div>
+            <span className="vs">X</span>
+            <div><ClubBadge club={clubOf(game, next.awayId)} size={78} /><b>{name(next.awayId)}</b></div>
+          </div>
+        ) : <p className="hint" style={{ textAlign: 'center' }}>Seu clube não joga nesta rodada.</p>}
+        <div className="home2-when">
+          <span>📅 {cap(formatDayLong(nextMatchDay(game)))}</span>
+          <span>🕒 {matchTime(nextMatchDay(game))}</span>
+        </div>
+        {!isMatchDay(game) && <p className="cal-next" style={{ textAlign: 'center' }}>Hoje: <b>{formatDayShort(calOf(game).day)}</b> · {next || ev ? 'jogo' : 'rodada'} {daysToMatch(game) === 1 ? 'amanhã' : `em ${daysToMatch(game)} dias`}</p>}
         {!ev && COMPS.map((k) => { const c = game[k], cfg = CONTINENTALS[k]; if (!c) return null; const mine = c.groups.some((gr) => gr.clubIds.includes(game.userClubId)); return mine || c.championId ? <small key={k} className="cup-line">{c.championId ? `${cfg.icon} ${c.name}: campeão ${name(c.championId)}` : userIn(game, k) ? `${cfg.icon} ${c.name}: ${stepName(k, c)} em breve` : `${cfg.icon} ${c.name}: seu clube foi eliminado`}</small> : null; })}
         {!ev && game.mundial && <small className="cup-line">{game.mundial.championId ? `🌍 ${game.mundial.name}: campeão ${name(game.mundial.championId)}` : `🌍 ${game.mundial.name}: ${mundialStepName(game.mundial)}`}</small>}
         {game.cup && !ev && <small className="cup-line">{game.cup.championId ? `🏆 ${game.cup.name}: campeão ${name(game.cup.championId)}` : userInCup(game) ? `🏆 ${game.cup.name}: você está na ${game.cup.rounds[game.cup.roundIndex].name}` : `🏆 ${game.cup.name}: seu clube já foi eliminado`}</small>}
-        <button className="btn home-lineup" onClick={onEditLineup}>Editar escalação</button>
-        {!askSkip && <button className="btn home-lineup" onClick={() => setAskSkip(true)}>⏭ Pular temporada</button>}
+      </div>
+      <div className="home2-actions">
+        {isMatchDay(game)
+          ? <button className="primary home2-go" onClick={() => { setOpen(null); onPlay(); }}><span aria-hidden="true">▶</span> {next || ev ? 'Iniciar partida' : 'Simular a rodada'}</button>
+          : <button className="primary home2-go" onClick={onAdvance}><span aria-hidden="true">⏭</span> Avançar 1 dia</button>}
+        <button className="btn home2-lineup" onClick={onEditLineup}><span aria-hidden="true">📋</span> Editar escalação</button>
+      </div>
+      {!isMatchDay(game) && <button className="btn home2-wide" onClick={onAdvanceToMatch}>⏩ Ir até o dia do jogo</button>}
+      <div className="home2-grid">
+        <button className="mk-card" onClick={() => onTab('transfers')}><span aria-hidden="true">🔁</span>Transferências</button>
+        <button className="mk-card" onClick={onFinance}><span aria-hidden="true">💰</span>Finanças</button>
+        <button className="mk-card" onClick={onStadium}><span aria-hidden="true">🏟️</span>Estádio</button>
+        <button className="mk-card" onClick={() => onTab('profile')}><span aria-hidden="true">🧑‍💼</span>Treinador</button>
+        <button className="mk-card" onClick={() => setAskSkip(true)}><span aria-hidden="true">⏭</span>Pular temporada</button>
+        <button className="mk-card" onClick={onCalendar}><span aria-hidden="true">🗓️</span>Calendário</button>
+      </div>
         {askSkip && (
-          <div className="skip-ask" role="alert">
+          <div className="skip-ask mk-card" role="alert">
             <p>Quantos anos pular? Todos os jogos de todas as divisões, as copas e o Mundial serão simulados, inclusive os do seu clube. No fim você vê os campeões de cada ano.</p>
             <div className="chips" role="radiogroup" aria-label="Anos para pular">
               {[1, 2, 3, 4, 5].map((n) => <button key={n} role="radio" aria-checked={skipYears === n} className={skipYears === n ? 'on' : ''} onClick={() => setSkipYears(n)}>{n} {n === 1 ? 'ano' : 'anos'}</button>)}
@@ -172,11 +199,6 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
             <button className="btn" onClick={() => setAskSkip(false)}>Cancelar</button>
           </div>
         )}
-        <button className="btn home-lineup" onClick={onFinance}>💰 Finanças e salários</button>
-        <button className="btn home-lineup" onClick={onCalendar}>📅 Calendário (todos os jogos)</button>
-        <button className="btn home-lineup" onClick={onStadium}>🏟️ Estádio e ingressos</button>
-        <button className="btn home-lineup" onClick={() => onTab('profile')}>🧑‍💼 Perfil do treinador</button>
-      </div>
 
       <section className="fm-hero">
         <Jersey club={game.clubs[game.userClubId]} />
