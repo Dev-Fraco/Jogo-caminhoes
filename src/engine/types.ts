@@ -294,6 +294,10 @@ export interface GameState {
   loans: Loan[]; // jogadores seus emprestados
   loansIn?: LoanIn[]; // jogadores de outros clubes emprestados ao seu
   transferBan?: TransferBan; // transfer ban do fair play financeiro
+  /** Últimas transferências feitas pela IA (jogador → de onde, para onde e quando): impede revender ou recontratar o mesmo jogador logo em seguida. */
+  aiMoves?: Record<string, { season: number; round: number; from: string; to: string }>;
+  /** Lesões (o jogo ainda não gera lesões; se existirem, a IA as considera): jogador → temporada e rodada em que volta. */
+  injuries?: Record<string, { season: number; untilRound: number }>;
   news: NewsItem[]; // últimas notícias (mais recente primeiro)
   divisions: DivisionState[]; // ordem: Série A, B, C, D
   teams: Record<string, TeamState>; // todos os clubes
