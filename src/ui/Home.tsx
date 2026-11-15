@@ -13,7 +13,7 @@ import { acceptAnyOffer } from '../engine/abroad';
 import { firingWarning } from '../engine/game';
 import { ClubBadge } from './ClubBadge';
 import { stadiumOf } from '../engine/stadium';
-import { calOf, daysToMatch, formatDay, formatDayLong, formatDayShort, fromDay, isMatchDay, nextMatchDay } from '../engine/calendar';
+import { calOf, daysToMatch, formatDay, formatDayLong, formatDayShort, isMatchDay, matchTimeOf, nextMatchDay } from '../engine/calendar';
 import { SalaryCard } from './SalaryCard';
 import { FmCard, Jersey, ScreenTitle, StatStrip, SubTabs } from './FmParts';
 import { transferFeed } from '../engine/news';
@@ -143,7 +143,6 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
   const cut = rawLabel.lastIndexOf(' · ');
   const compTitle = cut > 0 ? rawLabel.slice(0, cut) : rawLabel, compSub = cut > 0 ? rawLabel.slice(cut + 3) : '';
   const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
-  const matchTime = (day: number) => { const wd = fromDay(day).wd; return wd === 0 || wd === 6 ? '16:00' : '21:30'; }; // fim de semana à tarde; meio da semana à noite
 
   return (
     <>
@@ -166,7 +165,7 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
         ) : <p className="hint" style={{ textAlign: 'center' }}>Seu clube não joga nesta rodada.</p>}
         <div className="home2-when">
           <span>📅 {cap(formatDayLong(nextMatchDay(game)))}</span>
-          <span>🕒 {matchTime(nextMatchDay(game))}</span>
+          <span>🕒 {matchTimeOf(nextMatchDay(game))}</span>
         </div>
         {!isMatchDay(game) && <p className="cal-next" style={{ textAlign: 'center' }}>Hoje: <b>{formatDayShort(calOf(game).day)}</b> · {next || ev ? 'jogo' : 'rodada'} {daysToMatch(game) === 1 ? 'amanhã' : `em ${daysToMatch(game)} dias`}</p>}
         {!ev && COMPS.map((k) => { const c = game[k], cfg = CONTINENTALS[k]; if (!c) return null; const mine = c.groups.some((gr) => gr.clubIds.includes(game.userClubId)); return mine || c.championId ? <small key={k} className="cup-line">{c.championId ? `${cfg.icon} ${c.name}: campeão ${name(c.championId)}` : userIn(game, k) ? `${cfg.icon} ${c.name}: ${stepName(k, c)} em breve` : `${cfg.icon} ${c.name}: seu clube foi eliminado`}</small> : null; })}

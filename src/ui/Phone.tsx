@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { audio } from '../audio/audio';
-import { calOf, formatDayLong } from '../engine/calendar';
+import { calOf, formatDayLong, formatDayShort, matchTimeOf } from '../engine/calendar';
+import { clubOf } from '../engine/lookup';
+import { upcomingMatches } from '../engine/upcoming';
 import { appsUsed, connOf, downloadMs, INSTALL_MS, modelOf, needsInternet, netState, openDelayMs } from '../engine/phone';
 import { changePin, checkPin, clearNotifications, hasPin, installApp, installedApps, isInstalled, markAllRead, phoneOf, PIN_LENGTH, registerPin, STORE_APPS, uninstallApp, updatePhoneSettings, WALLPAPERS, appById } from '../engine/phone';
 import type { GameState } from '../engine/types';
@@ -110,12 +112,14 @@ export function Phone({ game, onChange, onClose }: Props) {
   return (
     <div className={`ph-overlay ${closing ? 'out' : ''}`} role="dialog" aria-modal="true" aria-label="Celular">
       <div className={`ph-device ${s.dark ? 'dark' : 'light'} ${s.bigText ? 'big' : ''}`}>
-        <i className="ph-notch" aria-hidden="true" />
+        <i className="ph-notch ph-cam" aria-hidden="true" />
         <div className="ph-screen" style={{ filter: `brightness(${s.brightness / 100})` }}>
           <div className="ph-wall" style={{ background: wall }} />
           <div className="ph-status ph-pull" role="button" tabIndex={0} aria-label="Abrir painel rápido (puxe para baixo)" onClick={() => setPanel(true)} onKeyDown={(e) => { if (e.key === 'Enter') setPanel(true); }}
             onPointerDown={(e) => { pullY.current = e.clientY; }} onPointerMove={(e) => { if (pullY.current !== null && e.clientY - pullY.current > 30) { pullY.current = null; setPanel(true); } }} onPointerUp={() => { pullY.current = null; }}>
-            <span>{now}</span><span>{unread > 0 && !s.dnd ? `🔔 ${unread} ` : ''}{s.dnd ? '🌙 ' : ''}{conn.airplane ? '✈️ ' : ''}{conn.wifi ? 'Wi-Fi ' : ''}{conn.mobileData ? '5G ' : ''}📶 🔋</span>
+            {locked
+              ? <><span>Vida Real FC {conn.wifi ? '📶' : ''}</span><span>{unread > 0 && !s.dnd ? `🔔 ${unread} ` : ''}{s.dnd ? '🌙 ' : ''}{conn.airplane ? '✈️ ' : ''}{conn.mobileData ? '5G ' : ''}📶 🔋 92%</span></>
+              : <><span>{now}</span><span>{unread > 0 && !s.dnd ? `🔔 ${unread} ` : ''}{s.dnd ? '🌙 ' : ''}{conn.airplane ? '✈️ ' : ''}{conn.wifi ? 'Wi-Fi ' : ''}{conn.mobileData ? '5G ' : ''}📶 🔋</span></>}
           </div>
           {toast && !s.dnd && <button className="ph-toast" onClick={() => { setToast(null); setScreen('mensagens'); }} aria-live="polite">💬 {toast}</button>}
           {panel && <QuickPanel game={game} onChange={onChange} onClose={() => setPanel(false)} onCalc={() => setScreen('calc')} canCalc={!locked} />}
@@ -187,26 +191,68 @@ function FingerOffer({ onYes, onNo }: { onYes: () => void; onNo: () => void }) {
   );
 }
 
+/** Barra "Deslize para desbloquear": arraste a bolinha até o fim (ou toque) para abrir o PIN / sensor. */
+function SlideToUnlock({ onDone, label }: { onDone: () => void; label: string }) {
+  const track = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ sx: number; max: number; moved: boolean } | null>(null);
+  const [x, setX] = useState(0);
+  const [back, setBack] = useState(false);
+  const down = (e: React.PointerEvent) => {
+    const w = track.current?.clientWidth ?? 0;
+    drag.current = { sx: e.clientX - x, max: Math.max(0, w - 56), moved: false }; setBack(false);
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+  const move = (e: React.PointerEvent) => { const d = drag.current; if (!d) return; const nx = Math.max(0, Math.min(d.max, e.clientX - d.sx)); if (Math.abs(nx - x) > 3) d.moved = true; setX(nx); };
+  const up = () => {
+    const d = drag.current; drag.current = null;
+    if (!d) return;
+    if (!d.moved || x >= d.max * 0.8) { setX(d.max); window.setTimeout(onDone, 120); return; } // toque simples também libera
+    setBack(true); setX(0);
+  };
+  return (
+    <div className="ph-slide" ref={track} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} role="button" tabIndex={0} aria-label={label}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onDone(); }}>
+      <i className={`ph-thumb ${back ? 'back' : ''}`} style={{ transform: `translateX(${x}px)` }} aria-hidden="true">»</i>
+      <span className="ph-slide-t">{label}</span>
+    </div>
+  );
+}
+
 function LockScreen({ game, now, onSubmit, firstPin, err, shake, onReset, onFinger }: { game: GameState; now: string; onSubmit: (pin: string) => void; firstPin: string | null; err?: string; shake: number; onReset: () => void; onFinger: () => void }) {
   const ph = phoneOf(game);
   const registering = !hasPin(game);
-  const [show, setShow] = useState(false);
+  const [slid, setSlid] = useState(false);
+  const [torch, setTorch] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
   const finger = !registering && !!ph.settings.fingerprint;
   const [usePin, setUsePin] = useState(false);
+  const nextGame = upcomingMatches(game, 1)[0];
+  const today = calOf(game).day;
+  const hm = now;
   return (
-    <div className="ph-lock">
-      <div className="ph-time" aria-live="off">{now}</div>
-      <div className="ph-date">{formatDayLong(calOf(game).day)}</div>
-      {!ph.settings.dnd && ph.notifications.filter((n) => !n.read).slice(0, 3).map((n) => (
+    <div className={`ph-lock ${torch ? 'torch' : ''}`}>
+      <div className="ph-lockico" aria-hidden="true">🔒</div>
+      <div className="ph-time" aria-live="off">{hm}</div>
+      <div className="ph-date">{formatDayLong(today)}</div>
+      <div className="ph-next">
+        <span className="ph-next-ico" aria-hidden="true">📅</span>
+        <span className="ph-next-t"><b>Próximo jogo</b><small>{nextGame ? `${clubOf(game, nextGame.homeId).name} x ${clubOf(game, nextGame.awayId).name}` : 'Sem jogos marcados'}</small></span>
+        {nextGame && <span className="ph-next-d">{nextGame.day === today ? 'Hoje' : formatDayShort(nextGame.day)} • {matchTimeOf(nextGame.day)}</span>}
+      </div>
+      {!ph.settings.dnd && ph.notifications.filter((n) => !n.read).slice(0, 2).map((n) => (
         <div className="ph-notif" key={n.id}><b>{appById(n.app)?.icon} {appById(n.app)?.name ?? n.app}</b><span>{n.text}</span></div>
       ))}
-      {finger && !usePin ? (
+      {!slid ? (
+        <div className="ph-lockbar">
+          <button className="ph-round" aria-label={torch ? 'Desligar a lanterna' : 'Ligar a lanterna'} aria-pressed={torch} onClick={() => setTorch(!torch)}>🔦</button>
+          <SlideToUnlock label={registering ? 'Deslize para criar o PIN' : 'Deslize para desbloquear'} onDone={() => setSlid(true)} />
+          <button className="ph-round" aria-label="Câmera" onClick={() => { setNote('A câmera do celular ainda não funciona.'); window.setTimeout(() => setNote(null), 2500); }}>📷</button>
+        </div>
+      ) : finger && !usePin ? (
         <>
           <Finger label="Toque no sensor para desbloquear" onDone={onFinger} />
           <button className="ph-link" onClick={() => setUsePin(true)}>Usar PIN</button>
         </>
-      ) : !show && !(finger && usePin) ? (
-        <button className="ph-unlock" onClick={() => setShow(true)}>{registering ? '🔐 Toque para cadastrar o PIN' : '🔓 Toque para desbloquear'}</button>
       ) : registering ? (
         <>
           <PinPad key={firstPin === null ? 'a' : 'b'} title={firstPin === null ? 'Crie o seu PIN' : 'Confirme o PIN'} hint={firstPin === null ? `${PIN_LENGTH} números. Você vai usá-lo toda vez que abrir o celular.` : 'Digite o mesmo PIN de novo.'} error={err} shake={shake} onDone={onSubmit} />
@@ -215,6 +261,7 @@ function LockScreen({ game, now, onSubmit, firstPin, err, shake, onReset, onFing
       ) : (
         <PinPad title="Digite o PIN" error={err} shake={shake} onDone={onSubmit} />
       )}
+      {note && <p className="ph-lock-note" role="status">{note}</p>}
     </div>
   );
 }

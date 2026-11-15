@@ -26,6 +26,7 @@ export const APPS: PhoneApp[] = [...SYSTEM_APPS, ...STORE_APPS];
 export const appById = (id: string) => APPS.find((a) => a.id === id);
 
 export const WALLPAPERS: { id: PhoneSettings['wallpaper']; label: string; css: string }[] = [
+  { id: 'azul', label: 'Azul', css: 'url("data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 380 760\' preserveAspectRatio=\'none\'><defs><linearGradient id=\'g\' x1=\'0\' y1=\'1\' x2=\'1\' y2=\'0\'><stop offset=\'0\' stop-color=\'%231d6bff\' stop-opacity=\'0\'/><stop offset=\'.55\' stop-color=\'%2362b4ff\'/><stop offset=\'1\' stop-color=\'%23c7e4ff\'/></linearGradient><filter id=\'b\' x=\'-20%25\' y=\'-20%25\' width=\'140%25\' height=\'140%25\'><feGaussianBlur stdDeviation=\'4\'/></filter></defs><g fill=\'none\' stroke=\'url(%23g)\' stroke-linecap=\'round\'><path d=\'M-10 330 Q110 140 270 95\' stroke-width=\'3\' filter=\'url(%23b)\'/><path d=\'M-10 330 Q110 140 270 95\' stroke-width=\'1.4\'/><path d=\'M-10 640 Q230 520 400 330\' stroke-width=\'4\' filter=\'url(%23b)\'/><path d=\'M-10 640 Q230 520 400 330\' stroke-width=\'1.6\'/><path d=\'M110 780 Q330 650 400 480\' stroke-width=\'4\' filter=\'url(%23b)\'/><path d=\'M110 780 Q330 650 400 480\' stroke-width=\'1.6\'/></g></svg>") center/100% 100% no-repeat, radial-gradient(120% 55% at 15% 12%, rgba(30,120,255,.5), transparent 60%), radial-gradient(100% 45% at 95% 72%, rgba(20,110,255,.45), transparent 62%), linear-gradient(165deg,#031030,#06255e 45%,#041a45 72%,#020b24)' },
   { id: 'neon', label: 'Neon', css: 'linear-gradient(160deg,#021726,#0b3a66 45%,#6a3dff 85%,#22e6ff)' },
   { id: 'ouro', label: 'Ouro', css: 'linear-gradient(160deg,#3a2a05,#a97a10 55%,#f0b92b)' },
   { id: 'noite', label: 'Noite', css: 'linear-gradient(160deg,#050812,#1b2a52 60%,#3a4f93)' },
@@ -35,7 +36,7 @@ export const WALLPAPERS: { id: PhoneSettings['wallpaper']; label: string; css: s
 
 export const DEFAULT_PHONE: PhoneState = {
   installed: [],
-  settings: { wallpaper: 'neon', dark: true, brightness: 100, bigText: false, dnd: false, sounds: true, vibration: true, fingerprint: false },
+  settings: { wallpaper: 'azul', dark: true, brightness: 100, bigText: false, dnd: false, sounds: true, vibration: true, fingerprint: false },
   notifications: [],
 };
 

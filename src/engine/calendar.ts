@@ -80,3 +80,6 @@ export function newSeasonCalendar(g: GameState): Calendar {
   const start = seasonStart(g.season, prev + 14);
   return { day: Math.max(start - 3, prev), start, slot: 0 };
 }
+
+/** Horário (só visual) do jogo: fim de semana à tarde, meio da semana à noite. */
+export const matchTimeOf = (day: number) => { const wd = fromDay(day).wd; return wd === 0 || wd === 6 ? '16:00' : '21:30'; };

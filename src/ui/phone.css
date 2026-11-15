@@ -169,3 +169,30 @@
 .nw-head.bad { background: rgba(229, 38, 45, .22); }
 .cs-pick button, .cs-slot { border-color: rgba(255,255,255,.3); }
 .cs-pick button.on, .cs-slot.lit { border-color: #fff; }
+
+/* Tela de bloqueio no padrão mockup: moldura prateada, câmera, relógio grande, "Próximo jogo" e deslizar para desbloquear */
+.ph-device { border-radius: 46px; padding: 9px; background: linear-gradient(150deg, #3a3f4a, #0b0c10 45%, #2b2f38); border: 2px solid #8b909c; box-shadow: 0 0 0 2px #14151a, 0 0 0 5px rgba(139, 144, 156, .25), 0 30px 80px rgba(0, 0, 0, .75); }
+.ph-screen { border-radius: 38px; }
+.ph-notch.ph-cam { top: 17px; width: 13px; height: 13px; margin-left: -6px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #2a3550, #02040a 60%); box-shadow: 0 0 0 2px #05070d; }
+.ph-lock { align-items: center; padding: 18px 18px 22px; }
+.ph-lockico { margin-top: 26px; font-size: 22px; filter: drop-shadow(0 0 6px rgba(255, 255, 255, .4)); }
+.ph-lock .ph-time { font: 300 84px/1 system-ui, sans-serif; letter-spacing: -2px; margin-top: 8px; }
+.ph-lock .ph-date { font: 500 16px system-ui; margin: 8px 0 18px; opacity: .95; }
+.ph-next { width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px; background: rgba(40, 90, 190, .32); border: 1px solid rgba(140, 190, 255, .28); backdrop-filter: blur(10px); margin-bottom: 8px; color: #fff; }
+.ph-next-ico { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; background: linear-gradient(180deg, #3b8cff, #1d5fd8); font-size: 19px; flex: none; }
+.ph-next-t { flex: 1; display: grid; min-width: 0; } .ph-next-t b { font: 700 15px system-ui; } .ph-next-t small { font-size: 12.5px; opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ph-next-d { padding-left: 10px; border-left: 1px solid rgba(255, 255, 255, .25); font: 600 13px system-ui; white-space: nowrap; }
+.ph-lockbar { margin-top: auto; width: 100%; display: flex; align-items: center; gap: 10px; }
+.ph-round { width: 46px; height: 46px; flex: none; border-radius: 50%; border: 1px solid rgba(255, 255, 255, .28); background: rgba(10, 20, 50, .55); color: #fff; font-size: 20px; cursor: pointer; backdrop-filter: blur(6px); }
+.ph-round[aria-pressed='true'] { background: #fff; box-shadow: 0 0 24px #fff; }
+.ph-slide { position: relative; flex: 1; height: 56px; border-radius: 28px; border: 1.5px solid rgba(80, 160, 255, .85); background: rgba(8, 24, 70, .55); box-shadow: 0 0 16px rgba(47, 139, 255, .55), inset 0 0 14px rgba(47, 139, 255, .25); display: grid; place-items: center; overflow: hidden; touch-action: none; cursor: grab; user-select: none; }
+.ph-slide-t { font: 500 15px system-ui; color: #fff; padding-left: 40px; animation: ph-shimmer 2.4s ease-in-out infinite; }
+.ph-thumb { position: absolute; left: 4px; top: 4px; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font: 700 26px/1 system-ui; font-style: normal; color: #fff; background: rgba(30, 80, 180, .55); border: 1px solid rgba(140, 190, 255, .6); }
+.ph-thumb.back { transition: transform .25s ease; }
+.ph-lock.torch::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(70% 50% at 50% 100%, rgba(255, 255, 255, .55), transparent 70%); }
+.ph-lock-note { position: absolute; left: 18px; right: 18px; bottom: 90px; margin: 0; padding: 8px 12px; text-align: center; border-radius: 12px; background: rgba(0, 0, 0, .6); font-size: 13px; }
+@keyframes ph-shimmer { 0%, 100% { opacity: .75; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .ph-slide-t { animation: none; } }
+.ph-slide-t { white-space: nowrap; font-size: 14px; padding-left: 36px; }
+.ph-next-t small { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.2; }
+.ph-next-d { font-size: 12px; }
