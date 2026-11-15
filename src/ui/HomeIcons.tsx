@@ -17,6 +17,8 @@ export const ICONS: Record<string, ReactNode> = {
   sair: <g {...S} strokeWidth={2.2}><path d="M12 3v8.5" /><path d="M6.6 6.6a8 8 0 1 0 10.8 0" /></g>,
   // atalhos da faixa inferior
   competicoes: <g {...S}><path d="M7.5 4h9v5a4.5 4.5 0 0 1-9 0zM7.5 6H4.5c0 3 1.2 4.5 3.3 4.8M16.5 6h3c0 3-1.2 4.5-3.3 4.8M12 13.5V17M8.5 20h7M9.5 17h5" /></g>,
+  'salao-campeoes': <g {...S}><path d="M7.5 4h9v5a4.5 4.5 0 0 1-9 0zM7.5 6H4.5c0 3 1.2 4.5 3.3 4.8M16.5 6h3c0 3-1.2 4.5-3.3 4.8M12 13.5V17M8.5 20h7M9.5 17h5" /></g>,
+  perfil: <g {...S}><circle cx="12" cy="8" r="3.6" /><path d="M4.5 20c.8-4 3.8-6 7.5-6s6.7 2 7.5 6" /></g>,
   transferencias: <g {...S}><path d="M4 8h14.5M15 4.5 18.5 8 15 11.5M20 16H5.5M9 12.5 5.5 16 9 19.5" /></g>,
   elenco: <g fill="currentColor"><circle cx="12" cy="7.8" r="3.3" /><circle cx="4.8" cy="10" r="2.3" /><circle cx="19.2" cy="10" r="2.3" /><path d="M6 20v-3a6 6 0 0 1 12 0v3z" /><path d="M1.3 18.2v-1.6A3.6 3.6 0 0 1 5.4 13a7 7 0 0 0-1.8 4.6v.6zM22.7 18.2v-1.6a3.6 3.6 0 0 0-4.1-3.6 7 7 0 0 1 1.8 4.6v.6z" /></g>,
   financas: <g {...S}><ellipse cx="9" cy="7" rx="5.5" ry="2.4" /><path d="M3.5 7v4c0 1.3 2.5 2.4 5.5 2.4s5.5-1.1 5.5-2.4V7M3.5 11v4c0 1.3 2.5 2.4 5.5 2.4M14.5 11.5c3 0 6 .9 6 2.2s-3 2.3-6 2.3-6-1-6-2.3M20.5 13.7v4c0 1.3-3 2.3-6 2.3s-6-1-6-2.3v-1" /></g>,

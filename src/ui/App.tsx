@@ -13,7 +13,7 @@ import { formatBudget } from '../newgame/format';
 import { Backdrop } from './Backdrop';
 import { tintColor } from './badge';
 import { ClubBadge } from './ClubBadge';
-import { MainMenu, MENU_OPTIONS, type MenuOptionId } from './MainMenu';
+import { MainMenu, MENU_OPTIONS, type FeatureId, type MenuOptionId } from './MainMenu';
 import { NewGame } from './NewGame';
 import { Options } from './Options';
 import { Placeholder } from './Placeholder';
@@ -21,6 +21,7 @@ import { Home } from './Home';
 import { Finance } from './Finance';
 import { Stadium } from './Stadium';
 import { ShopScreen } from './ShopScreen';
+import { CoachProfile } from './CoachProfile';
 import { DEFAULT_PHONE, ownsPhone } from '../engine/phone';
 import { Phone } from './Phone';
 import { unreadCount } from '../engine/phone';
@@ -34,7 +35,7 @@ import { Unemployed } from './Unemployed';
 import { Table } from './Table';
 import { Transfers } from './Transfers';
 
-type Tab = 'home' | 'squad' | 'table' | 'transfers' | 'lineup' | 'finance' | 'stadium' | 'shop'; // 'lineup' é uma tela dentro do Início
+type Tab = 'home' | 'squad' | 'table' | 'transfers' | 'lineup' | 'finance' | 'stadium' | 'shop' | 'profile'; // 'lineup' é uma tela dentro do Início
 /** Telas do app: menu inicial, uma das 8 opções (placeholder) ou a partida em andamento. */
 type Screen = 'menu' | MenuOptionId | 'game' | 'hall';
 
@@ -92,10 +93,18 @@ export function App() {
   // as outras 6 opções são placeholders até serem desenvolvidas uma a uma.
   const select = (id: MenuOptionId) => {
     if (id === 'continuar' && game) { setTab('home'); setScreen('game'); return; }
+    if (id === 'salao-campeoes') { setScreen('hall'); return; }
     setScreen(id);
   };
+  const feature = (id: FeatureId) => {
+    if (!game) { setScreen('novo-jogo'); return; } // sem carreira salva: começa uma
+    const to: Record<FeatureId, Tab> = { competicoes: 'table', transferencias: 'transfers', elenco: 'squad', financas: 'finance', estadio: 'stadium', perfil: 'profile' };
+    const t = to[id];
+    if (game.unemployed && ['squad', 'transfers', 'finance', 'stadium'].includes(t)) setTab('home'); else setTab(t);
+    setScreen('game');
+  };
 
-  if (screen === 'menu') return <MainMenu onSelect={select} hasSave={!!game} />;
+  if (screen === 'menu') return <MainMenu onSelect={select} onFeature={feature} hasSave={!!game} />;
 
   if (screen === 'novo-jogo') return <NewGame onBack={toMenu} onStart={startCareer} hasSave={!!game} />;
 
@@ -153,6 +162,7 @@ export function App() {
           )}
           {!live && game.unemployed && tab === 'home' && <Unemployed game={game} over={isSeasonOver(game)} onChange={setGame} onPlay={play} onSkip={() => skipSeason(1)} onNextSeason={nextSeason} onSeeTables={() => { setTableView('rounds'); setTab('table'); }} />}
           {!live && !game.unemployed && tab === 'home' && <Home game={game} onChange={setGame} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onSkip={skipSeason} onSeeTables={() => { setTableView('div'); setTab('table'); }} onSeeResults={() => { setTableView('rounds'); setTab('table'); }} onEditLineup={() => setTab('lineup')} onFinance={() => setTab('finance')} onStadium={() => setTab('stadium')} onTab={(t) => setTab(t)} onNews={() => setPhoneOpen(true)} onSeeHist={() => { setTableView('hist'); setTab('table'); }} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} />}
+          {!live && tab === 'profile' && <CoachProfile game={game} onNext={(t) => setTab(t)} />}
           {!live && tab === 'shop' && <ShopScreen game={game} onChange={setGame} onOpenPhone={() => setPhoneOpen(true)} />}
           {!live && !game.unemployed && tab === 'stadium' && <Stadium game={game} onChange={setGame} onBack={() => setTab('home')} />}
           {!live && !game.unemployed && tab === 'finance' && <Finance game={game} onChange={setGame} onBack={() => setTab('home')} />}

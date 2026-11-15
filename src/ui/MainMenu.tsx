@@ -12,18 +12,19 @@ export const MENU_OPTIONS = [
   { id: 'carregar-jogo', label: 'Carregar Jogo', hint: 'Abrir um jogo salvo' },
   { id: 'opcoes', label: 'Opções', hint: 'Idioma, áudio e backups' },
   { id: 'mods', label: 'Mods da Comunidade', hint: 'Ligas, elencos, escudos e mais' },
+  { id: 'salao-campeoes', label: 'Salão de Campeões', hint: 'Todos os campeões do jogo' },
   { id: 'creditos', label: 'Créditos', hint: 'Equipe e desenvolvimento' },
   { id: 'sair', label: 'Sair', hint: 'Fechar o jogo' },
 ] as const;
 
-/** Faixa inferior: apenas vitrine dos recursos do jogo (não são botões e não levam a lugar nenhum). */
+/** Faixa inferior: atalhos para a sua carreira salva (sem jogo salvo, levam ao Novo Jogo). */
 export const FEATURES = [
   { id: 'competicoes', label: 'Competições', hint: 'Séries A–D, Copa e estaduais' },
   { id: 'transferencias', label: 'Transferências', hint: 'Contratações e vendas' },
   { id: 'elenco', label: 'Elenco', hint: 'Gerenciar jogadores' },
   { id: 'financas', label: 'Finanças', hint: 'Saldo, salários e investimentos' },
   { id: 'estadio', label: 'Estádio', hint: 'Ampliações e melhorias' },
-  { id: 'base', label: 'Categorias de Base', hint: 'Revelar novos talentos' },
+  { id: 'perfil', label: 'Perfil do Treinador', hint: 'Carreira, títulos e histórico' },
 ] as const;
 
 export type MenuOptionId = (typeof MENU_OPTIONS)[number]['id'];
@@ -38,13 +39,16 @@ export const HOME_WALLPAPER_URL = 'assets/home-coach.jpg';
 /** Opções com destaque visual maior. */
 const PRIMARY: ReadonlySet<MenuOptionId> = new Set(['novo-jogo']);
 
+export type FeatureId = (typeof FEATURES)[number]['id'];
+
 interface Props {
   onSelect: (id: MenuOptionId) => void;
+  onFeature?: (id: FeatureId) => void;
   /** Só visual: quando false, "Continuar" aparece apagado. O clique continua indo para a mesma tela de antes. */
   hasSave?: boolean;
 }
 
-export function MainMenu({ onSelect, hasSave = true }: Props) {
+export function MainMenu({ onSelect, onFeature, hasSave = true }: Props) {
   // Setas ↑/↓ movem o foco entre os botões do menu (Tab continua funcionando normalmente).
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
@@ -103,13 +107,15 @@ export function MainMenu({ onSelect, hasSave = true }: Props) {
           })}
         </div>
 
-        {/* vitrine dos recursos do jogo: só informativa, sem clique */}
-        <ul className="home-tiles" aria-label="Recursos do jogo">
+        {/* atalhos: abrem a tela da carreira salva (ou o Novo Jogo, se não houver) */}
+        <ul className="home-tiles" aria-label="Atalhos da carreira">
           {FEATURES.map((f, i) => (
-            <li key={f.id} className="home-tile" style={{ '--i': i } as CSSProperties}>
-              <span className="home-tile-ico"><HomeIcon id={f.id} /></span>
-              <strong>{f.label}</strong>
-              <small>{f.hint}</small>
+            <li key={f.id} style={{ '--i': i } as CSSProperties}>
+              <button className="home-tile" onClick={() => onFeature?.(f.id)} aria-label={`${f.label}: ${hasSave ? f.hint : 'comece uma carreira'}`}>
+                <span className="home-tile-ico"><HomeIcon id={f.id} /></span>
+                <strong>{f.label}</strong>
+                <small>{f.hint}</small>
+              </button>
             </li>
           ))}
         </ul>
