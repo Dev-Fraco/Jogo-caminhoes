@@ -106,3 +106,15 @@ export function markAllRead(g: GameState): GameState {
 export function clearNotifications(g: GameState): GameState {
   return withPhone(g, { ...phoneOf(g), notifications: [] });
 }
+
+/* ---------- conexões (painel rápido) ---------- */
+export type Conn = 'wifi' | 'mobileData' | 'airplane';
+export const connOf = (g: Pick<GameState, 'phone'>) => { const s = phoneOf(g).settings; return { wifi: !!s.wifi && !s.airplane, mobileData: !!s.mobileData && !s.airplane, airplane: !!s.airplane }; };
+
+/** Liga/desliga Wi-Fi, dados móveis ou modo avião. O modo avião desliga as outras duas; ligar uma delas tira o avião. */
+export function toggleConn(g: GameState, key: Conn): GameState {
+  const s = phoneOf(g).settings;
+  if (key === 'airplane') return updatePhoneSettings(g, s.airplane ? { airplane: false } : { airplane: true, wifi: false, mobileData: false });
+  const on = key === 'wifi' ? !!s.wifi && !s.airplane : !!s.mobileData && !s.airplane;
+  return updatePhoneSettings(g, { airplane: false, [key]: !on });
+}

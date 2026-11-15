@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { audio } from '../audio/audio';
+import { connOf } from '../engine/phone';
 import { changePin, checkPin, clearNotifications, hasPin, installApp, installedApps, isInstalled, markAllRead, phoneOf, PIN_LENGTH, registerPin, STORE_APPS, uninstallApp, updatePhoneSettings, WALLPAPERS, appById } from '../engine/phone';
 import type { GameState } from '../engine/types';
 import { BankApp } from './BankApp';
@@ -9,6 +10,7 @@ import { NewsApp } from './NewsApp';
 import { MessagesApp } from './MessagesApp';
 import { pendingCount } from '../engine/inbox';
 import { RealtorApp } from './RealtorApp';
+import { CalcApp, QuickPanel } from './QuickPanel';
 import { SocialApp } from './SocialApp';
 import './phone.css';
 
@@ -58,6 +60,8 @@ export function Phone({ game, onChange, onClose }: Props) {
   const [waitUntil, setWaitUntil] = useState(0);
   const [now, setNow] = useState(clock());
   const [closing, setClosing] = useState(false);
+  const [panel, setPanel] = useState(false);
+  const pullY = useRef<number | null>(null);
   const [offer, setOffer] = useState(false); // depois de criar o PIN: oferece cadastrar a digital
   const gameRef = useRef(game); gameRef.current = game;
 
@@ -84,6 +88,7 @@ export function Phone({ game, onChange, onClose }: Props) {
   };
 
   const close = () => { setClosing(true); window.setTimeout(onClose, 380); };
+  const conn = connOf(game);
   const wall = WALLPAPERS.find((w) => w.id === s.wallpaper)!.css;
   const unread = ph.notifications.filter((n) => !n.read).length;
 
@@ -93,7 +98,11 @@ export function Phone({ game, onChange, onClose }: Props) {
         <i className="ph-notch" aria-hidden="true" />
         <div className="ph-screen" style={{ filter: `brightness(${s.brightness / 100})` }}>
           <div className="ph-wall" style={{ background: wall }} />
-          <div className="ph-status"><span>{now}</span><span>{unread > 0 && !s.dnd ? `🔔 ${unread} ` : ''}{s.dnd ? '🌙 ' : ''}📶 🔋</span></div>
+          <div className="ph-status ph-pull" role="button" tabIndex={0} aria-label="Abrir painel rápido (puxe para baixo)" onClick={() => setPanel(true)} onKeyDown={(e) => { if (e.key === 'Enter') setPanel(true); }}
+            onPointerDown={(e) => { pullY.current = e.clientY; }} onPointerMove={(e) => { if (pullY.current !== null && e.clientY - pullY.current > 30) { pullY.current = null; setPanel(true); } }} onPointerUp={() => { pullY.current = null; }}>
+            <span>{now}</span><span>{unread > 0 && !s.dnd ? `🔔 ${unread} ` : ''}{s.dnd ? '🌙 ' : ''}{conn.airplane ? '✈️ ' : ''}{conn.wifi ? 'Wi-Fi ' : ''}{conn.mobileData ? '5G ' : ''}📶 🔋</span>
+          </div>
+          {panel && <QuickPanel game={game} onChange={onChange} onClose={() => setPanel(false)} onCalc={() => setScreen('calc')} canCalc={!locked} />}
 
           {locked ? (
             offer ? <FingerOffer onYes={() => { onChange(updatePhoneSettings(gameRef.current, { fingerprint: true })); setOffer(false); unlock(); }} onNo={() => { setOffer(false); unlock(); }} />
@@ -108,9 +117,10 @@ export function Phone({ game, onChange, onClose }: Props) {
               {screen === 'corretor' && <RealtorApp game={game} onChange={onChange} onOpenApp={setScreen} />}
               {screen === 'cassino' && <CasinoApp game={game} onChange={onChange} onOpenApp={setScreen} />}
               {screen === 'noticias' && <NewsApp game={game} />}
+              {screen === 'calc' && <CalcApp />}
               {screen === 'mensagens' && <MessagesApp game={game} onChange={onChange} />}
               {(screen === 'linstagra' || screen === 'tikiteko') && <SocialApp app={screen} game={game} onChange={onChange} />}
-              {!['home', 'loja', 'config', 'banco', 'concessionaria', 'corretor', 'linstagra', 'tikiteko', 'cassino', 'noticias', 'mensagens'].includes(screen) && <SoonApp id={screen} />}
+              {!['home', 'loja', 'config', 'banco', 'concessionaria', 'corretor', 'linstagra', 'tikiteko', 'cassino', 'noticias', 'mensagens', 'calc'].includes(screen) && <SoonApp id={screen} />}
               <button className="ph-homebar" onClick={() => setScreen('home')} aria-label="Início do celular" />
             </>
           )}
