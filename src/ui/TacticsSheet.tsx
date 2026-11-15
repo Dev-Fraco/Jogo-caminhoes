@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { MAX_TACTIC_CHANGES, attackBias, type Tactic } from '../engine/match';
-import { autoLineup } from '../engine/squad';
-import { FORMATIONS, type FormationId, type Position, type TeamState } from '../engine/types';
+import { autoLineup, spotOf } from '../engine/squad';
+import { FORMATIONS, SPOT_SHORT, type FormationId, type Position, type TeamState } from '../engine/types';
 
 const POS_LABEL: Record<Position, string> = { GK: 'Goleiro', DEF: 'Defensores', MID: 'Meias', ATT: 'Atacantes' };
 const ORDER: Position[] = ['GK', 'DEF', 'MID', 'ATT'];
@@ -45,13 +45,13 @@ export function TacticsSheet({ team, minute, score, side, used, onApply, onClose
             <h3>{POS_LABEL[pos]}</h3>
             <ul>
               {lineup.map((id) => byId.get(id)!).filter((p) => p.pos === pos).map((p) => (
-                <li key={p.id}><button className={pick === p.id ? 'on' : ''} aria-pressed={pick === p.id} onClick={() => setPick(pick === p.id ? null : p.id)}><b>{p.strength}</b> {p.name}</button></li>
+                <li key={p.id}><button className={pick === p.id ? 'on' : ''} aria-pressed={pick === p.id} onClick={() => setPick(pick === p.id ? null : p.id)}><b>{p.strength}</b> <em className="ts-spot">{SPOT_SHORT[spotOf(p)]}</em> {p.name}</button></li>
               ))}
             </ul>
             {picked && picked.pos === pos && (
               <div className="ts-bench" aria-label={`Reservas (${POS_LABEL[pos]})`}>
                 <small>Tocar em um reserva para trocar com {picked.name}:</small>
-                <ul>{bench.filter((p) => p.pos === pos).map((p) => <li key={p.id}><button onClick={() => swapIn(p.id)}><b>{p.strength}</b> {p.name}</button></li>)}{bench.filter((p) => p.pos === pos).length === 0 && <li className="hint">Sem reservas nessa posição.</li>}</ul>
+                <ul>{bench.filter((p) => p.pos === pos).map((p) => <li key={p.id}><button onClick={() => swapIn(p.id)}><b>{p.strength}</b> <em className="ts-spot">{SPOT_SHORT[spotOf(p)]}</em> {p.name}</button></li>)}{bench.filter((p) => p.pos === pos).length === 0 && <li className="hint">Sem reservas nessa posição.</li>}</ul>
               </div>
             )}
           </section>

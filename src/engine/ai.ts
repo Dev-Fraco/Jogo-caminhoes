@@ -2,7 +2,7 @@ import { clamp, type Rng } from './rng';
 import { managed } from './lookup';
 import { repairLineup, rosterOk } from './roster';
 import { DIVISION_INCOME, inflate, priceIndex, SEASON_INCOME_FACTOR } from './economy';
-import { autoLineup, randomName } from './squad';
+import { autoLineup, pickSpot, randomName, spotOf } from './squad';
 import { divisionIndexOf, playerValue } from './transfers';
 import { avgXI, clubProfile, profileCtx, signingScore, type ClubProfile } from './aiprofile';
 import { longInjured, RETIRING_AGE, squadNeeds, type Need } from './aineeds';
@@ -72,7 +72,7 @@ function youthIntake(team: TeamState, season: number, rng: Rng): Player[] {
   let n = 0;
   while (players.length < SQUAD_TARGET) {
     const pos = [...POSITIONS].sort((a, b) => need(b) - need(a))[0];
-    players.push({ id: `${team.clubId}-y${season}-${n++}`, name: randomName(rng, used), pos, age: 17 + Math.floor(rng() * 3), strength: clamp(Math.round(base + (rng() - 0.5) * 8), 25, 90) });
+    players.push({ id: `${team.clubId}-y${season}-${n++}`, name: randomName(rng, used), pos, spot: pickSpot(players, pos), age: 17 + Math.floor(rng() * 3), strength: clamp(Math.round(base + (rng() - 0.5) * 8), 25, 90) });
   }
   return players;
 }
@@ -132,6 +132,7 @@ export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[
   const ai = shuffle(Object.keys(s.teams).filter((id) => !managed(s, id)), rng);
   const startersSold = new Map<string, number>(); // titulares vendidos por clube nesta janela
   const refusals: { seller: string; buyer: string; player: Player; offer: number }[] = [];
+  let dealNews = 0; // idem: no máximo 8 notícias de contratação por janela
   for (const buyerId of ai) {
     if (only && !only.includes(buyerId)) continue;
     let bought = 0;
@@ -160,7 +161,7 @@ export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[
           const sdi = divisionIndexOf(s, sellerId);
           if (sdi < bdi) continue; // clubes não compram de divisões acima da sua (o talento sobe, não desce)
           for (const p of seller.players) {
-            if (p.pos !== need.pos || p.strength < need.minStrength || p.age > need.maxAge || p.age >= RETIRING_AGE) continue;
+            if (p.pos !== need.pos || (need.spot && spotOf(p) !== need.spot) || p.strength < need.minStrength || p.age > need.maxAge || p.age >= RETIRING_AGE) continue;
             if (onLoan.has(p.id) || recentlyMoved(s, p.id) || soldByBuyer(s, p.id, buyerId) || longInjured(s, p.id)) continue;
             if (p.strength > level + STAR_CEILING[prof.tier]) continue; // astro grande demais para o porte do clube
             // o vendedor avalia: importância do jogador, substituto, posição, valor e finanças (aisales.ts)
@@ -184,7 +185,8 @@ export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[
       forgetClub(ctx, deal.from); forgetClub(ctx, buyerId);
       bought++;
       if (deal.st.role === 'craque' || deal.st.role === 'titular') startersSold.set(deal.from, (startersSold.get(deal.from) ?? 0) + 1);
-      if (p.strength >= 70 || deal.price >= 5_000_000) {
+      if (dealNews < 8 && (p.strength >= 70 || deal.price >= 5_000_000)) {
+        dealNews++;
         s = news(s, `🔁 ${s.clubs[buyerId].name} contrata ${p.name} (${p.pos === 'GK' ? 'goleiro' : p.pos === 'DEF' ? 'defensor' : p.pos === 'MID' ? 'meia' : 'atacante'}, overall ${p.strength}) do ${s.clubs[deal.from].name} por ${fmtMoney(deal.price)}.`, 'info');
         s = { ...s, market: [{ season: s.season, round: s.round, text: `${s.clubs[buyerId].name} contrata ${p.name} (overall ${p.strength}) do ${s.clubs[deal.from].name} por ${fmtMoney(deal.price)}.` }, ...(s.market ?? [])].slice(0, 60) };
       }
@@ -212,6 +214,7 @@ export function aiBalanceBooks(g: GameState, rng: Rng): GameState {
   const needCache = new Map<string, Need[]>();
   const needsOf = (id: string) => { let n = needCache.get(id); if (!n) needCache.set(id, (n = squadNeeds(s, id, clubProfile(s, id, ctx)))); return n; };
   const startersSold = new Map<string, number>();
+  let saleNews = 0; // o noticiário (80 itens) não pode ser engolido pelas vendas: só as maiores viram notícia
   for (const id of shuffle(Object.keys(s.teams).filter((x) => !managed(s, x)), rng)) {
     const prof = clubProfile(s, id, ctx);
     const di = divisionIndexOf(s, id);
@@ -239,7 +242,8 @@ export function aiBalanceBooks(g: GameState, rng: Rng): GameState {
         needCache.delete(b); forgetClub(ctx, id); forgetClub(ctx, b);
         if (st.role === 'craque' || st.role === 'titular') startersSold.set(id, (startersSold.get(id) ?? 0) + 1);
         sales++; done = true;
-        if (p.strength >= 65 || fee >= 1_000_000) {
+        if (saleNews < 4 && (p.strength >= 70 || fee >= 2_000_000)) {
+          saleNews++;
           const why = st.reasons.includes('fim-contrato') ? 'fim de contrato' : st.reasons.includes('financas') && broke ? 'para equilibrar as contas' : st.reasons.includes('salario-alto') ? 'salário alto' : 'sem espaço no elenco';
           s = news(s, `💸 ${s.clubs[id].name} vende ${p.name} (overall ${p.strength}) ao ${s.clubs[b].name} por ${fmtMoney(fee)}: ${why}.`, 'info');
         }

@@ -152,3 +152,4 @@
 .team .cb { filter: none; margin-right: 6px; }
 .tf-age { font-weight: 600; font-size: .85em; color: #9fb4d8; }
 .cl-prof { display: block; margin-top: 3px; color: #9fe8b8 !important; }
+.ts-spot { font: 800 10px var(--font-head); font-style: normal; color: #ffd23f; margin-right: 3px; } .pp-s { display: block; font: 700 8px sans-serif; opacity: .85; line-height: 1; }

@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { audio } from '../audio/audio';
 import { baseWage } from '../engine/finance';
+import { SPOT_LABEL } from '../engine/types';
+import { spotOf } from '../engine/squad';
 import { fairplayBlock, fairplayWarning } from '../engine/fairplay';
 import { dirClub, MAX_TALKS_PER_ROUND, negotiate, quote, talksLeft, type NegotiationResult } from '../engine/market';
-import type { GameState, Position } from '../engine/types';
+import type { GameState } from '../engine/types';
 import { formatBudget } from '../newgame/format';
 
-const POS_ONE: Record<Position, string> = { GK: 'Goleiro', DEF: 'Defensor', MID: 'Meio-campista', ATT: 'Atacante' };
 const brl = (n: number) => `R$ ${Math.round(n).toLocaleString('pt-BR')}`;
 const num = (s: string) => Number(s.replace(/\./g, '').replace(',', '.').replace(/[^\d.]/g, ''));
 
@@ -44,7 +45,7 @@ export function NegotiationSheet({ game, clubId, playerId, onChange, onClose, on
           <span className="ps-ovr">{p.strength}</span>
           <div className="grow">
             <h2 id="ng-title">{p.name}</h2>
-            <p>{POS_ONE[p.pos]} · {p.age} anos · {club.name} ({club.flag} {club.divisionName})</p>
+            <p>{SPOT_LABEL[spotOf(p)]} · {p.age} anos · {club.name} ({club.flag} {club.divisionName})</p>
             <p>Valor de mercado: <b>{formatBudget(q.price)}</b> · Preço pedido: <b>{formatBudget(q.askFee)}</b></p>
           </div>
           <button className="ps-x" aria-label="Fechar" onClick={onClose}>✕</button>

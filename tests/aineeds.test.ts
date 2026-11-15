@@ -58,10 +58,11 @@ describe('necessidades do elenco (IA)', () => {
   });
   it('reposição de quem saiu: ao perder um jogador da posição no limite, o clube passa a precisar de um substituto', () => {
     const base = setPlayers(g0, club, (ps) => { const keep = ps.filter((p) => p.pos !== 'DEF'); return [...keep, ...ps.filter((p) => p.pos === 'DEF').slice(0, 6).map((p) => ({ ...p, age: 25 }))]; });
-    expect(needs(base, club).some((x) => x.pos === 'DEF' && x.reasons.includes('reposicao'))).toBe(false);
+    const baseNeed = needs(base, club).find((x) => x.pos === 'DEF');
     const sold = setPlayers(base, club, (ps) => { let removed = false; return ps.filter((p) => { if (!removed && p.pos === 'DEF') { removed = true; return false; } return true; }); });
     const n = needs(sold, club).find((x) => x.pos === 'DEF');
     expect(n).toBeTruthy(); expect(n!.reasons).toContain('reposicao');
+    expect(n!.priority).toBeGreaterThan(baseNeed?.priority ?? 0); // perder gente aumenta a necessidade
   });
   it('a folha salarial limita: o clube não passa do teto da folha do seu porte ao contratar', () => {
     for (const id of g0.divisions[3].clubIds.slice(0, 6)) {

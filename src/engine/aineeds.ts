@@ -1,8 +1,8 @@
 import type { ClubProfile } from './aiprofile';
 import { avgXI } from './aiprofile';
-import { autoLineup } from './squad';
+import { autoLineup, slotsOfLine, spotOf } from './squad';
 import { MIN_BY_POS } from './transfers';
-import type { GameState, Player, Position } from './types';
+import { SPOT_SHORT, type GameState, type Player, type Position, type Spot } from './types';
 
 /* =====================================================================
    Necessidades do elenco (IA): o clube olha o próprio elenco posição por posição e decide ONDE precisa de reforço, e por quê.
@@ -10,9 +10,12 @@ import type { GameState, Player, Position } from './types';
    Não existe "contratar só porque tem dinheiro": sem necessidade real, o clube não vai ao mercado.
    ===================================================================== */
 
-export type NeedReason = 'falta-gente' | 'reposicao' | 'titular-fraco' | 'veterano' | 'aposentadoria' | 'lesao';
+export type NeedReason = 'falta-gente' | 'falta-funcao' | 'reposicao' | 'titular-fraco' | 'veterano' | 'aposentadoria' | 'lesao';
 export interface Need {
-  pos: Position; priority: number; reasons: NeedReason[];
+  pos: Position;
+  /** Função que falta (ex.: lateral direito). Sem função = qualquer jogador da linha serve. */
+  spot?: Spot;
+  priority: number; reasons: NeedReason[];
   /** Quantos jogadores faltam para a posição ficar no mínimo confortável. */
   missing: number;
   /** Força mínima do reforço (depende do motivo) e idade máxima do candidato. */
@@ -64,13 +67,23 @@ export function squadNeeds(g: GameState, clubId: string, prof: ClubProfile, opts
     if (aging.length) { priority += 12 * aging.length + 3 * (Math.max(...aging.map((p) => p.age)) - AGING_AGE); reasons.push('veterano'); }
     if (starters.some((p) => p.age >= RETIRING_AGE)) { priority += 25; reasons.push('aposentadoria'); }
     if (starters.some((p) => longInjured(g, p.id))) { priority += 60; reasons.push('lesao'); }
+    // função que a formação pede e o elenco não tem (ex.: 8 defensores e nenhum lateral direito): o reforço tem que ser DAQUELA função
+    let needSpot: Spot | undefined;
+    const slots = slotsOfLine(team.formation, pos);
+    for (const sp of new Set(slots)) {
+      const required = slots.filter((x) => x === sp).length;
+      const have = usable.filter((p) => spotOf(p) === sp).length;
+      if (have < required) { priority += 70 + 15 * (required - have - 1); reasons.push('falta-funcao'); needSpot = sp; break; }
+      if (have === required && sp !== 'ZAG' && sp !== 'MC' && sp !== 'GK' && !needSpot) { priority += 18; if (!reasons.includes('reposicao')) reasons.push('reposicao'); needSpot = sp; } // sem reserva para a função
+    }
     // posição com gente de sobra: nunca contrata mais (ex.: 3 goleiros e falta lateral → vai de defensor)
-    if (all.length > COMFORT[pos] + 2 && !reasons.includes('falta-gente') && !reasons.includes('lesao')) priority = 0;
+    if (all.length > COMFORT[pos] + 2 && !reasons.includes('falta-gente') && !reasons.includes('falta-funcao') && !reasons.includes('lesao')) priority = 0;
     if (priority < NEED_THRESHOLD) continue;
     const forStarter = reasons.some((r) => r !== 'reposicao' && r !== 'falta-gente');
+    if (!reasons.some((r) => r === 'falta-funcao' || r === 'reposicao')) needSpot = undefined; // função só quando é ela que falta
     const onlyDepth = !forStarter;
     out.push({
-      pos, priority, reasons, missing,
+      pos, spot: needSpot, priority, reasons, missing,
       minStrength: onlyDepth ? Math.max(30, Math.round(level - 14)) : Math.round(weak + (opts.upgrade ? Math.min(prof.minUpgrade, 2) : prof.minUpgrade)),
       maxAge: reasons.includes('veterano') || reasons.includes('aposentadoria') ? Math.min(prof.maxAge, 29) : prof.maxAge,
       forStarter,
@@ -80,4 +93,7 @@ export function squadNeeds(g: GameState, clubId: string, prof: ClubProfile, opts
 }
 
 /** Jogadores do elenco que o clube já conta como "saindo" (aposentadoria à vista ou lesão longa). */
+/** Nome curto da necessidade (ex.: "LD" ou "defensor"), para textos. */
+export const needLabel = (n: Need) => (n.spot ? SPOT_SHORT[n.spot] : n.pos);
+
 export const fadingPlayers = (g: GameState, clubId: string): Player[] => (g.teams[clubId]?.players ?? []).filter((p) => p.age >= RETIRING_AGE || longInjured(g, p.id));

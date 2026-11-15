@@ -1,4 +1,5 @@
 import { CLUBS_DATA } from '../data/clubs';
+import { withSpots } from './squad';
 import type { GameState } from './types';
 
 const KEY = 'caminhoes-save-v1'; // mesma chave de antes; o campo `version` do conteúdo diz o formato
@@ -27,12 +28,18 @@ export function migrateSave(g: GameState): GameState {
   };
 }
 
+/** Saves antigos: dá função (lateral, ponta, centroavante...) aos jogadores que não têm, sem mexer em quem já tem. */
+export function withSpotsAll(g: GameState): GameState {
+  const fix = (teams: GameState['teams']) => Object.fromEntries(Object.entries(teams).map(([id, t]) => [id, t.players.every((p) => p.spot) ? t : { ...t, players: withSpots(t.players) }]));
+  return { ...g, teams: fix(g.teams), ...(g.foreign ? { foreign: { ...g.foreign, teams: fix(g.foreign.teams) } } : {}) };
+}
+
 export function loadGame(): GameState | null {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
     const g = JSON.parse(raw);
-    return isValidSave(g) ? migrateSave(g) : null; // saves de versões antigas demais são ignorados
+    return isValidSave(g) ? withSpotsAll(migrateSave(g)) : null; // saves de versões antigas demais são ignorados
   } catch { return null; }
 }
 

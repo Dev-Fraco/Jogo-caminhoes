@@ -1,18 +1,19 @@
-import type { Player, Position } from '../engine/types';
+import { SPOT_LINE, type Player, type Position, type Spot } from '../engine/types';
 import { CLUBS_DATA, type ClubData } from './clubs';
-import { generateSquad } from '../engine/squad';
+import { generateSquad, pickSpot } from '../engine/squad';
 
 /* =====================================================================
    Pacote de elencos e escudos (feito por você): nomes de jogadores e escudos dos clubes.
    Formato do JSON:  { "name": "Meu pacote", "clubs": [ { "id": "flamengo", "badge": "flamengo.png",
-                       "players": [ { "name": "Fulano", "pos": "ATT", "age": 27, "overall": 78 } ] } ] }
+                       "players": [ { "name": "Fulano", "pos": "CA", "age": 27, "overall": 78 } ] } ] }
+   "pos" aceita GK, ZAG, LD, LE, MC, MD, ME, PD, PE, CA (ou DEF, MID, ATT: aí o jogo escolhe a função)
    "id" é o identificador do clube NO JOGO (o modelo gerado pelo jogo já traz os ids). Vale para as próximas carreiras.
    ===================================================================== */
 
 /** Máximo de clubes por pacote. */
 export const MAX_PACK_CLUBS = 5000;
 
-export interface PackPlayer { name: string; pos: Position; age?: number; overall?: number }
+export interface PackPlayer { name: string; pos: Position; /** função (LD, LE, ZAG, MC, MD, ME, PD, PE, CA), se o pacote disser */ spot?: Spot; age?: number; overall?: number }
 /** `players` = elenco completo com posição; `names` = só nomes, na ordem do elenco do jogo (vazio = mantém o nome). */
 export interface PackClub { id: string; badge?: string; players?: PackPlayer[]; names?: string[] }
 export interface Pack { name: string; author?: string; version?: string; clubs: PackClub[] }
@@ -25,6 +26,13 @@ const POS: Record<string, Position> = {
   MID: 'MID', M: 'MID', MEI: 'MID', VOL: 'MID', MC: 'MID', MEIA: 'MID', VOLANTE: 'MID',
   ATT: 'ATT', A: 'ATT', ATA: 'ATT', CA: 'ATT', PE: 'ATT', PD: 'ATT', ATACANTE: 'ATT',
 };
+/** Função (lateral, ponta, centroavante...) quando o pacote usa a sigla/nome dela. */
+const SPOT_ALIAS: Record<string, Spot> = {
+  GK: 'GK', GOL: 'GK', ZAG: 'ZAG', ZAGUEIRO: 'ZAG', LD: 'LD', 'LATERAL DIREITO': 'LD', LE: 'LE', 'LATERAL ESQUERDO': 'LE',
+  VOL: 'MC', VOLANTE: 'MC', MC: 'MC', MEI: 'MC', MEIA: 'MC', MD: 'MD', 'MEIA DIREITA': 'MD', ME: 'ME', 'MEIA ESQUERDA': 'ME',
+  PD: 'PD', 'PONTA DIREITA': 'PD', PE: 'PE', 'PONTA ESQUERDA': 'PE', CA: 'CA', CENTROAVANTE: 'CA',
+};
+export const normSpot = (s: unknown): Spot | undefined => (typeof s === 'string' ? SPOT_ALIAS[s.trim().toUpperCase()] : undefined);
 export const normPos = (s: unknown): Position | undefined => (typeof s === 'string' ? POS[s.trim().toUpperCase()] : undefined);
 /** Primeiro campo existente entre vários nomes possíveis (o pacote pode vir em português ou inglês). */
 const pick = (o: Record<string, unknown> | undefined, ...keys: string[]): unknown => { if (!o) return undefined; for (const k of keys) if (o[k] !== undefined && o[k] !== null) return o[k]; return undefined; };
@@ -75,7 +83,7 @@ export function validatePack(text: string, badgeFiles: string[] = []): PackResul
       const list: PackPlayer[] = [];
       const names = new Set<string>();
       for (const p0 of c.players as Record<string, unknown>[]) {
-        const p = { name: pick(p0, 'name', 'nome'), pos: pick(p0, 'pos', 'posicao', 'posição', 'position'), age: pick(p0, 'age', 'idade'), overall: pick(p0, 'overall', 'ovr', 'forca', 'força', 'strength') } as Record<string, unknown>;
+        const p = { name: pick(p0, 'name', 'nome'), pos: pick(p0, 'pos', 'posicao', 'posição', 'position'), spot: pick(p0, 'spot', 'funcao', 'função'), age: pick(p0, 'age', 'idade'), overall: pick(p0, 'overall', 'ovr', 'forca', 'força', 'strength') } as Record<string, unknown>;
         const name = typeof p.name === 'string' ? p.name.trim() : '';
         const pos = normPos(p.pos);
         if (name.length < 2 || name.length > 40) { warn(`${id}: jogador sem nome válido (ignorado).`); continue; }
@@ -84,7 +92,8 @@ export function validatePack(text: string, badgeFiles: string[] = []): PackResul
         names.add(name);
         const age = typeof p.age === 'number' && p.age >= 15 && p.age <= 45 ? Math.round(p.age) : undefined;
         const overall = typeof p.overall === 'number' && p.overall >= 1 && p.overall <= 99 ? Math.round(p.overall) : undefined;
-        list.push({ name, pos, ...(age !== undefined ? { age } : {}), ...(overall !== undefined ? { overall } : {}) });
+        const spot = normSpot(p.spot) ?? normSpot(p.pos);
+        list.push({ name, pos, ...(spot && SPOT_LINE[spot] === pos ? { spot } : {}), ...(age !== undefined ? { age } : {}), ...(overall !== undefined ? { overall } : {}) });
       }
       if (list.length > 40) { warn(`${id}: mais de 40 jogadores (usei os 40 primeiros).`); list.length = 40; }
       if (list.length > 0 && list.length < 14) warn(`${id}: só ${list.length} jogadores; o jogo completa o elenco com nomes fictícios.`);
@@ -107,8 +116,9 @@ export function buildPackSquad(club: Pick<ClubData, 'id' | 'name' | 'shortName' 
     const k = idx[p.pos]++;
     const noise = (hash(`${club.id}${p.name}`) % 7) - 3;
     const strength = p.overall ?? Math.max(25, Math.min(95, avg + (k < (p.pos === 'GK' ? 1 : p.pos === 'ATT' ? 2 : 4) ? 3 : -5) - Math.floor(k * 0.6) + noise));
-    return { id: `${club.id}-m${i}`, name: p.name, pos: p.pos, age: p.age ?? 18 + (hash(p.name) % 17), strength };
+    return { id: `${club.id}-m${i}`, name: p.name, pos: p.pos, ...(p.spot ? { spot: p.spot } : {}), age: p.age ?? 18 + (hash(p.name) % 17), strength };
   });
+  for (const pl of out) if (!pl.spot) pl.spot = pickSpot(out.filter((x) => x !== pl && x.spot), pl.pos); // sem função no pacote: distribui laterais, pontas e centroavantes
   const have: Record<Position, number> = { GK: 0, DEF: 0, MID: 0, ATT: 0 };
   for (const p of out) have[p.pos]++;
   const filler = generateSquad({ id: `${club.id}-fill`, name: club.name, short: club.shortName, color: club.primaryColor, strength: avg - 4 }, 4242);
@@ -118,7 +128,7 @@ export function buildPackSquad(club: Pick<ClubData, 'id' | 'name' | 'shortName' 
     for (const f of filler.filter((x) => x.pos === pos)) {
       if (have[pos] >= NEED[pos]) break;
       if (used.has(f.name)) continue;
-      out.push({ ...f, id: `${club.id}-g${n++}` }); used.add(f.name); have[pos]++;
+      out.push({ ...f, id: `${club.id}-g${n++}`, spot: pickSpot(out, pos) }); used.add(f.name); have[pos]++;
     }
   }
   return out;
@@ -187,8 +197,8 @@ export function packTemplate(perDivision = 1): string {
   const clubs = Object.values(CLUBS_DATA).filter((l) => l.length).slice(0, 6).flatMap((list) => list.slice(0, perDivision)).map((c) => ({
     id: c.id, badge: `${c.id}.png`,
     players: [
-      { name: 'Nome do Goleiro', pos: 'GK', age: 30, overall: 72 }, { name: 'Nome do Zagueiro', pos: 'DEF', age: 27, overall: 70 },
-      { name: 'Nome do Meia', pos: 'MID', age: 25, overall: 71 }, { name: 'Nome do Atacante', pos: 'ATT', age: 24, overall: 74 },
+      { name: 'Nome do Goleiro', pos: 'GK', age: 30, overall: 72 }, { name: 'Nome do Lateral Direito', pos: 'LD', age: 27, overall: 70 }, { name: 'Nome do Zagueiro', pos: 'ZAG', age: 28, overall: 71 },
+      { name: 'Nome do Meia', pos: 'MC', age: 25, overall: 71 }, { name: 'Nome do Ponta Esquerda', pos: 'PE', age: 24, overall: 73 }, { name: 'Nome do Centroavante', pos: 'CA', age: 26, overall: 75 },
     ],
   }));
   return JSON.stringify({ name: 'Meu pacote', author: 'Seu nome', version: '1.0', clubs }, null, 2);

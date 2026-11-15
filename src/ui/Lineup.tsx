@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { setFormation, swapPlayer } from '../engine/game';
 import { teamRatings } from '../engine/squad';
-import { FORMATIONS, type FormationId, type GameState, type Player, type Position } from '../engine/types';
+import { FORMATIONS, SPOT_LABEL, SPOT_SHORT, type FormationId, type GameState, type Player, type Position } from '../engine/types';
+import { spotOf } from '../engine/squad';
 import { badgeColors } from './badge';
 
 const POS_ONE: Record<Position, string> = { GK: 'Goleiro', DEF: 'Defensor', MID: 'Meio-campista', ATT: 'Atacante' };
@@ -45,7 +46,7 @@ function SwapSheet({ game, player, onSwap, onClose }: { game: GameState; player:
           <span className="ps-ovr">{player.strength}</span>
           <div className="grow">
             <h2 id="sw-title">{player.name}</h2>
-            <p>{POS_ONE[player.pos]} · {player.age} anos · {isStarter ? 'Titular' : 'Reserva'}</p>
+            <p>{SPOT_LABEL[spotOf(player)]} · {player.age} anos · {isStarter ? 'Titular' : 'Reserva'}</p>
           </div>
           <button className="ps-x" aria-label="Fechar" onClick={onClose}>✕</button>
         </div>
@@ -114,9 +115,9 @@ export function Lineup({ game, onChange, onBack }: { game: GameState; onChange: 
         <span className="pl-mid" /><span className="pl-circle" /><span className="pl-box top" /><span className="pl-box bottom" />
         {layout.map(({ player: p, x, y }) => (
           <button key={p.id} className="pp" style={{ left: `${x}%`, top: `${y}%`, '--pp-bg': bg, '--pp-fg': fg } as React.CSSProperties}
-            aria-label={`${p.name}, ${POS_ONE[p.pos]}, overall ${p.strength}. Trocar jogador`} onClick={(e) => openFor(p, e.currentTarget)}>
+            aria-label={`${p.name}, ${SPOT_LABEL[spotOf(p)]}, overall ${p.strength}. Trocar jogador`} onClick={(e) => openFor(p, e.currentTarget)}>
             <span className="pp-c">{p.strength}</span>
-            <span className="pp-n">{shortName(p.name)}</span>
+            <span className="pp-n">{shortName(p.name)}<small className="pp-s">{SPOT_SHORT[spotOf(p)]}</small></span>
           </button>
         ))}
       </div>
@@ -126,8 +127,8 @@ export function Lineup({ game, onChange, onBack }: { game: GameState; onChange: 
         <ul className="list">
           {bench.map((p) => (
             <li key={p.id}>
-              <button className="row bench" aria-label={`${p.name}, reserva, ${POS_ONE[p.pos]}, overall ${p.strength}. Escolher quem sai`} onClick={(e) => openFor(p, e.currentTarget)}>
-                <span className="tag">{p.pos === 'GK' ? 'GOL' : p.pos === 'DEF' ? 'DEF' : p.pos === 'MID' ? 'MEI' : 'ATA'}</span>
+              <button className="row bench" aria-label={`${p.name}, reserva, ${SPOT_LABEL[spotOf(p)]}, overall ${p.strength}. Escolher quem sai`} onClick={(e) => openFor(p, e.currentTarget)}>
+                <span className="tag">{SPOT_SHORT[spotOf(p)]}</span>
                 <span className="grow">{p.name}<small>{p.age} anos</small></span>
                 <b className="str">{p.strength}</b>
               </button>

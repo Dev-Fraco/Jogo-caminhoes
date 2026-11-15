@@ -1,5 +1,5 @@
 import type { FormationId, MatchEvent } from '../engine/types';
-import { FORMATIONS } from '../engine/types';
+import { FORMATION_SLOTS, SPOT_LINE } from '../engine/types';
 
 /** Campo em 100 x 64. O mandante defende o gol da esquerda e ataca para a direita; o visitante, o contrário. */
 export const PITCH_W = 100, PITCH_H = 64;
@@ -8,9 +8,13 @@ export type Side = 'home' | 'away';
 
 /** Posição base de cada um dos 11 jogadores (goleiro + linhas), do ponto de vista de quem ataca para a direita. */
 export function baseShape(formation: FormationId): Pt[] {
-  const f = FORMATIONS[formation];
-  const row = (n: number, x: number): Pt[] => Array.from({ length: n }, (_, i) => ({ x, y: ((i + 1) * PITCH_H) / (n + 1) }));
-  return [{ x: 4, y: PITCH_H / 2 }, ...row(f.DEF, 19), ...row(f.MID, 35), ...row(f.ATT, 48)];
+  const slots = FORMATION_SLOTS[formation];
+  const rowX = { GK: 4, DEF: 19, MID: 35, ATT: 48 } as const;
+  const line = (pos: 'DEF' | 'MID' | 'ATT'): Pt[] => {
+    const sl = slots.filter((sp) => SPOT_LINE[sp] === pos);
+    return sl.map((sp, i) => ({ x: rowX[pos] + (sp === 'LD' || sp === 'LE' ? 3 : sp === 'PD' || sp === 'PE' ? 2 : sp === 'MD' || sp === 'ME' ? 1 : 0), y: ((i + 1) * PITCH_H) / (sl.length + 1) })); // laterais e pontas mais abertos e adiantados
+  };
+  return [{ x: rowX.GK, y: PITCH_H / 2 }, ...line('DEF'), ...line('MID'), ...line('ATT')];
 }
 const mirror = (p: Pt): Pt => ({ x: PITCH_W - p.x, y: PITCH_H - p.y });
 const hash = (n: number) => { let h = (n * 2654435761) >>> 0; h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; return (h >>> 8) / 0xffffff; };

@@ -5,14 +5,14 @@ import { teamRatings } from '../engine/squad';
 import { MAX_SQUAD } from '../engine/transfers';
 import { wageOf } from '../engine/finance';
 import { contractLeft, renew, renewalQuote } from '../engine/market';
-import type { GameState, Player, Position } from '../engine/types';
+import { SPOT_LABEL, SPOT_SHORT, type GameState, type Player, type Position } from '../engine/types';
+import { spotOf } from '../engine/squad';
 import { ScreenTitle } from './FmParts';
 import { Face } from './Face';
 import { formatBudget } from '../newgame/format';
 
 const POS_ICON: Record<Position, string> = { GK: '🧤', DEF: '🛡️', MID: '🏟️', ATT: '⚽' };
 const POS_LABEL: Record<Position, string> = { GK: 'Goleiros', DEF: 'Defensores', MID: 'Meio-campistas', ATT: 'Atacantes' };
-const POS_SHORT: Record<Position, string> = { GK: 'GOL', DEF: 'DEF', MID: 'MEI', ATT: 'ATA' };
 const POS_ONE: Record<Position, string> = { GK: 'Goleiro', DEF: 'Defensor', MID: 'Meio-campista', ATT: 'Atacante' };
 
 interface SheetProps { game: GameState; player: Player; onChange: (g: GameState) => void; onClose: () => void; onDone: (msg: string) => void }
@@ -51,7 +51,7 @@ function PlayerSheet({ game, player: p, onChange, onClose, onDone }: SheetProps)
           <span className="ps-ovr">{p.strength}</span>
           <div className="grow">
             <h2 id="ps-title">{p.name}</h2>
-            <p>{POS_ONE[p.pos]} · {p.age} anos · {starter ? 'Titular' : 'Reserva'}</p>
+            <p>{SPOT_LABEL[spotOf(p)]} · {p.age} anos · {starter ? 'Titular' : 'Reserva'}</p>
             <p>Valor de mercado: <b>{formatBudget(value)}</b></p>
             <p>Salário: <b>{formatBudget(wageOf(game, game.userClubId, p))}/ano</b> · {left === null ? 'sem contrato fixo' : left <= 1 ? <b className="ps-warn">contrato termina no fim desta temporada</b> : `contrato por mais ${left} temporadas`}</p>
           </div>
@@ -150,7 +150,7 @@ export function Squad({ game, onChange }: { game: GameState; onChange: (g: GameS
                         <Face id={p.id} age={p.age} size={46} />
                         <span className={`sq-ovr ${p.strength >= 80 ? 'elite' : ''}`}>{p.strength}</span>
                       </span>
-                      <span className="sq-role">{POS_SHORT[pos]} · {starter ? 'TITULAR' : 'RESERVA'}</span>
+                      <span className="sq-role">{SPOT_SHORT[spotOf(p)]} · {starter ? 'TITULAR' : 'RESERVA'}</span>
                       <span className="sq-name">{p.name}</span>
                       <span className="sq-meta">{p.age} anos
                         {game.transferList.includes(p.id) && <em className="pill sale">À venda</em>}

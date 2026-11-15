@@ -9,10 +9,29 @@ export const FORMATIONS: Record<FormationId, { DEF: number; MID: number; ATT: nu
   '5-3-2': { DEF: 5, MID: 3, ATT: 2 },
 };
 
+/**
+ * Função do jogador dentro da sua linha (posição):
+ * defensor = zagueiro ou lateral; meia = central, direita ou esquerda; atacante = centroavante ou ponta direita/esquerda.
+ */
+export type Spot = 'GK' | 'ZAG' | 'LD' | 'LE' | 'MC' | 'MD' | 'ME' | 'PD' | 'PE' | 'CA';
+export const SPOT_LINE: Record<Spot, Position> = { GK: 'GK', ZAG: 'DEF', LD: 'DEF', LE: 'DEF', MC: 'MID', MD: 'MID', ME: 'MID', PD: 'ATT', PE: 'ATT', CA: 'ATT' };
+export const SPOT_LABEL: Record<Spot, string> = { GK: 'Goleiro', ZAG: 'Zagueiro', LD: 'Lateral direito', LE: 'Lateral esquerdo', MC: 'Meia central', MD: 'Meia direita', ME: 'Meia esquerda', PD: 'Ponta direita', PE: 'Ponta esquerda', CA: 'Centroavante' };
+export const SPOT_SHORT: Record<Spot, string> = { GK: 'GOL', ZAG: 'ZAG', LD: 'LD', LE: 'LE', MC: 'MC', MD: 'MD', ME: 'ME', PD: 'PD', PE: 'PE', CA: 'CA' };
+/** As vagas de cada formação, da esquerda para a direita dentro de cada linha (goleiro primeiro). */
+export const FORMATION_SLOTS: Record<'4-4-2' | '4-3-3' | '3-5-2' | '4-5-1' | '5-3-2', Spot[]> = {
+  '4-4-2': ['GK', 'LE', 'ZAG', 'ZAG', 'LD', 'ME', 'MC', 'MC', 'MD', 'CA', 'CA'],
+  '4-3-3': ['GK', 'LE', 'ZAG', 'ZAG', 'LD', 'MC', 'MC', 'MC', 'PE', 'CA', 'PD'],
+  '3-5-2': ['GK', 'ZAG', 'ZAG', 'ZAG', 'ME', 'MC', 'MC', 'MC', 'MD', 'CA', 'CA'],
+  '4-5-1': ['GK', 'LE', 'ZAG', 'ZAG', 'LD', 'ME', 'MC', 'MC', 'MC', 'MD', 'CA'],
+  '5-3-2': ['GK', 'LE', 'ZAG', 'ZAG', 'ZAG', 'LD', 'MC', 'MC', 'MC', 'CA', 'CA'],
+};
+
 export interface Player {
   id: string;
   name: string;
   pos: Position;
+  /** Função dentro da linha (lateral, ponta, centroavante...). Ausente em saves e pacotes antigos: o jogo deduz uma função fixa do jogador. */
+  spot?: Spot;
   age: number;
   strength: number; // 1..100
   /** Contrato negociado (só jogadores contratados por você): salário anual e última temporada. */

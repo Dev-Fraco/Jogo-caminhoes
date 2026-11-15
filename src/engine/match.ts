@@ -1,5 +1,5 @@
 import { clamp, makeRng, type Rng } from './rng';
-import { autoLineup, teamRatings } from './squad';
+import { autoLineup, spotOf, teamRatings } from './squad';
 import { FORMATIONS, type FormationId, type MatchEvent, type Player, type TeamState } from './types';
 
 /** Mudança tática feita pelo treinador durante a partida: vale a partir do minuto seguinte. */
@@ -74,9 +74,13 @@ export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, m
     for (let i = 0; i < list.length; i++) { r -= w[i]; if (r <= 0) return list[i]; }
     return list[list.length - 1];
   };
-  // atacantes marcam mais, depois meias, depois defensores
-  const scorer = (list: Player[]) => weighted(list, (p) => (p.pos === 'ATT' ? 6 : p.pos === 'MID' ? 3 : p.pos === 'DEF' ? 1 : 0) * (p.strength / 60));
-  const assister = (list: Player[], not: Player) => weighted(list.filter((p) => p !== not && p.pos !== 'GK'), (p) => (p.pos === 'MID' ? 5 : p.pos === 'ATT' ? 4 : 1));
+  // atacantes marcam mais (o centroavante mais que os pontas), depois meias, depois defensores (zagueiro de cabeça, lateral de vez em quando)
+  const GOAL_SPOT = { CA: 1.25, PD: 1.05, PE: 1.05, MD: 0.95, ME: 0.95, MC: 1, LD: 0.85, LE: 0.85, ZAG: 0.8, GK: 0 } as const;
+  const scorer = (list: Player[]) => weighted(list, (p) => (p.pos === 'ATT' ? 6 : p.pos === 'MID' ? 3 : p.pos === 'DEF' ? 1 : 0) * GOAL_SPOT[spotOf(p)] * (p.strength / 60));
+  // assistências vêm mais de meias e pontas abertos e dos laterais (cruzamentos)
+  const ASSIST_SPOT = { MD: 1.3, ME: 1.3, PD: 1.25, PE: 1.25, LD: 1.5, LE: 1.5, MC: 1, CA: 0.8, ZAG: 0.6, GK: 0 } as const;
+  const assister = (list: Player[], not: Player) => weighted(list.filter((p) => p !== not && p.pos !== 'GK'), (p) => (p.pos === 'MID' ? 5 : p.pos === 'ATT' ? 4 : 1) * ASSIST_SPOT[spotOf(p)]);
+  const WIDE = new Set(['LD', 'LE', 'MD', 'ME', 'PD', 'PE']);
 
   push(0, 'kickoff', 'none', `Começa o jogo! ${names.home} x ${names.away}.`);
 
@@ -151,7 +155,7 @@ export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, m
     if (rng() < pGoal) {
       if (homeAttacks) hg++; else ag++;
       const helper = rng() < 0.7 ? assister(field(side), shooter) : null;
-      push(minute, 'goal', side, `GOOOL! ${shooter.name} marca para o ${club(side)}${helper ? ` (assistência de ${helper.name})` : ''}. ${names.home} ${hg} x ${ag} ${names.away}.`, { player: shooter.name, score: [hg, ag] });
+      push(minute, 'goal', side, `GOOOL! ${shooter.name} marca para o ${club(side)}${helper ? (WIDE.has(spotOf(helper)) ? ` (cruzamento de ${helper.name})` : ` (assistência de ${helper.name})`) : ''}. ${names.home} ${hg} x ${ag} ${names.away}.`, { player: shooter.name, score: [hg, ag] });
     } else {
       const gk = keeper(other);
       const r = rng();

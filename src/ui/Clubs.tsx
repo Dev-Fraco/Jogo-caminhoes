@@ -1,4 +1,6 @@
 import { ClubBadge } from './ClubBadge';
+import { SPOT_SHORT } from '../engine/types';
+import { spotOf } from '../engine/squad';
 import { clubProfile } from '../engine/aiprofile';
 import { useMemo, useState } from 'react';
 import { COUNTRY_ORDER, WORLD_DATA } from '../data/world';
@@ -9,7 +11,6 @@ import { NegotiationSheet } from './Negotiation';
 
 const POS_ORDER: Position[] = ['GK', 'DEF', 'MID', 'ATT'];
 const POS_LABEL: Record<Position, string> = { GK: 'Goleiros', DEF: 'Defensores', MID: 'Meio-campistas', ATT: 'Atacantes' };
-const POS_SHORT: Record<Position, string> = { GK: 'GOL', DEF: 'DEF', MID: 'MEI', ATT: 'ATA' };
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const stars = (n: number) => '★'.repeat(n) + '☆'.repeat(5 - n);
 
@@ -60,7 +61,7 @@ export function Clubs({ game, onChange }: { game: GameState; onChange: (g: GameS
                     <li key={p.id}>
                       <button className={`sq-card ${pos}`} aria-label={`${p.name}, overall ${p.strength}. Negociar`} onClick={() => { setNotice(null); setNegId(p.id); }}>
                         <span className={`sq-ovr ${p.strength >= 80 ? 'elite' : ''}`}>{p.strength}</span>
-                        <span className="sq-role">{POS_SHORT[pos]}{qq?.role === 'best' ? ' · CRAQUE' : ''}</span>
+                        <span className="sq-role">{SPOT_SHORT[spotOf(p)]}{qq?.role === 'best' ? ' · CRAQUE' : ''}</span>
                         <span className="sq-name">{p.name}</span>
                         <span className="sq-meta">{p.age} anos</span>
                         <span className="sq-val">{qq ? formatBudget(qq.askFee) : '—'}</span>

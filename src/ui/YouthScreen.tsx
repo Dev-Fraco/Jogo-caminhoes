@@ -4,8 +4,10 @@ import { MAX_SQUAD } from '../engine/transfers';
 import { academyCost, ensureYouth, MAX_LEVEL, MAX_PROSPECTS, promoteProspect, releaseProspect, stars, upgradeAcademy, youthOf, youthWage } from '../engine/youth';
 import type { GameState, Position } from '../engine/types';
 import { formatBudget } from '../newgame/format';
-import { ovrClass, POS_ONE, ScreenTitle } from './FmParts';
+import { ovrClass, ScreenTitle } from './FmParts';
 import { Face } from './Face';
+import { SPOT_LABEL } from '../engine/types';
+import { spotOf } from '../engine/squad';
 
 const POS_ICON: Record<Position, string> = { GK: '🧤', DEF: '🛡️', MID: '🏟️', ATT: '⚽' };
 
@@ -55,7 +57,7 @@ export function YouthScreen({ game, onChange }: { game: GameState; onChange: (g:
             <li key={p.player.id} className="mk-card yt-card">
               <span className="yt-face"><Face id={p.player.id} age={Math.min(p.player.age, 20)} size={64} /><em className={`yt-ovr ${ovrClass(p.player.strength)}`}>{p.player.strength}</em></span>
               <b className="yt-n">{p.player.name}</b>
-              <small>{POS_ICON[p.player.pos]} {POS_ONE[p.player.pos]} · {p.player.age} anos</small>
+              <small>{POS_ICON[p.player.pos]} {SPOT_LABEL[spotOf(p.player)]} · {p.player.age} anos</small>
               <small className="yt-pot" title={`Potencial ${p.potential}`}>Potencial <span className="stars">{star(stars(p.potential))}</span> ({p.potential})</small>
               <span className="yt-bar" aria-hidden="true"><i style={{ width: `${(p.exact / p.potential) * 100}%` }} /></span>
               <button className="primary yt-pro" onClick={() => promote(p.player.id)}>⏫ Promover<small>{formatBudget(youthWage(game, p))}/ano</small></button>

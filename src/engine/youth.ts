@@ -1,7 +1,7 @@
 import { inflate, priceIndex } from './economy';
 import { baseIncome } from './finance';
 import { makeRng, type Rng } from './rng';
-import { randomName } from './squad';
+import { pickSpot, randomName } from './squad';
 import { divisionIndexOf, MAX_SQUAD } from './transfers';
 import type { GameState, NewsItem, Player, Position } from './types';
 
@@ -32,7 +32,7 @@ function intake(g: GameState, y: YouthState, rng: Rng): YouthState {
     const strength = Math.round(28 + y.level * 3 + rng() * 10);
     const gem = rng() < 0.06 + y.level * 0.02;
     const potential = Math.min(97, Math.max(strength + 12, Math.round(55 + rng() * 28 + y.level * 4 + (gem ? 12 : 0))));
-    fresh.push({ player: { id: `${g.userClubId}-y${seq++}`, name: randomName(rng, used), pos, age, strength }, potential, exact: strength });
+    fresh.push({ player: { id: `${g.userClubId}-y${seq++}`, name: randomName(rng, used), pos, spot: pickSpot(fresh.map((x) => x.player), pos), age, strength }, potential, exact: strength });
   }
   const all = [...y.prospects, ...fresh].sort((a, b) => b.potential - a.potential).slice(0, MAX_PROSPECTS);
   return { ...y, prospects: all, seq, lastIntake: g.season };

@@ -3,6 +3,8 @@ import { ScreenTitle, SubTabs } from './FmParts';
 import { anyClubName } from '../engine/market';
 import { Clubs } from './Clubs';
 import { ClubBadge } from './ClubBadge';
+import { SPOT_LABEL, SPOT_SHORT, type Spot } from '../engine/types';
+import { spotOf } from '../engine/squad';
 import { NegotiationSheet } from './Negotiation';
 import { acceptOffer, myValue, rejectOffer, toggleLoanList, toggleTransferList } from '../engine/roster';
 import { BUY_BLOCK_TEXT, buyPlayer, MAX_SQUAD, marketEntries } from '../engine/transfers';
@@ -79,7 +81,7 @@ function Offers({ game, onChange }: { game: GameState; onChange: (g: GameState) 
             {ids.length === 0 ? <p className="hint" style={{ margin: 0 }}>Nenhum jogador. Toque em um jogador na aba Elenco para colocá-lo aqui.</p> : (
               <ul className="tf-log">
                 {ids.map((id) => { const p = pl(id); if (!p) return null; return (
-                  <li key={id} className="tf-lrow"><span><b>{p.name}</b> <small>({POS_SHORT[p.pos]}, overall {p.strength}) · valor {formatBudget(myValue(game, p))}</small></span><button className="mini" onClick={() => onChange(toggle(game, id))}>Retirar</button></li>
+                  <li key={id} className="tf-lrow"><span><b>{p.name}</b> <small>({SPOT_SHORT[spotOf(p)]}, overall {p.strength}) · valor {formatBudget(myValue(game, p))}</small></span><button className="mini" onClick={() => onChange(toggle(game, id))}>Retirar</button></li>
                 ); })}
               </ul>
             )}
@@ -151,6 +153,7 @@ export function Transfers({ game, onChange, view, onView }: { game: GameState; o
 function Market({ game, onChange }: { game: GameState; onChange: (g: GameState) => void }) {
   const [q, setQ] = useState('');
   const [pos, setPos] = useState<'ALL' | Position>('ALL');
+  const [spot, setSpot] = useState<'all' | Spot>('all');
   const [division, setDivision] = useState('all');
   const [afford, setAfford] = useState(true);
   const [mode, setMode] = useState<'buy' | 'loan'>('buy');
@@ -174,6 +177,7 @@ function Market({ game, onChange }: { game: GameState; onChange: (g: GameState) 
     const nq = norm(q.trim());
     const list = entries.filter((e) =>
       (pos === 'ALL' || e.player.pos === pos) &&
+      (spot === 'all' || spotOf(e.player) === spot) &&
       (division === 'all' || divisionOf.get(e.clubId)?.id === division) &&
       (!afford || e.price <= budget) &&
       (!nq || norm(e.player.name).includes(nq) || norm(game.clubs[e.clubId].name).includes(nq)));
@@ -184,7 +188,7 @@ function Market({ game, onChange }: { game: GameState; onChange: (g: GameState) 
       age: (a, b) => a.player.age - b.player.age || b.player.strength - a.player.strength,
     };
     return list.sort(by[sort]);
-  }, [entries, pos, division, afford, q, sort, budget, divisionOf, game.clubs]);
+  }, [entries, pos, spot, division, afford, q, sort, budget, divisionOf, game.clubs]);
 
   const reset = (fn: () => void) => { fn(); setShown(PAGE); setConfirmId(null); };
   const banned = !!banOf(game);
@@ -224,6 +228,10 @@ function Market({ game, onChange }: { game: GameState; onChange: (g: GameState) 
           <div className="tf-pos" role="group" aria-label="Posição">
             {POS_FILTERS.map((f) => <button key={f.id} className={pos === f.id ? 'on' : ''} aria-pressed={pos === f.id} onClick={() => reset(() => setPos(f.id))}>{f.label}</button>)}
           </div>
+          <select aria-label="Função" value={spot} onChange={(e) => reset(() => setSpot(e.target.value as 'all' | Spot))}>
+            <option value="all">Todas as funções</option>
+            {(Object.keys(SPOT_LABEL) as Spot[]).map((k) => <option key={k} value={k}>{SPOT_LABEL[k]}</option>)}
+          </select>
           <select aria-label="Divisão" value={division} onChange={(e) => reset(() => setDivision(e.target.value))}>
             <option value="all">Todas as divisões</option>
             {game.divisions.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
@@ -249,7 +257,7 @@ function Market({ game, onChange }: { game: GameState; onChange: (g: GameState) 
                 <span className={`tf-ovr ${tier(p.strength)}`} title="Overall">{p.strength}</span>
                 <div className="tf-info">
                   <strong>{p.name}</strong>
-                  <small>{POS_SHORT[p.pos]} · {p.age} anos · <span className="tf-club"><ClubBadge club={club} size={18} /> {club.name}</span> ({divisionOf.get(clubId)?.name})</small>
+                  <small>{SPOT_SHORT[spotOf(p)]} · {p.age} anos · <span className="tf-club"><ClubBadge club={club} size={18} /> {club.name}</span> ({divisionOf.get(clubId)?.name})</small>
                 </div>
                 <span className={`tf-price ${tooExpensive ? 'no' : ''}`}>{formatBudget(price)}</span>
                 {mode === 'loan'
