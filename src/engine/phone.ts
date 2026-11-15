@@ -114,7 +114,42 @@ export const connOf = (g: Pick<GameState, 'phone'>) => { const s = phoneOf(g).se
 /** Liga/desliga Wi-Fi, dados móveis ou modo avião. O modo avião desliga as outras duas; ligar uma delas tira o avião. */
 export function toggleConn(g: GameState, key: Conn): GameState {
   const s = phoneOf(g).settings;
-  if (key === 'airplane') return updatePhoneSettings(g, s.airplane ? { airplane: false } : { airplane: true, wifi: false, mobileData: false });
+  if (key === 'airplane') return updatePhoneSettings(g, s.airplane ? { airplane: false } : { airplane: true, wifi: false, mobileData: false, wifiNet: undefined });
   const on = key === 'wifi' ? !!s.wifi && !s.airplane : !!s.mobileData && !s.airplane;
-  return updatePhoneSettings(g, { airplane: false, [key]: !on });
+  return updatePhoneSettings(g, { airplane: false, [key]: !on, ...(key === 'wifi' && on ? { wifiNet: undefined } : {}) });
 }
+
+/* ---------- internet: Wi-Fi grátis (ruim) e 5G (rápido) ---------- */
+export interface FreeWifi { id: string; name: string; signal: 1 | 2 | 3 }
+/** Redes grátis por perto: todas com conexão ruim. */
+export const FREE_WIFI: FreeWifi[] = [
+  { id: 'praca', name: 'Praça_Livre', signal: 2 },
+  { id: 'padaria', name: 'Padaria do Zé - Cliente', signal: 3 },
+  { id: 'free5', name: 'WIFI_GRATIS_Rua5', signal: 1 },
+  { id: 'rodoviaria', name: 'Rodoviária Free', signal: 2 },
+];
+
+export function connectWifi(g: GameState, name: string): GameState {
+  if (!FREE_WIFI.some((w) => w.name === name)) return g;
+  return updatePhoneSettings(g, { airplane: false, wifi: true, wifiNet: name });
+}
+export const disconnectWifi = (g: GameState): GameState => updatePhoneSettings(g, { wifiNet: undefined });
+
+export type NetSpeed = 'none' | 'slow' | 'fast';
+export interface NetState { kind: 'none' | 'wifi' | '5g'; speed: NetSpeed; label: string; note: string }
+/** Qual internet o celular tem agora: dados móveis (5G, rápido) ou Wi-Fi grátis (ruim). Sem nada ligado ou conectado, não há internet. */
+export function netState(g: Pick<GameState, 'phone'>): NetState {
+  const s = phoneOf(g).settings;
+  if (s.airplane) return { kind: 'none', speed: 'none', label: 'Modo avião', note: 'Desligue o modo avião e conecte-se a uma rede.' };
+  if (s.mobileData) return { kind: '5g', speed: 'fast', label: '5G', note: 'Conexão rápida.' };
+  if (s.wifi && s.wifiNet) return { kind: 'wifi', speed: 'slow', label: `Wi-Fi · ${s.wifiNet}`, note: 'A conexão é ruim: apps e downloads vão demorar.' };
+  if (s.wifi) return { kind: 'none', speed: 'none', label: 'Wi-Fi sem rede', note: 'Escolha uma rede Wi-Fi ou ligue os dados móveis.' };
+  return { kind: 'none', speed: 'none', label: 'Sem conexão', note: 'Ligue o Wi-Fi ou os dados móveis no painel rápido.' };
+}
+/** Apps que precisam de internet para abrir. */
+export const OFFLINE_SCREENS = ['home', 'config', 'calc', 'nonet', 'boot'];
+export const needsInternet = (screen: string) => !OFFLINE_SCREENS.includes(screen);
+/** Tempo (ms) para abrir um app e para baixar um app, conforme a conexão. */
+export const openDelayMs = (g: Pick<GameState, 'phone'>) => (netState(g).speed === 'slow' ? 3600 : 450);
+export const downloadMs = (g: Pick<GameState, 'phone'>) => (netState(g).speed === 'slow' ? 9000 : 1600);
+export const INSTALL_MS = 1800;

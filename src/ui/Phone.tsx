@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { audio } from '../audio/audio';
-import { connOf } from '../engine/phone';
+import { connOf, downloadMs, INSTALL_MS, needsInternet, netState, openDelayMs } from '../engine/phone';
 import { changePin, checkPin, clearNotifications, hasPin, installApp, installedApps, isInstalled, markAllRead, phoneOf, PIN_LENGTH, registerPin, STORE_APPS, uninstallApp, updatePhoneSettings, WALLPAPERS, appById } from '../engine/phone';
 import type { GameState } from '../engine/types';
 import { BankApp } from './BankApp';
@@ -61,6 +61,7 @@ export function Phone({ game, onChange, onClose }: Props) {
   const [now, setNow] = useState(clock());
   const [closing, setClosing] = useState(false);
   const [panel, setPanel] = useState(false);
+  const [target, setTarget] = useState('');
   const pullY = useRef<number | null>(null);
   const [offer, setOffer] = useState(false); // depois de criar o PIN: oferece cadastrar a digital
   const gameRef = useRef(game); gameRef.current = game;
@@ -68,6 +69,11 @@ export function Phone({ game, onChange, onClose }: Props) {
   useEffect(() => { const t = window.setInterval(() => setNow(clock()), 15000); return () => window.clearInterval(t); }, []);
 
   const bad = (msg: string) => { setErr(msg); setShake((n) => n + 1); audio.sfx('error'); };
+  const go = (id: string) => {
+    if (!needsInternet(id)) { setScreen(id); return; }
+    setTarget(id);
+    setScreen(netState(gameRef.current).speed === 'none' ? 'nonet' : 'boot');
+  };
   const unlock = () => { setLocked(false); setScreen('home'); setErr(undefined); setTries(0); audio.sfx('unlock'); };
 
   const submitLock = (pin: string) => {
@@ -109,18 +115,20 @@ export function Phone({ game, onChange, onClose }: Props) {
             : <LockScreen game={game} now={now} onSubmit={submitLock} firstPin={firstPin} err={err} shake={shake} onReset={() => { setFirstPin(null); setErr(undefined); }} onFinger={unlock} />
           ) : (
             <>
-              {screen === 'home' && <HomeScreen game={game} onOpen={setScreen} />}
-              {screen === 'loja' && <Store game={game} onChange={onChange} onOpen={setScreen} />}
+              {screen === 'home' && <HomeScreen game={game} onOpen={go} />}
+              {screen === 'boot' && <Boot game={game} id={target} onDone={() => setScreen(target)} />}
+              {screen === 'nonet' && <NoNet game={game} id={target} onPanel={() => setPanel(true)} />}
+              {screen === 'loja' && <Store game={game} onChange={onChange} onOpen={go} getGame={() => gameRef.current} onPanel={() => setPanel(true)} />}
               {screen === 'config' && <Settings game={game} onChange={onChange} />}
               {screen === 'banco' && <BankApp game={game} onChange={onChange} />}
-              {screen === 'concessionaria' && <DealerApp game={game} onChange={onChange} onOpenApp={setScreen} />}
-              {screen === 'corretor' && <RealtorApp game={game} onChange={onChange} onOpenApp={setScreen} />}
-              {screen === 'cassino' && <CasinoApp game={game} onChange={onChange} onOpenApp={setScreen} />}
+              {screen === 'concessionaria' && <DealerApp game={game} onChange={onChange} onOpenApp={go} />}
+              {screen === 'corretor' && <RealtorApp game={game} onChange={onChange} onOpenApp={go} />}
+              {screen === 'cassino' && <CasinoApp game={game} onChange={onChange} onOpenApp={go} />}
               {screen === 'noticias' && <NewsApp game={game} />}
               {screen === 'calc' && <CalcApp />}
               {screen === 'mensagens' && <MessagesApp game={game} onChange={onChange} />}
               {(screen === 'linstagra' || screen === 'tikiteko') && <SocialApp app={screen} game={game} onChange={onChange} />}
-              {!['home', 'loja', 'config', 'banco', 'concessionaria', 'corretor', 'linstagra', 'tikiteko', 'cassino', 'noticias', 'mensagens', 'calc'].includes(screen) && <SoonApp id={screen} />}
+              {!['home', 'loja', 'config', 'banco', 'concessionaria', 'corretor', 'linstagra', 'tikiteko', 'cassino', 'noticias', 'mensagens', 'calc', 'boot', 'nonet'].includes(screen) && <SoonApp id={screen} />}
               <button className="ph-homebar" onClick={() => setScreen('home')} aria-label="Início do celular" />
             </>
           )}
@@ -216,24 +224,98 @@ function HomeScreen({ game, onOpen }: { game: GameState; onOpen: (id: string) =>
   );
 }
 
-function Store({ game, onChange, onOpen }: { game: GameState; onChange: (g: GameState) => void; onOpen: (id: string) => void }) {
+type Job = { phase: 'down' | 'inst'; pct: number };
+
+/** Tela de abertura de um app: a conexão ruim deixa o carregamento lento. */
+function Boot({ game, id, onDone }: { game: GameState; id: string; onDone: () => void }) {
+  const net = netState(game);
+  const ms = openDelayMs(game);
+  const app = appById(id);
+  const [pct, setPct] = useState(0);
+  useEffect(() => {
+    const t0 = Date.now();
+    const iv = window.setInterval(() => { const p = Math.min(100, ((Date.now() - t0) / ms) * 100); setPct(p); if (p >= 100) { window.clearInterval(iv); onDone(); } }, 80);
+    return () => window.clearInterval(iv);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <div className="ph-app-screen ph-boot" aria-busy="true">
+      <span className="ph-ico big">{app?.icon ?? '📱'}</span>
+      <h2>{app?.name ?? 'Abrindo'}</h2>
+      <div className="ph-prog" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}><i style={{ width: `${pct}%` }} /></div>
+      <p className={net.speed === 'slow' ? 'bad' : ''}>{net.speed === 'slow' ? '⚠️ Conexão ruim… carregando devagar' : 'Carregando…'}</p>
+    </div>
+  );
+}
+
+/** Sem internet: o app não abre até ligar o Wi-Fi (e escolher a rede) ou os dados móveis. */
+function NoNet({ game, id, onPanel }: { game: GameState; id: string; onPanel: () => void }) {
+  const net = netState(game);
+  const app = appById(id);
+  return (
+    <div className="ph-app-screen ph-boot">
+      <span className="ph-ico big">{app?.icon ?? '📱'}</span>
+      <h2>Sem conexão</h2>
+      <p>{net.label}. {net.note}</p>
+      <button className="ph-btn pri" onClick={onPanel}>Abrir painel rápido</button>
+    </div>
+  );
+}
+
+/** Loja de Apps: instalar mostra o download (mais lento com conexão ruim), depois "instalando", e só então o botão Abrir. */
+function Store({ game, onChange, onOpen, getGame, onPanel }: { game: GameState; onChange: (g: GameState) => void; onOpen: (id: string) => void; getGame: () => GameState; onPanel: () => void }) {
   const [q, setQ] = useState('');
+  const [jobs, setJobs] = useState<Record<string, Job>>({});
+  const [msg, setMsg] = useState<string | null>(null);
+  const timers = useRef<Record<string, number>>({});
+  useEffect(() => () => { Object.values(timers.current).forEach((t) => window.clearInterval(t)); }, []);
+  const net = netState(game);
   const list = STORE_APPS.filter((a) => `${a.name} ${a.category} ${a.blurb}`.toLowerCase().includes(q.toLowerCase()));
+
+  const start = (id: string) => {
+    if (netState(getGame()).speed === 'none') { setMsg('Sem internet: ligue o Wi-Fi (e escolha uma rede) ou os dados móveis para baixar.'); audio.sfx('error'); return; }
+    setMsg(null);
+    const dl = downloadMs(getGame());
+    const t0 = Date.now();
+    setJobs((j) => ({ ...j, [id]: { phase: 'down', pct: 0 } }));
+    timers.current[id] = window.setInterval(() => {
+      const el = Date.now() - t0;
+      if (el < dl) { setJobs((j) => ({ ...j, [id]: { phase: 'down', pct: (el / dl) * 100 } })); return; }
+      if (el < dl + INSTALL_MS) { setJobs((j) => (j[id]?.phase === 'inst' ? j : { ...j, [id]: { phase: 'inst', pct: 100 } })); return; }
+      window.clearInterval(timers.current[id]);
+      delete timers.current[id];
+      onChange(installApp(getGame(), id));
+      audio.sfx('cash');
+      setJobs((j) => { const n = { ...j }; delete n[id]; return n; });
+    }, 100);
+  };
+
   return (
     <div className="ph-app-screen">
       <h2>🛍️ Loja de Apps</h2>
+      <p className={`ph-netline ${net.speed}`}>{net.kind === '5g' ? '⚡ 5G · downloads rápidos' : net.kind === 'wifi' ? '⚠️ Wi-Fi grátis: conexão ruim, downloads lentos' : '🚫 Sem internet'}</p>
+      {msg && <p className="ph-warn" role="alert">{msg} <button className="ph-link" onClick={onPanel}>Abrir painel</button></p>}
       <input className="ph-search" placeholder="Buscar apps" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Buscar apps" />
       <ul className="ph-store">
         {list.map((a) => {
           const have = isInstalled(game, a.id);
+          const job = jobs[a.id];
           return (
             <li key={a.id}>
               <span className="ph-ico big">{a.icon}</span>
               <div className="grow"><b>{a.name}</b><small>{a.category} · {a.size} · ⭐ {a.rating}</small><small>{a.blurb}</small></div>
-              {have ? (
+              {job ? (
+                <div className="ph-job" role="status">
+                  {job.phase === 'down' ? (
+                    <><div className="ph-prog"><i style={{ width: `${job.pct}%` }} /></div><small>Baixando… {Math.round(job.pct)}%{net.speed === 'slow' ? ' (conexão ruim)' : ''}</small></>
+                  ) : (
+                    <><div className="ph-prog busy"><i /></div><small>Instalando<span className="ph-dots3" aria-hidden="true" /></small></>
+                  )}
+                </div>
+              ) : have ? (
                 <div className="ph-btns"><button className="ph-btn" onClick={() => onOpen(a.id)}>Abrir</button><button className="ph-btn ghost" onClick={() => onChange(uninstallApp(game, a.id))}>Remover</button></div>
               ) : (
-                <button className="ph-btn pri" onClick={() => { onChange(installApp(game, a.id)); audio.sfx('cash'); }}>Instalar</button>
+                <button className="ph-btn pri" onClick={() => start(a.id)}>Instalar</button>
               )}
             </li>
           );

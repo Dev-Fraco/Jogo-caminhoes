@@ -53,3 +53,43 @@ describe('calculadora', () => {
     expect(run('1,2,3')).toBe('1,23');
   });
 });
+
+import { connectWifi, disconnectWifi, downloadMs, FREE_WIFI, needsInternet, netState, openDelayMs } from '../src/engine/phone';
+
+describe('internet do celular', () => {
+  it('sem nada ligado não há internet; Wi-Fi sem rede também não', () => {
+    let g = mk();
+    expect(netState(g).speed).toBe('none');
+    g = toggleConn(g, 'wifi');
+    expect(netState(g).speed).toBe('none');
+    expect(netState(g).label).toMatch(/sem rede/i);
+  });
+  it('Wi-Fi grátis conecta mas a conexão é ruim; 5G é rápido e vence o Wi-Fi', () => {
+    let g = toggleConn(mk(), 'wifi');
+    expect(FREE_WIFI.length).toBeGreaterThanOrEqual(3);
+    expect(connectWifi(g, 'rede que não existe')).toBe(g);
+    g = connectWifi(g, FREE_WIFI[0].name);
+    expect(netState(g)).toMatchObject({ kind: 'wifi', speed: 'slow' });
+    expect(netState(g).note).toMatch(/ruim/);
+    const slowOpen = openDelayMs(g), slowDl = downloadMs(g);
+    g = toggleConn(g, 'mobileData');
+    expect(netState(g)).toMatchObject({ kind: '5g', speed: 'fast', label: '5G' });
+    expect(openDelayMs(g)).toBeLessThan(slowOpen / 4);
+    expect(downloadMs(g)).toBeLessThan(slowDl / 3);
+  });
+  it('desligar o Wi-Fi ou ligar o avião derruba a rede; desconectar volta a ficar sem internet', () => {
+    let g = connectWifi(toggleConn(mk(), 'wifi'), FREE_WIFI[1].name);
+    expect(phoneOf(disconnectWifi(g)).settings.wifiNet).toBeUndefined();
+    expect(netState(toggleConn(g, 'airplane')).kind).toBe('none');
+    g = toggleConn(g, 'wifi');
+    expect(phoneOf(g).settings.wifiNet).toBeUndefined();
+    expect(netState(g).speed).toBe('none');
+  });
+  it('só Config e calculadora abrem sem internet', () => {
+    expect(needsInternet('banco')).toBe(true);
+    expect(needsInternet('loja')).toBe(true);
+    expect(needsInternet('mensagens')).toBe(true);
+    expect(needsInternet('config')).toBe(false);
+    expect(needsInternet('calc')).toBe(false);
+  });
+});
