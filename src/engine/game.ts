@@ -1,5 +1,6 @@
 import type { ClubData } from '../data/clubs';
 import { aiWindow, offseason } from './ai';
+import { aiRenewals, aiSignFreeAgents } from './aicontracts';
 import { contAfterLeagueRound, createContinentals, mundialAfterLeagueRound, playContStep, playMundialStep } from './continental';
 import { pendingEvent, playEvent } from './events';
 import { tickContracts } from './assets';
@@ -165,7 +166,7 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
   // propostas dos outros clubes pelos jogadores listados
   state = generateOffers(state, rng);
   // meio da temporada: janela pequena de transferências da IA
-  if (state.round === Math.floor(state.totalRounds / 2) + 1) state = aiWindow(state, rng, 1);
+  if (state.round === Math.floor(state.totalRounds / 2) + 1) state = aiSignFreeAgents(aiRenewals(aiWindow(state, rng, 1), rng, 'meio'), rng, 1);
   return { state, results };
 }
 

@@ -7,6 +7,7 @@ import { divisionIndexOf, playerValue } from './transfers';
 import { avgXI, clubProfile, profileCtx, signingScore, type ClubProfile } from './aiprofile';
 import { longInjured, RETIRING_AGE, squadNeeds, type Need } from './aineeds';
 import { baseWage, payrollOf } from './finance';
+import { aiRenewals, aiSignFreeAgents, agedFreeAgents, newContract, WAGE_LIMIT } from './aicontracts';
 import { forgetClub, marketValue, saleReasons, stance, type Stance } from './aisales';
 import type { GameState, NewsItem, Player, Position, RetiredPlayer, TeamState } from './types';
 
@@ -82,7 +83,8 @@ const news = (g: GameState, text: string, tone: NewsItem['tone']): GameState => 
 /** Transfere um jogador entre dois clubes (dinheiro vai para o vendedor). */
 function move(g: GameState, playerId: string, fromId: string, toId: string, fee: number): GameState {
   const from = g.teams[fromId], to = g.teams[toId];
-  const p = from.players.find((x) => x.id === playerId)!;
+  const p0 = from.players.find((x) => x.id === playerId)!;
+  const p = { ...p0, contract: newContract(g, toId, p0) }; // contrato novo no clube que contrata (salário e prazo da realidade dele)
   const left = from.players.filter((x) => x.id !== playerId);
   return {
     ...g,
@@ -107,7 +109,6 @@ function trimSquad(g: GameState, clubId: string, size: number): GameState {
 /** Quantas contratações um clube faz por janela, no máximo, conforme o porte (além do limite de cada janela e das necessidades reais). */
 export const maxBuysFor = (p: ClubProfile) => (p.tier === 'gigante' ? 6 : p.tier === 'medio' ? 4 : 3);
 /** Folga da folha salarial por porte: gigantes aceitam passar um pouco da receita-base, pequenos não. */
-const WAGE_LIMIT = { gigante: 1.2, medio: 1.05, pequeno: 0.95 } as const;
 /** Quanto acima do nível do time (nota dos titulares) cada porte aceita contratar: o pequeno não vai atrás de astros. */
 const STAR_CEILING = { gigante: 22, medio: 12, pequeno: 8 } as const;
 
@@ -307,11 +308,16 @@ export function offseason(g: GameState, rng: Rng, input: OffseasonInput): { stat
     s = news(s, `💸 ${s.clubs[clubId].name} cai e entra em crise financeira${sold.length ? `: vendeu ${sold.join(' e ')}` : ''}.`, 'info');
   }
 
+  // 3b) contratos: os que acabaram são renovados (quem vale a pena) ou liberados; livres envelhecem e podem ser contratados
+  s = { ...s, freeAgents: agedFreeAgents(s, rng) };
+  s = aiRenewals(s, rng, 'virada', s.season - 1);
+
   // 4) janela de transferências da IA: promovidos com investimento forte vão às compras primeiro (até 8 contratações); depois, todos (até 3)
   s = aiBalanceBooks(s, rng); // clubes apertados vendem para fechar as contas
   const strongIds = promotion.filter((p) => p.strong && !managed(s, p.clubId)).map((p) => p.clubId);
   if (strongIds.length) s = aiWindow(s, rng, 8, strongIds);
   s = aiWindow(s, rng, 3);
+  s = aiSignFreeAgents(s, rng, 2);
 
   // 5) elenco enxuto: a IA dispensa o excedente (os menos cotados)
   for (const id of Object.keys(s.teams)) if (!managed(s, id)) s = trimSquad(s, id, AI_MAX_SQUAD);

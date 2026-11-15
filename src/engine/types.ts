@@ -319,6 +319,8 @@ export interface GameState {
   loansIn?: LoanIn[]; // jogadores de outros clubes emprestados ao seu
   transferBan?: TransferBan; // transfer ban do fair play financeiro
   /** Últimas transferências feitas pela IA (jogador → de onde, para onde e quando): impede revender ou recontratar o mesmo jogador logo em seguida. */
+  /** Jogadores livres no mercado (contrato acabou e não foi renovado): os clubes podem contratá-los sem pagar transferência. */
+  freeAgents?: Player[];
   aiMoves?: Record<string, { season: number; round: number; from: string; to: string }>;
   /** Lesões (o jogo ainda não gera lesões; se existirem, a IA as considera): jogador → temporada e rodada em que volta. */
   injuries?: Record<string, Injury>;
