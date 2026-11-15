@@ -18,7 +18,7 @@ import { processDays } from './daily';
 import { youthSeason, youthTick } from './youth';
 import { fibraTick } from './netfibra';
 import { afterMatch, calOf, newSeasonCalendar } from './calendar';
-import { createCup, cupAfterLeagueRound, playCupRound, shootout } from './cup';
+import { createCup, cupAfterLeagueRound, penaltyTakers, playCupRound, shootoutKicks } from './cup';
 import { MORALE_START, moraleFactor, updateMorale } from './morale';
 import { simulateMatch } from './match';
 import { makeRng } from './rng';
@@ -130,8 +130,9 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
     const out = simulateMatch(teams[f.homeId], teams[f.awayId], rng, mods, { home: g.clubs[f.homeId].name, away: g.clubs[f.awayId].name });
     const mine = f.homeId === g.userClubId || f.awayId === g.userClubId;
     // jogo eliminatório empatado: pênaltis
-    const pens = f.ko && out.homeGoals === out.awayGoals ? shootout(rng, teamRatings(teams[f.homeId]).gk, teamRatings(teams[f.awayId]).gk) : undefined;
-    return { divisionId: f.divisionId, round: f.round, homeId: f.homeId, awayId: f.awayId, homeGoals: out.homeGoals, awayGoals: out.awayGoals, ...(pens ? { pens } : {}), events: mine ? out.events : [] };
+    const sk = f.ko && out.homeGoals === out.awayGoals ? shootoutKicks(rng, teamRatings(teams[f.homeId]).gk, teamRatings(teams[f.awayId]).gk, penaltyTakers(teams[f.homeId]), penaltyTakers(teams[f.awayId])) : undefined;
+    const pens = sk?.score;
+    return { divisionId: f.divisionId, round: f.round, homeId: f.homeId, awayId: f.awayId, homeGoals: out.homeGoals, awayGoals: out.awayGoals, ...(pens ? { pens } : {}), ...(sk && mine ? { penKicks: { home: sk.home, away: sk.away } } : {}), events: mine ? out.events : [] };
   });
   let state: GameState = advanceKnockout({ ...g, teams, round: g.round + 1, results: [...g.results, ...results] });
 

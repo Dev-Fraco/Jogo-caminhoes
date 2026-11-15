@@ -737,3 +737,25 @@ button.home-tile { width: 100%; font: inherit; color: inherit; text-align: cente
 .daycal-next { margin: 0; font-size: 13px; color: #cfd9ee; text-align: center; }
 .daycal-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .daycal-list li { display: flex; gap: 10px; align-items: baseline; font-size: 13px; padding: 5px 8px; border-radius: 8px; background: rgba(255, 255, 255, .04); } .daycal-list b { min-width: 74px; color: #ffd86a; text-transform: capitalize; } .daycal-list small { display: block; color: var(--muted); font-size: 11px; }
+
+/* Disputa de pênaltis */
+.pk { display: grid; gap: 10px; padding: 12px; margin: 8px 0; border-radius: 16px; background: linear-gradient(180deg, rgba(14, 24, 48, .92), rgba(9, 17, 36, .92)); border: 1px solid #25406f; }
+.pk-title { margin: 0; text-align: center; font: italic 800 16px var(--font-head); letter-spacing: .04em; }
+.pk-score { display: flex; justify-content: center; align-items: center; gap: 14px; font: 800 26px var(--font-head); } .pk-score span { display: flex; align-items: center; gap: 8px; } .pk-score i { font-style: normal; color: var(--muted); font-size: 18px; }
+.pk-marks { display: grid; gap: 4px; } .pk-marks > div { display: flex; justify-content: center; gap: 6px; }
+.pk-marks b { width: 22px; text-align: center; font-size: 16px; color: #6b7889; } .pk-marks b.ok { color: #3ddc84; } .pk-marks b.no { color: #ff6b6b; }
+.pk-field { position: relative; height: 230px; border-radius: 12px; overflow: hidden; background: linear-gradient(180deg, #0a1428 0%, #0a1428 38%, #14532d 38%, #0f7a3a 100%); }
+.pk-goal { position: absolute; left: 14%; right: 14%; top: 8%; height: 118px; border: 5px solid #f2f5fa; border-bottom: 0; border-radius: 4px 4px 0 0; }
+.pk-net { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255, 255, 255, .13) 0 1px, transparent 1px 10px), repeating-linear-gradient(90deg, rgba(255, 255, 255, .13) 0 1px, transparent 1px 10px); }
+.pk-keeper { position: absolute; left: 50%; bottom: 0; width: 34px; height: 64px; margin-left: -17px; transition: transform .55s cubic-bezier(.2, .8, .3, 1); transform-origin: 50% 100%; }
+.pk-keeper i { position: absolute; top: 0; left: 8px; width: 18px; height: 18px; border-radius: 50%; background: #f5c542; } .pk-keeper b { position: absolute; top: 18px; left: 2px; width: 30px; height: 44px; border-radius: 8px 8px 4px 4px; background: linear-gradient(180deg, #ff8a3d, #d9601a); }
+.pk-keeper.dive-l { transform: translateX(-62px) rotate(-62deg); } .pk-keeper.dive-r { transform: translateX(62px) rotate(62deg); } .pk-keeper.dive-c { transform: translateY(-18px); }
+.pk-ball { position: absolute; font-size: 24px; line-height: 1; transition-property: left, top, transform; transition-timing-function: cubic-bezier(.2, .7, .3, 1); filter: drop-shadow(0 3px 3px rgba(0, 0, 0, .5)); z-index: 2; }
+.pk-shooter { position: absolute; left: 50%; bottom: 6px; width: 30px; height: 54px; margin-left: -15px; transition: transform .8s ease-in; z-index: 1; }
+.pk-shooter span { display: block; width: 100%; height: 100%; border-radius: 14px 14px 6px 6px; border: 3px solid; box-shadow: 0 4px 8px rgba(0, 0, 0, .4); }
+.pk-shooter.prep { animation: pk-ready 1.2s ease-in-out infinite alternate; } .pk-shooter.kick { transform: translateY(-34px) scale(.9); }
+@keyframes pk-ready { from { transform: translateY(0); } to { transform: translateY(-5px); } }
+.pk-say { margin: 0; min-height: 52px; text-align: center; font-size: 14px; display: grid; place-content: center; gap: 2px; } .pk-say small { display: block; color: var(--muted); font-weight: 500; }
+.pk-say.goal { font: 900 26px var(--font-head); color: #3ddc84; animation: pk-pop .5s ease-out; } .pk-say.saved { font: 900 22px var(--font-head); color: #ffd86a; animation: pk-pop .5s ease-out; } .pk-say.wide { font: 900 22px var(--font-head); color: #ff8a8a; animation: pk-pop .5s ease-out; }
+@keyframes pk-pop { 0% { transform: scale(.6); opacity: 0; } 70% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
+.pk-ctrl { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; } .pk-end { flex: 1 0 100%; margin: 0; text-align: center; }

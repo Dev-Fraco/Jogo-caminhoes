@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ClubInfo, MatchEvent, MatchResult } from '../engine/types';
 import { audio } from '../audio/audio';
 import { ClubBadge } from './ClubBadge';
+import { PenaltyShootout } from './PenaltyShootout';
 
 export const SPEEDS = [1, 2, 4, 8] as const;
 export type Speed = (typeof SPEEDS)[number];
@@ -26,7 +27,7 @@ interface Props {
 /** Partida ao vivo: animação de entrada, relógio de 0 a 90 minutos, placar e narração dos lances com o nome dos jogadores. */
 export function LiveMatch({ home, away, result, userSide, divisionName, stadium, onFinish }: Props) {
   const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  const [phase, setPhase] = useState<'intro' | 'play' | 'done'>(reduce ? 'play' : 'intro');
+  const [phase, setPhase] = useState<'intro' | 'play' | 'pens' | 'done'>(reduce ? 'play' : 'intro');
   const [speed, setSpeed] = useState<Speed>(1);
   const [paused, setPaused] = useState(false);
   const [minute, setMinute] = useState(0);
@@ -47,7 +48,7 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
       const dt = now - last; last = now;
       setMinute((m) => {
         const n = Math.min(90, m + (dt / MS_PER_MINUTE_AT_1X) * speedRef.current);
-        if (n >= 90) setPhase('done');
+        if (n >= 90) setPhase(result.penKicks ? 'pens' : 'done');
         return n;
       });
       raf = requestAnimationFrame(tick);
@@ -66,7 +67,7 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
   const goalCount = shown.filter((e) => e.type === 'goal').length;
   useEffect(() => { if (goalCount > goalsSeen.current) audio.sfx('goal'); goalsSeen.current = goalCount; }, [goalCount]);
   const goals = result.events.filter((e) => e.type === 'goal');
-  const skip = () => { setMinute(90); setPhase('done'); };
+  const skip = () => { setMinute(90); setPhase(result.penKicks ? 'pens' : 'done'); };
   const feed = [...shown].reverse();
   const mine = (e: MatchEvent) => e.side === userSide;
 
@@ -95,7 +96,7 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
       </div>
 
       <div className="lm-clock">
-        <span className="lm-min" aria-label={`Minuto ${Math.floor(minute)}`}>{phase === 'done' ? 90 : Math.floor(minute)}'</span>
+        <span className="lm-min" aria-label={`Minuto ${Math.floor(minute)}`}>{phase === 'play' ? Math.floor(minute) : 90}'</span>
         <div className="lm-track" role="progressbar" aria-valuemin={0} aria-valuemax={90} aria-valuenow={Math.floor(minute)} aria-label="Tempo de jogo">
           <i style={{ width: `${(minute / 90) * 100}%` }} />
           <b className="lm-half" style={{ left: '50%' }} />
@@ -103,7 +104,9 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
         </div>
       </div>
 
-      {phase === 'play' ? (
+      {phase === 'pens' && result.penKicks ? (
+        <PenaltyShootout home={home} away={away} kicks={result.penKicks} userSide={userSide} onDone={() => setPhase('done')} />
+      ) : phase === 'play' ? (
         <div className="lm-ctrl">
           <div className="lm-speeds" role="group" aria-label="Velocidade do tempo">
             {SPEEDS.map((s) => <button key={s} className={speed === s ? 'on' : ''} aria-pressed={speed === s} onClick={() => setSpeed(s)}>{s}x</button>)}
@@ -113,7 +116,7 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
         </div>
       ) : (
         <div className="lm-final">
-          <p>Fim de jogo! <b>{home.name} {result.homeGoals} x {result.awayGoals} {away.name}</b></p>
+          <p>Fim de jogo! <b>{home.name} {result.homeGoals} x {result.awayGoals} {away.name}</b>{result.pens && <> · pênaltis {result.pens[0]} x {result.pens[1]}</>}</p>
           <button className="primary" onClick={onFinish}>Continuar</button>
         </div>
       )}

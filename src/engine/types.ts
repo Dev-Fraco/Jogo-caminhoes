@@ -64,6 +64,8 @@ export interface MatchResult {
   awayGoals: number;
   /** Pênaltis (mata-mata empatado). */
   pens?: [number, number];
+  /** Cobranças dos pênaltis, na ordem (só no jogo do seu clube): quem bateu e se fez o gol. */
+  penKicks?: { home: PenKick[]; away: PenKick[] };
   /** Lances da partida. Só são guardados nos jogos do clube do jogador (nos demais fica vazio, para o save não crescer). */
   events: MatchEvent[];
 }
@@ -124,6 +126,7 @@ export interface NewsItem {
 
 /** Resumo de uma temporada encerrada. */
 /** Um jogo de mata-mata (jogo único; empate vai para os pênaltis). */
+export interface PenKick { name: string; scored: boolean }
 export interface CupTie { homeId: string; awayId: string; homeGoals?: number; awayGoals?: number; pens?: [number, number]; winnerId?: string }
 export interface CupRound { name: string; ties: CupTie[] }
 /** Copa nacional da temporada (ex.: Copa do Brasil). */

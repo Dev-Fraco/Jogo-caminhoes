@@ -3,7 +3,7 @@ import { moraleFactor } from './morale';
 import { simulateMatch } from './match';
 import { makeRng, type Rng } from './rng';
 import { autoLineup, teamRatings } from './squad';
-import type { CupState, CupTie, GameState, MatchResult, NewsItem, TeamState } from './types';
+import type { CupState, CupTie, GameState, MatchResult, NewsItem, PenKick, TeamState } from './types';
 
 export const COPA_DO_BRASIL = 'copa-do-brasil';
 export const CUP_ROUND_NAMES = ['1ª fase', '2ª fase', 'Oitavas de final', 'Quartas de final', 'Semifinal', 'Final'];
@@ -73,11 +73,31 @@ const lineupTeam = (g: GameState, id: string): TeamState => {
 
 /** Penalidades: 5 cobranças cada e depois alternadas; devolve o placar e o vencedor (leve vantagem de quem tem melhor goleiro). */
 export function shootout(rng: Rng, homeGk: number, awayGk: number): [number, number] {
+  return shootoutKicks(rng, homeGk, awayGk, [], []).score;
+}
+
+/** Quem bate os pênaltis: os melhores jogadores de linha da escalação, do mais forte ao mais fraco, e o goleiro por último. */
+export function penaltyTakers(team: TeamState): string[] {
+  const byId = new Map(team.players.map((p) => [p.id, p]));
+  const onPitch = team.lineup.map((id) => byId.get(id)).filter((p): p is NonNullable<typeof p> => !!p);
+  const field = onPitch.filter((p) => p.pos !== 'GK').sort((a, b) => b.strength - a.strength);
+  return [...field, ...onPitch.filter((p) => p.pos === 'GK')].map((p) => p.name);
+}
+
+/** Pênaltis cobrança por cobrança: 5 para cada lado e depois alternadas até desempatar. O resultado é o mesmo de antes (mesma sequência de sorteios). */
+export function shootoutKicks(rng: Rng, homeGk: number, awayGk: number, homeNames: string[], awayNames: string[]): { score: [number, number]; home: PenKick[]; away: PenKick[] } {
   const pH = 0.78 - (awayGk - homeGk) * 0.002, pA = 0.78 - (homeGk - awayGk) * 0.002;
-  let h = 0, a = 0;
-  for (let i = 0; i < 5; i++) { if (rng() < pH) h++; if (rng() < pA) a++; }
-  while (h === a) { if (rng() < pH) h++; if (rng() < pA) a++; }
-  return [h, a];
+  const home: PenKick[] = [], away: PenKick[] = [];
+  const name = (list: string[], i: number) => (list.length ? list[i % list.length] : '');
+  const kick = () => {
+    const hs = rng() < pH, as = rng() < pA;
+    home.push({ name: name(homeNames, home.length), scored: hs });
+    away.push({ name: name(awayNames, away.length), scored: as });
+  };
+  for (let i = 0; i < 5; i++) kick();
+  const tally = (l: PenKick[]) => l.filter((k) => k.scored).length;
+  while (tally(home) === tally(away)) kick();
+  return { score: [tally(home), tally(away)], home, away };
 }
 
 /** Joga a fase da copa que está esperando. O resultado do jogo do seu clube traz os lances para a narração. */
@@ -93,14 +113,16 @@ export function playCupRound(g: GameState): { state: GameState; results: MatchRe
     const mods = { home: t.homeId === g.userClubId ? factor : 1, away: t.awayId === g.userClubId ? factor : 1 };
     const out = simulateMatch(lineupTeam(g, t.homeId), lineupTeam(g, t.awayId), rng, mods, { home: g.clubs[t.homeId].name, away: g.clubs[t.awayId].name });
     let pens: [number, number] | undefined;
+    let penKicks: { home: PenKick[]; away: PenKick[] } | undefined;
     let winnerId = out.homeGoals > out.awayGoals ? t.homeId : out.awayGoals > out.homeGoals ? t.awayId : '';
     if (!winnerId) {
       const gk = (id: string) => teamRatings(g.teams[id]).gk;
-      pens = shootout(rng, gk(t.homeId), gk(t.awayId));
+      const sk = shootoutKicks(rng, gk(t.homeId), gk(t.awayId), penaltyTakers(lineupTeam(g, t.homeId)), penaltyTakers(lineupTeam(g, t.awayId)));
+      pens = sk.score; penKicks = { home: sk.home, away: sk.away };
       winnerId = pens[0] > pens[1] ? t.homeId : t.awayId;
     }
     const mine = t.homeId === g.userClubId || t.awayId === g.userClubId;
-    results.push({ divisionId: cup.id, round: cup.roundIndex + 1, homeId: t.homeId, awayId: t.awayId, homeGoals: out.homeGoals, awayGoals: out.awayGoals, events: mine ? out.events : [] });
+    results.push({ divisionId: cup.id, round: cup.roundIndex + 1, homeId: t.homeId, awayId: t.awayId, homeGoals: out.homeGoals, awayGoals: out.awayGoals, ...(mine && pens ? { pens, penKicks } : {}), events: mine ? out.events : [] });
     if (mine) {
       const rival = g.clubs[t.homeId === g.userClubId ? t.awayId : t.homeId].name;
       const penTxt = pens ? ` nos pênaltis (${pens[0]}–${pens[1]})` : '';
