@@ -17,6 +17,7 @@ export const STORE_APPS: PhoneApp[] = [
   { id: 'noticias', name: 'Notícias', icon: '📰', blurb: 'Transferências e o que a torcida diz.', category: 'Notícias', size: '18 MB', rating: 4.3 },
   { id: 'concessionaria', name: 'Concessionária', icon: '🚗', blurb: 'Compre carros e motos.', category: 'Compras', size: '45 MB', rating: 4.4 },
   { id: 'corretor', name: 'Corretor de Imóveis', icon: '🏠', blurb: 'Casas para comprar e alugar.', category: 'Compras', size: '36 MB', rating: 4.2 },
+  { id: 'internetchip', name: 'Internet de Chip', icon: '📲', blurb: 'Plano mensal de internet ilimitada.', category: 'Telefonia', size: '12 MB', rating: 4.1 },
   { id: 'cassino', name: 'Cassino', icon: '🎰', blurb: 'Aposte no vermelho, preto ou azul.', category: 'Jogos', size: '60 MB', rating: 3.9 },
 ];
 export const APPS: PhoneApp[] = [...SYSTEM_APPS, ...STORE_APPS];
@@ -138,10 +139,11 @@ export const disconnectWifi = (g: GameState): GameState => updatePhoneSettings(g
 export type NetSpeed = 'none' | 'slow' | 'fast';
 export interface NetState { kind: 'none' | 'wifi' | '5g'; speed: NetSpeed; label: string; note: string }
 /** Qual internet o celular tem agora: dados móveis (5G, rápido) ou Wi-Fi grátis (ruim). Sem nada ligado ou conectado, não há internet. */
-export function netState(g: Pick<GameState, 'phone'>): NetState {
+export function netState(g: Pick<GameState, 'phone' | 'season' | 'round'>): NetState {
   const s = phoneOf(g).settings;
   if (s.airplane) return { kind: 'none', speed: 'none', label: 'Modo avião', note: 'Desligue o modo avião e conecte-se a uma rede.' };
-  if (s.mobileData) return { kind: '5g', speed: 'fast', label: '5G', note: 'Conexão rápida.' };
+  if (s.mobileData && planActive(g)) return { kind: '5g', speed: 'fast', label: '5G', note: 'Conexão rápida.' };
+  if (s.mobileData && !s.wifiNet) return { kind: 'none', speed: 'none', label: 'Dados móveis sem plano', note: 'Assine o plano no app Internet de Chip (use um Wi-Fi grátis para isso).' };
   if (s.wifi && s.wifiNet) return { kind: 'wifi', speed: 'slow', label: `Wi-Fi · ${s.wifiNet}`, note: 'A conexão é ruim: apps e downloads vão demorar.' };
   if (s.wifi) return { kind: 'none', speed: 'none', label: 'Wi-Fi sem rede', note: 'Escolha uma rede Wi-Fi ou ligue os dados móveis.' };
   return { kind: 'none', speed: 'none', label: 'Sem conexão', note: 'Ligue o Wi-Fi ou os dados móveis no painel rápido.' };
@@ -150,6 +152,16 @@ export function netState(g: Pick<GameState, 'phone'>): NetState {
 export const OFFLINE_SCREENS = ['home', 'config', 'calc', 'nonet', 'boot'];
 export const needsInternet = (screen: string) => !OFFLINE_SCREENS.includes(screen);
 /** Tempo (ms) para abrir um app e para baixar um app, conforme a conexão. */
-export const openDelayMs = (g: Pick<GameState, 'phone'>) => (netState(g).speed === 'slow' ? 3600 : 450);
-export const downloadMs = (g: Pick<GameState, 'phone'>) => (netState(g).speed === 'slow' ? 9000 : 1600);
+export const openDelayMs = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => (netState(g).speed === 'slow' ? 3600 : 450);
+export const downloadMs = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => (netState(g).speed === 'slow' ? 9000 : 1600);
 export const INSTALL_MS = 1800;
+
+/* ---------- plano de dados (app Internet de Chip) ---------- */
+export const PLAN_PRICE = 5_000;
+/** O "mês" do jogo: 3 rodadas, o mesmo ciclo das receitas de publicidade. */
+export const PLAN_ROUNDS = 3;
+const ABS = 200;
+const nowAbs = (g: Pick<GameState, 'season' | 'round'>) => g.season * ABS + g.round;
+/** Rodadas que ainda restam no plano (0 = sem plano ou vencido). */
+export const planLeft = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => Math.max(0, (phoneOf(g).plan?.until ?? 0) - nowAbs(g));
+export const planActive = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => planLeft(g) > 0;

@@ -1,6 +1,7 @@
 import { estadualOfUser, estadualTable, playEstadualStep, userEstadualMatch } from './estadual';
 import { playHomeGate } from './stadium';
 import { inboxTick } from './inbox';
+import './dataplan';
 import { updateMorale } from './morale';
 import { COPA_DO_BRASIL, cupMatchDue, playCupRound, userCupTie } from './cup';
 import { CONTINENTALS, matchDue, mundialMatchDue, mundialStepName, mundialUserMatch, playContStep, playMundialStep, stepName, userMatch, type Comp } from './continental';

@@ -73,6 +73,8 @@ describe('internet do celular', () => {
     expect(netState(g).note).toMatch(/ruim/);
     const slowOpen = openDelayMs(g), slowDl = downloadMs(g);
     g = toggleConn(g, 'mobileData');
+    expect(netState(g).kind).toBe('wifi'); // sem plano, os dados não valem: continua no Wi-Fi ruim
+    g = { ...g, phone: { ...phoneOf(g), plan: { until: g.season * 200 + g.round + 3 } } };
     expect(netState(g)).toMatchObject({ kind: '5g', speed: 'fast', label: '5G' });
     expect(openDelayMs(g)).toBeLessThan(slowOpen / 4);
     expect(downloadMs(g)).toBeLessThan(slowDl / 3);

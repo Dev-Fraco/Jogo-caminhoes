@@ -157,7 +157,7 @@ export interface LibState {
 export interface PhoneSettings { wallpaper: 'neon' | 'ouro' | 'noite' | 'campo' | 'aurora'; dark: boolean; brightness: number; bigText: boolean; dnd: boolean; sounds: boolean; vibration: boolean; /** desbloqueio por digital (sem digitar o PIN) */ fingerprint?: boolean; /** conexões (painel rápido) */ wifi?: boolean; mobileData?: boolean; airplane?: boolean; /** rede Wi-Fi conectada */ wifiNet?: string }
 export interface PhoneNotification { id: string; app: string; text: string; season: number; round: number; read: boolean }
 /** Celular do treinador: PIN, apps instalados, configurações e notificações. */
-export interface PhoneState { pinHash?: string; installed: string[]; settings: PhoneSettings; notifications: PhoneNotification[] }
+export interface PhoneState { pinHash?: string; installed: string[]; settings: PhoneSettings; notifications: PhoneNotification[]; /** plano de dados: vale até a rodada absoluta `until` */ plan?: { until: number; warned?: boolean; expiredNotified?: boolean } }
 
 /** O que acontece quando uma cobrança/boleto é pago (cada app define o seu). */
 export interface PayPurpose { type: string; ref?: string; data?: Record<string, number | string> }

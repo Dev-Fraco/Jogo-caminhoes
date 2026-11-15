@@ -620,3 +620,11 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .qs-wifi b { display: block; font: 700 14px var(--font-head); } .qs-wifi small { opacity: .7; font-size: 12px; } .qs-wifi em { font: 700 12px var(--font-head); font-style: normal; color: #9fcbff; }
 .qs-bars { display: flex; align-items: flex-end; gap: 2px; width: 22px; } .qs-bars i { width: 4px; border-radius: 1px; background: rgba(255, 255, 255, .25); } .qs-bars i.on { background: #ffb347; }
 .qs-net { margin: 0 0 10px; padding: 8px 12px; border-radius: 12px; background: rgba(255, 255, 255, .06); font: 600 13px var(--font-head); }
+
+/* App Internet de Chip */
+.chip-plan { position: relative; padding: 16px; background: linear-gradient(160deg, rgba(47, 139, 255, .28), rgba(21, 96, 216, .1)); border: 1px solid #2d6cc8; }
+.chip-badge { position: absolute; top: 12px; right: 12px; padding: 4px 10px; border-radius: 8px; background: linear-gradient(180deg, #2f8bff, #1560d8); font: 800 14px var(--font-head); font-style: italic; }
+.chip-plan h3 { margin: 0 0 6px; font: 800 16px var(--font-head); text-transform: uppercase; color: #fff; display: block; } .chip-plan h3::before { content: none; }
+.chip-price { margin: 4px 0 10px; font: 800 30px var(--font-head); } .chip-price small { font: 600 14px var(--font-head); opacity: .7; }
+.chip-plan ul { margin: 0 0 14px; padding-left: 18px; line-height: 1.5; font-size: 14px; }
+.chip-status.on { border-color: #3ddc84; }

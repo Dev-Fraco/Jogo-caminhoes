@@ -11,6 +11,7 @@ import { MessagesApp } from './MessagesApp';
 import { pendingCount } from '../engine/inbox';
 import { RealtorApp } from './RealtorApp';
 import { CalcApp, QuickPanel } from './QuickPanel';
+import { ChipApp } from './ChipApp';
 import { SocialApp } from './SocialApp';
 import './phone.css';
 
@@ -126,9 +127,10 @@ export function Phone({ game, onChange, onClose }: Props) {
               {screen === 'cassino' && <CasinoApp game={game} onChange={onChange} onOpenApp={go} />}
               {screen === 'noticias' && <NewsApp game={game} />}
               {screen === 'calc' && <CalcApp />}
+              {screen === 'internetchip' && <ChipApp game={game} onChange={onChange} onOpenApp={go} />}
               {screen === 'mensagens' && <MessagesApp game={game} onChange={onChange} />}
               {(screen === 'linstagra' || screen === 'tikiteko') && <SocialApp app={screen} game={game} onChange={onChange} />}
-              {!['home', 'loja', 'config', 'banco', 'concessionaria', 'corretor', 'linstagra', 'tikiteko', 'cassino', 'noticias', 'mensagens', 'calc', 'boot', 'nonet'].includes(screen) && <SoonApp id={screen} />}
+              {!['home', 'loja', 'config', 'banco', 'concessionaria', 'corretor', 'linstagra', 'tikiteko', 'cassino', 'noticias', 'mensagens', 'calc', 'boot', 'nonet', 'internetchip'].includes(screen) && <SoonApp id={screen} />}
               <button className="ph-homebar" onClick={() => setScreen('home')} aria-label="Início do celular" />
             </>
           )}
