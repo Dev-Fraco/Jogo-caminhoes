@@ -13,7 +13,7 @@ import { isWizardComplete, createNewGameState, STEPS } from '../src/newgame/stat
 
 const custom = (): ClubData => ({
   id: 'meu-real-esperanca', name: 'Real Esperança', shortName: 'RES', badge: 'x', primaryColor: '#1e6bff', secondaryColor: '#ffffff', stadium: 'Estádio da Esperança', city: 'Fortaleza',
-  budget: 1_500_000, boardExpectation: 'mid', reputation: 1, uf: 'CE', custom: true, squad: generateSquad({ id: 'meu-real-esperanca', name: 'Real Esperança', short: 'RES', color: '#1e6bff', strength: 48 }, 2026),
+  budget: 900_000, boardExpectation: 'mid', reputation: 1, uf: 'CE', custom: true, squad: generateSquad({ id: 'meu-real-esperanca', name: 'Real Esperança', short: 'RES', color: '#1e6bff', strength: 48 }, 2026),
 });
 const start = (club: ClubData, seed = 5): GameState => newCareer({
   saveName: 't', coach: { name: 'Teste Silva', nationality: 'BR', reputation: 'unknown' }, difficulty: 'normal', mode: 'career', season: 2026,

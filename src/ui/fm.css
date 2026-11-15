@@ -711,3 +711,13 @@ button.home-tile { width: 100%; font: inherit; color: inherit; text-align: cente
 .hm-feats li { padding: 0 10px; font: 600 11px/1 var(--font-head); text-transform: uppercase; color: #dbe5f5; border-left: 2px solid #2f7de8; } .hm-feats li:first-child { border-left: 0; }
 .hm-foot { margin: 12px 0 0; text-align: center; font: 600 12px var(--font-head); color: #b8c6de; }
 .menu-bg::after { display: none; }
+
+/* Botão do celular no topo e aviso de moradia */
+.gh-phone { position: relative; width: 46px; min-width: 46px; padding: 0 !important; font-size: 20px; display: grid; place-items: center; }
+.gh-phone .nav-badge { position: absolute; top: -6px; right: -6px; }
+.phone-gate > .home-gate { max-width: 360px; text-align: left; max-height: 90vh; overflow-y: auto; }
+.home-gate h2 { font: 800 18px var(--font-head); } .home-gate > p { margin: 0 0 4px; }
+.hg-steps { list-style: none; margin: 4px 0 8px; padding: 0; display: grid; gap: 8px; }
+.hg-steps li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: 12px; background: rgba(255, 255, 255, .05); border: 1px solid #25406f; }
+.hg-steps li.done { opacity: .6; border-color: #2c7a4b; }
+.hg-steps b { display: block; font-size: 14px; color: #fff; } .hg-steps small { display: block; color: var(--muted); font-size: 12px; }

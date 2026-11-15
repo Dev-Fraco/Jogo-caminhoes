@@ -333,6 +333,8 @@ export interface GameState {
   youth?: import('./youth').YouthState;
   /** Débito automático das mensalidades (plano de dados, NetFibra, aluguel e parcelas): ligado a menos que seja desligado. */
   autoDebit?: boolean;
+  /** Carreira nova: só dá para avançar dias e jogar depois de alugar ou comprar uma casa. */
+  homeRequired?: boolean;
   /** Calendário: dia atual, início da temporada e quantos jogos (eventos) já aconteceram nela. */
   cal?: { day: number; start: number; slot: number };
   /** Mensagens (patrocínios, coletivas, diretoria, torcida) e metas do celular. */

@@ -22,6 +22,7 @@ import { Finance } from './Finance';
 import { Stadium } from './Stadium';
 import { calOf, formatDay } from '../engine/calendar';
 import { advanceOneDay, advanceToMatchDays } from '../engine/daily';
+import { homeBlocked, housingSteps } from '../engine/housing';
 import { ShopScreen } from './ShopScreen';
 import { CoachProfile } from './CoachProfile';
 import { YouthScreen } from './YouthScreen';
@@ -51,6 +52,7 @@ export function App() {
   const [navMore, setNavMore] = useState(true);
   const onNavScroll = () => { const n = navRef.current; if (n) setNavMore(n.scrollLeft + n.clientWidth < n.scrollWidth - 4); };
   useEffect(() => { navRef.current?.querySelector<HTMLElement>('button.on')?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' }); }, [tab]);
+  const [homeGate, setHomeGate] = useState(false);
   const [gateAt, setGateAt] = useState(0);
   const [phoneGate, setPhoneGate] = useState(false);
   const [tableView, setTableView] = useState<'div' | 'rounds' | 'hist'>('div');
@@ -90,7 +92,7 @@ export function App() {
       season: START_SEASON, userClubId: s.club!.id, divisions: pyramidOf(s.world.countryId, s.world.leagueId), outside: s.world.divisionId === 'br-estaduais' ? s.club! : undefined,
       leagueName: s.world.leagueId === 'brasileirao' ? undefined : getLeague(s.world.countryId, s.world.leagueId)?.name, slots: slotsOfLeague(s.world.leagueId), cup: s.world.leagueId === 'brasileirao',
     });
-    setGame({ ...career, phone: { ...DEFAULT_PHONE, noPhone: true } }); // carreira nova: o treinador começa sem celular (compra na Mega-zona Luiz)
+    setGame({ ...career, homeRequired: true, phone: { ...DEFAULT_PHONE, noPhone: true } }); // carreira nova: o treinador começa sem celular (compra na Mega-zona Luiz)
     setLast([]); setTab('home'); setScreen('game');
   };
 
@@ -123,7 +125,10 @@ export function App() {
   }
 
   const club = game.clubs[game.userClubId];
-  const play = () => { // antes do jogo: avisa de mensagens que vencem e só se resolvem pelo celular
+  const blocked = () => { if (homeBlocked(game)) { setHomeGate(true); audio.sfx('error'); return true; } return false; }; // carreira nova: precisa de moradia antes de avançar
+  const play = () => {
+    if (blocked()) return;
+    // antes do jogo: avisa de mensagens que vencem e só se resolvem pelo celular
     if (!game.unemployed && ownsPhone(game) && urgentMessages(game).length > 0 && gateAt !== absRound(game)) { setGateAt(absRound(game)); setPhoneGate(true); return; }
     doPlay();
   };
@@ -132,7 +137,7 @@ export function App() {
   const liveResult = live?.results.find((r) => r.homeId === game.userClubId || r.awayId === game.userClubId);
   const ev = live ? pendingEvent(game) : undefined;
   const liveLabel = ev ? ev.label : userDivision(game).name;
-  const skipSeason = (years = 1) => { audio.sfx('whoosh'); setLast([]); setGame(skipSeasons(game, years)); setTableView('hist'); setTab('table'); };
+  const skipSeason = (years = 1) => { if (blocked()) return; audio.sfx('whoosh'); setLast([]); setGame(skipSeasons(game, years)); setTableView('hist'); setTab('table'); };
   const nextSeason = () => { setLast([]); setGame(startNextSeason(game)); };
 
   return (
@@ -150,6 +155,7 @@ export function App() {
           </div>
           <div className="gh-right">
             <span className="gh-money" title={game.unemployed ? 'Seu saldo no banco' : 'Orçamento para transferências'}>{game.unemployed ? formatBudget(balanceOf(game)) : formatBudget(game.budgets[game.userClubId])}</span>
+            <button className="ghost gh-phone" onClick={() => (ownsPhone(game) ? setPhoneOpen(true) : setTab('shop'))} disabled={!!live} aria-label={ownsPhone(game) ? `Celular${unreadCount(game) + pendingCount(game) > 0 ? `, ${unreadCount(game) + pendingCount(game)} pendências` : ''}` : 'Comprar um celular'}>📱{ownsPhone(game) && unreadCount(game) + pendingCount(game) > 0 && <i className="nav-badge">{unreadCount(game) + pendingCount(game)}</i>}</button>
             <button className="ghost" onClick={toMenu} disabled={!!live}>☰ Menu</button>
           </div>
         </header>
@@ -158,8 +164,8 @@ export function App() {
             <LiveMatch key={`${game.season}-${game.round}-${ev?.kind ?? 'l'}`} home={clubOf(game, liveResult.homeId)} away={clubOf(game, liveResult.awayId)} result={liveResult}
               userSide={liveResult.homeId === game.userClubId ? 'home' : 'away'} divisionName={liveLabel} stadium={clubOf(game, liveResult.homeId).stadium} onFinish={finishMatch} />
           )}
-          {!live && game.unemployed && tab === 'home' && <Unemployed game={game} over={isSeasonOver(game)} onChange={setGame} onPlay={play} onAdvance={() => setGame(advanceOneDay(game))} onAdvanceToMatch={() => setGame(advanceToMatchDays(game))} onSkip={() => skipSeason(1)} onNextSeason={nextSeason} onSeeTables={() => { setTableView('rounds'); setTab('table'); }} />}
-          {!live && !game.unemployed && tab === 'home' && <Home game={game} onChange={setGame} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onSkip={skipSeason} onSeeTables={() => { setTableView('div'); setTab('table'); }} onSeeResults={() => { setTableView('rounds'); setTab('table'); }} onEditLineup={() => setTab('lineup')} onFinance={() => setTab('finance')} onStadium={() => setTab('stadium')} onTab={(t) => setTab(t)} onNews={() => setPhoneOpen(true)} onSeeHist={() => { setTableView('hist'); setTab('table'); }} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} onAdvance={() => setGame(advanceOneDay(game))} onAdvanceToMatch={() => setGame(advanceToMatchDays(game))} />}
+          {!live && game.unemployed && tab === 'home' && <Unemployed game={game} over={isSeasonOver(game)} onChange={setGame} onPlay={play} onAdvance={() => { if (!blocked()) setGame(advanceOneDay(game)); }} onAdvanceToMatch={() => { if (!blocked()) setGame(advanceToMatchDays(game)); }} onSkip={() => skipSeason(1)} onNextSeason={nextSeason} onSeeTables={() => { setTableView('rounds'); setTab('table'); }} />}
+          {!live && !game.unemployed && tab === 'home' && <Home game={game} onChange={setGame} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onSkip={skipSeason} onSeeTables={() => { setTableView('div'); setTab('table'); }} onSeeResults={() => { setTableView('rounds'); setTab('table'); }} onEditLineup={() => setTab('lineup')} onFinance={() => setTab('finance')} onStadium={() => setTab('stadium')} onTab={(t) => setTab(t)} onNews={() => setPhoneOpen(true)} onSeeHist={() => { setTableView('hist'); setTab('table'); }} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} onAdvance={() => { if (!blocked()) setGame(advanceOneDay(game)); }} onAdvanceToMatch={() => { if (!blocked()) setGame(advanceToMatchDays(game)); }} />}
           {!live && !game.unemployed && tab === 'youth' && <YouthScreen game={game} onChange={setGame} />}
           {!live && tab === 'profile' && <CoachProfile game={game} onNext={(t) => setTab(t)} />}
           {!live && tab === 'shop' && <ShopScreen game={game} onChange={setGame} onOpenPhone={() => setPhoneOpen(true)} />}
@@ -172,12 +178,11 @@ export function App() {
         </main>
         <div className="nav-wrap">
         <nav ref={navRef} onScroll={onNavScroll} aria-label="Menu principal (arraste para o lado para ver mais)">
-          {([['home', '🏠', 'Início'], ['squad', '👕', 'Elenco'], ['table', '📊', 'Tabela'], ['transfers', '🔁', 'Transf.'], ['stadium', '🏟️', 'Estádio'], ['finance', '💰', 'Finanças'], ['youth', '🌱', 'Base'], ['shop', '🛒', 'Loja'], ['phone', '📱', 'Celular']] as const).map(([id, icon, label]) => {
+          {([['home', '🏠', 'Início'], ['squad', '👕', 'Elenco'], ['table', '📊', 'Tabela'], ['transfers', '🔁', 'Transf.'], ['stadium', '🏟️', 'Estádio'], ['finance', '💰', 'Finanças'], ['youth', '🌱', 'Base'], ['shop', '🛒', 'Loja']] as const).map(([id, icon, label]) => {
             const on = tab === id || (id === 'home' && tab === 'lineup');
             return (
-              <button key={id} className={on ? 'on' : ''} disabled={!!live || (!!game.unemployed && (id === 'squad' || id === 'transfers' || id === 'stadium' || id === 'finance' || id === 'youth'))} onClick={() => (id === 'phone' ? (ownsPhone(game) ? setPhoneOpen(true) : setTab('shop')) : setTab(id))} aria-label={id === 'transfers' ? 'Transferências' : label} aria-current={on ? 'page' : undefined}>
+              <button key={id} className={on ? 'on' : ''} disabled={!!live || (!!game.unemployed && (id === 'squad' || id === 'transfers' || id === 'stadium' || id === 'finance' || id === 'youth'))} onClick={() => setTab(id)} aria-label={id === 'transfers' ? 'Transferências' : label} aria-current={on ? 'page' : undefined}>
                 <span aria-hidden="true">{icon}</span>{label}
-                {id === 'phone' && ownsPhone(game) && unreadCount(game) + pendingCount(game) > 0 && <i className="nav-badge" aria-label={`${unreadCount(game) + pendingCount(game)} pendências`}>{unreadCount(game) + pendingCount(game)}</i>}
                 {id === 'transfers' && game.offers.length > 0 && <i className="nav-badge" aria-label={`${game.offers.length} propostas`}>{game.offers.length}</i>}
               </button>
             );
@@ -185,6 +190,19 @@ export function App() {
         </nav>
         {navMore && <span className="nav-more" aria-hidden="true">›</span>}
         </div>
+        {homeGate && (
+          <div className="phone-gate" role="dialog" aria-modal="true" aria-label="Moradia necessária">
+            <div className="home-gate">
+              <h2>🏠 Você ainda não tem onde morar</h2>
+              <p>Antes de avançar os dias ou iniciar uma partida, alugue ou compre uma casa. Tudo é feito pelo celular:</p>
+              <ol className="hg-steps">
+                {housingSteps(game).map((s) => <li key={s.id} className={s.done ? 'done' : ''}><span aria-hidden="true">{s.done ? '✅' : s.icon}</span><span><b>{s.label}</b><small>{s.hint}</small></span></li>)}
+              </ol>
+              <button className="primary" onClick={() => { setHomeGate(false); if (ownsPhone(game)) setPhoneOpen(true); else setTab('shop'); }}>{ownsPhone(game) ? '📱 Abrir o celular' : '🛒 Ir à Loja comprar um celular'}</button>
+              <button className="btn" onClick={() => setHomeGate(false)}>Fechar</button>
+            </div>
+          </div>
+        )}
         {phoneGate && (
           <div className="phone-gate" role="dialog" aria-modal="true" aria-label="Pendências no celular">
             <div>

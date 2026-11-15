@@ -2,6 +2,7 @@ import { monthlyContracts } from './assets';
 import { autoDebitOn, brl, debitNow } from './bank';
 import { advanceDay, calOf, ensureCalendar, isMatchDay } from './calendar';
 import './dataplan';
+import { homeBlocked } from './housing';
 import './netfibra';
 import { FIBRA_MONTHLY, fibraLeft, notifyPhone, phoneOf, PLAN_PRICE, planLeft } from './phone';
 import { chipDay } from './shop';
@@ -55,6 +56,7 @@ export function processDays(g: GameState, from: number, to: number): GameState {
 
 /** Avança 1 dia no calendário (se não for dia de jogo) e processa o que vence nele. */
 export function advanceOneDay(g: GameState): GameState {
+  if (homeBlocked(g)) return g; // sem moradia, o tempo não passa
   const before = calOf(g).day;
   const s = advanceDay(g);
   const after = calOf(s).day;

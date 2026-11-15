@@ -51,7 +51,7 @@ export const CHALLENGES: Challenge[] = [
   { id: 'normal', label: 'Médio', description: 'Qualquer time, mas a verba do clube é cortada pela metade.', level: 2 },
   { id: 'hard', label: 'Difícil', description: 'Só clubes da Série B ou C, com verba ainda menor (1/4) e diretoria exigente.', level: 3 },
   { id: 'legend', label: 'Lendário', description: 'Só clubes que jogam apenas estaduais. Comece lá embaixo e chegue ao topo.', level: 4 },
-  { id: 'create', label: 'Criar um clube', description: 'Crie o seu próprio clube e comece pelo estadual.', level: 5 },
+  { id: 'create', label: 'Criar um clube', description: 'Crie o seu próprio clube (verba de R$ 900 mil) e comece pelo estadual.', level: 5 },
 ];
 /** Reputação do treinador de cada desafio (define o nível inicial e o dinheiro pessoal). */
 export const CHALLENGE_REPUTATION: Record<ChallengeId, ReputationId> = { easy: 'pro', normal: 'semi-pro', hard: 'amateur', legend: 'unknown', create: 'unknown' };

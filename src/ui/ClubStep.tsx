@@ -57,7 +57,7 @@ function CreateClub({ initial, onCreate, onCancel }: { initial: ClubData | null;
     const cityName = city.trim() || ESTADUAIS.find((e) => e.uf === uf)?.state || uf;
     onCreate({
       id, name: n, shortName: sh, badge: `assets/badges/${id}.png`, primaryColor: c1, secondaryColor: c2, stadium: stadium.trim() || `Estádio ${cityName}`, city: cityName,
-      budget: 1_500_000, boardExpectation: 'mid', reputation: 1, uf, custom: true,
+      budget: 900_000, boardExpectation: 'mid', reputation: 1, uf, custom: true,
       squad: generateSquad({ id, name: n, short: sh, color: c1, strength: 48 }, 2026),
     });
   };
@@ -70,7 +70,7 @@ function CreateClub({ initial, onCreate, onCancel }: { initial: ClubData | null;
       <label>Estado do estadual<select value={uf} onChange={(e) => setUf(e.target.value)}>{ESTADUAIS.map((e) => <option key={e.uf} value={e.uf}>{e.state} ({e.uf}){e.clubs.length ? '' : ''}</option>)}</select></label>
       <label>Cidade<input value={city} maxLength={30} onChange={(e) => setCity(e.target.value)} placeholder="Opcional" /></label>
       <label>Estádio<input value={stadium} maxLength={30} onChange={(e) => setStadium(e.target.value)} placeholder="Opcional" /></label>
-      <p className="cc-note">Seu clube nasce pequeno (R$ 1,5 mi, elenco fraco) e entra na divisão mais baixa do estadual. Para chegar à Série D, suba no estadual e termine entre os 2 primeiros da Série A estadual.</p>
+      <p className="cc-note">Seu clube nasce pequeno (R$ 900 mil, elenco fraco) e entra na divisão mais baixa do estadual. Para chegar à Série D, suba no estadual e termine entre os 2 primeiros da Série A estadual.</p>
       {err && <p className="nw-error" role="alert">{err}</p>}
       <div className="cc-actions"><button type="button" className="nw-btn go" onClick={submit}>Criar e escolher</button><button type="button" className="nw-btn" onClick={onCancel}>Cancelar</button></div>
     </div>
