@@ -1,3 +1,4 @@
+import { ClubBadge } from './ClubBadge';
 import { useMemo, useState } from 'react';
 import { COUNTRY_ORDER, WORLD_DATA } from '../data/world';
 import { clubPlayers, directory, homeLeague, quote, type DirClub } from '../engine/market';
@@ -39,7 +40,7 @@ export function Clubs({ game, onChange }: { game: GameState; onChange: (g: GameS
       <>
         <button className="btn" onClick={() => { setClubId(null); setNotice(null); }}>‹ Voltar aos clubes</button>
         <div className="card cl-head">
-          <span className="dot" style={{ background: club.primaryColor, color: club.primaryColor }} />
+          <ClubBadge club={club} size={44} />
           <div className="grow"><h2>{club.name}</h2><small>{club.flag} {club.countryName} · {club.divisionName} · {stars(club.reputation)}</small></div>
           <div className="cl-bud"><small>Seu orçamento</small><b>{formatBudget(budget)}</b></div>
         </div>
@@ -95,7 +96,7 @@ export function Clubs({ game, onChange }: { game: GameState; onChange: (g: GameS
         {list.map((c) => (
           <li key={c.id}>
             <button onClick={() => setClubId(c.id)} aria-label={`Ver jogadores do ${c.name}`}>
-              <span className="dot" style={{ background: c.primaryColor, color: c.primaryColor }} />
+              <ClubBadge club={c} size={34} />
               <span className="grow"><b>{c.name}</b><small>{c.divisionName} · {stars(c.reputation)}</small></span>
               <span className="cl-go">›</span>
             </button>

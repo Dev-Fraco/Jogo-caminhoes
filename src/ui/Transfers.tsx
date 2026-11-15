@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { ScreenTitle, SubTabs } from './FmParts';
 import { anyClubName } from '../engine/market';
 import { Clubs } from './Clubs';
+import { ClubBadge } from './ClubBadge';
 import { NegotiationSheet } from './Negotiation';
 import { acceptOffer, myValue, rejectOffer, toggleLoanList, toggleTransferList } from '../engine/roster';
 import { BUY_BLOCK_TEXT, buyPlayer, MAX_SQUAD, marketEntries } from '../engine/transfers';
@@ -56,7 +57,7 @@ function Offers({ game, onChange }: { game: GameState; onChange: (g: GameState) 
                     <span className={`tf-ovr ${tier(p.strength)}`}>{p.strength}</span>
                     <div className="tf-info">
                       <strong>{p.name}</strong>
-                      <small><em className={`pill ${o.kind === 'buy' ? 'sale' : 'loan'}`}>{o.kind === 'buy' ? 'Compra' : 'Empréstimo'}</em> {game.clubs[o.clubId].name} · vale até a rodada {o.expiresRound}</small>
+                      <small><em className={`pill ${o.kind === 'buy' ? 'sale' : 'loan'}`}>{o.kind === 'buy' ? 'Compra' : 'Empréstimo'}</em> <span className="tf-club"><ClubBadge club={game.clubs[o.clubId]} size={18} /> {game.clubs[o.clubId].name}</span> · vale até a rodada {o.expiresRound}</small>
                     </div>
                     <span className="tf-price">{formatBudget(o.fee)}</span>
                   </div>
@@ -248,7 +249,7 @@ function Market({ game, onChange }: { game: GameState; onChange: (g: GameState) 
                 <span className={`tf-ovr ${tier(p.strength)}`} title="Overall">{p.strength}</span>
                 <div className="tf-info">
                   <strong>{p.name}</strong>
-                  <small>{POS_SHORT[p.pos]} · {p.age} anos · {club.name} ({divisionOf.get(clubId)?.name})</small>
+                  <small>{POS_SHORT[p.pos]} · {p.age} anos · <span className="tf-club"><ClubBadge club={club} size={18} /> {club.name}</span> ({divisionOf.get(clubId)?.name})</small>
                 </div>
                 <span className={`tf-price ${tooExpensive ? 'no' : ''}`}>{formatBudget(price)}</span>
                 {mode === 'loan'

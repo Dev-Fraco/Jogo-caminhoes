@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ClubBadge } from './ClubBadge';
 import { ScreenTitle } from './FmParts';
 import { COMPS, CONTINENTALS, groupTable, type Comp } from '../engine/continental';
 import { clubOf } from '../engine/lookup';
@@ -80,7 +81,7 @@ export function Table({ game, initialView = 'div' }: { game: GameState; initialV
               <tr key={r.clubId} className={`${r.clubId === game.userClubId ? 'mine' : ''} ${zone(idx, count, i, n, slots, brazil)}`}>
                 <td><span className="pos">{i + 1}</span></td>
                 <td className="l">
-                  <div className="team"><span className="dot" style={{ background: c.primaryColor, color: c.primaryColor }} /><div><span className="cname">{c.name}</span>
+                  <div className="team"><ClubBadge club={c} size={24} /><div><span className="cname">{c.name}</span>
                     <span className="form" aria-label="Últimos 5 jogos">{formOf(game, division.id, r.clubId).map((f, k) => <i key={k} className={f} />)}</span></div></div>
                 </td>
                 <td><span className="pts">{r.points}</span></td><td className="sub">{r.played}</td><td className="sub">{r.won}</td><td className="sub">{r.drawn}</td><td className="sub">{r.lost}</td><td className="sub">{r.gd > 0 ? `+${r.gd}` : r.gd}</td>
@@ -265,7 +266,7 @@ function GroupsView({ game }: { game: GameState }) {
                   return (
                     <tr key={r.clubId} className={`${r.clubId === game.userClubId ? 'mine' : ''} ${i < 2 ? 'acc' : ''}`}>
                       <td><span className="pos">{i + 1}</span></td>
-                      <td className="l"><div className="team"><span className="dot" style={{ background: c.primaryColor, color: c.primaryColor }} /><div><span className="cname">{c.name}</span></div></div></td>
+                      <td className="l"><div className="team"><ClubBadge club={c} size={24} /><div><span className="cname">{c.name}</span></div></div></td>
                       <td><span className="pts">{r.points}</span></td><td className="sub">{r.played}</td><td className="sub">{r.won}</td><td className="sub">{r.drawn}</td><td className="sub">{r.lost}</td><td className="sub">{r.gd > 0 ? `+${r.gd}` : r.gd}</td>
                     </tr>
                   );
@@ -319,7 +320,7 @@ function EstadualView({ game }: { game: GameState }) {
               return (
                 <tr key={r.clubId} className={`${r.clubId === game.userClubId ? 'mine' : ''} ${comp.divisions.length > 1 && divIdx === 0 && i >= rows.length - 2 ? 'rel' : ''} ${comp.divisions.length > 1 && divIdx === 1 && i < 2 ? 'acc' : ''}`}>
                   <td><span className="pos">{i + 1}</span></td>
-                  <td className="l"><div className="team"><span className="dot" style={{ background: c.primaryColor, color: c.primaryColor }} /><div><span className="cname">{c.name}</span></div></div></td>
+                  <td className="l"><div className="team"><ClubBadge club={c} size={24} /><div><span className="cname">{c.name}</span></div></div></td>
                   <td><span className="pts">{r.points}</span></td><td className="sub">{r.played}</td><td className="sub">{r.won}</td><td className="sub">{r.drawn}</td><td className="sub">{r.lost}</td><td className="sub">{r.gd > 0 ? `+${r.gd}` : r.gd}</td>
                 </tr>
               );

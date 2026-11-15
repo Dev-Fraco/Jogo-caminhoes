@@ -15,7 +15,7 @@ import type { GameState, NewsItem, Player, Position, TeamState } from './types';
 /* ---------- diretório de clubes (da sua liga e do mundo) ---------- */
 
 export interface DirClub {
-  id: string; name: string; shortName: string; countryId: string; countryName: string; flag: string; leagueName: string;
+  id: string; name: string; shortName: string; badge: string; countryId: string; countryName: string; flag: string; leagueName: string;
   divisionId: string; divisionName: string; divIndex: number; reputation: number; primaryColor: string; secondaryColor: string; domestic: boolean;
 }
 
@@ -31,7 +31,7 @@ function foreignIndex(): Map<string, Foreign> {
   for (const cid of COUNTRY_ORDER) {
     const c = WORLD_DATA[cid];
     for (const l of c.leagues) l.divisions.forEach((d, i) => {
-      for (const data of CLUBS_DATA[d.id] ?? []) m.set(data.id, { id: data.id, name: data.name, shortName: data.shortName, countryId: cid, countryName: c.name, flag: c.flag, leagueName: l.name, divisionId: d.id, divisionName: d.alias ?? d.name, divIndex: i, reputation: data.reputation, primaryColor: data.primaryColor, secondaryColor: data.secondaryColor, domestic: false, data });
+      for (const data of CLUBS_DATA[d.id] ?? []) m.set(data.id, { id: data.id, name: data.name, shortName: data.shortName, badge: data.badge, countryId: cid, countryName: c.name, flag: c.flag, leagueName: l.name, divisionId: d.id, divisionName: d.alias ?? d.name, divIndex: i, reputation: data.reputation, primaryColor: data.primaryColor, secondaryColor: data.secondaryColor, domestic: false, data });
     });
   }
   return (FOREIGN = m);
@@ -51,7 +51,7 @@ export function directory(g: GameState): DirClub[] {
   g.divisions.forEach((d, i) => d.clubIds.forEach((id) => {
     if (id === g.userClubId) return;
     const c = g.clubs[id];
-    out.push({ id, name: c.name, shortName: c.shortName, ...home, divisionId: d.id, divisionName: d.name, divIndex: i, reputation: c.reputation, primaryColor: c.primaryColor, secondaryColor: c.secondaryColor, domestic: true });
+    out.push({ id, name: c.name, shortName: c.shortName, badge: c.badge, ...home, divisionId: d.id, divisionName: d.name, divIndex: i, reputation: c.reputation, primaryColor: c.primaryColor, secondaryColor: c.secondaryColor, domestic: true });
   }));
   for (const f of foreignIndex().values()) if (!g.teams[f.id]) { const { data: _d, ...rest } = f; out.push(rest); }
   return out;

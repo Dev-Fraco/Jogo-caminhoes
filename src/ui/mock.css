@@ -147,3 +147,6 @@
 .home2-grid button { display: grid; justify-items: center; gap: 6px; padding: 14px 4px 12px; border-radius: 12px; color: #fff; font: 700 13px var(--font-head); text-align: center; line-height: 1.15; }
 .home2-grid button span { font-size: 26px; }
 .fm-panel .fm-title h2 { font-size: clamp(18px, 5.2vw, 26px) !important; }
+
+.tf-club { display: inline-flex; align-items: center; gap: 4px; vertical-align: middle; } .tf-club .cb { filter: none; }
+.team .cb { filter: none; margin-right: 6px; }

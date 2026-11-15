@@ -1,3 +1,5 @@
+import { clubOf } from '../engine/lookup';
+import { ClubBadge } from './ClubBadge';
 import { useState } from 'react';
 import { isSeasonOver, seasonSummary } from '../engine/game';
 import { anyClubName } from '../engine/market';
@@ -55,7 +57,7 @@ export function HistoryView({ game }: { game: GameState }) {
                       {table.rows.map(([id, pts, played, gd], i) => (
                         <tr key={id} className={id === game.userClubId && !game.observer ? 'mine' : ''}>
                           <td><span className="pos">{i + 1}</span></td>
-                          <td className="l"><div className="team"><span className="dot" style={{ background: game.clubs[id]?.primaryColor ?? '#888', color: game.clubs[id]?.primaryColor ?? '#888' }} /><span className="cname">{name(id)}</span></div></td>
+                          <td className="l"><div className="team"><ClubBadge club={clubOf(game, id)} size={24} /><span className="cname">{name(id)}</span></div></td>
                           <td><span className="pts">{pts}</span></td><td className="sub">{played}</td><td className="sub">{gd > 0 ? `+${gd}` : gd}</td>
                         </tr>
                       ))}
