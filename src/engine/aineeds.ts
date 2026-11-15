@@ -39,7 +39,7 @@ export function longInjured(g: Pick<GameState, 'injuries' | 'season' | 'round'>,
 }
 
 /** Analisa o elenco e devolve as necessidades por posição, da mais urgente para a menos. */
-export function squadNeeds(g: GameState, clubId: string, prof: ClubProfile): Need[] {
+export function squadNeeds(g: GameState, clubId: string, prof: ClubProfile, opts: { upgrade?: boolean; divisionLevel?: number } = {}): Need[] {
   const team = g.teams[clubId];
   if (!team) return [];
   const level = avgXI(team);
@@ -58,6 +58,8 @@ export function squadNeeds(g: GameState, clubId: string, prof: ClubProfile): Nee
     const weak = starters.length ? Math.min(...starters.map((p) => p.strength)) : 30;
     const gapWeak = level - weak;
     if (gapWeak >= prof.minUpgrade) { priority += Math.min(40, gapWeak * 3); reasons.push('titular-fraco'); }
+    // diretoria investiu para reforçar (promovido com investimento forte): qualquer titular abaixo do nível da nova divisão vira alvo
+    else if (opts.upgrade && opts.divisionLevel !== undefined && weak < opts.divisionLevel - 1) { priority += 20 + Math.min(20, (opts.divisionLevel - weak) * 2); reasons.push('titular-fraco'); }
     const aging = starters.filter((p) => p.age >= AGING_AGE);
     if (aging.length) { priority += 12 * aging.length + 3 * (Math.max(...aging.map((p) => p.age)) - AGING_AGE); reasons.push('veterano'); }
     if (starters.some((p) => p.age >= RETIRING_AGE)) { priority += 25; reasons.push('aposentadoria'); }
@@ -69,7 +71,7 @@ export function squadNeeds(g: GameState, clubId: string, prof: ClubProfile): Nee
     const onlyDepth = !forStarter;
     out.push({
       pos, priority, reasons, missing,
-      minStrength: onlyDepth ? Math.max(30, Math.round(level - 14)) : Math.round(weak + prof.minUpgrade),
+      minStrength: onlyDepth ? Math.max(30, Math.round(level - 14)) : Math.round(weak + (opts.upgrade ? Math.min(prof.minUpgrade, 2) : prof.minUpgrade)),
       maxAge: reasons.includes('veterano') || reasons.includes('aposentadoria') ? Math.min(prof.maxAge, 29) : prof.maxAge,
       forStarter,
     });

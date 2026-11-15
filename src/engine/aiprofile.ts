@@ -55,7 +55,7 @@ export function avgXI(t: TeamState): number {
 }
 
 /** Contexto reutilizável (médias por divisão): evita recalcular a nota de todos os times a cada perfil. */
-export interface ProfileCtx { divAvg: Map<number, number>; xi: Map<string, number> }
+export interface ProfileCtx { divAvg: Map<number, number>; xi: Map<string, number>; /** posição relativa e aproveitamento recente de cada clube (calculados uma vez por divisão) */ moments: Map<string, { frac: number | null; form: number }> }
 export function profileCtx(g: GameState): ProfileCtx {
   const xi = new Map<string, number>(), sum = new Map<number, { s: number; n: number }>();
   for (const [id, t] of Object.entries(g.teams)) {
@@ -63,7 +63,7 @@ export function profileCtx(g: GameState): ProfileCtx {
     const di = divisionIndexOf(g, id), c = sum.get(di) ?? { s: 0, n: 0 };
     sum.set(di, { s: c.s + a, n: c.n + 1 });
   }
-  return { xi, divAvg: new Map([...sum].map(([d, v]) => [d, v.s / v.n])) };
+  return { xi, moments: new Map(), divAvg: new Map([...sum].map(([d, v]) => [d, v.s / v.n])) };
 }
 
 /** Pontos por títulos nas últimas `years` temporadas: campeonato (a divisão mais alta), copa e torneios continentais. */
@@ -84,23 +84,28 @@ function trajectory(g: Pick<GameState, 'history'>, clubId: string, years = 5): n
   return t;
 }
 
-/** Momento esportivo: posição na tabela e últimos 5 jogos; fora da temporada, a colocação do ano anterior. */
-function momentOf(g: GameState, clubId: string): { moment: Moment; frac: number | null } {
-  const d = g.divisions.find((x) => x.clubIds.includes(clubId));
-  if (!d || d.format === 'outside' || d.format === 'groups') return { moment: 'estavel', frac: null };
+/** Posição relativa (0 = líder, 1 = lanterna) e aproveitamento dos últimos 5 jogos de todos os clubes de uma divisão, numa passada só. */
+function fillMoments(g: GameState, divisionId: string, ctx: ProfileCtx) {
+  const d = g.divisions.find((x) => x.id === divisionId);
+  if (!d || d.format === 'outside' || d.format === 'groups') return;
   const res = g.results.filter((r) => r.divisionId === d.id);
-  let frac: number | null = null, form = 0.5;
   if (res.length > 0) {
     const t = computeTable(d.clubIds.map((id) => ({ id, name: id })), res);
-    const i = t.findIndex((r) => r.clubId === clubId);
-    if (i >= 0 && t[i].played > 2) frac = i / Math.max(1, t.length - 1);
-    const last = res.filter((r) => r.homeId === clubId || r.awayId === clubId).slice(-5);
-    if (last.length) form = last.reduce((s, r) => { const gf = r.homeId === clubId ? r.homeGoals : r.awayGoals, ga = r.homeId === clubId ? r.awayGoals : r.homeGoals; return s + (gf > ga ? 3 : gf === ga ? 1 : 0); }, 0) / (3 * last.length);
+    const last = new Map<string, number[]>();
+    for (const r of res) for (const [id, gf, ga] of [[r.homeId, r.homeGoals, r.awayGoals], [r.awayId, r.awayGoals, r.homeGoals]] as const) { const a = last.get(id) ?? []; a.push(gf > ga ? 3 : gf === ga ? 1 : 0); last.set(id, a.length > 5 ? a.slice(-5) : a); }
+    t.forEach((row, i) => { const l = last.get(row.clubId) ?? []; ctx.moments.set(row.clubId, { frac: row.played > 2 ? i / Math.max(1, t.length - 1) : null, form: l.length ? l.reduce((a, b) => a + b, 0) / (3 * l.length) : 0.5 }); });
   } else {
     const rows = g.history[g.history.length - 1]?.tables?.find((x) => x.id === d.id)?.rows;
-    const i = rows?.findIndex((r) => r[0] === clubId) ?? -1;
-    if (rows && i >= 0) frac = i / Math.max(1, rows.length - 1);
+    rows?.forEach((r, i) => ctx.moments.set(r[0], { frac: i / Math.max(1, rows.length - 1), form: 0.5 }));
   }
+}
+
+/** Momento esportivo: posição na tabela e últimos 5 jogos; fora da temporada, a colocação do ano anterior. */
+function momentOf(g: GameState, clubId: string, ctx: ProfileCtx): { moment: Moment; frac: number | null } {
+  const d = g.divisions.find((x) => x.clubIds.includes(clubId));
+  if (!d || d.format === 'outside' || d.format === 'groups') return { moment: 'estavel', frac: null };
+  if (!ctx.moments.has(clubId)) { fillMoments(g, d.id, ctx); if (!ctx.moments.has(clubId)) ctx.moments.set(clubId, { frac: null, form: 0.5 }); }
+  const { frac, form } = ctx.moments.get(clubId)!;
   const moment: Moment = (frac !== null && frac <= 0.2) || form >= 0.7 ? 'embalado' : (frac !== null && frac >= 0.8) || form <= 0.25 ? 'em-crise' : 'estavel';
   return { moment, frac };
 }
@@ -115,7 +120,7 @@ export function clubProfile(g: GameState, clubId: string, ctx: ProfileCtx = prof
   const di = divisionIndexOf(g, clubId);
   const rep = info?.reputation ?? 1;
   const titles = titlePoints(g, clubId), traj = trajectory(g, clubId);
-  const { moment } = momentOf(g, clubId);
+  const { moment } = momentOf(g, clubId, ctx);
   const revenue = baseIncome(di, rep, priceIndex(g));
   const ratio = (g.budgets[clubId] ?? 0) / Math.max(1, revenue);
   const financial: Financial = ratio >= 1.2 ? 'rico' : ratio >= 0.6 ? 'saudavel' : ratio >= 0.2 ? 'apertado' : 'crise';
