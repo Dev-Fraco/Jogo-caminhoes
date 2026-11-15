@@ -67,3 +67,23 @@
 .st-up-r { display: grid; gap: 4px; font-size: 13px; color: #d5e4ff; } .st-up-r b { color: #fff; font-size: 13.5px; }
 .st-cost { justify-self: start; padding: 4px 10px; border-radius: 9px; background: rgba(8, 18, 40, .9); border: 1px solid var(--mk-line); color: #fff; font: 800 13px var(--font-head); }
 .st-up .mk-big, .st-up .hint, .st-up .mk-info { grid-column: 1 / -1; }
+
+/* Finanças */
+.fin-top { display: grid; grid-template-columns: 1.2fr 1fr 1.1fr; gap: 6px; text-align: center; padding: 10px 6px !important; }
+.fin-top small { display: block; font-size: 10px; color: #9fb4d8; text-transform: uppercase; letter-spacing: .03em; }
+.fin-top b { display: block; font: 800 15px var(--font-head); color: #fff; margin-top: 2px; white-space: nowrap; } .fin-top b.neg { color: #ff8a8a; }
+.fin-pocket { display: grid; grid-template-columns: 36% 1fr; gap: 8px 10px; align-items: center; }
+.fin-art { width: 100%; border-radius: 10px; display: block; }
+.fin-h { display: block; font: italic 800 14px var(--font-head); text-transform: uppercase; color: #fff; margin-bottom: 4px; }
+.fin-pocket-r p { margin: 0; font-size: 12.5px; line-height: 1.35; color: #cfe0ff; }
+.fin-wallet { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--mk-line); background: rgba(8, 18, 40, .9); color: #d5e4ff; }
+.fin-wallet b { color: #5ee08a; font: 800 17px var(--font-head); }
+.mk-presets.four { grid-column: 1 / -1; grid-template-columns: 1.5fr 1fr 1fr 1fr; margin-top: 0; }
+.fin-bal { display: grid; grid-template-columns: 34% 1fr; gap: 10px; align-items: center; } .fin-bal .mk-rows b.neg { color: #ff8a8a; }
+.fin-bal .mk-rows > div { font-size: 12.5px; padding: 7px 0; }
+.fin-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.fin-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px; }
+.fin-row .grow { min-width: 0; display: grid; } .fin-row b { color: #fff; font: 800 14px var(--font-head); } .fin-row small { font-size: 11.5px; color: #aac0e6; }
+.fin-pill { white-space: nowrap; padding: 6px 9px; border-radius: 10px; border: 1px solid var(--mk-line); background: rgba(8, 18, 40, .9); color: #fff; font: 800 12.5px var(--font-head); }
+
+.fm-title h2 { font-size: clamp(22px, 6.6vw, 32px) !important; }

@@ -3,6 +3,7 @@ import { formatDay, calOf } from '../engine/calendar';
 import { coachMoneyOf, coachSalary, gateOf, nextPayday, payrollOf, setWageCover, WAGE_COVER_OPTIONS, wageCoverOf, wageOf } from '../engine/finance';
 import type { GameState, Position } from '../engine/types';
 import { formatBudget } from '../newgame/format';
+import { Face } from './Face';
 import { ScreenTitle } from './FmParts';
 
 const POS: Record<Position, string> = { GK: 'GOL', DEF: 'DEF', MID: 'MEI', ATT: 'ATA' };
@@ -23,66 +24,67 @@ export function Finance({ game, onChange }: Props) {
 
   return (
     <>
-      <ScreenTitle icon="💰" title="Finanças" />
-      <div className="card center fin-cash">
-        <small>Caixa do clube</small>
-        <h2 className={budget < 0 ? 'neg' : ''}>{budget < 0 ? '−' : ''}{formatBudget(Math.abs(budget))}</h2>
-        {budget < 0 && <p className="hint">⚠️ No vermelho: diretoria e elenco ficam insatisfeitos e você não consegue contratar.</p>}
+      <ScreenTitle icon="💰" title="Finanças – Salários" />
+      <div className="card mk-card fin-top">
+        <div><small>Caixa do clube</small><b className={budget < 0 ? 'neg' : ''}>{budget < 0 ? '−' : ''}{formatBudget(Math.abs(budget))}</b></div>
+        <div><small>Folha por mês</small><b>{formatBudget(perMonth)}</b></div>
+        <div><small>Próx. pagamento</small><b>{formatDay(nextPayday(calOf(game).day))}</b></div>
+      </div>
+      {budget < 0 && <p className="mk-info neg"><span aria-hidden="true">⚠️</span> No vermelho: diretoria e elenco ficam insatisfeitos e você não consegue contratar.</p>}
+
+      <div className="card mk-card fin-pocket">
+        <img className="fin-art" src="assets/ui/salary-clip.jpg" alt="" />
+        <div className="fin-pocket-r">
+          <b className="fin-h">Pagar salários do seu bolso</b>
+          <p>Você recebe o seu salário a cada rodada. Escolha quanto da folha de salários você paga com o seu dinheiro; o clube paga o resto. Se o seu dinheiro acabar, o clube volta a pagar tudo.</p>
+        </div>
+        <div className="fin-wallet"><span>👛 Seu dinheiro pessoal</span><b>{formatBudget(wallet)}</b></div>
+        <div className="mk-presets four" role="radiogroup" aria-label="Parte da folha paga pelo treinador">
+          {WAGE_COVER_OPTIONS.map((p) => (
+            <button key={p} role="radio" aria-checked={cover === p} className={cover === p ? 'on' : ''} onClick={() => onChange(setWageCover(game, p))}>{p === 0 ? '👥 Clube paga' : `${p}%`}</button>
+          ))}
+        </div>
+        {cover > 0 && <p className="hint" style={{ margin: '8px 0 0' }}>Você paga {formatBudget((perMonth * cover) / 100)} por mês.</p>}
       </div>
 
-      <section>
-        <h3>Inflação</h3>
-        <div className="card">
-          <div className="row"><span className="grow">Preços acumulados desde o início</span><b>{priceIndex(game) <= 1 ? '0%' : `+${((priceIndex(game) - 1) * 100).toFixed(1).replace('.', ',')}%`}</b></div>
-          <div className="row"><span className="grow">Inflação do último ano</span><b>{game.inflation ? `${(game.inflation.rate * 100).toFixed(1).replace('.', ',')}%` : '—'}</b></div>
-          <p className="hint">Todo ano os preços de jogadores, salários, bilheteria, receitas e bens (carros, casas, aluguéis) sobem. Contratos, financiamentos e aluguéis já assinados mantêm o valor combinado.</p>
-        </div>
-      </section>
-
-      <section>
-        <h3>Folha de pagamento</h3>
-        <div className="card">
-          <div className="row"><span className="grow">Salários por ano</span><b>{formatBudget(payroll)}</b></div>
-          <div className="row"><span className="grow">Salários dos atletas por mês</span><b>{formatBudget(perMonth)}</b></div>
-          <div className="row"><span className="grow">Próximo pagamento (todo dia 5)</span><b>{formatDay(nextPayday(calOf(game).day))}</b></div>
-          <div className="row"><span className="grow">Bilheteria por jogo em casa</span><b>{formatBudget(gateOf(game, id))}</b></div>
-          <div className="row"><span className="grow">Seu salário (pago pelo clube)</span><b>{formatBudget(coachSalary(game) / 12)}/mês</b></div>
-        </div>
-      </section>
-
-      <section>
-        <h3>Pagar salários do seu bolso</h3>
-        <div className="card">
-          <div className="row"><span className="grow">Seu dinheiro pessoal</span><b>{formatBudget(wallet)}</b></div>
-          <p className="hint">Você recebe o seu salário a cada rodada. Escolha quanto da folha dos atletas você paga com o seu dinheiro; o clube paga o resto. Se o seu dinheiro acabar, o clube volta a pagar tudo.</p>
-          <div className="chips" role="radiogroup" aria-label="Parte da folha paga pelo treinador">
-            {WAGE_COVER_OPTIONS.map((p) => (
-              <button key={p} role="radio" aria-checked={cover === p} className={cover === p ? 'on' : ''} onClick={() => onChange(setWageCover(game, p))}>
-                {p === 0 ? 'Clube paga' : `${p}%`}
-              </button>
-            ))}
+      <section className="mk-sec">
+        <h3><span aria-hidden="true">📊</span> Balanço da temporada {game.season}</h3>
+        <div className="card mk-card fin-bal">
+          <img className="fin-art" src="assets/ui/finance-chart.jpg" alt="" />
+          <div className="mk-rows">
+            <div><span>🎟️ Bilheteria</span><b className="pos">+ {formatBudget(ledger.gate)}</b></div>
+            <div><span>👥 Salários pagos pelo clube</span><b className="neg">− {formatBudget(ledger.wages)}</b></div>
+            <div><span>👤 Salários pagos por você</span><b>{formatBudget(ledger.coachCover)}</b></div>
+            <div><span>👛 Seu salário</span><b className="neg">− {formatBudget(ledger.coachSalary)}</b></div>
+            <div><span>📈 Resultado parcial</span><b className={net < 0 ? 'neg' : 'pos'}>{net < 0 ? '−' : '+'} {formatBudget(Math.abs(net))}</b></div>
           </div>
-          {cover > 0 && <p className="hint">Você paga {formatBudget((perMonth * cover) / 100)} por mês.</p>}
+        </div>
+        <p className="mk-info"><span aria-hidden="true">ℹ️</span> As receitas de TV, premiações e o acesso são pagos no fim da temporada.</p>
+      </section>
+
+      <section className="mk-sec">
+        <h3><span aria-hidden="true">🧾</span> Folha e custos</h3>
+        <div className="card mk-card">
+          <div className="mk-rows">
+            <div><span>Salários por ano</span><b>{formatBudget(payroll)}</b></div>
+            <div><span>Bilheteria por jogo em casa</span><b>{formatBudget(gateOf(game, id))}</b></div>
+            <div><span>Seu salário (pago pelo clube)</span><b>{formatBudget(coachSalary(game) / 12)}/mês</b></div>
+            <div><span>Preços acumulados (inflação)</span><b>{priceIndex(game) <= 1 ? '0%' : `+${((priceIndex(game) - 1) * 100).toFixed(1).replace('.', ',')}%`}</b></div>
+            <div><span>Inflação do último ano</span><b>{game.inflation ? `${(game.inflation.rate * 100).toFixed(1).replace('.', ',')}%` : '—'}</b></div>
+          </div>
+          <p className="hint" style={{ margin: '8px 0 0' }}>Todo ano os preços de jogadores, salários, bilheteria e bens sobem. Contratos, financiamentos e aluguéis já assinados mantêm o valor combinado.</p>
         </div>
       </section>
 
-      <section>
-        <h3>Balanço da temporada {game.season}</h3>
-        <div className="card">
-          <div className="row"><span className="grow">Bilheteria</span><b className="pos">+ {formatBudget(ledger.gate)}</b></div>
-          <div className="row"><span className="grow">Salários pagos pelo clube</span><b className="neg">− {formatBudget(ledger.wages)}</b></div>
-          <div className="row"><span className="grow">Salários pagos por você</span><b>{formatBudget(ledger.coachCover)}</b></div>
-          <div className="row"><span className="grow">Seu salário</span><b className="neg">− {formatBudget(ledger.coachSalary)}</b></div>
-          <div className="row"><span className="grow">Resultado parcial</span><b className={net < 0 ? 'neg' : 'pos'}>{net < 0 ? '−' : '+'} {formatBudget(Math.abs(net))}</b></div>
-          <p className="hint">As receitas de TV, premiações e o acesso são pagos no fim da temporada.</p>
-        </div>
-      </section>
-
-      <section>
-        <h3>Salários do elenco</h3>
-        <ul className="list">
+      <section className="mk-sec">
+        <h3><span aria-hidden="true">👥</span> Salários do elenco</h3>
+        <ul className="fin-list">
           {players.map((p) => (
-            <li key={p.id}><div className="row"><span className="grow">{p.name}<small>{POS[p.pos]} · {p.age} anos · overall {p.strength}</small></span><b>{formatBudget(wageOf(game, id, p) / 12)}/mês</b></div></li>
+            <li key={p.id} className="mk-card fin-row">
+              <Face id={p.id} age={p.age} size={40} />
+              <span className="grow"><b>{p.name}</b><small>{POS[p.pos]} · {p.age} anos · Overall {p.strength}</small></span>
+              <span className="fin-pill">💰 {formatBudget(wageOf(game, id, p) / 12)}/mês</span>
+            </li>
           ))}
         </ul>
       </section>
