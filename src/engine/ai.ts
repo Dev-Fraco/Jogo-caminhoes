@@ -4,6 +4,7 @@ import { repairLineup, rosterOk } from './roster';
 import { DIVISION_INCOME, inflate, priceIndex, SEASON_INCOME_FACTOR } from './economy';
 import { autoLineup, randomName } from './squad';
 import { divisionIndexOf, playerValue } from './transfers';
+import { avgXI, clubProfile, profileCtx, signingScore } from './aiprofile';
 import type { GameState, NewsItem, Player, Position, RetiredPlayer, TeamState } from './types';
 
 /**
@@ -36,12 +37,6 @@ export function developPlayer(p: Player, rng: Rng): Player {
   const d = age <= 21 ? 1 + Math.floor(rng() * 4) : age <= 24 ? Math.floor(rng() * 4) : age <= 28 ? Math.floor(rng() * 3) - 1 : age <= 31 ? -Math.floor(rng() * 3) : -(1 + Math.floor(rng() * 4));
   return { ...p, age, strength: clamp(p.strength + d, 25, 97) };
 }
-
-const avgXI = (t: TeamState) => {
-  const xi = new Set(autoLineup(t.players, t.formation));
-  const ps = t.players.filter((p) => xi.has(p.id));
-  return ps.reduce((s, p) => s + p.strength, 0) / Math.max(1, ps.length);
-};
 
 /** Fim de carreira (para os clubes da IA): 37+ sempre; de 34 a 36 com 35% de chance, se o elenco continuar válido. */
 function retire(players: Player[], rng: Rng): { left: Player[]; retired: Player[] } {
@@ -106,12 +101,14 @@ function trimSquad(g: GameState, clubId: string, size: number): GameState {
 }
 
 /**
- * Janela de transferências da IA. Cada clube (em ordem sorteada) tenta até `maxBuys` contratações:
- * procura a posição do seu time titular com o jogador mais fraco e compra, se couber no orçamento (até 60% dele),
- * o melhor jogador que seja pelo menos 4 pontos mais forte. O vendedor não vende titular, a não ser para clube de divisão mais alta.
+ * Janela de transferências da IA. Cada clube (em ordem sorteada) tenta até `maxBuys` contratações, segundo a SUA PERSONALIDADE (aiprofile.ts):
+ * gigantes pagam por qualidade; médios equilibram qualidade e preço; pequenos caçam custo-benefício e garotos baratos.
+ * A posição vem da necessidade do elenco; o gasto por negócio, da situação financeira e da ambição; o reforço precisa ser
+ * `minUpgrade` pontos mais forte que o titular mais fraco e ter até `maxAge` anos. O vendedor não vende titular, a não ser para clube de divisão mais alta.
  */
 export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[]): GameState {
   let s = g;
+  const ctx = profileCtx(s);
   const ai = shuffle(Object.keys(s.teams).filter((id) => !managed(s, id)), rng);
   for (const buyerId of ai) {
     if (only && !only.includes(buyerId)) continue;
@@ -120,14 +117,15 @@ export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[
       if (s.teams[buyerId].players.length >= AI_MAX_SQUAD) s = trimSquad(s, buyerId, AI_MAX_SQUAD - 1);
       const buyer = s.teams[buyerId];
       if (buyer.players.length >= AI_MAX_SQUAD) break;
-      const cap = (s.budgets[buyerId] ?? 0) * 0.6;
+      const prof = clubProfile(s, buyerId, ctx);
+      const cap = (s.budgets[buyerId] ?? 0) * prof.spendShare;
       if (cap < 20_000) break;
       const bdi = divisionIndexOf(s, buyerId);
       const xi = new Set(autoLineup(buyer.players, buyer.formation));
       const weakest = (pos: Position) => Math.min(...buyer.players.filter((p) => p.pos === pos && xi.has(p.id)).map((p) => p.strength));
-      type Cand = { id: string; from: string; price: number; strength: number };
+      type Cand = { id: string; from: string; price: number; strength: number; score: number };
       let best = null as Cand | null;
-      for (const pos of [...POSITIONS].sort((a, b) => weakest(a) - weakest(b))) {
+      for (const { pos } of prof.needs.length ? prof.needs : POSITIONS.map((p) => ({ pos: p }))) {
         const w = weakest(pos);
         for (const sellerId of ai) {
           if (sellerId === buyerId) continue;
@@ -136,12 +134,14 @@ export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[
           if (sdi < bdi) continue; // clubes não compram de divisões acima da sua (o talento sobe, não desce)
           const sxi = new Set(autoLineup(seller.players, seller.formation));
           for (const p of seller.players) {
-            if (p.pos !== pos || p.strength < w + 4 || p.age > 33) continue;
+            if (p.pos !== pos || p.strength < w + prof.minUpgrade || p.age > prof.maxAge) continue;
             if (sxi.has(p.id) && !(bdi < sdi)) continue; // titular só sai para clube de divisão mais alta
             const price = inflate(s, playerValue(p, sdi));
-            if (price > cap || (best && p.strength <= best.strength)) continue;
+            if (price > cap) continue;
+            const score = signingScore(prof, p.strength - w, price, p.age);
+            if (best && score <= best.score) continue;
             if (!rosterOk(seller.players.filter((x) => x.id !== p.id))) continue;
-            best = { id: p.id, from: sellerId, price, strength: p.strength };
+            best = { id: p.id, from: sellerId, price, strength: p.strength, score };
           }
         }
         if (best) break;
@@ -155,6 +155,33 @@ export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[
         s = { ...s, market: [{ season: s.season, round: s.round, text: `${s.clubs[buyerId].name} contrata ${p.name} (overall ${p.strength}) do ${s.clubs[deal.from].name} por ${fmtMoney(deal.price)}.` }, ...(s.market ?? [])].slice(0, 60) };
       }
     }
+  }
+  return s;
+}
+
+/**
+ * Clubes apertados vendem para equilibrar as contas (quem mais precisa é o pequeno): vende 1 jogador de reserva de bom valor
+ * (ou, em crise, o de maior valor) a um clube que possa pagar. Só acontece quando a pressão por vender (perfil) é alta e o caixa baixo.
+ */
+export function aiBalanceBooks(g: GameState, rng: Rng): GameState {
+  let s = g;
+  const ctx = profileCtx(s);
+  for (const id of shuffle(Object.keys(s.teams).filter((x) => !managed(s, x)), rng)) {
+    const prof = clubProfile(s, id, ctx);
+    if (prof.sellPressure < 0.5 || (s.budgets[id] ?? 0) > prof.revenue * 0.35) continue;
+    const team = s.teams[id];
+    const xi = new Set(autoLineup(team.players, team.formation));
+    const di = divisionIndexOf(s, id);
+    const value = (p: Player) => inflate(s, playerValue(p, di));
+    const pool = team.players.filter((p) => (prof.financial === 'crise' || !xi.has(p.id)) && rosterOk(team.players.filter((x) => x.id !== p.id)));
+    const cand = [...pool].sort((a, b) => value(b) - value(a))[0];
+    if (!cand) continue;
+    const fee = value(cand);
+    const buyers = Object.keys(s.teams).filter((b) => b !== id && !managed(s, b) && divisionIndexOf(s, b) <= di + 1 && s.teams[b].players.length < AI_MAX_SQUAD && (s.budgets[b] ?? 0) >= fee * 1.5);
+    if (!buyers.length) continue;
+    const to = buyers[Math.floor(rng() * buyers.length)];
+    s = move(s, cand.id, id, to, fee);
+    if (cand.strength >= 65 || fee >= 1_000_000) s = news(s, `💸 ${s.clubs[id].name} vende ${cand.name} (overall ${cand.strength}) ao ${s.clubs[to].name} por ${fmtMoney(fee)} para equilibrar as contas.`, 'info');
   }
   return s;
 }
@@ -212,6 +239,7 @@ export function offseason(g: GameState, rng: Rng, input: OffseasonInput): { stat
   }
 
   // 4) janela de transferências da IA: promovidos com investimento forte vão às compras primeiro (até 8 contratações); depois, todos (até 3)
+  s = aiBalanceBooks(s, rng); // clubes apertados vendem para fechar as contas
   const strongIds = promotion.filter((p) => p.strong && !managed(s, p.clubId)).map((p) => p.clubId);
   if (strongIds.length) s = aiWindow(s, rng, 8, strongIds);
   s = aiWindow(s, rng, 3);
