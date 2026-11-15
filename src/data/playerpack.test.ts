@@ -14,6 +14,11 @@ describe('pacote de elencos', () => {
     expect(validatePack('nada').ok).toBe(false);
     expect(validatePack(JSON.stringify({ name: 'a', clubs: [{ id: 'nao-existe', players: [{ name: 'Zé', pos: 'ATT' }] }] })).ok).toBe(false);
   });
+  it('limite de 5.000 clubes por pacote', () => {
+    const many = (n: number) => JSON.stringify({ name: 'x', clubs: Array.from({ length: n }, () => ({ id: 'nao-existe' })) });
+    const over = validatePack(many(5001)); expect(over.ok).toBe(false); if (!over.ok) expect(over.error).toMatch(/5\.000/);
+    const ok = validatePack(many(5000)); if (!ok.ok) expect(ok.error).not.toMatch(/grande demais/); // passa do limite de tamanho (falha só por não ter clubes válidos)
+  });
   it('aceita posições em português', () => {
     expect(normPos('zag')).toBe('DEF'); expect(normPos('Gol')).toBe('GK'); expect(normPos('xx')).toBeUndefined();
   });

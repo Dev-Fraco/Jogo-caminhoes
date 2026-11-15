@@ -9,6 +9,9 @@ import { generateSquad } from '../engine/squad';
    "id" é o identificador do clube NO JOGO (o modelo gerado pelo jogo já traz os ids). Vale para as próximas carreiras.
    ===================================================================== */
 
+/** Máximo de clubes por pacote. */
+export const MAX_PACK_CLUBS = 5000;
+
 export interface PackPlayer { name: string; pos: Position; age?: number; overall?: number }
 export interface PackClub { id: string; badge?: string; players?: PackPlayer[] }
 export interface Pack { name: string; author?: string; version?: string; clubs: PackClub[] }
@@ -33,7 +36,7 @@ export function validatePack(text: string, badgeFiles: string[] = []): PackResul
   const r = raw as { name?: unknown; author?: unknown; version?: unknown; clubs?: unknown };
   if (!r || typeof r !== 'object' || typeof r.name !== 'string' || !r.name.trim()) return { ok: false, error: 'O pacote precisa de um "name".' };
   if (!Array.isArray(r.clubs) || r.clubs.length === 0) return { ok: false, error: 'O pacote precisa de uma lista "clubs" com pelo menos 1 clube.' };
-  if (r.clubs.length > 4000) return { ok: false, error: 'Pacote grande demais (máximo de 4000 clubes).' };
+  if (r.clubs.length > MAX_PACK_CLUBS) return { ok: false, error: `Pacote grande demais (máximo de ${MAX_PACK_CLUBS.toLocaleString('pt-BR')} clubes).` };
   const known = new Set(Object.values(CLUBS_DATA).flat().map((c) => c.id));
   const files = new Set(badgeFiles.map(baseName));
   const warnings: string[] = [];

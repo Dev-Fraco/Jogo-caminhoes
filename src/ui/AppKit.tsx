@@ -59,10 +59,10 @@ export function AppHead({ icon, title, right }: { icon: string; title: string; r
 }
 
 /** Barra de abas de baixo dos apps do celular (a primeira costuma levar ao Início do celular). */
-export function AppTabs({ items }: { items: { icon: string; label: string; on?: boolean; onClick: () => void }[] }) {
+export function AppTabs({ items }: { items: { icon: string; label: string; on?: boolean; center?: boolean; onClick: () => void }[] }) {
   return (
     <nav className="app-tabs" aria-label="Menu do aplicativo">
-      {items.map((t) => <button key={t.label} className={t.on ? 'on' : ''} aria-current={t.on ? 'page' : undefined} onClick={t.onClick}><span aria-hidden="true">{t.icon}</span><small>{t.label}</small></button>)}
+      {items.map((t) => <button key={t.label} className={`${t.on ? 'on' : ''} ${t.center ? 'center' : ''}`} aria-current={t.on ? 'page' : undefined} onClick={t.onClick}><span aria-hidden="true">{t.icon}</span><small>{t.label}</small></button>)}
     </nav>
   );
 }

@@ -154,7 +154,7 @@ export function Phone({ game, onChange, onClose }: Props) {
               {screen === 'netfibra' && <NetFibraApp game={game} onChange={onChange} onOpenApp={go} />}
               {screen === 'internetchip' && <ChipApp game={game} onChange={onChange} onOpenApp={go} />}
               {screen === 'mensagens' && <MessagesApp game={game} onChange={onChange} />}
-              {(screen === 'linstagra' || screen === 'tikiteko') && <SocialApp app={screen} game={game} onChange={onChange} />}
+              {(screen === 'linstagra' || screen === 'tikiteko') && <SocialApp app={screen} game={game} onChange={onChange} onHome={() => setScreen('home')} />}
               {!['home', 'loja', 'config', 'banco', 'concessionaria', 'corretor', 'linstagra', 'tikiteko', 'cassino', 'noticias', 'mensagens', 'calc', 'boot', 'nonet', 'internetchip', 'netfibra'].includes(screen) && <SoonApp id={screen} />}
               </>}
               <button className="ph-homebar" onClick={() => setScreen('home')} aria-label="Início do celular" />

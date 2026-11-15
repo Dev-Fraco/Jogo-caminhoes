@@ -1,6 +1,9 @@
 import { CLUBS_DATA } from './clubs';
 
 /** Mods da Comunidade: pacotes de dados (JSON) que o jogador importa para trocar nomes, cores e estádios dos clubes. Valem para as próximas carreiras. */
+/** Máximo de clubes por pacote. */
+export const MAX_MOD_CLUBS = 5000;
+
 export interface ClubPatch { id: string; name?: string; shortName?: string; primaryColor?: string; secondaryColor?: string; stadium?: string; city?: string }
 export interface Mod { id: string; name: string; author?: string; version?: string; enabled: boolean; clubs: ClubPatch[] }
 
@@ -29,7 +32,7 @@ export function parseMod(text: string): ParseResult {
   const r = raw as { name?: unknown; author?: unknown; version?: unknown; clubs?: unknown };
   if (!r || typeof r !== 'object' || typeof r.name !== 'string' || !r.name.trim()) return { ok: false, error: 'O pacote precisa de um "name".' };
   if (!Array.isArray(r.clubs) || r.clubs.length === 0) return { ok: false, error: 'O pacote precisa de uma lista "clubs" com pelo menos 1 clube.' };
-  if (r.clubs.length > 500) return { ok: false, error: 'Pacote grande demais (máximo de 500 clubes).' };
+  if (r.clubs.length > MAX_MOD_CLUBS) return { ok: false, error: `Pacote grande demais (máximo de ${MAX_MOD_CLUBS.toLocaleString('pt-BR')} clubes).` };
   const known = new Set(Object.values(CLUBS_DATA).flat().map((c) => c.id));
   const clubs: ClubPatch[] = [];
   for (const c of r.clubs as Record<string, unknown>[]) {

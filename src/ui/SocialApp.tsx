@@ -4,14 +4,17 @@ import { prestigeScore } from '../engine/assets';
 import { APP_INFO, canPost, contextOf, fit, fmtCount, growthPct, handleOf, POST_TYPES, postType, publish, socialOf, trendOf, type PostResult, type SocialApp as App } from '../engine/social';
 import type { GameState, SocialPost } from '../engine/types';
 import { ClubBadge } from './ClubBadge';
+import { Face } from './Face';
+import { AppTabs } from './AppKit';
+import { phoneOf } from '../engine/phone';
 
-interface Props { app: App; game: GameState; onChange: (g: GameState) => void }
+interface Props { app: App; game: GameState; onChange: (g: GameState) => void; onHome?: () => void }
 type Tab = 'profile' | 'insights' | 'post';
 
 const LAST_LABEL = { win: 'vitória', draw: 'empate', loss: 'derrota' } as const;
 
 /** LinstaGrã e TikiTeko: perfil com seguidores, insights e posts que sobem ou descem os seguidores conforme o momento do time. */
-export function SocialApp({ app, game, onChange }: Props) {
+export function SocialApp({ app, game, onChange, onHome }: Props) {
   const info = APP_INFO[app];
   const [tab, setTab] = useState<Tab>('profile');
   const [shown, setShown] = useState<{ post: SocialPost; result: PostResult } | null>(null);
@@ -32,33 +35,45 @@ export function SocialApp({ app, game, onChange }: Props) {
     audio.sfx(r.result.delta >= 0 ? (r.result.viral ? 'goal' : 'notify') : 'error');
   };
 
+  const bell = phoneOf(game).notifications.filter((n) => !n.read).length;
+  const change = (t: Tab) => { setTab(t); setShown(null); setErr(undefined); };
   return (
-    <div className={`ph-app-screen so so-${app}`}>
+    <>
+    <div className={`ph-app-screen so so2 so-${app}`}>
       <div className="so-head">
         <span className="so-logo">{info.icon}</span><b>{info.name}</b>
+        {bell > 0 && <span className="so-bell" aria-label={`${bell} notificações`}>🔔<em>{Math.min(bell, 9)}</em></span>}
       </div>
-      <div className="chips ap-chips" role="tablist">
+      <div className="so-pills" role="tablist">
         {([['profile', 'Perfil'], ['insights', 'Insights'], ['post', 'Postar']] as const).map(([id, label]) => (
-          <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => { setTab(id); setShown(null); setErr(undefined); }}>{label}</button>
+          <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => change(id)}>{label}</button>
         ))}
       </div>
 
       {tab === 'profile' && (
         <>
           <div className="so-profile">
-            <ClubBadge club={club} size={64} />
+            <span className="so-ring"><Face id={`coach:${game.coach.name}`} age={34} size={64} /></span>
             <div className="grow">
-              <b>{game.coach.name}</b><small>{handleOf(game)} · Treinador do {club.name}</small>
+              <b>{game.coach.name} <i className="so-verified" aria-label="Verificado">✔</i></b><small>{handleOf(game)} · Treinador do {club.name}</small>
             </div>
+            <ClubBadge club={club} size={54} />
           </div>
           <div className="so-stats">
-            <div><b>{p.posts.length}</b><small>posts</small></div>
-            <div><b>{fmtCount(p.followers)}</b><small>seguidores</small></div>
-            <div><b className={growth >= 0 ? 'in' : 'out'}>{growth >= 0 ? '+' : ''}{growth.toFixed(1).replace('.', ',')}%</b><small>nas últimas rodadas</small></div>
+            <div><b>{p.posts.length}</b><small>Posts</small></div>
+            <div><b>{fmtCount(p.followers)}</b><small>Seguidores</small></div>
+            <div><b className={growth >= 0 ? 'in' : 'out'}>{growth >= 0 ? '+' : ''}{growth.toFixed(1).replace('.', ',')}%</b><small>Últimas rodadas</small></div>
           </div>
-          {ctx.last && <p className="bk-sub">Último jogo: <b>{LAST_LABEL[ctx.last]}</b>{Math.abs(ctx.streak) >= 2 ? ` · sequência de ${Math.abs(ctx.streak)} ${ctx.streak > 0 ? 'vitórias' : 'derrotas'}` : ''}. {ctx.last === 'win' ? 'A torcida está animada!' : ctx.last === 'loss' ? 'Os seguidores estão cobrando.' : ''}</p>}
-          <h3>Posts</h3>
-          {p.posts.length === 0 && <p className="ph-empty">Você ainda não postou. Toque em "Postar".</p>}
+          {ctx.last && <p className={`so-alert ${ctx.last}`}><span aria-hidden="true">📣</span><span>Último jogo: <b>{LAST_LABEL[ctx.last]}</b>{Math.abs(ctx.streak) >= 2 ? ` • sequência de ${Math.abs(ctx.streak)} ${ctx.streak > 0 ? 'vitórias' : 'derrotas'}` : ''}. {ctx.last === 'win' ? 'A torcida está animada!' : ctx.last === 'loss' ? 'Os seguidores estão cobrando.' : ''}</span></p>}
+          <div className="bk2-h"><h3>Posts</h3></div>
+          {p.posts.length === 0 && (
+            <div className="so-empty">
+              <span aria-hidden="true">🎬</span>
+              <b>Você ainda não postou.</b>
+              <p>Toque em "Postar" para criar seu primeiro conteúdo.</p>
+              <button className="so-cta" onClick={() => change('post')}>＋ Postar agora</button>
+            </div>
+          )}
           <ul className="so-posts">{p.posts.slice(0, 10).map((x) => <PostRow key={x.id} p={x} unit={info.unit} />)}</ul>
         </>
       )}
@@ -118,6 +133,13 @@ export function SocialApp({ app, game, onChange }: Props) {
         </>
       )}
     </div>
+    <AppTabs items={[
+      { icon: '🏠', label: 'Início', onClick: () => onHome?.() },
+      { icon: '📊', label: 'Insights', on: tab === 'insights', onClick: () => change('insights') },
+      { icon: '＋', label: 'Postar', center: true, on: tab === 'post', onClick: () => change('post') },
+      { icon: '👤', label: 'Perfil', on: tab === 'profile', onClick: () => change('profile') },
+    ]} />
+    </>
   );
 }
 

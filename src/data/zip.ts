@@ -18,7 +18,7 @@ export interface ZipEntry { name: string; data: Uint8Array }
 export async function readZip(buf: ArrayBuffer | Uint8Array, inflate: Inflate = browserInflate, opts: { maxEntries?: number; maxBytes?: number } = {}): Promise<ZipEntry[]> {
   const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
   const v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const maxEntries = opts.maxEntries ?? 6000, maxBytes = opts.maxBytes ?? 200_000_000;
+  const maxEntries = opts.maxEntries ?? 10_000, maxBytes = opts.maxBytes ?? 200_000_000;
   // fim do diretório central
   let eocd = -1;
   for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 66_000); i--) if (u32(v, i) === 0x06054b50) { eocd = i; break; }

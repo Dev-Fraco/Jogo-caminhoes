@@ -104,7 +104,7 @@ function PackSection() {
     <section>
       <h3>Elencos e escudos</h3>
       <div className="card">
-        <p style={{ margin: 0 }}>Troque os <b>nomes dos jogadores</b> e os <b>escudos</b> dos clubes por um pacote feito por você (ou por dados livres/que você tem direito de usar).</p>
+        <p style={{ margin: 0 }}>Troque os <b>nomes dos jogadores</b> e os <b>escudos</b> dos clubes por um pacote feito por você (ou por dados livres/que você tem direito de usar). O pacote aceita <b>até 5.000 clubes</b>.</p>
         {installed && <p className="hint">Instalado: <b>{installed}</b></p>}
         <input type="file" accept=".zip,.json,image/png,image/jpeg,image/webp" multiple aria-label="Arquivos do pacote de elencos" onChange={(e) => { void pick(e.target.files); e.target.value = ''; }} />
         {busy && <p className="hint">Lendo…</p>}
@@ -157,7 +157,7 @@ export function Mods({ onBack }: { onBack: () => void }) {
   return (
     <Screen title="Mods da Comunidade" onBack={onBack}>
       <div className="card">
-        <p style={{ margin: 0 }}>Pacotes de dados criados por você ou pela comunidade. Cada pacote troca <b>nomes, siglas, cores, estádios e cidades</b> dos clubes. As mudanças valem para as <b>próximas carreiras</b> (carreiras em andamento não mudam).</p>
+        <p style={{ margin: 0 }}>Pacotes de dados criados por você ou pela comunidade. Cada pacote troca <b>nomes, siglas, cores, estádios e cidades</b> dos clubes (até <b>5.000 clubes</b> por pacote). As mudanças valem para as <b>próximas carreiras</b> (carreiras em andamento não mudam).</p>
         <p className="hint">Comunidade: {COMMUNITY_LINK} · v{APP_VERSION}</p>
       </div>
       <section>
