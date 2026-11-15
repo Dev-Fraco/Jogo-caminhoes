@@ -3,13 +3,19 @@ import { audio } from '../audio/audio';
 import { assetsOf, buyVehicle, priceOf, resaleValue, sellAsset, vehicleById, vehicleQuote, VEHICLES, VEHICLE_LOAN, type Vehicle, type VehicleKind } from '../engine/assets';
 import { balanceOf, brl } from '../engine/bank';
 import type { GameState } from '../engine/types';
-import { ChargeView, getPending, setPending, Stars } from './AppKit';
+import { AppHead, AppTabs, ChargeView, getPending, setPending, Stars } from './AppKit';
 
-interface Props { game: GameState; onChange: (g: GameState) => void; onOpenApp: (id: string) => void }
+interface Props { game: GameState; onChange: (g: GameState) => void; onOpenApp: (id: string) => void; onHome?: () => void }
+
+/** Foto de cada veículo (os que não têm foto aparecem com o ícone). */
+const PHOTO: Record<string, number> = { 'moto-urbana': 1, 'hatch-popular': 2, 'sedan-compacto': 3, 'moto-esportiva': 4, 'suv-familia': 5, 'picape-diesel': 6, 'eletrico-urbano': 2, 'sedan-executivo': 3, 'suv-premium': 5 };
+const Pic = ({ v, big }: { v: Vehicle; big?: boolean }) => PHOTO[v.id]
+  ? <img className={big ? 'rt-photo big dl' : 'rt-photo dl'} src={`assets/ui/veh${PHOTO[v.id]}.jpg`} alt="" loading="lazy" draggable={false} />
+  : <span className={big ? 'rt-photo big dl ico' : 'rt-photo dl ico'} aria-hidden="true">{v.icon}</span>;
 const KINDS: ('Todos' | VehicleKind)[] = ['Todos', 'Moto', 'Econômico', 'Utilitário', 'Elétrico', 'Esportivo', 'Luxo'];
 
 /** Concessionária: 15 veículos, compra à vista ou financiada (entrada + parcelas em boleto), sempre pagando por Pix. */
-export function DealerApp({ game, onChange, onOpenApp }: Props) {
+export function DealerApp({ game, onChange, onOpenApp, onHome }: Props) {
   const [tab, setTab] = useState<'cat' | 'mine'>('cat');
   const [kind, setKind] = useState<(typeof KINDS)[number]>('Todos');
   const [sel, setSel] = useState<Vehicle | null>(() => { const p = getPending('dealer'); return p ? (vehicleById(p.selId) ?? null) : null; });
@@ -29,22 +35,24 @@ export function DealerApp({ game, onChange, onOpenApp }: Props) {
 
   const list = VEHICLES.filter((v) => kind === 'Todos' || v.kind === kind);
   return (
-    <div className="ph-app-screen">
-      <h2>🚗 Concessionária</h2>
-      <p className="bk-sub">Saldo: <b>{brl(balanceOf(game))}</b> · Todas as compras são pagas por Pix.</p>
-      <div className="chips ap-chips" role="tablist">
-        <button role="tab" aria-selected={tab === 'cat'} className={tab === 'cat' ? 'on' : ''} onClick={() => setTab('cat')}>Catálogo</button>
-        <button role="tab" aria-selected={tab === 'mine'} className={tab === 'mine' ? 'on' : ''} onClick={() => setTab('mine')}>Meus veículos ({owned.length})</button>
+    <>
+    <div className="ph-app-screen rt2">
+      <AppHead icon="🚗" title="Concessionária" right={<img className="dl-head" src="assets/ui/dealer-head.jpg" alt="" />} />
+      <p className="rt-saldo">Saldo: <b>{brl(balanceOf(game))}</b> <span>•</span> Todas as compras são pagas por Pix.</p>
+      <div className="so-pills two" role="tablist">
+        <button role="tab" aria-selected={tab === 'cat'} className={tab === 'cat' ? 'on blue' : 'blue'} onClick={() => setTab('cat')}>Catálogo</button>
+        <button role="tab" aria-selected={tab === 'mine'} className={tab === 'mine' ? 'on blue' : 'blue'} onClick={() => setTab('mine')}>Meus Veículos ({owned.length})</button>
       </div>
       {tab === 'cat' && (
         <>
-          <div className="ap-kinds">{KINDS.map((k) => <button key={k} className={kind === k ? 'on' : ''} onClick={() => setKind(k)}>{k}</button>)}</div>
+          <div className="ap-kinds dl-kinds">{KINDS.map((k) => <button key={k} className={kind === k ? 'on' : ''} onClick={() => setKind(k)}>{k}</button>)}</div>
           <ul className="ap-list">
             {list.map((v) => (
-              <li key={v.id}><button onClick={() => { setSel(v); setMsg(undefined); }}>
-                <span className="ph-ico big">{v.icon}</span>
-                <span className="grow"><b>{v.name}</b><small>{v.kind} · <Stars n={v.prestige} /></small></span>
-                <b>{brl(priceOf(game, v.price))}</b>
+              <li key={v.id}><button className="rt-row" onClick={() => { setSel(v); setMsg(undefined); }}>
+                <Pic v={v} />
+                <span className="grow"><b>{v.name}</b><small>{v.kind}</small><Stars n={v.prestige} /></span>
+                <b className="rt-price">{brl(priceOf(game, v.price))}</b>
+                <i aria-hidden="true">›</i>
               </button></li>
             ))}
           </ul>
@@ -59,7 +67,7 @@ export function DealerApp({ game, onChange, onOpenApp }: Props) {
               const value = resaleValue(o.price, o.season, game.season);
               return (
                 <li key={o.id} className="ap-own">
-                  <span className="ph-ico big">{v.icon}</span>
+                  <Pic v={v} />
                   <span className="grow"><b>{v.name}</b><small>{o.contractId ? '💳 Financiado' : '✔ Quitado'} · vale {brl(value)}</small></span>
                   <button className="ph-btn" disabled={!!o.contractId} onClick={() => { const r = sellAsset(game, 'vehicle', o.id); if (r.ok) { onChange(r.state); audio.sfx('cash'); } }}>Vender</button>
                 </li>
@@ -69,6 +77,12 @@ export function DealerApp({ game, onChange, onOpenApp }: Props) {
         </>
       )}
     </div>
+    <AppTabs items={[
+      { icon: '🏠', label: 'Início', onClick: () => onHome?.() },
+      { icon: '🚘', label: 'Catálogo', on: tab === 'cat', onClick: () => setTab('cat') },
+      { icon: '🔑', label: 'Veículos', on: tab === 'mine', onClick: () => setTab('mine') },
+    ]} />
+    </>
   );
 }
 
@@ -81,7 +95,7 @@ function VehicleDetail({ game, v, back, onStart, msg }: { game: GameState; v: Ve
   return (
     <>
       <button className="bk-back" onClick={back}>‹ Voltar</button>
-      <div className="ap-hero"><span>{v.icon}</span><h2>{v.name}</h2><small>{v.kind} · <Stars n={v.prestige} /></small><b>{brl(price)}</b></div>
+      <div className="ap-hero"><Pic v={v} big /><h2>{v.name}</h2><small>{v.kind} · <Stars n={v.prestige} /></small><b>{brl(price)}</b></div>
       <div className="chips ap-chips" role="radiogroup" aria-label="Forma de pagamento">
         <button role="radio" aria-checked={mode === 'cash'} className={mode === 'cash' ? 'on' : ''} onClick={() => setMode('cash')}>À vista</button>
         <button role="radio" aria-checked={mode === 'finance'} className={mode === 'finance' ? 'on' : ''} onClick={() => setMode('finance')}>Financiar</button>

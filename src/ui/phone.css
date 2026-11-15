@@ -275,3 +275,16 @@
 .rt2 .ap-own, .rt2 .ap-hero { color: #fff; }
 .rt2 .ap-own { border: 1px solid rgba(80, 130, 220, .45); background: rgba(10, 24, 60, .8); border-radius: 14px; }
 .app-head h2 { font-size: clamp(17px, 5.2vw, 22px) !important; }
+
+/* Concessionária */
+.so-pills.two { grid-template-columns: 1fr 1.3fr; }
+.dl-head { height: 48px; border-radius: 10px; display: block; opacity: .95; }
+.dl-kinds { gap: 7px; } .dl-kinds button { border: 1px solid rgba(80, 150, 255, .55) !important; background: rgba(10, 28, 70, .75) !important; color: #e6f0ff !important; border-radius: 16px !important; padding: 6px 12px !important; font: 600 13px system-ui; }
+.dl-kinds button.on { background: linear-gradient(180deg, #2f8bff, #1b62d6) !important; border-color: #8cc2ff !important; box-shadow: 0 0 10px rgba(47, 139, 255, .5); }
+.rt-photo.dl { width: 92px; height: 56px; object-fit: contain; background: rgba(8, 20, 56, .9); }
+.rt-photo.dl.ico { display: grid; place-items: center; font-size: 34px; }
+.rt-photo.big.dl { height: 150px; width: 100%; object-fit: contain; }
+.rt-photo.big.dl.ico { font-size: 80px; }
+.rt-photo.dl { width: 78px; height: 52px; }
+.rt-row { gap: 8px !important; } .rt-row .grow { min-width: 0; flex: 1; } .rt-row .rt-price { flex: none; font-size: 12px; } .rt-row > i { flex: none; width: 8px; font-size: 20px; }
+.dl-head { height: 40px; max-width: 90px; object-fit: cover; }
