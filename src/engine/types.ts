@@ -331,6 +331,8 @@ export interface GameState {
   wageCover?: number;
   /** Categorias de base do seu clube: academia (nível 0–5) e jovens em formação. */
   youth?: import('./youth').YouthState;
+  /** Calendário: dia atual, início da temporada e quantos jogos (eventos) já aconteceram nela. */
+  cal?: { day: number; start: number; slot: number };
   /** Mensagens (patrocínios, coletivas, diretoria, torcida) e metas do celular. */
   inbox?: import('./inbox').InboxState;
   /** Estádio do seu clube: capacidade, conforto, preço do ingresso e público dos últimos jogos. */

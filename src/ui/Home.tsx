@@ -13,6 +13,7 @@ import { acceptAnyOffer } from '../engine/abroad';
 import { firingWarning } from '../engine/game';
 import { ClubBadge } from './ClubBadge';
 import { stadiumOf } from '../engine/stadium';
+import { calOf, daysToMatch, formatDayLong, formatDayShort, isMatchDay, nextMatchDay } from '../engine/calendar';
 import { FmCard, Jersey, ScreenTitle, StatStrip, SubTabs } from './FmParts';
 import { transferFeed } from '../engine/news';
 import { divisionTable } from '../engine/game';
@@ -22,7 +23,7 @@ import { EXPECTATION_LABEL, formatBudget } from '../newgame/format';
 
 interface Props {
   game: GameState; onChange: (g: GameState) => void; last: MatchResult[]; over: boolean;
-  onPlay: () => void; onSkip: (years: number) => void; onSeeTables: () => void; onSeeResults: () => void; onNextSeason: () => void; onEditLineup: () => void; onFinance: () => void; onStadium: () => void; onTab: (t: 'squad' | 'table' | 'transfers') => void; onNews: () => void; onSeeHist: () => void; onSeeOffers: () => void;
+  onPlay: () => void; onSkip: (years: number) => void; onSeeTables: () => void; onSeeResults: () => void; onNextSeason: () => void; onEditLineup: () => void; onFinance: () => void; onStadium: () => void; onAdvance: () => void; onAdvanceToMatch: () => void; onTab: (t: 'squad' | 'table' | 'transfers') => void; onNews: () => void; onSeeHist: () => void; onSeeOffers: () => void;
 }
 
 function Meter({ label, value, note }: { label: string; value: number; note?: string }) {
@@ -47,7 +48,7 @@ function EstadualResult({ game }: { game: GameState }) {
 }
 
 /** Início: próxima partida, escalação, humor (equipe, dirigentes e torcida), propostas e resultados da rodada. */
-export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, onSeeResults, onNextSeason, onEditLineup, onFinance, onStadium, onSeeOffers, onTab, onNews, onSeeHist }: Props) {
+export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, onSeeResults, onNextSeason, onEditLineup, onFinance, onStadium, onSeeOffers, onTab, onNews, onSeeHist, onAdvance, onAdvanceToMatch }: Props) {
   const name = (id: string) => clubOf(game, id).name;
   const [open, setOpen] = useState<string | null>(null);
   const [askSkip, setAskSkip] = useState(false);
@@ -123,7 +124,16 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
         <small>{ev ? ev.label : game.estadual?.due ? `🏟️ Estaduais · rodada ${game.estadual.step} de ${game.estadual.totalSteps}` : `${division.name} · Rodada ${Math.min(game.round, game.totalRounds)} de ${game.totalRounds}`}</small>
         {!next && !ev && <p className="hint">Seu clube não joga nesta rodada.</p>}
         {next && <h2>{name(next.homeId)} <span className="vs">x</span> {name(next.awayId)}</h2>}
-        <button className="primary" onClick={() => { setOpen(null); onPlay(); }}>▶ Iniciar partida</button>
+        <p className="cal-today">📅 {formatDayLong(calOf(game).day)}</p>
+        {isMatchDay(game) ? (
+          <button className="primary" onClick={() => { setOpen(null); onPlay(); }}>{next || ev ? '▶ Iniciar partida' : '⏩ Simular a rodada'}</button>
+        ) : (
+          <>
+            <p className="cal-next">{next || ev ? 'Próximo jogo' : 'Próxima rodada'}: <b>{formatDayShort(nextMatchDay(game))}</b> · {daysToMatch(game) === 1 ? 'amanhã' : `em ${daysToMatch(game)} dias`}</p>
+            <button className="primary" onClick={onAdvance}>⏭ Avançar 1 dia</button>
+            <button className="btn home-lineup" onClick={onAdvanceToMatch}>⏩ Ir até o dia do jogo</button>
+          </>
+        )}
         {!ev && COMPS.map((k) => { const c = game[k], cfg = CONTINENTALS[k]; if (!c) return null; const mine = c.groups.some((gr) => gr.clubIds.includes(game.userClubId)); return mine || c.championId ? <small key={k} className="cup-line">{c.championId ? `${cfg.icon} ${c.name}: campeão ${name(c.championId)}` : userIn(game, k) ? `${cfg.icon} ${c.name}: ${stepName(k, c)} em breve` : `${cfg.icon} ${c.name}: seu clube foi eliminado`}</small> : null; })}
         {!ev && game.mundial && <small className="cup-line">{game.mundial.championId ? `🌍 ${game.mundial.name}: campeão ${name(game.mundial.championId)}` : `🌍 ${game.mundial.name}: ${mundialStepName(game.mundial)}`}</small>}
         {game.cup && !ev && <small className="cup-line">{game.cup.championId ? `🏆 ${game.cup.name}: campeão ${name(game.cup.championId)}` : userInCup(game) ? `🏆 ${game.cup.name}: você está na ${game.cup.rounds[game.cup.roundIndex].name}` : `🏆 ${game.cup.name}: seu clube já foi eliminado`}</small>}

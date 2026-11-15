@@ -17,6 +17,7 @@ import { planTick } from './dataplan';
 import { chipTick } from './shop';
 import { youthSeason, youthTick } from './youth';
 import { fibraTick } from './netfibra';
+import { afterMatch, newSeasonCalendar } from './calendar';
 import { createCup, cupAfterLeagueRound, playCupRound, shootout } from './cup';
 import { MORALE_START, moraleFactor, updateMorale } from './morale';
 import { simulateMatch } from './match';
@@ -160,6 +161,10 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
 
 /** Próximo jogo do seu clube: a fase da copa (se for a data) ou a rodada do campeonato. */
 export function playNext(g: GameState) {
+  const r = playNextRaw(g);
+  return { ...r, state: afterMatch(g, r.state) };
+}
+function playNextRaw(g: GameState) {
   const ev = pendingEvent(g);
   if (ev) return playEvent(g, ev.kind);
   if (g.estadual?.due) return playEstadualStep(g); // rodada dos estaduais sem jogo seu
@@ -290,7 +295,8 @@ export function startNextSeason(g: GameState): GameState {
   const { state, promotion } = offseason(next, rng, { promoted: arrivals('promoted', -1), relegated: arrivals('relegated', 1) });
   const cupped: GameState = g.cup ? { ...state, cup: createCup(state), estadual: g.estadual ? nextEstaduais(g, g.estadual) : undefined } : state;
   const withCup: GameState = createContinentals({ ...cupped, mundial: undefined }, moves[0].table.map((r) => r.clubId), g.cup?.championId);
-  let result: GameState = youthSeason({ ...withCup, history: withCup.history.map((h, i) => (i === withCup.history.length - 1 ? { ...h, promotion } : h)) });
+  const cal = newSeasonCalendar(next);
+  let result: GameState = youthSeason({ ...withCup, cal, history: withCup.history.map((h, i) => (i === withCup.history.length - 1 ? { ...h, promotion } : h)) });
   // carreira do treinador: pontos, demissão ou propostas de clubes maiores
   const relegatedU = out.movement === 'relegated', promotedU = out.movement === 'promoted';
   const reason = seasonEndFiring(g, out.userPosition, relegatedU);

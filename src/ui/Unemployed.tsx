@@ -4,14 +4,15 @@ import { acceptAnyOffer } from '../engine/abroad';
 import type { GameState } from '../engine/types';
 import { EXPECTATION_LABEL } from '../newgame/format';
 import { ClubBadge } from './ClubBadge';
+import { calOf, daysToMatch, formatDayLong, formatDayShort, isMatchDay, nextMatchDay } from '../engine/calendar';
 
-interface Props { game: GameState; over: boolean; onChange: (g: GameState) => void; onPlay: () => void; onSkip: (years: number) => void; onNextSeason: () => void; onSeeTables: () => void }
+interface Props { game: GameState; over: boolean; onChange: (g: GameState) => void; onPlay: () => void; onAdvance: () => void; onAdvanceToMatch: () => void; onSkip: (years: number) => void; onNextSeason: () => void; onSeeTables: () => void }
 
 const ODDS_CLASS = { Alta: 'good', Média: 'mid', Baixa: 'bad', 'Muito baixa': 'bad' } as const;
 const stars = (n: number) => '★'.repeat(n) + '☆'.repeat(5 - n);
 
 /** Sem clube: propostas de emprego, candidaturas e o tempo passando (rodadas e temporadas) até ser contratado. */
-export function Unemployed({ game, over, onChange, onPlay, onSkip, onNextSeason, onSeeTables }: Props) {
+export function Unemployed({ game, over, onChange, onPlay, onAdvance, onAdvanceToMatch, onSkip, onNextSeason, onSeeTables }: Props) {
   const [div, setDiv] = useState(0);
   const [notice, setNotice] = useState<{ text: string; ok: boolean } | null>(null);
   const info = game.firedInfo;
@@ -40,8 +41,14 @@ export function Unemployed({ game, over, onChange, onPlay, onSkip, onNextSeason,
         <p className="un-lvl">Nível de treinador <b>{coachLevel(game)}</b>/6 · pontos de carreira <b>{game.coachPoints ?? 0}</b></p>
         {!over ? (
           <>
-            <small>Temporada {game.season} · Rodada {Math.min(game.round, game.totalRounds)} de {game.totalRounds}</small>
-            <button className="primary" onClick={onPlay}>▶ Avançar rodada</button>
+            <small>📅 {formatDayLong(calOf(game).day)}</small>
+            {isMatchDay(game) ? <button className="primary" onClick={onPlay}>▶ Simular a rodada</button> : (
+              <>
+                <p className="cal-next">Próxima rodada: <b>{formatDayShort(nextMatchDay(game))}</b> · {daysToMatch(game) === 1 ? 'amanhã' : `em ${daysToMatch(game)} dias`}</p>
+                <button className="primary" onClick={onAdvance}>⏭ Avançar 1 dia</button>
+                <button className="btn home-lineup" onClick={onAdvanceToMatch}>⏩ Ir até o dia da rodada</button>
+              </>
+            )}
             <button className="btn home-lineup" onClick={() => onSkip(1)}>⏭ Pular temporada</button>
           </>
         ) : (

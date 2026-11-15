@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { audio } from '../audio/audio';
+import { calOf, formatDayLong } from '../engine/calendar';
 import { appsUsed, connOf, downloadMs, INSTALL_MS, modelOf, needsInternet, netState, openDelayMs } from '../engine/phone';
 import { changePin, checkPin, clearNotifications, hasPin, installApp, installedApps, isInstalled, markAllRead, phoneOf, PIN_LENGTH, registerPin, STORE_APPS, uninstallApp, updatePhoneSettings, WALLPAPERS, appById } from '../engine/phone';
 import type { GameState } from '../engine/types';
@@ -195,7 +196,7 @@ function LockScreen({ game, now, onSubmit, firstPin, err, shake, onReset, onFing
   return (
     <div className="ph-lock">
       <div className="ph-time" aria-live="off">{now}</div>
-      <div className="ph-date">Temporada {game.season} · Rodada {Math.min(game.round, game.totalRounds)}</div>
+      <div className="ph-date">{formatDayLong(calOf(game).day)}</div>
       {!ph.settings.dnd && ph.notifications.filter((n) => !n.read).slice(0, 3).map((n) => (
         <div className="ph-notif" key={n.id}><b>{appById(n.app)?.icon} {appById(n.app)?.name ?? n.app}</b><span>{n.text}</span></div>
       ))}

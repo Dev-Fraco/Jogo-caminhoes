@@ -20,6 +20,7 @@ import { Placeholder } from './Placeholder';
 import { Home } from './Home';
 import { Finance } from './Finance';
 import { Stadium } from './Stadium';
+import { advanceDay, advanceToMatch, calOf, formatDay } from '../engine/calendar';
 import { ShopScreen } from './ShopScreen';
 import { CoachProfile } from './CoachProfile';
 import { YouthScreen } from './YouthScreen';
@@ -148,7 +149,7 @@ export function App() {
             <i className="gh-div" aria-hidden="true" />
             <div>
               <strong>{game.unemployed ? 'Sem clube' : club.name}</strong>
-              <small>{game.unemployed ? "Sem clube" : userDivision(game).name} · {game.season}</small>
+              <small>{game.unemployed ? "Sem clube" : userDivision(game).name} · {formatDay(calOf(game).day)}</small>
             </div>
           </div>
           <div className="gh-right">
@@ -161,8 +162,8 @@ export function App() {
             <LiveMatch key={`${game.season}-${game.round}-${ev?.kind ?? 'l'}`} home={clubOf(game, liveResult.homeId)} away={clubOf(game, liveResult.awayId)} result={liveResult}
               userSide={liveResult.homeId === game.userClubId ? 'home' : 'away'} divisionName={liveLabel} stadium={clubOf(game, liveResult.homeId).stadium} onFinish={finishMatch} />
           )}
-          {!live && game.unemployed && tab === 'home' && <Unemployed game={game} over={isSeasonOver(game)} onChange={setGame} onPlay={play} onSkip={() => skipSeason(1)} onNextSeason={nextSeason} onSeeTables={() => { setTableView('rounds'); setTab('table'); }} />}
-          {!live && !game.unemployed && tab === 'home' && <Home game={game} onChange={setGame} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onSkip={skipSeason} onSeeTables={() => { setTableView('div'); setTab('table'); }} onSeeResults={() => { setTableView('rounds'); setTab('table'); }} onEditLineup={() => setTab('lineup')} onFinance={() => setTab('finance')} onStadium={() => setTab('stadium')} onTab={(t) => setTab(t)} onNews={() => setPhoneOpen(true)} onSeeHist={() => { setTableView('hist'); setTab('table'); }} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} />}
+          {!live && game.unemployed && tab === 'home' && <Unemployed game={game} over={isSeasonOver(game)} onChange={setGame} onPlay={play} onAdvance={() => setGame(advanceDay(game))} onAdvanceToMatch={() => setGame(advanceToMatch(game))} onSkip={() => skipSeason(1)} onNextSeason={nextSeason} onSeeTables={() => { setTableView('rounds'); setTab('table'); }} />}
+          {!live && !game.unemployed && tab === 'home' && <Home game={game} onChange={setGame} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onSkip={skipSeason} onSeeTables={() => { setTableView('div'); setTab('table'); }} onSeeResults={() => { setTableView('rounds'); setTab('table'); }} onEditLineup={() => setTab('lineup')} onFinance={() => setTab('finance')} onStadium={() => setTab('stadium')} onTab={(t) => setTab(t)} onNews={() => setPhoneOpen(true)} onSeeHist={() => { setTableView('hist'); setTab('table'); }} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} onAdvance={() => setGame(advanceDay(game))} onAdvanceToMatch={() => setGame(advanceToMatch(game))} />}
           {!live && !game.unemployed && tab === 'youth' && <YouthScreen game={game} onChange={setGame} />}
           {!live && tab === 'profile' && <CoachProfile game={game} onNext={(t) => setTab(t)} />}
           {!live && tab === 'shop' && <ShopScreen game={game} onChange={setGame} onOpenPhone={() => setPhoneOpen(true)} />}
