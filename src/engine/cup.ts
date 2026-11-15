@@ -2,7 +2,8 @@ import { prize } from './economy';
 import { moraleFactor } from './morale';
 import { simulateCupMatch } from './match';
 import { makeRng, type Rng } from './rng';
-import { injuredSet, lineupWithout } from './injuries';
+import { injuredSet } from './injuries';
+import { aiLineup } from './rotation';
 import { teamRatings } from './squad';
 import type { CupState, CupTie, GameState, MatchResult, NewsItem, PenKick, TeamState } from './types';
 
@@ -69,7 +70,7 @@ export function cupAfterLeagueRound(g: GameState): GameState {
 
 const lineupTeam = (g: GameState, id: string): TeamState => {
   const t = g.teams[id];
-  return id === g.userClubId && !g.unemployed ? t : { ...t, lineup: lineupWithout(t, injuredSet(g)) };
+  return id === g.userClubId && !g.unemployed ? t : { ...t, lineup: aiLineup(g, t, injuredSet(g), 1.2) };
 };
 
 /** Penalidades: 5 cobranças cada e depois alternadas; devolve o placar e o vencedor (leve vantagem de quem tem melhor goleiro). */

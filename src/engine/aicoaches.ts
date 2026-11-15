@@ -57,20 +57,47 @@ export function ensureAiCoaches(g: GameState): GameState {
   return changed ? { ...g, aiCoaches: coaches, clubCoach: club } : g;
 }
 
+/* Caches por rodada: tabela de cada divisão, jogos de cada clube e ordem de qualidade dos elencos. Chaveados pela identidade dos arrays/objetos
+   do estado, então valem enquanto nada muda e se renovam sozinhos a cada rodada (a IA consulta isso para centenas de clubes sem refazer contas). */
+const tableCache = new WeakMap<object, { tables: Map<string, ReturnType<typeof computeTable>>; byClub: Map<string, GameState['results']> }>();
+const qualCache = new WeakMap<object, Map<string, string[]>>();
+function resultsIndex(g: GameState) {
+  let c = tableCache.get(g.results);
+  if (!c) {
+    const byClub = new Map<string, GameState['results']>();
+    for (const r of g.results) for (const id of [r.homeId, r.awayId]) { const l = byClub.get(id); if (l) l.push(r); else byClub.set(id, [r]); }
+    c = { tables: new Map(), byClub }; tableCache.set(g.results, c);
+  }
+  return c;
+}
+function tableOf(g: GameState, d: GameState['divisions'][number]) {
+  const c = resultsIndex(g);
+  let t = c.tables.get(d.id);
+  if (!t) { t = computeTable(d.clubIds.map((id) => ({ id, name: g.clubs[id].name })), g.results.filter((r) => r.divisionId === d.id)); c.tables.set(d.id, t); }
+  return t;
+}
+function qualOrder(g: GameState, d: GameState['divisions'][number]) {
+  let m = qualCache.get(g.teams);
+  if (!m) { m = new Map(); qualCache.set(g.teams, m); }
+  let o = m.get(d.id);
+  if (!o) { o = [...d.clubIds].sort((a, b) => avgXI(g.teams[b]) - avgXI(g.teams[a])); m.set(d.id, o); }
+  return o;
+}
+
 /** Posição e metas do clube. null para clubes que não disputam pontos corridos agora (Série D em grupos). */
 export function standing(g: GameState, clubId: string) {
   const d = divOf(g, clubId);
   if (!d || d.format === 'groups' || d.clubIds.length < 8) return null;
-  const rows = computeTable(d.clubIds.map((id) => ({ id, name: g.clubs[id].name })), g.results.filter((r) => r.divisionId === d.id));
+  const rows = tableOf(g, d);
   const n = rows.length;
   const pos = rows.findIndex((r) => r.clubId === clubId) + 1;
   const played = rows[pos - 1]?.played ?? 0;
   const relegN = Math.max(2, Math.round(n * 0.2));
-  const qual = [...d.clubIds].sort((a, b) => avgXI(g.teams[b]) - avgXI(g.teams[a])).indexOf(clubId) + 1; // posição "esperada" pela qualidade do elenco
+  const qual = qualOrder(g, d).indexOf(clubId) + 1; // posição "esperada" pela qualidade do elenco
   const exp = g.clubs[clubId].boardExpectation;
   const target = exp === 'title' ? 2 : exp === 'top4' ? 4 : exp === 'mid' ? Math.ceil(n / 2) : n - relegN;
   // últimos 5 jogos
-  const mine = g.results.filter((r) => r.divisionId === d.id && (r.homeId === clubId || r.awayId === clubId)).sort((a, b) => b.round - a.round).slice(0, 5);
+  const mine = (resultsIndex(g).byClub.get(clubId) ?? []).filter((r) => r.divisionId === d.id).slice(-5);
   const pts = mine.reduce((t, r) => { const gf = r.homeId === clubId ? r.homeGoals : r.awayGoals, ga = r.homeId === clubId ? r.awayGoals : r.homeGoals; return t + (gf > ga ? 3 : gf === ga ? 1 : 0); }, 0);
   const form = mine.length ? pts / (mine.length * 3) : 0.5;
   return { n, pos, played, relegN, qual, exp, target, form, games: mine.length, table: rows };

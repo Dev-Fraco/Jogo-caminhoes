@@ -348,6 +348,10 @@ export interface GameState {
   /** Categoria de base dos clubes da IA e empréstimos entre clubes da IA. */
   aiYouth?: Record<string, Prospect[]>;
   aiLoans?: AiLoan[];
+  /** Carga de jogos seguidos de cada jogador (rodízio dos clubes da IA). */
+  load?: Record<string, number>;
+  /** Objetivos da temporada de cada clube, fixados no início dela (persistem mesmo se o clube sair de uma copa). */
+  aiGoals?: Record<string, { season: number; league: string; extras: { kind: string; label: string }[] }>;
   /** Ajustes dos limites de elenco da IA (parciais sobre o padrão). */
   squadRules?: { total?: Partial<SquadLimits['total']>; pos?: Partial<Record<Position, Partial<SquadLimits['pos'][Position]>>>; age?: Partial<SquadLimits['age']> };
   clubCoach?: Record<string, string>;

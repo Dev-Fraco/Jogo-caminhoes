@@ -1,6 +1,8 @@
 import type { ClubData } from '../data/clubs';
 import { aiWindow, offseason } from './ai';
 import { aiRenewals, aiSignFreeAgents } from './aicontracts';
+import { freezeGoals } from './aigoals';
+import { aiLineup, matchImportance, updateLoad } from './rotation';
 import { aiLoanWindow, aiPromoteYouth, ensureAiYouth } from './aiyouth';
 import { aiCoachSeasonEnd, aiCoachTick } from './aicoaches';
 import { contAfterLeagueRound, createContinentals, mundialAfterLeagueRound, playContStep, playMundialStep } from './continental';
@@ -102,8 +104,8 @@ export function newCareer(input: CareerInput, seed = Date.now() % 2147483647): G
     userClubId: input.userClubId, seed, season: input.season, round: 1, totalRounds,
     clubs, budgets, transfers: [], morale: { ...MORALE_START }, transferList: [], loanList: [], offers: [], loans: [], news: [], divisions, teams, fixtures, results: [], history: [],
   };
-  if (!input.cup) return createContinentals(career);
-  return createContinentals({ ...career, cup: createCup(career), estadual: createEstaduais(input.outside ? { id: input.outside.id, uf: input.outside.uf ?? 'SP' } : undefined) });
+  if (!input.cup) return freezeGoals(createContinentals(career));
+  return freezeGoals(createContinentals({ ...career, cup: createCup(career), estadual: createEstaduais(input.outside ? { id: input.outside.id, uf: input.outside.uf ?? 'SP' } : undefined) }));
 }
 
 export const isSeasonOver = (g: GameState) => g.round > g.totalRounds && !g.mundial?.due;
@@ -125,10 +127,15 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
   const teams = { ...g.teams };
   const inj = injuredSet(g);
   // clubes controlados pela IA sempre escalam o melhor time disponível (sem lesionados)
+  const oppOf = new Map<string, string>();
+  for (const f of fixturesOfRound(g, g.round)) { oppOf.set(f.homeId, f.awayId); oppOf.set(f.awayId, f.homeId); }
+  const played = new Map<string, string[]>();
   for (const id of Object.keys(teams)) {
     if (managed(g, id)) continue;
     const t = teams[id];
-    teams[id] = { ...t, lineup: lineupWithout(t, inj) };
+    const lineup = oppOf.has(id) ? aiLineup(g, t, inj, matchImportance(g, id, oppOf.get(id))) : lineupWithout(t, inj); // rodízio conforme desgaste e importância do jogo
+    teams[id] = { ...t, lineup };
+    if (oppOf.has(id)) played.set(id, lineup);
   }
   const hits: InjuryHit[] = [];
   const factor = moraleFactor(g.morale.team); // humor da equipe mexe um pouco na força do seu time
@@ -142,7 +149,7 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
     const pens = sk?.score;
     return { divisionId: f.divisionId, round: f.round, homeId: f.homeId, awayId: f.awayId, homeGoals: out.homeGoals, awayGoals: out.awayGoals, ...(pens ? { pens } : {}), ...(sk && mine ? { penKicks: { home: sk.home, away: sk.away } } : {}), events: mine ? out.events : [] };
   });
-  let state: GameState = advanceKnockout({ ...g, teams, round: g.round + 1, results: [...g.results, ...results] });
+  let state: GameState = advanceKnockout({ ...g, teams, round: g.round + 1, results: [...g.results, ...results], load: updateLoad(g, played) });
   state = pruneInjuries(applyInjuries(state, hits, g.round)); // lesões da rodada (valem a partir da próxima) e limpeza das vencidas
 
   // humor: depois do jogo do seu clube
@@ -329,7 +336,7 @@ function startNextSeasonCore(g: GameState, calNew: ReturnType<typeof newSeasonCa
   const cupped: GameState = g.cup ? { ...state, cup: createCup(state), estadual: g.estadual ? nextEstaduais(g, g.estadual) : undefined } : state;
   const withCup: GameState = createContinentals({ ...cupped, mundial: undefined }, moves[0].table.map((r) => r.clubId), g.cup?.championId);
   const cal = calNew;
-  let result: GameState = youthSeason({ ...withCup, cal, history: withCup.history.map((h, i) => (i === withCup.history.length - 1 ? { ...h, promotion } : h)) });
+  let result: GameState = freezeGoals(youthSeason({ ...withCup, cal, history: withCup.history.map((h, i) => (i === withCup.history.length - 1 ? { ...h, promotion } : h)) }));
   // carreira do treinador: pontos, demissão ou propostas de clubes maiores
   const relegatedU = out.movement === 'relegated', promotedU = out.movement === 'promoted';
   const reason = seasonEndFiring(g, out.userPosition, relegatedU);

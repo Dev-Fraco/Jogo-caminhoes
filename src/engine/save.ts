@@ -1,3 +1,4 @@
+import { ensureAiState } from './aistate';
 import { CLUBS_DATA } from '../data/clubs';
 import { withSpots } from './squad';
 import type { GameState } from './types';
@@ -39,7 +40,7 @@ export function loadGame(): GameState | null {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
     const g = JSON.parse(raw);
-    return isValidSave(g) ? withSpotsAll(migrateSave(g)) : null; // saves de versões antigas demais são ignorados
+    return isValidSave(g) ? ensureAiState(withSpotsAll(migrateSave(g))) : null; // saves de versões antigas demais são ignorados
   } catch { return null; }
 }
 

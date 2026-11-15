@@ -19,8 +19,27 @@ const LEAGUE_LABEL: Record<LeagueGoal, string> = {
   permanecer: 'Permanecer na divisão', rebaixamento: 'Evitar o rebaixamento',
 };
 
-/** Objetivos do clube nesta temporada. */
+/** Objetivos do clube nesta temporada: os fixados no início dela (persistem no save) ou, se ainda não foram fixados, os calculados agora. */
 export function clubGoals(g: GameState, clubId: string): ClubGoals {
+  const st = g.aiGoals?.[clubId];
+  if (st && st.season === g.season) { const league = st.league as LeagueGoal; return { league, leagueLabel: LEAGUE_LABEL[league] ?? LEAGUE_LABEL.permanecer, extras: st.extras as ClubGoals['extras'] }; }
+  return computeGoals(g, clubId);
+}
+
+/** Fixa os objetivos de todos os clubes para a temporada (idempotente: só preenche quem ainda não tem os desta temporada). */
+export function freezeGoals(g: GameState): GameState {
+  let changed = false;
+  const goals = { ...(g.aiGoals ?? {}) };
+  for (const id of Object.keys(g.teams)) {
+    if (goals[id]?.season === g.season) continue;
+    const c = computeGoals(g, id);
+    goals[id] = { season: g.season, league: c.league, extras: c.extras };
+    changed = true;
+  }
+  return changed ? { ...g, aiGoals: goals } : g;
+}
+
+function computeGoals(g: GameState, clubId: string): ClubGoals {
   const info = g.clubs[clubId];
   const di = divisionIndexOf(g, clubId);
   const exp = info?.boardExpectation ?? 'mid';

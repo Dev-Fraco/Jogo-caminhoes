@@ -1,4 +1,4 @@
-import { clamp, type Rng } from './rng';
+import { clamp, hashString, type Rng } from './rng';
 import { managed } from './lookup';
 import { repairLineup, rosterOk } from './roster';
 import { DIVISION_INCOME, inflate, priceIndex, SEASON_INCOME_FACTOR } from './economy';
@@ -119,6 +119,18 @@ function trimSquad(g: GameState, clubId: string, size: number, maxCuts = 12): Ga
   return players === t.players ? g : { ...g, freeAgents: [...(g.freeAgents ?? []), ...freed], teams: { ...g.teams, [clubId]: { ...t, players, lineup: autoLineup(players, t.formation) } } };
 }
 
+/** Quantos clubes vendedores cada comprador consulta por janela (amostra) quando o universo é grande: mantém a janela rápida com centenas de clubes. */
+export const SELLER_POOL = 90;
+/**
+ * Frequência com que o clube vai ao mercado (0,25 a 1): depende do porte, da situação financeira e de uma tendência própria do clube,
+ * então nem todos negociam com a mesma frequência. Necessidade urgente (falta de gente numa posição) ignora isso.
+ */
+export function clubActivity(clubId: string, prof: ClubProfile): number {
+  const base = prof.tier === 'gigante' ? 0.85 : prof.tier === 'medio' ? 0.7 : 0.55;
+  const trait = (hashString(`${clubId}:atividade`) % 100) / 100 * 0.3 - 0.15;
+  return Math.max(0.25, Math.min(1, base + trait + (prof.financial === 'crise' ? -0.2 : 0)));
+}
+
 /** Quantas contratações um clube faz por janela, no máximo, conforme o porte (além do limite de cada janela e das necessidades reais). */
 export const maxBuysFor = (p: ClubProfile) => (p.tier === 'gigante' ? 6 : p.tier === 'medio' ? 4 : 3);
 /** Folga da folha salarial por porte: gigantes aceitam passar um pouco da receita-base, pequenos não. */
@@ -150,6 +162,7 @@ export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[
   for (const buyerId of ai) {
     if (only && !only.includes(buyerId)) continue;
     let bought = 0;
+    const pool = ai.length > SELLER_POOL ? shuffle(ai, rng).slice(0, SELLER_POOL) : ai;
     while (bought < maxBuys) {
       // elenco cheio: dispensa o menos cotado para abrir vaga
       if (s.teams[buyerId].players.length >= AI_MAX_SQUAD) s = trimSquad(s, buyerId, AI_MAX_SQUAD - 1);
@@ -162,6 +175,7 @@ export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[
       const gs = goalStatus(s, buyerId); // objetivo e momento do clube mudam o jeito de contratar
       const needs = squadNeeds(s, buyerId, prof, { upgrade: maxBuys > 3 || gs.mode === 'disputa', divisionLevel: ctx.divAvg.get(divisionIndexOf(s, buyerId)) });
       if (!needs.length) break;
+      if (bought === 0 && !only && needs[0].priority < 100 && rng() > clubActivity(buyerId, prof) * (maxBuys === 1 ? 0.7 : 1)) break; // este clube não vai ao mercado agora
       const bdi = divisionIndexOf(s, buyerId);
       const level = ctx.xi.get(buyerId) ?? avgXI(buyer);
       const wageRoom = prof.revenue * WAGE_LIMIT[prof.tier] * (maxBuys > 3 ? 1.35 : 1) - payrollOf(s, buyerId); // investimento forte de promovido também libera folha
@@ -170,7 +184,7 @@ export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[
       const xi = new Set(autoLineup(buyer.players, buyer.formation));
       for (const need of needs) {
         const weak = Math.min(...buyer.players.filter((p) => p.pos === need.pos && xi.has(p.id)).map((p) => p.strength));
-        for (const sellerId of ai) {
+        for (const sellerId of pool) {
           if (sellerId === buyerId) continue;
           const seller = s.teams[sellerId];
           const sdi = divisionIndexOf(s, sellerId);

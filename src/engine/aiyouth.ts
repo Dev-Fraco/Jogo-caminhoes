@@ -1,5 +1,5 @@
 import { avgXI, clubProfile, profileCtx } from './aiprofile';
-import { AI_MAX_SQUAD } from './ai';
+import { AI_MAX_SQUAD, clubActivity, SELLER_POOL } from './ai';
 import { longInjured, squadNeeds } from './aineeds';
 import { marketValue } from './aisales';
 import { baseWage } from './finance';
@@ -128,15 +128,17 @@ export function aiLoanWindow(g: GameState, rng: Rng, perHost = 1): GameState {
       const prof = clubProfile(s, hostId, ctx);
       const needs = squadNeeds(s, hostId, prof, { divisionLevel: ctx.divAvg.get(divisionIndexOf(s, hostId)) });
       if (!needs.length) break;
+      if (got === 0 && needs[0].priority < 100 && rng() > clubActivity(hostId, prof)) break; // nem todo clube busca empréstimo agora
       const host = s.teams[hostId];
       const hdi = divisionIndexOf(s, hostId);
       const hxi = new Set(autoLineup(host.players, host.formation));
       const room = prof.revenue * WAGE_LIMIT[prof.tier] - host.players.reduce((t, p) => t + (p.contract?.wage ?? baseWage(s, hostId, p)), 0);
       type Deal = { p: Player; ownerId: string; fee: number; gain: number };
       let best = null as Deal | null;
+      const owners = ids.length > SELLER_POOL ? shuffle(ids, rng).slice(0, SELLER_POOL) : ids;
       for (const need of needs) {
         const weak = Math.min(...host.players.filter((p) => p.pos === need.pos && hxi.has(p.id)).map((p) => p.strength));
-        for (const ownerId of ids) {
+        for (const ownerId of owners) {
           if (ownerId === hostId || divisionIndexOf(s, ownerId) > hdi) continue; // dono de divisão igual ou superior à do clube que recebe
           const owner = s.teams[ownerId];
           const oxi = new Set(autoLineup(owner.players, owner.formation));
