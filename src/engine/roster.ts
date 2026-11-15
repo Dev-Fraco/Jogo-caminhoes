@@ -1,6 +1,7 @@
 import type { Rng } from './rng';
 import { inflate } from './economy';
 import { autoLineup } from './squad';
+import { notifyPhone } from './phone';
 import { divisionIndexOf, MAX_SQUAD, MIN_BY_POS, MIN_SQUAD, playerValue } from './transfers';
 import { FORMATIONS, type GameState, type Offer, type Player, type Position, type TeamState, type Transfer } from './types';
 
@@ -79,7 +80,13 @@ export function releasePlayer(g: GameState, playerId: string): GameState {
 const VALID_FOR = 3; // rodadas
 
 /** Chance, por rodada, de aparecer proposta por um jogador listado. */
-export const OFFER_CHANCE = { buy: 0.35, loan: 0.25 };
+/** Chance por rodada de um clube procurar um jogador que você colocou na lista (antes 35% e 25%). */
+export const OFFER_CHANCE = { buy: 0.6, loan: 0.45 };
+/** Chance por rodada de um clube se interessar por um destaque do seu elenco mesmo sem ele estar à venda (a proposta vem com ágio). */
+export const STAR_INTEREST = 0.07;
+/** Quantos destaques do elenco (os de maior overall) atraem propostas espontâneas. */
+export const STAR_COUNT = 8;
+export const MAX_OPEN_OFFERS = 8;
 export const LOAN_FEE_RATE = 0.08;
 
 /** Depois de uma rodada: apaga propostas vencidas e sorteia novas para os jogadores das listas. */
@@ -103,7 +110,27 @@ export function generateOffers(g: GameState, rng: Rng): GameState {
   };
   for (const id of g.transferList) tryOffer(id, 'buy');
   for (const id of g.loanList) tryOffer(id, 'loan');
-  return { ...g, offers };
+  // os destaques do elenco chamam a atenção de outros clubes mesmo sem estar à venda: propostas com ágio
+  const stars = [...userPlayers].sort((a, b) => b.strength - a.strength).slice(0, STAR_COUNT);
+  for (const p of stars) {
+    if (g.transferList.includes(p.id) || offers.some((o) => o.playerId === p.id) || offers.length >= MAX_OPEN_OFFERS) continue;
+    if (!rosterOk(userPlayers.filter((x) => x.id !== p.id))) continue;
+    if (rng() >= STAR_INTEREST) continue;
+    const fee = Math.max(10_000, Math.round((myValue(g, p) * (1.1 + 0.4 * rng())) / 10_000) * 10_000);
+    const buyers = others.filter((id) => g.teams[id].players.length < MAX_SQUAD && (g.budgets[id] ?? 0) >= fee);
+    if (!buyers.length) continue;
+    const clubId = buyers[Math.floor(rng() * buyers.length)];
+    offers = [...offers, { id: `${g.season}-${g.round}-${p.id}-buy`, kind: 'buy', playerId: p.id, clubId, fee, season: g.season, expiresRound: g.round + VALID_FOR - 1 }];
+  }
+  // avisa no celular as propostas novas
+  const known = new Set(g.offers.map((o) => o.id));
+  let s: GameState = { ...g, offers };
+  for (const o of offers) {
+    if (known.has(o.id)) continue;
+    const pl = userPlayers.find((x) => x.id === o.playerId);
+    if (pl) s = notifyPhone(s, 'noticias', `${g.clubs[o.clubId]?.name ?? 'Um clube'} quer ${o.kind === 'buy' ? 'comprar' : 'emprestar'} ${pl.name} (${Math.round(o.fee / 1000).toLocaleString('pt-BR')} mil).`);
+  }
+  return s;
 }
 
 export type OfferResult = { ok: true } | { ok: false; text: string };

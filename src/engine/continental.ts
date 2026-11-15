@@ -2,12 +2,13 @@ import { CLUBS_DATA, type ClubData } from '../data/clubs';
 import { prize } from './economy';
 import { clubOf, teamOf } from './lookup';
 import { moraleFactor } from './morale';
-import { simulateMatch } from './match';
+import { simulateCupMatch, simulateMatch } from './match';
 import { makeRng, type Rng } from './rng';
 import { buildFixtures } from './schedule';
 import { autoLineup, teamFromPlayers, teamRatings } from './squad';
 import { computeTable } from './table';
-import type { ClubInfo, CupRound, CupTie, GameState, LibGroup, LibState, MatchResult, MundialState, NewsItem, TeamState } from './types';
+import type { ClubInfo, CupRound, CupTie, GameState, LibGroup, LibState, MatchResult, MundialState, NewsItem, PenKick, TeamState } from './types';
+import { penaltyTakers, shootoutKicks } from './cup';
 
 export type Comp = 'lib' | 'ucl' | 'sula';
 const M = 1_000_000;
@@ -133,18 +134,16 @@ const lineupTeam = (g: GameState, id: string): TeamState => {
 function playTie(g: GameState, rng: Rng, t: CupTie, divisionId: string, round: number, results: MatchResult[]): CupTie {
   const factor = moraleFactor(g.morale.team);
   const mods = { home: t.homeId === g.userClubId ? factor : 1, away: t.awayId === g.userClubId ? factor : 1 };
-  const out = simulateMatch(lineupTeam(g, t.homeId), lineupTeam(g, t.awayId), rng, mods, { home: clubOf(g, t.homeId).name, away: clubOf(g, t.awayId).name });
+  const out = simulateCupMatch(lineupTeam(g, t.homeId), lineupTeam(g, t.awayId), rng, mods, { home: clubOf(g, t.homeId).name, away: clubOf(g, t.awayId).name });
   let pens: [number, number] | undefined;
+  let penKicks: { home: PenKick[]; away: PenKick[] } | undefined;
   let winnerId = out.homeGoals > out.awayGoals ? t.homeId : out.awayGoals > out.homeGoals ? t.awayId : '';
   if (!winnerId) {
     const gk = (id: string) => teamRatings(teamOf(g, id)).gk;
-    const pH = 0.78 - (gk(t.awayId) - gk(t.homeId)) * 0.002, pA = 0.78 - (gk(t.homeId) - gk(t.awayId)) * 0.002;
-    let h = 0, a = 0;
-    for (let i = 0; i < 5; i++) { if (rng() < pH) h++; if (rng() < pA) a++; }
-    while (h === a) { if (rng() < pH) h++; if (rng() < pA) a++; }
-    pens = [h, a]; winnerId = h > a ? t.homeId : t.awayId;
+    const sk = shootoutKicks(rng, gk(t.homeId), gk(t.awayId), penaltyTakers(lineupTeam(g, t.homeId)), penaltyTakers(lineupTeam(g, t.awayId)));
+    pens = sk.score; penKicks = { home: sk.home, away: sk.away }; winnerId = pens[0] > pens[1] ? t.homeId : t.awayId;
   }
-  results.push({ divisionId, round, homeId: t.homeId, awayId: t.awayId, homeGoals: out.homeGoals, awayGoals: out.awayGoals, events: isMine(g)(t) ? out.events : [] });
+  results.push({ divisionId, round, homeId: t.homeId, awayId: t.awayId, homeGoals: out.homeGoals, awayGoals: out.awayGoals, ...(isMine(g)(t) && pens ? { pens, penKicks } : {}), events: isMine(g)(t) ? out.events : [] });
   return { ...t, homeGoals: out.homeGoals, awayGoals: out.awayGoals, pens, winnerId };
 }
 

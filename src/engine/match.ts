@@ -106,3 +106,16 @@ export function simulateMatch(home: TeamState, away: TeamState, rng: Rng, mods: 
   push(90, 'fulltime', 'none', `Fim de jogo! ${names.home} ${hg} x ${ag} ${names.away}.`, { score: [hg, ag] });
   return { homeGoals: hg, awayGoals: ag, events };
 }
+
+/** Taxa de empate de um jogo normal (medida no simulador) e o aumento de empates nas copas: +47% (de ~21% para ~31%), então mais jogos vão aos pênaltis. */
+export const BASE_DRAW_RATE = 0.21;
+export const CUP_DRAW_BOOST = 0.47;
+/** Chance de sortear o jogo de novo quando não deu empate, para que a taxa de empates suba CUP_DRAW_BOOST. */
+export const CUP_REROLL = CUP_DRAW_BOOST / (1 - BASE_DRAW_RATE);
+
+/** Jogo de copa (mata-mata): como o normal, mas com mais empates (e, portanto, mais pênaltis). */
+export function simulateCupMatch(home: TeamState, away: TeamState, rng: Rng, mods: Mods = {}, names: MatchNames = { home: 'Mandante', away: 'Visitante' }): SimOutput {
+  const first = simulateMatch(home, away, rng, mods, names);
+  if (first.homeGoals === first.awayGoals || rng() >= CUP_REROLL) return first;
+  return simulateMatch(home, away, rng, mods, names); // segunda chance de empatar
+}

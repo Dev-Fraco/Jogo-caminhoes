@@ -61,9 +61,10 @@ describe('dispensar jogador', () => {
 describe('propostas', () => {
   const listed = () => { let g = makeCareer('flamengo'); const p = bench(g); g = toggleTransferList(g, p.id); return { g, p }; };
 
-  it('sem jogador listado nunca há proposta', () => {
+  it('sem jogador listado só os destaques do elenco recebem propostas (os demais nunca)', () => {
     const g = makeCareer('flamengo');
-    for (let i = 0; i < 30; i++) expect(generateOffers(g, makeRng(i)).offers).toEqual([]);
+    const top8 = new Set([...g.teams.flamengo.players].sort((a, b) => b.strength - a.strength).slice(0, 8).map((p) => p.id));
+    for (let i = 0; i < 60; i++) for (const o of generateOffers(g, makeRng(i)).offers) expect(top8.has(o.playerId)).toBe(true);
   });
   it('jogador listado recebe proposta de outro clube, valor perto do de mercado, validade de 3 rodadas', () => {
     const { g, p } = listed();
@@ -112,7 +113,7 @@ describe('propostas', () => {
   it('propostas vencem depois de 3 rodadas', () => {
     let { g, p } = listed();
     g = { ...g, offers: [{ id: 'o1', kind: 'buy', playerId: p.id, clubId: 'palmeiras', fee: 100_000, season: 2026, expiresRound: 2 }], round: 3 };
-    expect(generateOffers({ ...g, transferList: [] }, makeRng(1)).offers).toEqual([]);
+    expect(generateOffers({ ...g, transferList: [] }, makeRng(1)).offers.some((o) => o.id === 'o1')).toBe(false); // a vencida some (pode surgir proposta nova por um destaque)
   });
 });
 

@@ -1,6 +1,6 @@
 import { prize } from './economy';
 import { moraleFactor } from './morale';
-import { simulateMatch } from './match';
+import { simulateCupMatch } from './match';
 import { makeRng, type Rng } from './rng';
 import { autoLineup, teamRatings } from './squad';
 import type { CupState, CupTie, GameState, MatchResult, NewsItem, PenKick, TeamState } from './types';
@@ -111,7 +111,7 @@ export function playCupRound(g: GameState): { state: GameState; results: MatchRe
   const news: NewsItem[] = [];
   const ties: CupTie[] = round.ties.map((t) => {
     const mods = { home: t.homeId === g.userClubId ? factor : 1, away: t.awayId === g.userClubId ? factor : 1 };
-    const out = simulateMatch(lineupTeam(g, t.homeId), lineupTeam(g, t.awayId), rng, mods, { home: g.clubs[t.homeId].name, away: g.clubs[t.awayId].name });
+    const out = simulateCupMatch(lineupTeam(g, t.homeId), lineupTeam(g, t.awayId), rng, mods, { home: g.clubs[t.homeId].name, away: g.clubs[t.awayId].name });
     let pens: [number, number] | undefined;
     let penKicks: { home: PenKick[]; away: PenKick[] } | undefined;
     let winnerId = out.homeGoals > out.awayGoals ? t.homeId : out.awayGoals > out.homeGoals ? t.awayId : '';
