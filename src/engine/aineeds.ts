@@ -95,7 +95,7 @@ export function squadNeeds(g: GameState, clubId: string, prof: ClubProfile, opts
     const onlyDepth = !forStarter;
     out.push({
       pos, spot: needSpot, priority, reasons, missing,
-      minStrength: onlyDepth ? Math.max(30, Math.round(level - 14)) : Math.round(weak + (opts.upgrade ? Math.min(prof.minUpgrade, 2) : prof.minUpgrade)),
+      minStrength: reasons.includes('falta-gente') ? Math.max(30, Math.round(level - 30)) /* abaixo do mínimo da posição: qualquer jogador aproveitável serve */ : onlyDepth ? Math.max(30, Math.round(level - 14)) : Math.round(weak + (opts.upgrade ? Math.min(prof.minUpgrade, 2) : prof.minUpgrade)),
       maxAge: reasons.includes('veterano') || reasons.includes('aposentadoria') ? Math.min(prof.maxAge, 29) : reasons.includes('idade') ? Math.min(prof.maxAge, 27) : prof.maxAge,
       forStarter,
     });
