@@ -243,6 +243,13 @@ export interface AiCoach {
   since: { season: number; round: number };
   past: { clubId: string; fromSeason: number; toSeason: number; ended: 'demitido' | 'saiu' | 'substituído' }[];
 }
+/** Limites do elenco da IA (configuráveis por jogo; ausente = padrão). Valem só para as decisões da IA: elenco cadastrado fora deles não é cortado de uma vez. */
+export interface SquadLimits {
+  total: { min: number; max: number };
+  pos: Record<Position, { min: number; ideal: number; max: number }>;
+  /** Faixa de idade média desejada do elenco. */
+  age: { min: number; max: number };
+}
 /** Jogador da categoria de base de um clube da IA: `pot` é o potencial (quanto pode chegar a render). */
 export interface Prospect extends Player { pot: number }
 /** Empréstimo entre clubes da IA: o jogador está no elenco do clube que o recebeu, mas é do dono (volta no fim da temporada). */
@@ -341,6 +348,8 @@ export interface GameState {
   /** Categoria de base dos clubes da IA e empréstimos entre clubes da IA. */
   aiYouth?: Record<string, Prospect[]>;
   aiLoans?: AiLoan[];
+  /** Ajustes dos limites de elenco da IA (parciais sobre o padrão). */
+  squadRules?: { total?: Partial<SquadLimits['total']>; pos?: Partial<Record<Position, Partial<SquadLimits['pos'][Position]>>>; age?: Partial<SquadLimits['age']> };
   clubCoach?: Record<string, string>;
   /** Jogadores livres no mercado (contrato acabou e não foi renovado): os clubes podem contratá-los sem pagar transferência. */
   freeAgents?: Player[];

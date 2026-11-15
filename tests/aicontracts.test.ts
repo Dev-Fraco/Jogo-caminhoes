@@ -99,7 +99,7 @@ import { skipSeasons } from '../src/engine/game';
 describe('contratos ao longo de várias temporadas', () => {
   it('3 temporadas: folhas dos clubes da IA ficam sob controle, elencos válidos e o mercado de livres não explode', () => {
     const g = skipSeasons(makeCareer('flamengo', 9), 3);
-    expect((g.freeAgents ?? []).length).toBeLessThanOrEqual(80);
+    expect((g.freeAgents ?? []).length).toBeLessThanOrEqual(600);
     let over = 0, total = 0;
     for (const id of Object.keys(g.teams)) {
       if (id === g.userClubId) continue;

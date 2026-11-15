@@ -7,6 +7,8 @@ import { divisionIndexOf, playerValue } from './transfers';
 import { avgXI, clubProfile, profileCtx, signingScore, type ClubProfile } from './aiprofile';
 import { longInjured, RETIRING_AGE, squadNeeds, type Need } from './aineeds';
 import { baseWage, payrollOf } from './finance';
+import { goalStatus } from './aigoals';
+import { aiBalanceSquads, squadLimits } from './aisquad';
 import { aiLoanWindow, aiPromoteYouth, developYouth, ensureAiYouth, loanedIds, returnAiLoans } from './aiyouth';
 import { aiRenewals, aiSignFreeAgents, agedFreeAgents, newContract, WAGE_LIMIT } from './aicontracts';
 import { forgetClub, marketValue, saleReasons, stance, type Stance } from './aisales';
@@ -82,7 +84,7 @@ function youthIntake(team: TeamState, season: number, rng: Rng): Player[] {
 const news = (g: GameState, text: string, tone: NewsItem['tone']): GameState => ({ ...g, news: [{ season: g.season, round: g.round, text, tone }, ...g.news].slice(0, NEWS_LIMIT) });
 
 /** Transfere um jogador entre dois clubes (dinheiro vai para o vendedor). */
-function move(g: GameState, playerId: string, fromId: string, toId: string, fee: number): GameState {
+export function move(g: GameState, playerId: string, fromId: string, toId: string, fee: number): GameState {
   const from = g.teams[fromId], to = g.teams[toId];
   const p0 = from.players.find((x) => x.id === playerId)!;
   const p = { ...p0, contract: newContract(g, toId, p0) }; // contrato novo no clube que contrata (salário e prazo da realidade dele)
@@ -95,16 +97,26 @@ function move(g: GameState, playerId: string, fromId: string, toId: string, fee:
   };
 }
 
-/** A IA dispensa os jogadores menos cotados até o elenco ficar com no máximo `size` jogadores (sempre respeitando o mínimo por posição). */
-function trimSquad(g: GameState, clubId: string, size: number): GameState {
+/**
+ * Elenco acima do limite: libera os excedentes para o mercado de jogadores livres (nunca apaga ninguém), começando pelas posições acima do ideal
+ * e pelos mais fracos, e sempre respeitando o mínimo por posição. `maxCuts` limita quantos saem de uma vez (elencos cadastrados grandes encolhem aos poucos).
+ */
+function trimSquad(g: GameState, clubId: string, size: number, maxCuts = 12): GameState {
+  const L = squadLimits(g);
   let players = g.teams[clubId].players;
-  while (players.length > size) {
-    const cut = [...players].sort((a, b) => a.strength - b.strength).find((p) => rosterOk(players.filter((x) => x.id !== p.id)));
+  const freed: Player[] = [];
+  const loaned = loanedIds(g);
+  const xi = new Set(autoLineup(players, g.teams[clubId].formation));
+  while (players.length > size && freed.length < maxCuts) {
+    const count = (pos: Position) => players.filter((p) => p.pos === pos).length;
+    const cut = [...players].filter((p) => !loaned.has(p.id)).sort((a, b) => ((xi.has(a.id) ? 1 : 0) - (xi.has(b.id) ? 1 : 0)) || (count(b.pos) - L.pos[b.pos].ideal) - (count(a.pos) - L.pos[a.pos].ideal) || a.strength - b.strength).find((p) => rosterOk(players.filter((x) => x.id !== p.id)) && count(p.pos) > L.pos[p.pos].min);
     if (!cut) break;
     players = players.filter((x) => x.id !== cut.id);
+    const { contract: _c, ...free } = cut;
+    freed.push(free);
   }
   const t = g.teams[clubId];
-  return players === t.players ? g : { ...g, teams: { ...g.teams, [clubId]: { ...t, players, lineup: autoLineup(players, t.formation) } } };
+  return players === t.players ? g : { ...g, freeAgents: [...(g.freeAgents ?? []), ...freed], teams: { ...g.teams, [clubId]: { ...t, players, lineup: autoLineup(players, t.formation) } } };
 }
 
 /** Quantas contratações um clube faz por janela, no máximo, conforme o porte (além do limite de cada janela e das necessidades reais). */
@@ -147,7 +159,8 @@ export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[
       if (bought >= Math.max(maxBuysFor(prof), maxBuys > 3 ? maxBuys : 0)) break; // promovido com investimento forte (janela de 8) não leva o teto do porte
       const cap = (s.budgets[buyerId] ?? 0) * prof.spendShare;
       if (cap < 20_000) break;
-      const needs = squadNeeds(s, buyerId, prof, { upgrade: maxBuys > 3, divisionLevel: ctx.divAvg.get(divisionIndexOf(s, buyerId)) });
+      const gs = goalStatus(s, buyerId); // objetivo e momento do clube mudam o jeito de contratar
+      const needs = squadNeeds(s, buyerId, prof, { upgrade: maxBuys > 3 || gs.mode === 'disputa', divisionLevel: ctx.divAvg.get(divisionIndexOf(s, buyerId)) });
       if (!needs.length) break;
       const bdi = divisionIndexOf(s, buyerId);
       const level = ctx.xi.get(buyerId) ?? avgXI(buyer);
@@ -170,9 +183,11 @@ export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[
             const st = stance(s, sellerId, p, buyerId, ctx, startersSold.get(sellerId) ?? 0);
             const price = Math.max(10_000, Math.round((marketValue(s, sellerId, p) * st.ask) / 10_000) * 10_000);
             if (!st.willing) { if (st.refusal === 'fundamental' && p.strength >= 72 && price <= cap) refusals.push({ seller: sellerId, buyer: buyerId, player: p, offer: Math.round(marketValue(s, sellerId, p) * 1.3) }); continue; }
-            if (price > cap || baseWage(s, buyerId, p) > wageRoom) continue; // não cabe no caixa nem na folha
+            if (price > cap * (gs.mode === 'disputa' ? 1.25 : 1) || baseWage(s, buyerId, p) > wageRoom) continue; // não cabe no caixa nem na folha
             const gain = need.forStarter && Number.isFinite(weak) ? p.strength - weak : Math.max(1, p.strength - need.minStrength);
-            const score = signingScore(prof, gain, price, p.age);
+            let score = signingScore(prof, gain, price, p.age);
+            if (gs.mode === 'sobrevivencia') score *= p.age >= 26 && p.age <= 33 ? 1.3 : p.age <= 21 ? 0.7 : 1; // fugindo do rebaixamento: experiência
+            else if (gs.mode === 'disputa') score = (score + Math.max(0, gain) * 0.6) * (p.age <= 21 && gain < 4 ? 0.7 : 1); // disputando algo: reforço que melhora já
             if (best && score <= best.score) continue;
             if (!rosterOk(seller.players.filter((x) => x.id !== p.id))) continue;
             best = { id: p.id, from: sellerId, price, strength: p.strength, score, need, st };
@@ -189,7 +204,7 @@ export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[
       if (deal.st.role === 'craque' || deal.st.role === 'titular') startersSold.set(deal.from, (startersSold.get(deal.from) ?? 0) + 1);
       if (dealNews < 8 && (p.strength >= 70 || deal.price >= 5_000_000)) {
         dealNews++;
-        s = news(s, `🔁 ${s.clubs[buyerId].name} contrata ${p.name} (${p.pos === 'GK' ? 'goleiro' : p.pos === 'DEF' ? 'defensor' : p.pos === 'MID' ? 'meia' : 'atacante'}, overall ${p.strength}) do ${s.clubs[deal.from].name} por ${fmtMoney(deal.price)}.`, 'info');
+        s = news(s, `🔁 ${s.clubs[buyerId].name} contrata ${p.name} (${p.pos === 'GK' ? 'goleiro' : p.pos === 'DEF' ? 'defensor' : p.pos === 'MID' ? 'meia' : 'atacante'}, overall ${p.strength}) do ${s.clubs[deal.from].name} por ${fmtMoney(deal.price)}${gs.mode === 'sobrevivencia' ? ', reforço de experiência contra o rebaixamento' : gs.mode === 'disputa' && p.strength >= 70 ? ', para reforçar a briga lá em cima' : ''}.`, 'info');
         s = { ...s, market: [{ season: s.season, round: s.round, text: `${s.clubs[buyerId].name} contrata ${p.name} (overall ${p.strength}) do ${s.clubs[deal.from].name} por ${fmtMoney(deal.price)}.` }, ...(s.market ?? [])].slice(0, 60) };
       }
     }
@@ -324,8 +339,10 @@ export function offseason(g: GameState, rng: Rng, input: OffseasonInput): { stat
   s = aiWindow(s, rng, 3);
   s = aiSignFreeAgents(s, rng, 2);
   s = aiLoanWindow(s, rng, 1); // jovens sem espaço vão jogar em outros clubes
+  s = aiBalanceSquads(s, rng); // excesso numa posição: vende ou libera (ninguém é apagado)
+  s = aiSignFreeAgents(s, rng, 1); // quem precisa de posição pode pegar os recém-liberados
 
   // 5) elenco enxuto: a IA dispensa o excedente (os menos cotados)
-  for (const id of Object.keys(s.teams)) if (!managed(s, id)) s = trimSquad(s, id, AI_MAX_SQUAD);
+  for (const id of Object.keys(s.teams)) if (!managed(s, id)) s = trimSquad(s, id, squadLimits(s).total.max, 4);
   return { state: s, promotion };
 }

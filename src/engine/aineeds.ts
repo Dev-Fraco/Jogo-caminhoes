@@ -1,3 +1,4 @@
+import { squadLimits } from './aisquad';
 import type { ClubProfile } from './aiprofile';
 import { avgXI } from './aiprofile';
 import { autoLineup, slotsOfLine, spotOf } from './squad';
@@ -10,7 +11,7 @@ import { SPOT_SHORT, type GameState, type Player, type Position, type Spot } fro
    Não existe "contratar só porque tem dinheiro": sem necessidade real, o clube não vai ao mercado.
    ===================================================================== */
 
-export type NeedReason = 'falta-gente' | 'falta-funcao' | 'reposicao' | 'titular-fraco' | 'veterano' | 'aposentadoria' | 'lesao';
+export type NeedReason = 'falta-gente' | 'falta-funcao' | 'reposicao' | 'titular-fraco' | 'veterano' | 'aposentadoria' | 'lesao' | 'profundidade' | 'idade';
 export interface Need {
   pos: Position;
   /** Função que falta (ex.: lateral direito). Sem função = qualquer jogador da linha serve. */
@@ -48,6 +49,9 @@ export function squadNeeds(g: GameState, clubId: string, prof: ClubProfile, opts
   const level = avgXI(team);
   const xi = new Set(autoLineup(team.players, team.formation));
   const out: Need[] = [];
+  const L = squadLimits(g);
+  const oldSquad = team.players.length > 0 && team.players.reduce((a, p) => a + p.age, 0) / team.players.length > L.age.max;
+  const oldestPos = POSITIONS.map((q) => { const ps = team.players.filter((p) => p.pos === q); return { q, age: ps.length ? ps.reduce((a, p) => a + p.age, 0) / ps.length : 0 }; }).sort((a, b) => b.age - a.age)[0]?.q;
   for (const pos of POSITIONS) {
     const all = team.players.filter((p) => p.pos === pos);
     const reasons: NeedReason[] = [];
@@ -76,16 +80,23 @@ export function squadNeeds(g: GameState, clubId: string, prof: ClubProfile, opts
       if (have < required) { priority += 70 + 15 * (required - have - 1); reasons.push('falta-funcao'); needSpot = sp; break; }
       if (have === required && sp !== 'ZAG' && sp !== 'MC' && sp !== 'GK' && !needSpot) { priority += 18; if (!reasons.includes('reposicao')) reasons.push('reposicao'); needSpot = sp; } // sem reserva para a função
     }
+    // profundidade: poucos jogadores de nível útil na posição (titulares + reservas que entram sem queda grande)
+    const useful = usable.filter((p) => p.strength >= level - 14).length;
+    if (useful < slotsOfLine(team.formation, pos).length + (pos === 'GK' ? 1 : 2) && usable.length >= MIN_BY_POS[pos]) { priority += 16; reasons.push('profundidade'); }
+    // elenco velho demais: a posição mais envelhecida pede gente mais nova
+    if (oldSquad && pos === oldestPos) { priority += 14; reasons.push('idade'); }
+    // posição no limite máximo de jogadores: nunca contrata mais (a não ser função que falta)
+    if (all.length >= L.pos[pos].max && !reasons.includes('falta-funcao') && !reasons.includes('lesao')) priority = 0;
     // posição com gente de sobra: nunca contrata mais (ex.: 3 goleiros e falta lateral → vai de defensor)
     if (all.length > COMFORT[pos] + 2 && !reasons.includes('falta-gente') && !reasons.includes('falta-funcao') && !reasons.includes('lesao')) priority = 0;
     if (priority < NEED_THRESHOLD) continue;
-    const forStarter = reasons.some((r) => r !== 'reposicao' && r !== 'falta-gente');
+    const forStarter = reasons.some((r) => r !== 'reposicao' && r !== 'falta-gente' && r !== 'profundidade' && r !== 'idade');
     if (!reasons.some((r) => r === 'falta-funcao' || r === 'reposicao')) needSpot = undefined; // função só quando é ela que falta
     const onlyDepth = !forStarter;
     out.push({
       pos, spot: needSpot, priority, reasons, missing,
       minStrength: onlyDepth ? Math.max(30, Math.round(level - 14)) : Math.round(weak + (opts.upgrade ? Math.min(prof.minUpgrade, 2) : prof.minUpgrade)),
-      maxAge: reasons.includes('veterano') || reasons.includes('aposentadoria') ? Math.min(prof.maxAge, 29) : prof.maxAge,
+      maxAge: reasons.includes('veterano') || reasons.includes('aposentadoria') ? Math.min(prof.maxAge, 29) : reasons.includes('idade') ? Math.min(prof.maxAge, 27) : prof.maxAge,
       forStarter,
     });
   }

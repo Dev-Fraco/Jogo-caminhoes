@@ -58,7 +58,7 @@ export function ensureAiCoaches(g: GameState): GameState {
 }
 
 /** Posição e metas do clube. null para clubes que não disputam pontos corridos agora (Série D em grupos). */
-function standing(g: GameState, clubId: string) {
+export function standing(g: GameState, clubId: string) {
   const d = divOf(g, clubId);
   if (!d || d.format === 'groups' || d.clubIds.length < 8) return null;
   const rows = computeTable(d.clubIds.map((id) => ({ id, name: g.clubs[id].name })), g.results.filter((r) => r.divisionId === d.id));
