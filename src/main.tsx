@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { App } from './ui/App';
 import './ui/styles.css';
 import './ui/fm.css';
+import './ui/mock.css';
 import { applyMods, loadMods } from './data/mods';
 import { loadInstalledPack } from './data/packStore';
 
