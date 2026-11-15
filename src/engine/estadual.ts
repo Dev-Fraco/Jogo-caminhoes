@@ -75,6 +75,14 @@ export const estadualOfUser = (g: GameState): { comp: EstadualComp; div: Estadua
 };
 
 /** O jogo do seu clube na rodada atual do estadual (se houver). */
+/** Jogo do seu clube numa rodada do estadual (undefined = folga). */
+export function userEstadualMatchAt(g: GameState, step: number): { homeId: string; awayId: string } | undefined {
+  const mine = estadualOfUser(g);
+  if (!mine || g.unemployed) return undefined;
+  const f = fixturesOf(mine.div.clubIds).find((x) => x.round === step && (x.homeId === g.userClubId || x.awayId === g.userClubId));
+  return f ? { homeId: f.homeId, awayId: f.awayId } : undefined;
+}
+
 export function userEstadualMatch(g: GameState): { homeId: string; awayId: string } | undefined {
   const e = g.estadual;
   const mine = estadualOfUser(g);

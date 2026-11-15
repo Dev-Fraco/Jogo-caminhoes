@@ -8,7 +8,7 @@ import { balanceOf } from '../engine/bank';
 import { clubOf } from '../engine/lookup';
 import { loadGame, saveGame } from '../engine/save';
 import type { GameState, MatchResult } from '../engine/types';
-import { BUDGET_FACTOR, CHALLENGE_DIFFICULTY, CHALLENGE_REPUTATION, START_SEASON, type ChallengeId, type NewGameState } from '../newgame/state';
+import { START_MONEY, BUDGET_FACTOR, CHALLENGE_DIFFICULTY, CHALLENGE_REPUTATION, START_SEASON, type ChallengeId, type NewGameState } from '../newgame/state';
 import { formatBudget } from '../newgame/format';
 import { Backdrop } from './Backdrop';
 import { tintColor } from './badge';
@@ -23,6 +23,7 @@ import { Stadium } from './Stadium';
 import { calOf, formatDay } from '../engine/calendar';
 import { advanceOneDay, advanceToMatchDays } from '../engine/daily';
 import { homeBlocked, housingSteps } from '../engine/housing';
+import { DayCalendar } from './DayCalendar';
 import { ShopScreen } from './ShopScreen';
 import { CoachProfile } from './CoachProfile';
 import { YouthScreen } from './YouthScreen';
@@ -53,6 +54,7 @@ export function App() {
   const onNavScroll = () => { const n = navRef.current; if (n) setNavMore(n.scrollLeft + n.clientWidth < n.scrollWidth - 4); };
   useEffect(() => { navRef.current?.querySelector<HTMLElement>('button.on')?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' }); }, [tab]);
   const [homeGate, setHomeGate] = useState(false);
+  const [calAnim, setCalAnim] = useState<{ from: number; to: number } | null>(null);
   const [gateAt, setGateAt] = useState(0);
   const [phoneGate, setPhoneGate] = useState(false);
   const [tableView, setTableView] = useState<'div' | 'rounds' | 'hist'>('div');
@@ -92,7 +94,7 @@ export function App() {
       season: START_SEASON, userClubId: s.club!.id, divisions: pyramidOf(s.world.countryId, s.world.leagueId), outside: s.world.divisionId === 'br-estaduais' ? s.club! : undefined,
       leagueName: s.world.leagueId === 'brasileirao' ? undefined : getLeague(s.world.countryId, s.world.leagueId)?.name, slots: slotsOfLeague(s.world.leagueId), cup: s.world.leagueId === 'brasileirao',
     });
-    setGame({ ...career, homeRequired: true, phone: { ...DEFAULT_PHONE, noPhone: true } }); // carreira nova: o treinador começa sem celular (compra na Mega-zona Luiz)
+    setGame({ ...career, homeRequired: true, coachMoney: START_MONEY, phone: { ...DEFAULT_PHONE, noPhone: true } }); // carreira nova: o treinador começa sem celular (compra na Mega-zona Luiz)
     setLast([]); setTab('home'); setScreen('game');
   };
 
@@ -126,6 +128,16 @@ export function App() {
 
   const club = game.clubs[game.userClubId];
   const blocked = () => { if (homeBlocked(game)) { setHomeGate(true); audio.sfx('error'); return true; } return false; }; // carreira nova: precisa de moradia antes de avançar
+  const runAdvance = (many: boolean) => { // avançar dia(s): mostra o calendário passando de um dia para o outro
+    if (blocked()) return;
+    const before = calOf(game).day;
+    const next = many ? advanceToMatchDays(game) : advanceOneDay(game);
+    const after = calOf(next).day;
+    if (after === before) return;
+    audio.sfx('whoosh');
+    setGame(next);
+    setCalAnim({ from: before, to: after });
+  };
   const play = () => {
     if (blocked()) return;
     // antes do jogo: avisa de mensagens que vencem e só se resolvem pelo celular
@@ -164,8 +176,8 @@ export function App() {
             <LiveMatch key={`${game.season}-${game.round}-${ev?.kind ?? 'l'}`} home={clubOf(game, liveResult.homeId)} away={clubOf(game, liveResult.awayId)} result={liveResult}
               userSide={liveResult.homeId === game.userClubId ? 'home' : 'away'} divisionName={liveLabel} stadium={clubOf(game, liveResult.homeId).stadium} onFinish={finishMatch} />
           )}
-          {!live && game.unemployed && tab === 'home' && <Unemployed game={game} over={isSeasonOver(game)} onChange={setGame} onPlay={play} onAdvance={() => { if (!blocked()) setGame(advanceOneDay(game)); }} onAdvanceToMatch={() => { if (!blocked()) setGame(advanceToMatchDays(game)); }} onSkip={() => skipSeason(1)} onNextSeason={nextSeason} onSeeTables={() => { setTableView('rounds'); setTab('table'); }} />}
-          {!live && !game.unemployed && tab === 'home' && <Home game={game} onChange={setGame} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onSkip={skipSeason} onSeeTables={() => { setTableView('div'); setTab('table'); }} onSeeResults={() => { setTableView('rounds'); setTab('table'); }} onEditLineup={() => setTab('lineup')} onFinance={() => setTab('finance')} onStadium={() => setTab('stadium')} onTab={(t) => setTab(t)} onNews={() => setPhoneOpen(true)} onSeeHist={() => { setTableView('hist'); setTab('table'); }} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} onAdvance={() => { if (!blocked()) setGame(advanceOneDay(game)); }} onAdvanceToMatch={() => { if (!blocked()) setGame(advanceToMatchDays(game)); }} />}
+          {!live && game.unemployed && tab === 'home' && <Unemployed game={game} over={isSeasonOver(game)} onChange={setGame} onPlay={play} onAdvance={() => runAdvance(false)} onAdvanceToMatch={() => runAdvance(true)} onSkip={() => skipSeason(1)} onNextSeason={nextSeason} onSeeTables={() => { setTableView('rounds'); setTab('table'); }} />}
+          {!live && !game.unemployed && tab === 'home' && <Home game={game} onChange={setGame} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onSkip={skipSeason} onSeeTables={() => { setTableView('div'); setTab('table'); }} onSeeResults={() => { setTableView('rounds'); setTab('table'); }} onEditLineup={() => setTab('lineup')} onFinance={() => setTab('finance')} onStadium={() => setTab('stadium')} onTab={(t) => setTab(t)} onNews={() => setPhoneOpen(true)} onSeeHist={() => { setTableView('hist'); setTab('table'); }} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} onAdvance={() => runAdvance(false)} onAdvanceToMatch={() => runAdvance(true)} />}
           {!live && !game.unemployed && tab === 'youth' && <YouthScreen game={game} onChange={setGame} />}
           {!live && tab === 'profile' && <CoachProfile game={game} onNext={(t) => setTab(t)} />}
           {!live && tab === 'shop' && <ShopScreen game={game} onChange={setGame} onOpenPhone={() => setPhoneOpen(true)} />}
@@ -190,6 +202,7 @@ export function App() {
         </nav>
         {navMore && <span className="nav-more" aria-hidden="true">›</span>}
         </div>
+        {calAnim && <DayCalendar game={game} from={calAnim.from} to={calAnim.to} onClose={() => setCalAnim(null)} />}
         {homeGate && (
           <div className="phone-gate" role="dialog" aria-modal="true" aria-label="Moradia necessária">
             <div className="home-gate">

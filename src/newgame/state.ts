@@ -56,6 +56,8 @@ export const CHALLENGES: Challenge[] = [
 /** Reputação do treinador de cada desafio (define o nível inicial e o dinheiro pessoal). */
 export const CHALLENGE_REPUTATION: Record<ChallengeId, ReputationId> = { easy: 'pro', normal: 'semi-pro', hard: 'amateur', legend: 'unknown', create: 'unknown' };
 export const CHALLENGE_DIFFICULTY: Record<ChallengeId, DifficultyId> = { easy: 'easy', normal: 'normal', hard: 'hard', legend: 'legend', create: 'legend' };
+/** Dinheiro pessoal do treinador no começo de uma carreira nova (R$). */
+export const START_MONEY = 15_000;
 /** Quanto da verba do clube sobra em cada desafio. */
 export const BUDGET_FACTOR: Record<ChallengeId, number> = { easy: 1, normal: 0.5, hard: 0.25, legend: 0.5, create: 1 };
 

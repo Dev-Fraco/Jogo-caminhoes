@@ -721,3 +721,19 @@ button.home-tile { width: 100%; font: inherit; color: inherit; text-align: cente
 .hg-steps li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: 12px; background: rgba(255, 255, 255, .05); border: 1px solid #25406f; }
 .hg-steps li.done { opacity: .6; border-color: #2c7a4b; }
 .hg-steps b { display: block; font-size: 14px; color: #fff; } .hg-steps small { display: block; color: var(--muted); font-size: 12px; }
+
+/* Calendário ao avançar o dia */
+.daycal { width: 100%; max-width: 360px; background: linear-gradient(180deg, #162036, #0d1524); border: 1px solid #2d4a7c; border-radius: 18px; padding: 14px; display: grid; gap: 10px; text-align: left; max-height: 94vh; overflow-y: auto; }
+.daycal header { display: flex; justify-content: space-between; align-items: baseline; } .daycal header b { font: italic 800 20px var(--font-head); } .daycal header b::first-letter { text-transform: uppercase; } .daycal header small { color: #9fcbff; font-weight: 700; }
+.daycal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.daycal-grid .wd { text-align: center; font: 700 11px var(--font-head); color: var(--muted); padding: 2px 0; }
+.daycal .cell { min-height: 46px; padding: 3px 2px; border-radius: 8px; background: rgba(255, 255, 255, .05); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 1px; transition: background .25s, transform .25s, box-shadow .25s; }
+.daycal .cell b { font: 700 13px var(--font-head); } .daycal .cell em { font: 700 9px/1.1 var(--font-head); font-style: normal; color: #ffd86a; text-align: center; word-break: break-all; }
+.daycal .cell.past { opacity: .35; } .daycal .cell.match { background: rgba(255, 216, 106, .14); border: 1px solid rgba(255, 216, 106, .5); }
+.daycal .cell.today { background: linear-gradient(180deg, #2f8bff, #1560d8); box-shadow: 0 0 0 2px #9fcbff, 0 0 16px rgba(47, 139, 255, .8); transform: scale(1.12); z-index: 1; animation: cal-pop .5s ease-out; }
+@keyframes cal-pop { 0% { transform: scale(.7); opacity: .4; } 60% { transform: scale(1.22); } 100% { transform: scale(1.12); opacity: 1; } }
+.daycal-day { margin: 0; text-align: center; font: 700 14px var(--font-head); color: #dbe7ff; } .daycal-day::first-letter { text-transform: uppercase; }
+.daycal-match { margin: 0; padding: 10px 12px; border-radius: 12px; background: rgba(61, 220, 132, .14); border: 1px solid #2c7a4b; text-align: center; font-size: 14px; } .daycal-match small { display: block; color: var(--muted); }
+.daycal-next { margin: 0; font-size: 13px; color: #cfd9ee; text-align: center; }
+.daycal-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.daycal-list li { display: flex; gap: 10px; align-items: baseline; font-size: 13px; padding: 5px 8px; border-radius: 8px; background: rgba(255, 255, 255, .04); } .daycal-list b { min-width: 74px; color: #ffd86a; text-transform: capitalize; } .daycal-list small { display: block; color: var(--muted); font-size: 11px; }
