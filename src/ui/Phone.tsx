@@ -147,7 +147,7 @@ export function Phone({ game, onChange, onClose }: Props) {
               {screen === 'config' && <Settings game={game} onChange={onChange} />}
               {screen === 'banco' && <BankApp game={game} onChange={onChange} onHome={() => setScreen('home')} />}
               {screen === 'concessionaria' && <DealerApp game={game} onChange={onChange} onOpenApp={go} />}
-              {screen === 'corretor' && <RealtorApp game={game} onChange={onChange} onOpenApp={go} />}
+              {screen === 'corretor' && <RealtorApp game={game} onChange={onChange} onOpenApp={go} onHome={() => setScreen('home')} />}
               {screen === 'cassino' && <CasinoApp game={game} onChange={onChange} onOpenApp={go} />}
               {screen === 'noticias' && <NewsApp game={game} />}
               {screen === 'calc' && <CalcApp />}
