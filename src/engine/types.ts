@@ -230,6 +230,19 @@ export interface JobOffer { clubId: string; season: number; round: number; /** v
 export interface JobSpell { clubId: string; fromSeason: number; toSeason?: number; ended?: 'demitido' | 'pediu demissão' | 'contratado por outro clube' }
 export interface RetiredPlayer { name: string; age: number; pos: Position; strength: number; clubId: string; season: number }
 
+/** Treinador controlado pela IA: perfil, clube atual (ou null se desempregado) e passagens. */
+export interface AiCoach {
+  id: string; name: string; age: number;
+  /** Reputação de 1 a 5 (casa com a reputação dos clubes). */
+  rep: number;
+  /** Mérito acumulado: títulos e acessos sobem; rebaixamentos e demissões descem. */
+  merit: number;
+  /** Temporadas de experiência como treinador principal. */
+  exp: number;
+  clubId: string | null;
+  since: { season: number; round: number };
+  past: { clubId: string; fromSeason: number; toSeason: number; ended: 'demitido' | 'saiu' | 'substituído' }[];
+}
 export interface CoachTitle { season: number; clubId: string; clubName: string; competition: string; kind: 'liga' | 'copa' | 'continental' | 'mundial' | 'estadual' }
 
 /** Um estadual: Série A (e, em CE, RJ e SP, Série B). Os resultados ficam compactos: [rodada, mandante (índice), visitante (índice), gols, gols]. */
@@ -319,6 +332,9 @@ export interface GameState {
   loansIn?: LoanIn[]; // jogadores de outros clubes emprestados ao seu
   transferBan?: TransferBan; // transfer ban do fair play financeiro
   /** Últimas transferências feitas pela IA (jogador → de onde, para onde e quando): impede revender ou recontratar o mesmo jogador logo em seguida. */
+  /** Treinadores controlados pela IA (empregados e desempregados) e quem treina cada clube (clubId -> id do treinador). */
+  aiCoaches?: Record<string, AiCoach>;
+  clubCoach?: Record<string, string>;
   /** Jogadores livres no mercado (contrato acabou e não foi renovado): os clubes podem contratá-los sem pagar transferência. */
   freeAgents?: Player[];
   aiMoves?: Record<string, { season: number; round: number; from: string; to: string }>;

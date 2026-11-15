@@ -1,6 +1,7 @@
 import type { ClubData } from '../data/clubs';
 import { aiWindow, offseason } from './ai';
 import { aiRenewals, aiSignFreeAgents } from './aicontracts';
+import { aiCoachSeasonEnd, aiCoachTick } from './aicoaches';
 import { contAfterLeagueRound, createContinentals, mundialAfterLeagueRound, playContStep, playMundialStep } from './continental';
 import { pendingEvent, playEvent } from './events';
 import { tickContracts } from './assets';
@@ -162,6 +163,7 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
   if (myHome) state = playHomeGate(state, myHome.awayId).state; // público e bilheteria do seu jogo em casa (preço do ingresso)
   state = youthTick(fibraTick(inboxTick(state))); // mensagens, metas, fatura e plano de dados do celular
   state = boardTick(state, makeRng(g.seed * 19 + g.season * 7 + g.round)); // diretoria (demissão) ou, sem clube, propostas de emprego
+  if (state.round >= 8 && state.round < state.totalRounds && state.round % 4 === 0) state = aiCoachTick(state, makeRng(g.seed * 53 + g.season * 17 + g.round)); // diretorias da IA avaliam os treinadores
   state = mundialAfterLeagueRound(contAfterLeagueRound(cupAfterLeagueRound(state)));
   // propostas dos outros clubes pelos jogadores listados
   state = generateOffers(state, rng);
@@ -315,6 +317,7 @@ function startNextSeasonCore(g: GameState, calNew: ReturnType<typeof newSeasonCa
   }
   const inflation = nextInflation(g, makeRng(g.seed * 37 + g.season * 5 + 1)); // a inflação do ano que começa
   let next: GameState = { ...back, titles, inflation, news: [{ season: g.season + 1, round: 1, text: `📈 Inflação de ${(inflation.rate * 100).toFixed(1).replace('.', ',')}%: preços, salários e receitas sobem.`, tone: 'info' as const }, ...back.news].slice(0, 80), season: g.season + 1, round: 1, totalRounds, divisions, fixtures, results: [], budgets, offers: [], history: [...g.history, summary] };
+  next = aiCoachSeasonEnd(g, next, makeRng(g.seed * 59 + g.season * 19 + 3)); // treinadores da IA: mérito, demissões e trocas
   next = rolloverInjuries(next, g.season, g.totalRounds); // lesões longas atravessam a virada
   for (const id of quals) next = adoptClub(next, id); // clubes de estadual que sobem ganham elenco, caixa e ficha
   if (quals.length && !g.observer) next = { ...next, news: [{ season: next.season, round: 1, text: `⬆️ Sobem dos estaduais para a Série D: ${quals.map((id) => anyClubName(next, id)).join(', ')}.`, tone: (quals.includes(g.userClubId) ? 'good' : 'info') as 'good' | 'info' }, ...next.news].slice(0, 80) };

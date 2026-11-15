@@ -1,3 +1,4 @@
+import { coachLeaves, ensureAiCoaches } from './aicoaches';
 import { creditAccount } from './bank';
 import { coachSalary } from './finance';
 import { MORALE_START } from './morale';
@@ -56,6 +57,7 @@ export function fire(g: GameState, reason: string): GameState {
   s = creditAccount(s, 'Indenização', `Rescisão com ${former}`, pay);
   if (s.social) s = { ...s, social: { ...s.social, linstagra: { ...s.social.linstagra, followers: Math.round(s.social.linstagra.followers * 0.92) }, tikiteko: { ...s.social.tikiteko, followers: Math.round(s.social.tikiteko.followers * 0.92) } } };
   s = news(s, `🚫 Você foi demitido do ${former}. ${reason}`, 'bad');
+  s = ensureAiCoaches(s); // o clube passa para a IA e ganha um treinador
   return notifyPhone(s, 'banco', `Você recebeu uma indenização de R$ ${pay.toLocaleString('pt-BR')} do ${former}.`);
 }
 
@@ -66,7 +68,7 @@ export function resign(g: GameState): GameState {
   let s = leaveClub(g);
   const jobs = jobsOf(s);
   s = { ...s, jobs: jobs.map((j, i) => (i === jobs.length - 1 ? { ...j, ended: 'pediu demissão' as const } : j)), unemployed: true, firedInfo: { clubId: g.userClubId, season: g.season, round: g.round, reason: 'Você pediu demissão.', resigned: true }, jobOffers: [], boardLow: 0, wageCover: 0 };
-  return news(s, `🧳 Você pediu demissão do ${former}.`, 'info');
+  return news(ensureAiCoaches(s), `🧳 Você pediu demissão do ${former}.`, 'info');
 }
 
 /** Depois de cada rodada: acompanha a paciência da diretoria (3 rodadas no limite = demissão) e, sem clube, procura propostas. */
@@ -171,6 +173,7 @@ export function hire(g: GameState, clubId: string): GameState {
     jobs: [...jobsOf(s), { clubId, fromSeason: g.season }],
     social: s.social ? { ...s.social, lastMatch: undefined } : s.social,
   };
+  s = ensureAiCoaches(coachLeaves(s, clubId)); // o treinador da IA que estava lá sai; o clube que você deixou já tem treinador novo
   return news(s, `✍️ Você é o novo treinador do ${s.clubs[clubId].name}!`, 'good');
 }
 

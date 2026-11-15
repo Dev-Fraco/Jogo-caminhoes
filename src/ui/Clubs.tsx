@@ -1,3 +1,4 @@
+import { coachOf } from '../engine/aicoaches';
 import { ClubBadge } from './ClubBadge';
 import { SPOT_SHORT } from '../engine/types';
 import { spotOf } from '../engine/squad';
@@ -43,7 +44,7 @@ export function Clubs({ game, onChange }: { game: GameState; onChange: (g: GameS
         <button className="btn" onClick={() => { setClubId(null); setNotice(null); }}>‹ Voltar aos clubes</button>
         <div className="card cl-head">
           <ClubBadge club={club} size={44} />
-          <div className="grow"><h2>{club.name}</h2><small>{club.flag} {club.countryName} · {club.divisionName} · {stars(club.reputation)}</small>{game.teams[club.id] && <small className="cl-prof">🧠 {clubProfile(game, club.id).label}</small>}</div>
+          <div className="grow"><h2>{club.name}</h2><small>{club.flag} {club.countryName} · {club.divisionName} · {stars(club.reputation)}</small>{game.teams[club.id] && <small className="cl-prof">🧠 {clubProfile(game, club.id).label}</small>}{coachOf(game, club.id) && <small className="cl-prof">🧢 {coachOf(game, club.id)!.name} · {stars(coachOf(game, club.id)!.rep)}</small>}</div>
           <div className="cl-bud"><small>Seu orçamento</small><b>{formatBudget(budget)}</b></div>
         </div>
         {notice && <p className="tf-notice" role="status">✔ {notice}</p>}
