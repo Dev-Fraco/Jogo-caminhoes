@@ -1,4 +1,4 @@
-import { applyPack, isImageName, baseName, validatePack, type Pack, type PackReport } from './playerpack';
+import { applyPack, extractEmbedded, isImageName, baseName, validatePack, type Pack, type PackReport } from './playerpack';
 import { readZip } from './zip';
 
 /** Guarda o pacote instalado (JSON + imagens dos escudos) no IndexedDB do aparelho. */
@@ -51,6 +51,9 @@ export async function preparePack(files: File[]): Promise<{ ok: true; p: Prepare
       else if (isImageName(f.name)) images[baseName(f.name)] = f;
     }
     if (text === null) return { ok: false, error: 'Não achei o arquivo .json do pacote. O ZIP precisa ter um .json dentro.' };
+    const emb = extractEmbedded(text); // escudos embutidos no JSON viram imagens
+    text = emb.text;
+    for (const f of emb.files) images[baseName(f.name)] = new Blob([f.bytes as BlobPart], { type: f.mime });
     const v = validatePack(text, Object.keys(images));
     if (!v.ok) return v;
     const used = new Set(v.pack.clubs.map((c) => c.badge).filter(Boolean) as string[]);

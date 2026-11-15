@@ -13,7 +13,8 @@ import { generateSquad } from '../engine/squad';
 export const MAX_PACK_CLUBS = 5000;
 
 export interface PackPlayer { name: string; pos: Position; age?: number; overall?: number }
-export interface PackClub { id: string; badge?: string; players?: PackPlayer[] }
+/** `players` = elenco completo com posição; `names` = só nomes, na ordem do elenco do jogo (vazio = mantém o nome). */
+export interface PackClub { id: string; badge?: string; players?: PackPlayer[]; names?: string[] }
 export interface Pack { name: string; author?: string; version?: string; clubs: PackClub[] }
 export interface PackReport { clubs: number; players: number; badges: number; warnings: string[] }
 export type PackResult = { ok: true; pack: Pack; report: PackReport } | { ok: false; error: string };
@@ -59,7 +60,18 @@ export function validatePack(text: string, badgeFiles: string[] = []): PackResul
       else if (!files.has(baseName(c.badge))) warn(`${id}: o escudo "${c.badge}" não veio no ZIP.`);
       else { club.badge = baseName(c.badge); badges++; }
     }
-    if (Array.isArray(c.players)) {
+    if (Array.isArray(c.players) && c.players.length > 0 && c.players.every((x) => typeof x === 'string')) {
+      // só nomes: trocam os nomes do elenco do jogo, na ordem (posições, idades e forças ficam como estão)
+      const seenN = new Set<string>();
+      const names = (c.players as string[]).map((n, i) => {
+        const t = typeof n === 'string' ? n.trim() : '';
+        if (!t) return '';
+        if (t.length < 2 || t.length > 40 || seenN.has(t)) { warn(`${id}: nome ${i + 1} inválido ou repetido (mantive o original).`); return ''; }
+        seenN.add(t); return t;
+      });
+      const filled = names.filter(Boolean).length;
+      if (filled > 0) { club.names = names; players += filled; }
+    } else if (Array.isArray(c.players)) {
       const list: PackPlayer[] = [];
       const names = new Set<string>();
       for (const p0 of c.players as Record<string, unknown>[]) {
@@ -78,7 +90,7 @@ export function validatePack(text: string, badgeFiles: string[] = []): PackResul
       if (list.length > 0 && list.length < 14) warn(`${id}: só ${list.length} jogadores; o jogo completa o elenco com nomes fictícios.`);
       if (list.length > 0) { club.players = list; players += list.length; }
     }
-    if (club.badge || club.players) clubs.push(club);
+    if (club.badge || club.players || club.names) clubs.push(club);
   }
   if (clubs.length === 0) return { ok: false, error: 'Nenhum clube válido no pacote. Use os ids do modelo gerado pelo jogo.' };
   return { ok: true, pack: { name: r.name.trim().slice(0, 40), author: typeof r.author === 'string' ? r.author.slice(0, 40) : undefined, version: typeof r.version === 'string' ? r.version.slice(0, 12) : undefined, clubs }, report: { clubs: clubs.length, players, badges, warnings } };
@@ -112,6 +124,41 @@ export function buildPackSquad(club: Pick<ClubData, 'id' | 'name' | 'shortName' 
   return out;
 }
 
+/** Troca só os nomes do elenco, na ordem (posição, idade e força de cada vaga não mudam). Nome vazio = mantém o original. */
+export function renameSquad(squad: Player[], names: string[]): Player[] {
+  const taken = new Set(names.filter(Boolean));
+  return squad.map((p, i) => {
+    const n = names[i];
+    if (n) return { ...p, name: n };
+    return taken.has(p.name) ? { ...p, name: `${p.name} Jr.` } : p; // o original não pode repetir um nome novo
+  });
+}
+
+/** Escudos embutidos no próprio JSON ("data:image/...;base64,"): vira arquivos de imagem e o campo passa a apontar para eles. */
+export function extractEmbedded(text: string): { text: string; files: { name: string; bytes: Uint8Array; mime: string }[] } {
+  let j: { clubs?: unknown };
+  try { j = JSON.parse(text); } catch { return { text, files: [] }; }
+  const list = (j && typeof j === 'object' && (Array.isArray((j as { clubs?: unknown }).clubs) ? (j as { clubs: unknown[] }).clubs : undefined)) as Record<string, unknown>[] | undefined;
+  if (!list) return { text, files: [] };
+  const files: { name: string; bytes: Uint8Array; mime: string }[] = [];
+  for (const c of list) {
+    const key = ['badge', 'escudo', 'logo'].find((k) => typeof c?.[k] === 'string' && (c[k] as string).startsWith('data:image/'));
+    const id = typeof c?.id === 'string' ? c.id : '';
+    if (!key || !id) continue;
+    const m = /^data:(image\/(png|jpeg|webp));base64,(.+)$/i.exec(c[key] as string);
+    if (!m) { delete c[key]; continue; }
+    try {
+      const bin = atob(m[3]);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const name = `${id}.${m[2].toLowerCase() === 'jpeg' ? 'jpg' : m[2].toLowerCase()}`;
+      files.push({ name, bytes, mime: m[1].toLowerCase() });
+      c.badge = name; if (key !== 'badge') delete c[key];
+    } catch { delete c[key]; }
+  }
+  return { text: JSON.stringify(j), files };
+}
+
 /* ---------- aplicar sobre os dados do jogo ---------- */
 const ORIGINAL = new Map<string, { squad: Player[]; badge: string }>();
 const BADGE_URLS = new Map<string, string>();
@@ -130,6 +177,7 @@ export function applyPack(pack: Pack | null, urls: Record<string, string> = {}):
     if (!c) continue;
     ORIGINAL.set(c.id, { squad: c.squad, badge: c.badge });
     if (pc.players?.length) c.squad = buildPackSquad(c, pc.players);
+    else if (pc.names?.length) c.squad = renameSquad(c.squad, pc.names);
     if (pc.badge && urls[pc.badge]) { BADGE_URLS.set(c.id, urls[pc.badge]); c.badge = `pack:${c.id}`; }
   }
 }

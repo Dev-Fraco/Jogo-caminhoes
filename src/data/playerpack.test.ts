@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CLUBS_DATA } from './clubs';
-import { applyPack, buildPackSquad, normPos, packTemplate, validatePack } from './playerpack';
+import { applyPack, buildPackSquad, extractEmbedded, normPos, packTemplate, renameSquad, validatePack } from './playerpack';
 import { readZip } from './zip';
 
 const first = () => Object.values(CLUBS_DATA).flat()[0];
@@ -25,6 +25,26 @@ describe('pacote de elencos', () => {
     const r = validatePack(txt, ['a.png']);
     expect(r.ok).toBe(true);
     if (r.ok) { expect(r.report.players).toBe(1); expect(r.report.badges).toBe(1); expect(r.pack.clubs[0].players![0]).toMatchObject({ name: 'Beltrano Silva', pos: 'DEF', age: 29, overall: 66 }); }
+  });
+  it('pacote só com nomes (lista de texto) troca os nomes do elenco na ordem e mantém posição/força', () => {
+    const c = first(); const orig = c.squad;
+    const names = orig.map((_, i) => (i === 1 ? '' : `Nome Novo ${i}`));
+    const r = validatePack(JSON.stringify({ name: 'N', clubs: [{ id: c.id, players: names }] }));
+    if (!r.ok) throw new Error(r.error);
+    expect(r.report.players).toBe(orig.length - 1);
+    applyPack(r.pack);
+    expect(c.squad.length).toBe(orig.length);
+    expect(c.squad[0]).toMatchObject({ name: 'Nome Novo 0', pos: orig[0].pos, strength: orig[0].strength, age: orig[0].age });
+    expect(c.squad[1].name).toBe(orig[1].name); // vazio = mantém
+    applyPack(null); expect(c.squad).toBe(orig);
+    expect(renameSquad(orig, ['A B']).length).toBe(orig.length);
+  });
+  it('escudo embutido (data:image/...;base64) vira arquivo de imagem', () => {
+    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+    const e = extractEmbedded(JSON.stringify({ name: 'x', clubs: [{ id: 'flamengo', badge: `data:image/png;base64,${png}`, players: ['Fulano Teste'] }] }));
+    expect(e.files.length).toBe(1); expect(e.files[0].name).toBe('flamengo.png'); expect(e.files[0].bytes[0]).toBe(0x89);
+    const v = validatePack(e.text, e.files.map((f) => f.name));
+    expect(v.ok).toBe(true); if (v.ok) { expect(v.report.badges).toBe(1); expect(v.report.players).toBe(1); }
   });
   it('aceita posições em português', () => {
     expect(normPos('zag')).toBe('DEF'); expect(normPos('Gol')).toBe('GK'); expect(normPos('xx')).toBeUndefined();
