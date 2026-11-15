@@ -1,3 +1,4 @@
+import { fromDay, toDay } from './calendar';
 import { DIVISION_INCOME, GATE_SHARE, priceIndex, WAGE_SHARE } from './economy';
 import { managed } from './lookup';
 import { divisionIndexOf } from './transfers';
@@ -52,30 +53,57 @@ export function setWageCover(g: GameState, pct: WageCover): GameState {
   return { ...g, wageCover: pct };
 }
 
-/** Depois de cada rodada do campeonato: salários de todos os clubes, bilheteria de quem jogou em casa e o salário do treinador. */
-export function roundFinance(g: GameState, homeIds: Set<string>, userGateSeparate = false): GameState {
+/** Dia do mês em que saem os salários (dos atletas e do treinador). */
+export const PAYDAY = 5;
+export const isPayday = (day: number) => fromDay(day).d === PAYDAY;
+/** Próximo dia de pagamento a partir de hoje (inclusive). */
+export function nextPayday(day: number): number {
+  const { y, m, d } = fromDay(day);
+  return d <= PAYDAY ? toDay(y, m, PAYDAY) : toDay(m === 12 ? y + 1 : y, m === 12 ? 1 : m + 1, PAYDAY);
+}
+/** Parcela mensal de um valor anual. */
+export const monthly = (annual: number) => annual / 12;
+
+/** Salários de todo mês: cada clube paga a folha dos atletas e o seu clube paga também o seu salário (que cai na sua conta). Você pode cobrir parte da folha do bolso. */
+export function payMonthlySalaries(g: GameState): GameState {
   const budgets = { ...g.budgets };
   const ledger = g.ledger && g.ledger.season === g.season ? { ...g.ledger } : emptyLedger(g.season);
   let wallet = coachMoneyOf(g);
   let cover = wageCoverOf(g);
   const news: NewsItem[] = [];
   const say = (text: string, tone: NewsItem['tone']) => news.push({ season: g.season, round: g.round, text, tone });
-  const n = g.totalRounds;
-
-  const active = new Set([g.userClubId, ...g.divisions.flatMap((d) => d.clubIds)]); // clubes fora da pirâmide não têm folha nem receita
+  let mineWages = 0, mineSalary = 0;
+  const active = new Set([g.userClubId, ...g.divisions.flatMap((d) => d.clubIds)]); // clubes fora da pirâmide não têm folha
   for (const id of Object.keys(g.teams)) {
     if (!active.has(id)) continue;
-    let wages = payrollOf(g, id) / n;
+    let wages = monthly(payrollOf(g, id));
     if (managed(g, id)) {
       const want = wages * cover / 100;
       const paid = Math.min(wallet, want);
       wallet -= paid; wages -= paid; ledger.coachCover += paid;
       if (cover > 0 && paid < want - 1) { cover = 0; say('💸 Seu dinheiro acabou: o clube volta a pagar os salários.', 'bad'); }
-      const salary = coachSalary(g) / n;
+      const salary = monthly(coachSalary(g));
       wallet += salary; budgets[id] -= salary; ledger.coachSalary += salary;
       ledger.wages += wages;
+      mineWages = wages; mineSalary = salary;
     }
     budgets[id] -= wages;
+    budgets[id] = Math.round(budgets[id]);
+  }
+  if (!g.unemployed && mineWages > 0) say(`💸 Dia de pagamento: o clube pagou ${Math.round(mineWages / 1000).toLocaleString('pt-BR')} mil aos atletas e você recebeu ${Math.round(mineSalary / 1000).toLocaleString('pt-BR')} mil de salário.`, 'info');
+  return { ...g, budgets, ledger, coachMoney: Math.round(wallet), wageCover: cover, news: [...news, ...g.news].slice(0, 80) };
+}
+
+/** Depois de cada rodada do campeonato: bilheteria de quem jogou em casa e o aviso de caixa no vermelho (os salários agora saem uma vez por mês). */
+export function roundFinance(g: GameState, homeIds: Set<string>, userGateSeparate = false): GameState {
+  const budgets = { ...g.budgets };
+  const ledger = g.ledger && g.ledger.season === g.season ? { ...g.ledger } : emptyLedger(g.season);
+  const news: NewsItem[] = [];
+  const say = (text: string, tone: NewsItem['tone']) => news.push({ season: g.season, round: g.round, text, tone });
+
+  const active = new Set([g.userClubId, ...g.divisions.flatMap((d) => d.clubIds)]); // clubes fora da pirâmide não têm receita
+  for (const id of Object.keys(g.teams)) {
+    if (!active.has(id)) continue;
     if (homeIds.has(id) && !(userGateSeparate && id === g.userClubId)) { const gate = gateOf(g, id); budgets[id] += gate; if (managed(g, id)) ledger.gate += gate; }
     budgets[id] = Math.round(budgets[id]);
   }
@@ -86,6 +114,6 @@ export function roundFinance(g: GameState, homeIds: Set<string>, userGateSeparat
     morale = { ...morale, board: Math.max(0, morale.board - 3), team: Math.max(0, morale.team - 2) };
     if (g.round % 4 === 0) say('⚠️ Caixa no vermelho: salários atrasados irritam a diretoria e o elenco.', 'bad');
   }
-  return { ...g, budgets, morale, ledger, coachMoney: Math.round(wallet), wageCover: cover, news: [...news, ...g.news].slice(0, 80) };
+  return { ...g, budgets, morale, ledger, news: [...news, ...g.news].slice(0, 80) };
 }
 

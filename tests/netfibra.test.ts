@@ -16,7 +16,7 @@ const mk = (): GameState => {
 const pay = (g: GameState) => { const b = buyFibra(g); if (!b.ok) throw new Error(b.error); const r = payPix(b.state, b.charge.key, 'segredo1'); if (!r.ok) throw new Error(r.error); return r.state; };
 const set = (g: GameState) => { const r = setupWifi(g, 'Casa do Mister', 'senha1234'); if (!r.ok) throw new Error(r.error); return r.state; };
 const longFibra = (g: GameState): GameState => ({ ...g, phone: { ...phoneOf(g), fibra: { ...phoneOf(g).fibra!, until: calOf(g).day + 900 } } });
-const days = (g: GameState, n: number) => { const d0 = calOf(g).day; return processDays(g, d0, d0 + n); };
+const days = (g: GameState, n: number): GameState => { const d0 = calOf(g).day; const r = processDays({ ...g, unemployed: true }, d0, d0 + n); return { ...r, unemployed: g.unemployed }; }; // sem treinador empregado: o salário mensal dele não entra nas contas do teste
 const withPlan = (g: GameState) => ({ ...g, phone: { ...phoneOf(g), plan: { until: calOf(g).day + 900 }, chip: 'morto', chipNumber: '(11) 91111-2222', chipUntil: calOf(g).day + 900 } });
 
 describe('NetFibra', () => {

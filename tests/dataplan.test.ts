@@ -15,7 +15,7 @@ const mk = (): GameState => {
   return { ...g, coachMoney: 100_000 };
 };
 const pay = (g: GameState) => { const b = buyPlan(g); if (!b.ok) throw new Error(b.error); const r = payPix(b.state, b.charge.key, 'segredo1'); if (!r.ok) throw new Error(r.error); return r.state; };
-const days = (g: GameState, n: number) => { const d0 = calOf(g).day; return processDays(g, d0, d0 + n); };
+const days = (g: GameState, n: number): GameState => { const d0 = calOf(g).day; const r = processDays({ ...g, unemployed: true }, d0, d0 + n); return { ...r, unemployed: g.unemployed }; }; // sem treinador empregado: o salário mensal dele não entra nas contas do teste
 const withChip = (g: GameState): GameState => ({ ...g, phone: { ...phoneOf(g), chip: 'morto', chipNumber: '(11) 91111-2222', chipUntil: calOf(g).day + 400 } });
 
 describe('plano de dados (Internet de Chip)', () => {

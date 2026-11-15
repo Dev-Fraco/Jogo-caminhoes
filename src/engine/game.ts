@@ -243,6 +243,13 @@ export function seasonSummary(g: GameState, out: SeasonOutcome = seasonOutcome(g
 /** Encerra a temporada: aplica acesso e rebaixamento, guarda o resumo e monta o calendário da próxima. */
 export function startNextSeason(g: GameState): GameState {
   if (!isSeasonOver(g)) return g;
+  // novembro, dezembro e janeiro passam antes da virada: salários e mensalidades continuam saindo (e a IA acerta o caixa depois)
+  const calNew = newSeasonCalendar({ ...g, season: g.season + 1 });
+  const pre = processDays(g, calOf(g).day, calNew.day);
+  return startNextSeasonCore(pre, calNew);
+}
+
+function startNextSeasonCore(g: GameState, calNew: ReturnType<typeof newSeasonCalendar>): GameState {
   const out = seasonOutcome(g);
   const moves = out.moves;
 
@@ -299,7 +306,7 @@ export function startNextSeason(g: GameState): GameState {
   const { state, promotion } = offseason(next, rng, { promoted: arrivals('promoted', -1), relegated: arrivals('relegated', 1) });
   const cupped: GameState = g.cup ? { ...state, cup: createCup(state), estadual: g.estadual ? nextEstaduais(g, g.estadual) : undefined } : state;
   const withCup: GameState = createContinentals({ ...cupped, mundial: undefined }, moves[0].table.map((r) => r.clubId), g.cup?.championId);
-  const cal = newSeasonCalendar(next);
+  const cal = calNew;
   let result: GameState = youthSeason({ ...withCup, cal, history: withCup.history.map((h, i) => (i === withCup.history.length - 1 ? { ...h, promotion } : h)) });
   // carreira do treinador: pontos, demissão ou propostas de clubes maiores
   const relegatedU = out.movement === 'relegated', promotedU = out.movement === 'promoted';

@@ -14,7 +14,7 @@ const rich = (money = 5_000_000): GameState => {
 const pay = (g: GameState, key: string) => { const r = payPix(g, key, 'segredo1'); if (!r.ok) throw new Error(r.error); return r.state; };
 const at = (g: GameState, round: number): GameState => ({ ...g, round });
 /** Passa `n` dias do calendário (processa vencimentos de cada dia). */
-const days = (g: GameState, n: number): GameState => { const d0 = calOf(g).day; return processDays(g, d0, d0 + n); };
+const days = (g: GameState, n: number): GameState => { const d0 = calOf(g).day; const r = processDays({ ...g, unemployed: true }, d0, d0 + n); return { ...r, unemployed: g.unemployed }; }; // sem treinador empregado: o salário mensal dele não entra nas contas do teste
 const manual = (g: GameState): GameState => ({ ...g, autoDebit: false }); // sem débito automático: parcelas viram boleto
 
 describe('catálogos', () => {

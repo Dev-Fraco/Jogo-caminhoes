@@ -1,5 +1,6 @@
 import { monthlyContracts } from './assets';
 import { autoDebitOn, brl, debitNow } from './bank';
+import { isPayday, payMonthlySalaries } from './finance';
 import { advanceDay, calOf, ensureCalendar, isMatchDay } from './calendar';
 import './dataplan';
 import { homeBlocked } from './housing';
@@ -43,6 +44,7 @@ function dayTick(g: GameState): GameState {
     }
   }
 
+  if (isPayday(today)) s = payMonthlySalaries(s); // salários dos atletas e do treinador, uma vez por mês
   s = chipDay(s);
   return monthlyContracts(s);
 }

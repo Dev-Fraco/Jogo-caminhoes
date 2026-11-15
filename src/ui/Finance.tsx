@@ -1,5 +1,6 @@
 import { priceIndex } from '../engine/economy';
-import { coachMoneyOf, coachSalary, gateOf, payrollOf, setWageCover, WAGE_COVER_OPTIONS, wageCoverOf, wageOf } from '../engine/finance';
+import { formatDay, calOf } from '../engine/calendar';
+import { coachMoneyOf, coachSalary, gateOf, nextPayday, payrollOf, setWageCover, WAGE_COVER_OPTIONS, wageCoverOf, wageOf } from '../engine/finance';
 import type { GameState, Position } from '../engine/types';
 import { formatBudget } from '../newgame/format';
 import { ScreenTitle } from './FmParts';
@@ -12,7 +13,7 @@ interface Props { game: GameState; onChange: (g: GameState) => void; onBack?: ()
 export function Finance({ game, onChange }: Props) {
   const id = game.userClubId;
   const payroll = payrollOf(game, id);
-  const perRound = payroll / game.totalRounds;
+  const perMonth = payroll / 12;
   const cover = wageCoverOf(game);
   const wallet = coachMoneyOf(game);
   const ledger = game.ledger && game.ledger.season === game.season ? game.ledger : { gate: 0, wages: 0, coachCover: 0, coachSalary: 0 };
@@ -42,9 +43,10 @@ export function Finance({ game, onChange }: Props) {
         <h3>Folha de pagamento</h3>
         <div className="card">
           <div className="row"><span className="grow">Salários por ano</span><b>{formatBudget(payroll)}</b></div>
-          <div className="row"><span className="grow">Salários por rodada</span><b>{formatBudget(perRound)}</b></div>
+          <div className="row"><span className="grow">Salários dos atletas por mês</span><b>{formatBudget(perMonth)}</b></div>
+          <div className="row"><span className="grow">Próximo pagamento (todo dia 5)</span><b>{formatDay(nextPayday(calOf(game).day))}</b></div>
           <div className="row"><span className="grow">Bilheteria por jogo em casa</span><b>{formatBudget(gateOf(game, id))}</b></div>
-          <div className="row"><span className="grow">Seu salário (pago pelo clube)</span><b>{formatBudget(coachSalary(game))}/ano</b></div>
+          <div className="row"><span className="grow">Seu salário (pago pelo clube)</span><b>{formatBudget(coachSalary(game) / 12)}/mês</b></div>
         </div>
       </section>
 
@@ -60,7 +62,7 @@ export function Finance({ game, onChange }: Props) {
               </button>
             ))}
           </div>
-          {cover > 0 && <p className="hint">Você paga {formatBudget((perRound * cover) / 100)} por rodada.</p>}
+          {cover > 0 && <p className="hint">Você paga {formatBudget((perMonth * cover) / 100)} por mês.</p>}
         </div>
       </section>
 
