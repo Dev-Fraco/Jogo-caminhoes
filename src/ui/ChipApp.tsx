@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { brl } from '../engine/bank';
 import { buyPlan } from '../engine/dataplan';
-import { netState, PLAN_PRICE, PLAN_ROUNDS, planActive, planLeft } from '../engine/phone';
+import { chipNumberOf, chipLeft, chipOf, netState, PLAN_PRICE, PLAN_ROUNDS, planActive, planLeft } from '../engine/phone';
 import type { GameState } from '../engine/types';
 import { audio } from '../audio/audio';
 import { ChargeView, getPending, setPending } from './AppKit';
@@ -24,6 +24,8 @@ export function ChipApp({ game, onChange, onOpenApp }: Props) {
       <div className={`ph-card chip-status ${active ? 'on' : ''}`}>
         <div className="ph-row static"><span className="grow">Seu plano</span><b>{active ? 'Ativo' : 'Sem plano'}</b></div>
         {active && <div className="ph-row static"><span className="grow">Restam</span><b>{left} {left === 1 ? 'rodada' : 'rodadas'}</b></div>}
+        <div className="ph-row static"><span className="grow">Chip</span><b>{chipOf(game) ? `${chipOf(game)!.name} · ${chipNumberOf(game) ?? '—'}` : 'nenhum / bloqueado'}</b></div>
+        {chipLeft(game) !== undefined && chipOf(game) && <div className="ph-row static"><span className="grow">Chip bloqueia em</span><b>{chipLeft(game)} rodadas</b></div>}
         <div className="ph-row static"><span className="grow">Conexão agora</span><b>{net.label}</b></div>
       </div>
       <div className="ph-card chip-plan">

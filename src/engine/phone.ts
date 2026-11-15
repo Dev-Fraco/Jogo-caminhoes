@@ -143,7 +143,7 @@ export interface NetState { kind: 'none' | 'wifi' | '5g'; speed: NetSpeed; label
 export function netState(g: Pick<GameState, 'phone' | 'season' | 'round'>): NetState {
   const s = phoneOf(g).settings;
   if (s.airplane) return { kind: 'none', speed: 'none', label: 'Modo avião', note: 'Desligue o modo avião e conecte-se a uma rede.' };
-  if (s.mobileData && !chipOf(g) && !s.wifiNet) return { kind: 'none', speed: 'none', label: 'Dados móveis sem chip', note: 'Compre um chip na Mega-zona Luiz.' };
+  if (s.mobileData && !chipOf(g) && !s.wifiNet) return chipBlocked(g) ? { kind: 'none', speed: 'none', label: 'Chip bloqueado', note: 'O chip venceu (1 ano). Compre um novo na Mega-zona Luiz.' } : { kind: 'none', speed: 'none', label: 'Dados móveis sem chip', note: 'Compre um chip na Mega-zona Luiz.' };
   if (s.mobileData && chipOf(g) && planActive(g)) return { kind: '5g', speed: 'fast', label: '5G', note: 'Conexão rápida.' };
   if (s.mobileData && chipOf(g) && !s.wifiNet) return { kind: 'none', speed: 'none', label: 'Dados móveis sem plano', note: 'Assine o plano no app Internet de Chip (use um Wi-Fi grátis para isso).' };
   if (s.wifi && s.wifiNet) return { kind: 'wifi', speed: 'slow', label: `Wi-Fi · ${s.wifiNet}`, note: 'A conexão é ruim: apps e downloads vão demorar.' };
@@ -171,13 +171,13 @@ export const planActive = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => 
 /* ---------- aparelhos e chips (Mega-zona Luiz) ---------- */
 export interface PhoneModel { id: string; name: string; brand: string; price: number; /** quantos apps da Loja cabem */ apps: number; /** multiplicador do tempo de abrir/baixar (menor = mais rápido) */ speed: number; storage: string; ram: string; color: string; blurb: string }
 export const PHONE_MODELS: PhoneModel[] = [
-  { id: 'zap', name: 'Zap Simples', brand: 'Zap', price: 450, apps: 2, speed: 1.9, storage: '8 GB', ram: '1 GB', color: '#7a8594', blurb: 'O mais barato da prateleira. Pouca memória e bem lento.' },
-  { id: 'fenix', name: 'Fênix A1', brand: 'Fênix', price: 900, apps: 3, speed: 1.6, storage: '16 GB', ram: '1 GB', color: '#c8643c', blurb: 'Básico para o dia a dia.' },
-  { id: 'nova', name: 'Nova Lite', brand: 'Nova', price: 1_800, apps: 4, speed: 1.3, storage: '32 GB', ram: '2 GB', color: '#3c8ec8', blurb: 'Dá conta do recado.' },
-  { id: 'orbit', name: 'Orbit S', brand: 'Orbit', price: 4_500, apps: 5, speed: 1.05, storage: '64 GB', ram: '4 GB', color: '#7a54d0', blurb: 'Bom custo-benefício.' },
-  { id: 'titan', name: 'Titan 5G', brand: 'Titan', price: 12_000, apps: 6, speed: .85, storage: '128 GB', ram: '6 GB', color: '#2fa86a', blurb: 'Rápido, com câmera boa.' },
-  { id: 'aurora', name: 'Aurora Pro', brand: 'Aurora', price: 28_000, apps: 7, speed: .65, storage: '256 GB', ram: '8 GB', color: '#e0a21a', blurb: 'Topo de linha, tela dobrável.' },
-  { id: 'zenith', name: 'Zenith Max', brand: 'Zenith', price: 55_000, apps: 8, speed: .5, storage: '512 GB', ram: '12 GB', color: '#d0407a', blurb: 'Quase o melhor que existe.' },
+  { id: 'zap', name: 'Zap Simples', brand: 'Zap', price: 5_000, apps: 2, speed: 1.9, storage: '8 GB', ram: '1 GB', color: '#7a8594', blurb: 'O mais barato da prateleira. Pouca memória e bem lento.' },
+  { id: 'fenix', name: 'Fênix A1', brand: 'Fênix', price: 8_000, apps: 3, speed: 1.6, storage: '16 GB', ram: '1 GB', color: '#c8643c', blurb: 'Básico para o dia a dia.' },
+  { id: 'nova', name: 'Nova Lite', brand: 'Nova', price: 14_000, apps: 4, speed: 1.3, storage: '32 GB', ram: '2 GB', color: '#3c8ec8', blurb: 'Dá conta do recado.' },
+  { id: 'orbit', name: 'Orbit S', brand: 'Orbit', price: 24_000, apps: 5, speed: 1.05, storage: '64 GB', ram: '4 GB', color: '#7a54d0', blurb: 'Bom custo-benefício.' },
+  { id: 'titan', name: 'Titan 5G', brand: 'Titan', price: 38_000, apps: 6, speed: .85, storage: '128 GB', ram: '6 GB', color: '#2fa86a', blurb: 'Rápido, com câmera boa.' },
+  { id: 'aurora', name: 'Aurora Pro', brand: 'Aurora', price: 52_000, apps: 7, speed: .65, storage: '256 GB', ram: '8 GB', color: '#e0a21a', blurb: 'Topo de linha, tela dobrável.' },
+  { id: 'zenith', name: 'Zenith Max', brand: 'Zenith', price: 66_000, apps: 8, speed: .5, storage: '512 GB', ram: '12 GB', color: '#d0407a', blurb: 'Quase o melhor que existe.' },
   { id: 'imperial', name: 'Imperial X', brand: 'Imperial', price: 80_000, apps: 99, speed: .35, storage: '1 TB', ram: '16 GB', color: '#101820', blurb: 'O mais caro da loja: memória de sobra e velocidade máxima.' },
 ];
 /** Saves antigos (de antes da loja) ficam com um aparelho intermediário com espaço para todos os apps. */
@@ -188,6 +188,14 @@ export const appsUsed = (g: Pick<GameState, 'phone'>) => phoneOf(g).installed.le
 
 export type ChipId = 'morto' | 'escuro' | 'toim';
 export interface ChipInfo { id: ChipId; name: string; price: number }
-export const CHIPS: ChipInfo[] = [{ id: 'morto', name: 'Morto', price: 30 }, { id: 'escuro', name: 'Escuro', price: 35 }, { id: 'toim', name: 'Toim', price: 25 }];
-/** Saves antigos (sem aparelho da loja) mantêm os dados móveis funcionando. */
-export const chipOf = (g: Pick<GameState, 'phone'>): ChipInfo | undefined => { const p = phoneOf(g); return CHIPS.find((c) => c.id === (p.chip ?? (p.model || p.noPhone ? undefined : 'toim'))); };
+export const CHIP_PRICE = 2_000;
+export const CHIPS: ChipInfo[] = [{ id: 'morto', name: 'Morto', price: CHIP_PRICE }, { id: 'escuro', name: 'Escuro', price: CHIP_PRICE }, { id: 'toim', name: 'Toim', price: CHIP_PRICE }];
+/** Chip em uso (null se bloqueado). Saves antigos (sem aparelho da loja) mantêm um chip que nunca bloqueia. */
+const rawChip = (g: Pick<GameState, 'phone'>): ChipInfo | undefined => { const p = phoneOf(g); return CHIPS.find((c) => c.id === (p.chip ?? (p.model || p.noPhone ? undefined : 'toim'))); };
+/** O chip vale 1 ano (uma temporada) desde a compra; depois disso é bloqueado. */
+export const chipBlocked = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => { const u = phoneOf(g).chipUntil; return !!rawChip(g) && u !== undefined && g.season * 200 + g.round >= u; };
+export const chipOf = (g: Pick<GameState, 'phone' | 'season' | 'round'>): ChipInfo | undefined => (chipBlocked(g) ? undefined : rawChip(g));
+export const chipRaw = rawChip;
+/** Rodadas até o chip bloquear (undefined = nunca / sem chip). */
+export const chipLeft = (g: Pick<GameState, 'phone' | 'season' | 'round'>) => { const u = phoneOf(g).chipUntil; return u === undefined || !rawChip(g) ? undefined : Math.max(0, u - (g.season * 200 + g.round)); };
+export const chipNumberOf = (g: Pick<GameState, 'phone'>) => phoneOf(g).chipNumber;

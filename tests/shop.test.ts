@@ -8,7 +8,7 @@ import { buyChip, buyPhoneCash, buyPhonePix } from '../src/engine/shop';
 import { coachMoneyOf } from '../src/engine/finance';
 import type { GameState } from '../src/engine/types';
 
-const fresh = (money = 100_000): GameState => {
+const fresh = (money = 200_000): GameState => {
   const g = newCareer({ saveName: 't', coach: { name: 'A B', nationality: 'BR', reputation: 'pro' }, difficulty: 'normal', mode: 'career', season: 2026, userClubId: 'palmeiras', divisions: brazilPyramid() }, 2);
   return { ...g, coachMoney: money, phone: { ...DEFAULT_PHONE, noPhone: true } };
 };
@@ -16,7 +16,7 @@ const fresh = (money = 100_000): GameState => {
 describe('Mega-zona Luiz', () => {
   it('catálogo vai de um aparelho barato e fraco até o de R$ 80 mil', () => {
     const prices = PHONE_MODELS.map((m) => m.price);
-    expect(Math.min(...prices)).toBeLessThan(1_000);
+    expect(Math.min(...prices)).toBe(5_000);
     expect(Math.max(...prices)).toBe(80_000);
     expect(prices).toEqual([...prices].sort((a, b) => a - b));
     const apps = PHONE_MODELS.map((m) => m.apps), speeds = PHONE_MODELS.map((m) => m.speed);
@@ -32,13 +32,13 @@ describe('Mega-zona Luiz', () => {
     const r = buyPhoneCash(g, 'orbit');
     expect(r.ok).toBe(true);
     if (r.ok) g = r.state;
-    expect(coachMoneyOf(g)).toBe(cash - 4_500);
+    expect(coachMoneyOf(g)).toBe(cash - 24_000);
     expect(ownsPhone(g)).toBe(true);
     expect(modelOf(g).id).toBe('orbit');
     expect(installApp(g, 'banco')).not.toBe(g);
   });
   it('não compra sem dinheiro e depois de ter celular não paga mais em dinheiro', () => {
-    const poor = buyPhoneCash(fresh(300), 'zap');
+    const poor = buyPhoneCash(fresh(3_000), 'zap');
     expect(poor.ok).toBe(false);
     const r = buyPhoneCash(fresh(), 'zap');
     if (!r.ok) throw new Error();
@@ -60,7 +60,7 @@ describe('Mega-zona Luiz', () => {
   it('troca de celular é por Pix no Banco e mantém chip e apps que cabem', () => {
     let r = buyPhoneCash(fresh(), 'fenix'); if (!r.ok) throw new Error(); let g = r.state;
     const rb = registerBank(g, 'A B', 'segredo1', 'segredo1'); if (!rb.ok) throw new Error(); g = rb.state;
-    g = { ...g, coachMoney: 200_000 };
+    g = { ...g, coachMoney: 300_000 };
     const c = buyChip(g, 'morto'); if (!c.ok) throw new Error(); g = c.state;
     for (const id of ['banco', 'linstagra', 'tikiteko']) g = installApp(g, id);
     expect(appsUsed(g)).toBe(3);
@@ -68,12 +68,12 @@ describe('Mega-zona Luiz', () => {
     expect(modelOf(b.state).id).toBe('fenix'); // só troca depois de pagar
     const cash = balanceOf(b.state);
     const p = payPix(b.state, b.charge.key, 'segredo1'); if (!p.ok) throw new Error(p.error);
-    expect(balanceOf(p.state)).toBe(cash - 55_000);
+    expect(balanceOf(p.state)).toBe(cash - 66_000);
     expect(modelOf(p.state).id).toBe('zenith');
     expect(chipOf(p.state)?.id).toBe('morto');
     expect(appsUsed(p.state)).toBe(3);
     // volta para um aparelho com menos memória: apps que não cabem saem
-    const b2 = buyPhonePix({ ...p.state, coachMoney: 500_000 }, 'zap'); if (!b2.ok) throw new Error();
+    const b2 = buyPhonePix({ ...p.state, coachMoney: 900_000 }, 'zap'); if (!b2.ok) throw new Error();
     const p2 = payPix(b2.state, b2.charge.key, 'segredo1'); if (!p2.ok) throw new Error();
     expect(appsUsed(p2.state)).toBe(2);
     expect(buyPhonePix(p2.state, 'zap').ok).toBe(false);

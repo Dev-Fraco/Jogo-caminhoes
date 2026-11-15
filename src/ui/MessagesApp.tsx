@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { answerMessage, absRound, claimGoal, goalDone, goalProgress, inboxOf, type Goal } from '../engine/inbox';
+import { smsOf } from '../engine/accounts';
 import type { GameState } from '../engine/types';
 
 const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
@@ -23,7 +24,7 @@ function GoalRow({ game, goal, onClaim }: { game: GameState; goal: Goal; onClaim
 
 /** Mensagens e metas: o que precisa de resposta no celular. */
 export function MessagesApp({ game, onChange }: { game: GameState; onChange: (g: GameState) => void }) {
-  const [tab, setTab] = useState<'msgs' | 'goals'>('msgs');
+  const [tab, setTab] = useState<'msgs' | 'goals' | 'sms'>('msgs');
   const inbox = inboxOf(game);
   const open = inbox.msgs.filter((m) => m.status === 'open');
   const old = inbox.msgs.filter((m) => m.status !== 'open').slice(0, 12);
@@ -34,6 +35,7 @@ export function MessagesApp({ game, onChange }: { game: GameState; onChange: (g:
       <h2>💬 Mensagens</h2>
       <div className="chips ap-chips" role="tablist">
         <button role="tab" aria-selected={tab === 'msgs'} className={tab === 'msgs' ? 'on' : ''} onClick={() => setTab('msgs')}>Mensagens{open.length > 0 ? ` (${open.length})` : ''}</button>
+        <button role="tab" aria-selected={tab === 'sms'} className={tab === 'sms' ? 'on' : ''} onClick={() => setTab('sms')}>SMS{smsOf(game).length > 0 ? ` (${smsOf(game).length})` : ''}</button>
         <button role="tab" aria-selected={tab === 'goals'} className={tab === 'goals' ? 'on' : ''} onClick={() => setTab('goals')}>Metas{todo > 0 ? ` (${todo})` : ''}</button>
       </div>
       {tab === 'msgs' && (
@@ -61,6 +63,14 @@ export function MessagesApp({ game, onChange }: { game: GameState; onChange: (g:
               </ul>
             </>
           )}
+        </>
+      )}
+      {tab === 'sms' && (
+        <>
+          {smsOf(game).length === 0 && <p className="ph-empty">Nenhum SMS. Os códigos de confirmação dos apps chegam aqui, no número do seu chip.</p>}
+          <ul className="ms-list">
+            {smsOf(game).map((m) => <li key={m.id} className="ms-msg"><div className="ms-head"><span aria-hidden="true">💬</span><span className="grow"><b>{m.code ? `Código ${m.code}` : 'SMS'}</b><small>Temporada {m.season} · rodada {m.round}</small></span></div><p>{m.text}</p></li>)}
+          </ul>
         </>
       )}
       {tab === 'goals' && (

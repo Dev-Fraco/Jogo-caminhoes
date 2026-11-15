@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { audio } from '../audio/audio';
 import { coachMoneyOf } from '../engine/finance';
-import { appsUsed, CHIPS, chipOf, modelOf, ownsPhone, PHONE_MODELS, phoneOf, type ChipId, type PhoneModel } from '../engine/phone';
+import { appsUsed, CHIPS, chipBlocked, chipLeft, chipNumberOf, chipOf, modelOf, ownsPhone, PHONE_MODELS, phoneOf, type ChipId, type PhoneModel } from '../engine/phone';
 import { brl0, buyChip, buyPhoneCash, buyPhonePix } from '../engine/shop';
 import type { GameState } from '../engine/types';
 import { ChargeView, getPending, setPending } from './AppKit';
@@ -92,7 +92,7 @@ export function ShopScreen({ game, onChange, onOpenPhone }: Props) {
   const buyC = (id: ChipId) => {
     const r = buyChip(game, id);
     if (!r.ok) { setMsg({ text: r.error, ok: false }); audio.sfx('error'); return; }
-    onChange(r.state); audio.sfx('cash'); setPickChip(false); setMsg({ text: `Chip ${CHIPS.find((c) => c.id === id)!.name} instalado. Ligue os dados móveis e assine um plano no app Internet de Chip.`, ok: true });
+    onChange(r.state); audio.sfx('cash'); setPickChip(false); setMsg({ text: `Chip ${CHIPS.find((c) => c.id === id)!.name} instalado! Seu número é ${chipNumberOf(r.state)}: use-o para criar conta nos apps e receber o código por SMS. O chip vale 1 ano.`, ok: true });
   };
 
   return (
@@ -101,7 +101,10 @@ export function ShopScreen({ game, onChange, onOpenPhone }: Props) {
       <div className="card shop-hero">
         <p><b>Seu dinheiro:</b> {brl0(wallet)}</p>
         {own ? (
-          <p>Seu aparelho: <b>{cur.name}</b> · memória {appsUsed(game)}/{cur.apps >= 99 ? '∞' : cur.apps} apps · chip: <b>{chip ? chip.name : 'nenhum'}</b></p>
+          <>
+            <p>Seu aparelho: <b>{cur.name}</b> · memória {appsUsed(game)}/{cur.apps >= 99 ? '∞' : cur.apps} apps</p>
+            <p>Chip: <b>{chip ? chip.name : chipBlocked(game) ? 'bloqueado' : 'nenhum'}</b>{chipNumberOf(game) && <> · número <b className="shop-num">{chipNumberOf(game)}</b></>}{chip && chipLeft(game) !== undefined && <> · bloqueia em {chipLeft(game)} rodadas</>}</p>
+          </>
         ) : (
           <p className="shop-warn">📵 Você está sem celular. Compre um aqui: a primeira compra é em <b>dinheiro</b>, sem Pix.</p>
         )}
@@ -141,7 +144,7 @@ export function ShopScreen({ game, onChange, onOpenPhone }: Props) {
         <section>
           <h3>Chips (dados móveis)</h3>
           <ChipList onBuy={buyC} current={chip?.id} wallet={wallet} />
-          <p className="hint">O chip dá acesso aos dados móveis. Para ter internet, assine o plano no app Internet de Chip.</p>
+          <p className="hint">O chip vale 1 ano e traz um número novo: ele recebe o SMS de confirmação para criar conta nos apps. Para os dados móveis, assine o plano no app Internet de Chip.</p>
         </section>
       )}
     </>
@@ -155,7 +158,7 @@ function ChipList({ onBuy, current, wallet }: { onBuy: (id: ChipId) => void; cur
         <li key={c.id}>
           <ChipArt id={c.id} />
           <b>{c.name}</b>
-          <small>{brl0(c.price)} · em dinheiro</small>
+          <small>{brl0(c.price)} · dinheiro · vale 1 ano</small>
           <button className="primary" disabled={current === c.id || wallet < c.price} onClick={() => onBuy(c.id)}>{current === c.id ? 'Em uso' : 'Comprar chip'}</button>
         </li>
       ))}

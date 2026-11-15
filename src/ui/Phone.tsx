@@ -12,6 +12,8 @@ import { pendingCount } from '../engine/inbox';
 import { RealtorApp } from './RealtorApp';
 import { CalcApp, QuickPanel } from './QuickPanel';
 import { ChipApp } from './ChipApp';
+import { AccountGate } from './AccountGate';
+import { needsAccount, ACCOUNT_APPS } from '../engine/accounts';
 import { SocialApp } from './SocialApp';
 import './phone.css';
 
@@ -63,6 +65,10 @@ export function Phone({ game, onChange, onClose }: Props) {
   const [closing, setClosing] = useState(false);
   const [panel, setPanel] = useState(false);
   const [target, setTarget] = useState('');
+  const [toast, setToast] = useState<string | null>(null);
+  const lastSms = ph.sms?.[0]?.id;
+  const seenSms = useRef(lastSms);
+  useEffect(() => { if (lastSms && lastSms !== seenSms.current) { seenSms.current = lastSms; setToast(ph.sms![0].text); const t = window.setTimeout(() => setToast(null), 9000); return () => window.clearTimeout(t); } }, [lastSms]); // eslint-disable-line react-hooks/exhaustive-deps
   const pullY = useRef<number | null>(null);
   const [offer, setOffer] = useState(false); // depois de criar o PIN: oferece cadastrar a digital
   const gameRef = useRef(game); gameRef.current = game;
@@ -109,6 +115,7 @@ export function Phone({ game, onChange, onClose }: Props) {
             onPointerDown={(e) => { pullY.current = e.clientY; }} onPointerMove={(e) => { if (pullY.current !== null && e.clientY - pullY.current > 30) { pullY.current = null; setPanel(true); } }} onPointerUp={() => { pullY.current = null; }}>
             <span>{now}</span><span>{unread > 0 && !s.dnd ? `🔔 ${unread} ` : ''}{s.dnd ? '🌙 ' : ''}{conn.airplane ? '✈️ ' : ''}{conn.wifi ? 'Wi-Fi ' : ''}{conn.mobileData ? '5G ' : ''}📶 🔋</span>
           </div>
+          {toast && !s.dnd && <button className="ph-toast" onClick={() => { setToast(null); setScreen('mensagens'); }} aria-live="polite">💬 {toast}</button>}
           {panel && <QuickPanel game={game} onChange={onChange} onClose={() => setPanel(false)} onCalc={() => setScreen('calc')} canCalc={!locked} />}
 
           {locked ? (
@@ -116,6 +123,7 @@ export function Phone({ game, onChange, onClose }: Props) {
             : <LockScreen game={game} now={now} onSubmit={submitLock} firstPin={firstPin} err={err} shake={shake} onReset={() => { setFirstPin(null); setErr(undefined); }} onFinger={unlock} />
           ) : (
             <>
+              {ACCOUNT_APPS.includes(screen) && needsAccount(game, screen) ? <AccountGate game={game} app={screen} onChange={onChange} /> : <>
               {screen === 'home' && <HomeScreen game={game} onOpen={go} />}
               {screen === 'boot' && <Boot game={game} id={target} onDone={() => setScreen(target)} />}
               {screen === 'nonet' && <NoNet game={game} id={target} onPanel={() => setPanel(true)} />}
@@ -131,6 +139,7 @@ export function Phone({ game, onChange, onClose }: Props) {
               {screen === 'mensagens' && <MessagesApp game={game} onChange={onChange} />}
               {(screen === 'linstagra' || screen === 'tikiteko') && <SocialApp app={screen} game={game} onChange={onChange} />}
               {!['home', 'loja', 'config', 'banco', 'concessionaria', 'corretor', 'linstagra', 'tikiteko', 'cassino', 'noticias', 'mensagens', 'calc', 'boot', 'nonet', 'internetchip'].includes(screen) && <SoonApp id={screen} />}
+              </>}
               <button className="ph-homebar" onClick={() => setScreen('home')} aria-label="Início do celular" />
             </>
           )}
@@ -389,7 +398,7 @@ function Settings({ game, onChange }: { game: GameState; onChange: (g: GameState
 
       <h3>Segurança</h3>
       <div className="ph-card">
-        <Toggle label="Desbloqueio por digital" note="Abre o celular só tocando no sensor, sem o PIN." on={!!s.fingerprint} onClick={() => set({ fingerprint: !s.fingerprint })} />
+        <Toggle label="Desbloqueio por digital" note="Abre o celular sem o PIN e confirma senhas de apps (como o Banco) com o dedo." on={!!s.fingerprint} onClick={() => set({ fingerprint: !s.fingerprint })} />
         {!pinForm ? <button className="ph-btn" onClick={() => { setPinForm({ cur: '', a: '', b: '' }); setMsg(null); }}>🔐 Alterar PIN</button> : (
           <div className="ph-form">
             <input inputMode="numeric" type="password" placeholder="PIN atual" value={pinForm.cur} onChange={(e) => setPinForm({ ...pinForm, cur: digits(e.target.value) })} aria-label="PIN atual" />

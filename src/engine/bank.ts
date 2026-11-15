@@ -1,5 +1,5 @@
 import { coachMoneyOf } from './finance';
-import { notifyPhone } from './phone';
+import { notifyPhone, phoneOf } from './phone';
 import type { BankState, BankTx, Boleto, GameState, PayPurpose, PixCharge } from './types';
 
 export const MIN_PASSWORD = 6;
@@ -15,7 +15,9 @@ export const balanceOf = (g: GameState) => coachMoneyOf(g);
 const abs = (season: number, round: number) => season * 1000 + round;
 const hash = (s: string): string => { let h = 2166136261; for (const ch of s) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); };
 export const hashPassword = (p: string) => hash(`vrbank:${p}`);
-export const checkPassword = (g: GameState, p: string) => hasBank(g) && g.bank!.passHash === hashPassword(p);
+/** Em vez de digitar a senha, quem ativou a digital nas Configurações do celular pode confirmar com o dedo. */
+export const FINGER = '::digital::';
+export const checkPassword = (g: GameState, p: string) => hasBank(g) && (g.bank!.passHash === hashPassword(p) || (p === FINGER && !!phoneOf(g).settings.fingerprint));
 
 export type Result<T = object> = ({ ok: true; state: GameState } & T) | { ok: false; error: string };
 

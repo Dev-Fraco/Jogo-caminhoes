@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { audio } from '../audio/audio';
-import { balanceOf, bankOf, boletoTotal, brl, clubCharge, hasBank, myPixKey, openBoletos, payBoleto, payPix, quotePix, registerBank, MIN_PASSWORD } from '../engine/bank';
+import { FingerButton } from './AccountGate';
+import { FINGER, balanceOf, bankOf, boletoTotal, brl, clubCharge, hasBank, myPixKey, openBoletos, payBoleto, payPix, quotePix, registerBank, MIN_PASSWORD } from '../engine/bank';
 import type { BankTx, Boleto, GameState, PixCharge } from '../engine/types';
 import { copyText, pasteText } from './clipboard';
 
@@ -151,8 +152,8 @@ function Confirm({ game, onChange, keyText, charge, go, back }: { game: GameStat
   const [askPass, setAskPass] = useState(false);
   const [err, setErr] = useState<string | undefined>();
   const [fails, setFails] = useState(0);
-  const pay = () => {
-    const r = payPix(game, keyText, pass);
+  const pay = (secret: string = pass) => {
+    const r = payPix(game, keyText, secret);
     if (!r.ok) {
       const n = r.error === 'Senha incorreta.' ? fails + 1 : fails;
       setFails(n); setPass(''); setErr(n >= 3 ? 'Muitas tentativas erradas. Volte e tente de novo.' : r.error); audio.sfx('error');
@@ -177,7 +178,8 @@ function Confirm({ game, onChange, keyText, charge, go, back }: { game: GameStat
       ) : (
         <div className="ph-form">
           <input type="password" autoFocus placeholder="Senha do banco" value={pass} onChange={(e) => setPass(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && pay()} aria-label="Senha do banco" />
-          <button className="ph-btn pri bk-wide" onClick={pay}>Pagar {brl(charge.amount)}</button>
+          <button className="ph-btn pri bk-wide" onClick={() => pay()}>Pagar {brl(charge.amount)}</button>
+          <FingerButton game={game} onOk={() => pay(FINGER)} label={`👆 Pagar ${brl(charge.amount)} com a digital`} />
         </div>
       )}
       {err && <p className="ph-pad-msg err" role="alert">{err}</p>}
@@ -228,8 +230,8 @@ function BoletoPay({ game, onChange, boleto, go, back }: { game: GameState; onCh
   const [pass, setPass] = useState('');
   const [err, setErr] = useState<string | undefined>();
   const total = boletoTotal(boleto);
-  const pay = () => {
-    const r = payBoleto(game, boleto.id, pass);
+  const pay = (secret: string = pass) => {
+    const r = payBoleto(game, boleto.id, secret);
     if (!r.ok) { setErr(r.error); setPass(''); audio.sfx('error'); return; }
     onChange(r.state); audio.sfx('cash');
     go({ name: 'receipt', tx: r.tx, detail: boleto.description, to: boleto.merchant });
@@ -249,7 +251,8 @@ function BoletoPay({ game, onChange, boleto, go, back }: { game: GameState; onCh
       <div className="ph-form">
         <input type="password" placeholder="Senha do banco" value={pass} onChange={(e) => setPass(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && pay()} aria-label="Senha do banco" />
         {err && <p className="ph-pad-msg err" role="alert">{err}</p>}
-        <button className="ph-btn pri bk-wide" onClick={pay}>Pagar {brl(total)}</button>
+        <button className="ph-btn pri bk-wide" onClick={() => pay()}>Pagar {brl(total)}</button>
+        <FingerButton game={game} onOk={() => pay(FINGER)} label={`👆 Pagar ${brl(total)} com a digital`} />
       </div>
     </>
   );
