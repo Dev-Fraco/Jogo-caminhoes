@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { brazilPyramid } from '../src/data/pyramid';
-import { generateOffers, OFFER_CHANCE, STAR_INTEREST, toggleTransferList } from '../src/engine/roster';
+import { incomingDeals } from '../src/engine/deals';
+import { generateOffers, MAX_OPEN_OFFERS, OFFER_CHANCE, STAR_INTEREST, toggleTransferList } from '../src/engine/roster';
 import { newCareer } from '../src/engine/game';
 import { BASE_DRAW_RATE, CUP_DRAW_BOOST, CUP_REROLL, simulateCupMatch, simulateMatch } from '../src/engine/match';
 import { makeRng } from '../src/engine/rng';
@@ -19,7 +20,7 @@ describe('clubes procuram mais os seus jogadores', () => {
     const star = [...g.teams.palmeiras.players].sort((a, b) => b.strength - a.strength)[10]; // um jogador comum (não um dos 8 destaques)
     g = toggleTransferList(g, star.id);
     let got = 0;
-    for (let s = 1; s <= 300; s++) { const r = generateOffers({ ...g, offers: [] }, makeRng(s)); if (r.offers.some((o) => o.playerId === star.id)) got++; }
+    for (let s = 1; s <= 300; s++) { const r = generateOffers({ ...g, offers: [] }, makeRng(s)); if (incomingDeals(r).some((o) => o.playerId === star.id)) got++; }
     expect(got / 300).toBeGreaterThan(0.45);
     expect(got / 300).toBeLessThan(0.75);
   });
@@ -29,12 +30,10 @@ describe('clubes procuram mais os seus jogadores', () => {
     let spontaneous = 0, premium = 0, notified = false;
     for (let s = 1; s <= 300; s++) {
       const r = generateOffers({ ...g, offers: [] }, makeRng(s));
-      for (const o of r.offers) {
+      for (const o of incomingDeals(r)) {
         expect(top8.has(o.playerId)).toBe(true);
         spontaneous++;
-        const p = g.teams.palmeiras.players.find((x) => x.id === o.playerId)!;
-        if (o.fee > 0) premium++;
-        void p;
+        if (o.terms.fee > 0 || o.terms.swapPlayerIds?.length) premium++;
       }
       if ((r.phone?.notifications ?? []).some((n) => /quer comprar/.test(n.text))) notified = true;
     }
@@ -45,7 +44,7 @@ describe('clubes procuram mais os seus jogadores', () => {
   it('nunca passa de 8 propostas abertas', () => {
     let g = mk();
     for (let s = 1; s <= 120; s++) g = generateOffers({ ...g, round: (s % 30) + 1 }, makeRng(s));
-    expect(g.offers.length).toBeLessThanOrEqual(30);
+    expect(incomingDeals(g).length).toBeLessThanOrEqual(MAX_OPEN_OFFERS);
   });
 });
 

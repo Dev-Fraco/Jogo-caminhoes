@@ -1,5 +1,7 @@
 import { avgXI, clubProfile, profileCtx } from './aiprofile';
 import { AI_MAX_SQUAD, clubActivity, SELLER_POOL } from './ai';
+import { aiTrade, seasonEndDay } from './aitrade';
+import { needLabel } from './aineeds';
 import { longInjured, squadNeeds } from './aineeds';
 import { marketValue } from './aisales';
 import { baseWage } from './finance';
@@ -114,16 +116,16 @@ export function aiPromoteYouth(g: GameState, rng: Rng, perClub = 2): GameState {
  * Janela de empréstimos: clubes com necessidade numa posição buscam jovens que estão sem espaço em outros clubes (donos de divisão igual ou
  * superior). O garoto precisa ter chance real de jogar no clube que o recebe, o dono não pode ficar curto na posição e a taxa cabe no caixa.
  */
-export function aiLoanWindow(g: GameState, rng: Rng, perHost = 1): GameState {
+export function aiLoanWindow(g: GameState, rng: Rng, perHost = 1, only?: string[]): GameState {
   let s = g;
   const ctx = profileCtx(s);
   const loaned = loanedIds(s);
-  const loans: AiLoan[] = [...(s.aiLoans ?? [])];
   const ids = aiIds(s);
   let notable = 0;
-  for (const hostId of shuffle(ids, rng)) {
-    if (loans.length >= MAX_AI_LOANS) break;
-    let got = 0;
+  for (const hostId of shuffle(only ?? ids, rng)) {
+    if ((s.aiLoans ?? []).length >= MAX_AI_LOANS) break;
+    let got = 0, fails = 0;
+    const tried = new Set<string>();
     while (got < perHost && s.teams[hostId].players.length < AI_MAX_SQUAD) {
       const prof = clubProfile(s, hostId, ctx);
       const needs = squadNeeds(s, hostId, prof, { divisionLevel: ctx.divAvg.get(divisionIndexOf(s, hostId)) });
@@ -145,7 +147,7 @@ export function aiLoanWindow(g: GameState, rng: Rng, perHost = 1): GameState {
           const sameCount = owner.players.filter((x) => x.pos === need.pos).length;
           if (sameCount <= MIN_BY_POS[need.pos] + 1) continue; // o dono não fica curto na posição
           for (const p of owner.players) {
-            if (p.pos !== need.pos || (need.spot && spotOf(p) !== need.spot) || p.age > MAX_LOAN_AGE || oxi.has(p.id) || loaned.has(p.id) || longInjured(s, p.id)) continue;
+            if (tried.has(`${hostId}:${p.id}`) || p.pos !== need.pos || (need.spot && spotOf(p) !== need.spot) || p.age > MAX_LOAN_AGE || oxi.has(p.id) || loaned.has(p.id) || longInjured(s, p.id)) continue;
             if (p.strength < need.minStrength - 4) continue;                                  // fraco demais para ajudar
             if (Number.isFinite(weak) && p.strength < weak - 2 && !need.reasons.includes('falta-gente')) continue; // não vai jogar lá também
             const m = s.aiMoves?.[p.id]; if (m && m.season >= s.season) continue;
@@ -161,16 +163,19 @@ export function aiLoanWindow(g: GameState, rng: Rng, perHost = 1): GameState {
       const deal = best as Deal | null;
       if (!deal) break;
       const { p, ownerId, fee } = deal;
-      s = swap(s, ownerId, s.teams[ownerId].players.filter((x) => x.id !== p.id));
-      s = swap(s, hostId, [...s.teams[hostId].players, p]);
-      s = { ...s, budgets: { ...s.budgets, [ownerId]: (s.budgets[ownerId] ?? 0) + fee, [hostId]: (s.budgets[hostId] ?? 0) - fee } };
-      loans.push({ playerId: p.id, ownerId, hostId, season: s.season });
+      tried.add(`${hostId}:${p.id}`);
+      const ownerRich = clubProfile(s, ownerId, ctx).financial === 'rico' && prof.tier === 'pequeno';
+      const need = needs.find((n) => n.pos === p.pos);
+      const loan = { untilDay: seasonEndDay(s), originWagePct: ownerRich ? 0.5 : 0, fee, ...(p.age <= 22 ? { buyOption: Math.round(marketValue(s, ownerId, p) * 1.2 / 10_000) * 10_000 } : {}) };
+      const tr = aiTrade(s, { kind: 'emprestimo', playerId: p.id, buyerId: hostId, fee, loan, reason: `${need ? (need.reasons.includes('falta-gente') ? 'falta de ' : 'reposição de ') + needLabel(need) : 'empréstimo'} · jovem sem espaço no dono` });
+      if (!tr.ok) { if (++fails >= 2) break; continue; }
+      s = tr.state;
       loaned.add(p.id);
       got++;
       if (notable < 3 && p.age <= 21) { notable++; s = news(s, `📤 ${s.clubs[ownerId].name} empresta o jovem ${p.name} (${p.age} anos, overall ${p.strength}) ao ${s.clubs[hostId].name}, onde terá mais chances de jogar.`); }
     }
   }
-  return { ...s, aiLoans: loans };
+  return s;
 }
 
 /** Fim de temporada (ou quando o jogador assume um clube): os emprestados voltam ao dono, que reavalia no seu elenco. */

@@ -36,7 +36,9 @@ export function baseWage(g: GameState, clubId: string, p: Player): number {
 /** Salário anual do jogador: o do contrato negociado, se houver; senão a fórmula do clube. */
 export const wageOf = (g: GameState, clubId: string, p: Player): number => p.contract?.wage ?? baseWage(g, clubId, p);
 
-export const payrollOf = (g: GameState, clubId: string) => g.teams[clubId].players.reduce((s, p) => s + wageOf(g, clubId, p), 0);
+/** Parte do salário de jogadores emprestados que o clube de origem continua pagando (divisão salarial do empréstimo). */
+export const loanOwed = (g: GameState, clubId: string) => (g.loanDeals ?? []).reduce((s, l) => (!l.closed && l.originId === clubId ? s + l.fullWage * l.originWagePct : s), 0);
+export const payrollOf = (g: GameState, clubId: string) => g.teams[clubId].players.reduce((s, p) => s + wageOf(g, clubId, p), 0) + loanOwed(g, clubId);
 /** Receita de bilheteria em casa por jogo (a torcida animada enche mais o estádio). */
 export function gateOf(g: GameState, clubId: string): number {
   const idx = divisionIndexOf(g, clubId);

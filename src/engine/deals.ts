@@ -1,6 +1,6 @@
 import { profileCtx } from './aiprofile';
 import { AI_MAX_SQUAD } from './ai';
-import { activeDeals, buyerAnswer, defaultContract, fmt, isActive, locate, playerDecision, sellerAnswer, today, wageFits } from './dealeval';
+import { activeDeals, buyerAnswer, defaultContract, noteMove, fmt, isActive, locate, playerDecision, sellerAnswer, today, wageFits } from './dealeval';
 import { canAfford, cashDue, clausesFor, debtsFor, installmentsOk, payResaleClauses, termsTotal } from './dealpay';
 import { fairplayBlock, afterSigning } from './fairplay';
 import { baseWage } from './finance';
@@ -166,6 +166,7 @@ export function executeDeal(g: GameState, dealId: string, opts: { force?: boolea
   }
   teams[d.buyerId] = userIs(g, d.buyerId) ? repairLineup({ ...buyer, players: buyerAfter.map((p) => (p.id === moved.id ? moved : p)) }) : { ...buyer, players: buyerAfter.map((p) => (p.id === moved.id ? moved : p)), lineup: autoLineup(buyerAfter.map((p) => (p.id === moved.id ? moved : p)), buyer.formation) };
   s = { ...s, teams };
+  noteMove(d.playerId, d.buyerId); for (const sp of swapPlayers) noteMove(sp.id, d.sellerId!);
   const budgets = { ...s.budgets };
   if (cashNow > 0 && d.sellerId) { budgets[d.buyerId] = (budgets[d.buyerId] ?? 0) - cashNow; budgets[d.sellerId] = (budgets[d.sellerId] ?? 0) + cashNow; }
   s = { ...s, budgets };
@@ -176,7 +177,7 @@ export function executeDeal(g: GameState, dealId: string, opts: { force?: boolea
   if (d.sellerId && d.kind !== 'emprestimo' && t.clauses?.length) s = { ...s, clauses: [...(s.clauses ?? []), ...clausesFor(s, d.id, d.playerId, d.sellerId, d.buyerId, t)] };
   // empréstimo: registro com as condições e compatibilidade com as listas existentes
   if (loan && d.sellerId) {
-    s = { ...s, loanDeals: [...(s.loanDeals ?? []), { dealId: d.id, playerId: d.playerId, originId: d.sellerId, hostId: d.buyerId, season: s.season, fromDay: day, untilDay: loan.untilDay, fullWage, originWagePct: loan.originWagePct, fee: loan.fee, buyOption: loan.buyOption, buyObligation: loan.buyObligation, obligationGames: loan.obligationGames, apps: 0, origContract }] };
+    s = { ...s, loanDeals: [...(s.loanDeals ?? []), { dealId: d.id, playerId: d.playerId, originId: d.sellerId, hostId: d.buyerId, season: s.season, fromDay: day, untilDay: loan.untilDay, fullWage, originWagePct: loan.originWagePct, fee: t.fee, buyOption: loan.buyOption, buyObligation: loan.buyObligation, obligationGames: loan.obligationGames, apps: 0, origContract }] };
     if (userIs(g, d.sellerId)) s = { ...s, loans: [...s.loans, { playerId: d.playerId, hostClubId: d.buyerId, season: s.season }] };
     else if (userIs(g, d.buyerId)) s = { ...s, loansIn: [...(s.loansIn ?? []), { playerId: d.playerId, ownerClubId: d.sellerId, season: s.season }] };
     else s = { ...s, aiLoans: [...(s.aiLoans ?? []), { playerId: d.playerId, ownerId: d.sellerId, hostId: d.buyerId, season: s.season }] };
@@ -340,6 +341,18 @@ export function dealsTick(g: GameState): GameState {
   return s;
 }
 
+/** Propostas recebidas pelos seus jogadores (negociações em que você é o vendedor). */
+export const incomingDeals = (g: GameState) => (g.deals ?? []).filter((d) => isActive(d) && userIs(g, d.sellerId));
+/** Propostas enviadas por você. */
+export const outgoingDeals = (g: GameState) => (g.deals ?? []).filter((d) => isActive(d) && userIs(g, d.buyerId));
+
 /** Negociações em que você deve agir (para avisos e abas). */
 export const dealsForUser = (g: GameState) => (g.deals ?? []).filter((d) => isActive(d) && (userIs(g, d.buyerId) || userIs(g, d.sellerId)));
 export const dealsWaitingUser = (g: GameState) => dealsForUser(g).filter((d) => (userIs(g, d.sellerId) && d.turn === 'vendedor') || (userIs(g, d.buyerId) && d.turn === 'comprador'));
+
+/** Cancela as negociações em andamento que envolvem o clube (usado quando você troca de clube). */
+export function cancelClubDeals(g: GameState, clubIds: string[]): GameState {
+  let s = g;
+  for (const d of [...(g.deals ?? [])]) if (clubIds.includes(d.buyerId) || (d.sellerId && clubIds.includes(d.sellerId))) { const cur = dealOf(s, d.id); if (cur) s = close(s, cur, 'cancelada', 'Negociação cancelada: mudança de clube.'); }
+  return s;
+}

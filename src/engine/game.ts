@@ -1,9 +1,11 @@
 import type { ClubData } from '../data/clubs';
-import { aiWindow, offseason } from './ai';
-import { aiRenewals, aiSignFreeAgents } from './aicontracts';
+import { offseason } from './ai';
+import { aiRenewals } from './aicontracts';
 import { freezeGoals } from './aigoals';
+import { settleLoanPurchases, trackLoanApps } from './loandeals';
+import { clauseGames, clauseSeasonEnd } from './dealpay';
 import { aiLineup, matchImportance, updateLoad } from './rotation';
-import { aiLoanWindow, aiPromoteYouth, ensureAiYouth } from './aiyouth';
+import { aiPromoteYouth, ensureAiYouth } from './aiyouth';
 import { aiCoachSeasonEnd, aiCoachTick } from './aicoaches';
 import { contAfterLeagueRound, createContinentals, mundialAfterLeagueRound, playContStep, playMundialStep } from './continental';
 import { pendingEvent, playEvent } from './events';
@@ -151,6 +153,10 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
   });
   let state: GameState = advanceKnockout({ ...g, teams, round: g.round + 1, results: [...g.results, ...results], load: updateLoad(g, played) });
   state = pruneInjuries(applyInjuries(state, hits, g.round)); // lesões da rodada (valem a partir da próxima) e limpeza das vencidas
+  // titulares da rodada: contam para bônus por jogos e para a obrigação de compra dos emprestados
+  const started = new Set<string>();
+  for (const f of fixturesOfRound(g, g.round)) for (const id of [f.homeId, f.awayId]) for (const pid of state.teams[id]?.lineup ?? []) started.add(pid);
+  state = trackLoanApps(clauseGames(state, started), started);
 
   // humor: depois do jogo do seu clube
   const my = results.find((r) => r.homeId === g.userClubId || r.awayId === g.userClubId);
@@ -176,7 +182,7 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
   // propostas dos outros clubes pelos jogadores listados
   state = generateOffers(state, rng);
   // meio da temporada: janela pequena de transferências da IA
-  if (state.round === Math.floor(state.totalRounds / 2) + 1) state = aiLoanWindow(aiPromoteYouth(aiSignFreeAgents(aiRenewals(aiWindow(ensureAiYouth(state, rng), rng, 1), rng, 'meio'), rng, 1), rng, 1), rng, 1);
+  if (state.round === Math.floor(state.totalRounds / 2) + 1) state = aiPromoteYouth(aiRenewals(ensureAiYouth(state, rng), rng, 'meio'), rng, 1); // renovações antecipadas e base (o mercado da IA corre todo dia, na janela)
   return { state, results };
 }
 
@@ -308,7 +314,7 @@ function startNextSeasonCore(g: GameState, calNew: ReturnType<typeof newSeasonCa
       if (budgets[id] < 0) budgets[id] = 0;
     }
   }));
-  const back = expireContracts(returnLoans(g));
+  const back = expireContracts(returnLoans(settleLoanPurchases(g))); // opção/obrigação de compra antes da devolução
   // títulos do treinador nesta temporada
   const titles = [...(g.titles ?? [])];
   if (!g.unemployed && !g.observer) {
@@ -325,6 +331,7 @@ function startNextSeasonCore(g: GameState, calNew: ReturnType<typeof newSeasonCa
   }
   const inflation = nextInflation(g, makeRng(g.seed * 37 + g.season * 5 + 1)); // a inflação do ano que começa
   let next: GameState = { ...back, titles, inflation, news: [{ season: g.season + 1, round: 1, text: `📈 Inflação de ${(inflation.rate * 100).toFixed(1).replace('.', ',')}%: preços, salários e receitas sobem.`, tone: 'info' as const }, ...back.news].slice(0, 80), season: g.season + 1, round: 1, totalRounds, divisions, fixtures, results: [], budgets, offers: [], history: [...g.history, summary] };
+  next = clauseSeasonEnd(next, [...moves.map((m) => m.table[0].clubId), ...(g.cup?.championId ? [g.cup.championId] : []), ...(['lib', 'sula', 'ucl'] as const).flatMap((k) => (g[k]?.championId ? [g[k]!.championId!] : []))]); // bônus por títulos e desempenho
   next = aiCoachSeasonEnd(g, next, makeRng(g.seed * 59 + g.season * 19 + 3)); // treinadores da IA: mérito, demissões e trocas
   next = rolloverInjuries(next, g.season, g.totalRounds); // lesões longas atravessam a virada
   for (const id of quals) next = adoptClub(next, id); // clubes de estadual que sobem ganham elenco, caixa e ficha

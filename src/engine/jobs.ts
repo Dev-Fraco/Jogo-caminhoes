@@ -1,5 +1,6 @@
 import { coachLeaves, ensureAiCoaches } from './aicoaches';
 import { returnAiLoans } from './aiyouth';
+import { cancelClubDeals } from './deals';
 import { creditAccount } from './bank';
 import { coachSalary } from './finance';
 import { MORALE_START } from './morale';
@@ -50,7 +51,7 @@ export function leaveClub(g: GameState): GameState {
 export function fire(g: GameState, reason: string): GameState {
   if (g.unemployed) return g;
   const former = g.clubs[g.userClubId].name;
-  let s = leaveClub(g);
+  let s = cancelClubDeals(leaveClub(g), [g.userClubId]);
   const jobs = jobsOf(s);
   s = { ...s, jobs: jobs.map((j, i) => (i === jobs.length - 1 ? { ...j, ended: 'demitido' as const } : j)) };
   const pay = Math.round(coachSalary(g) * 0.5 / 1_000) * 1_000;
@@ -66,7 +67,7 @@ export function fire(g: GameState, reason: string): GameState {
 export function resign(g: GameState): GameState {
   if (g.unemployed) return g;
   const former = g.clubs[g.userClubId].name;
-  let s = leaveClub(g);
+  let s = cancelClubDeals(leaveClub(g), [g.userClubId]);
   const jobs = jobsOf(s);
   s = { ...s, jobs: jobs.map((j, i) => (i === jobs.length - 1 ? { ...j, ended: 'pediu demissão' as const } : j)), unemployed: true, firedInfo: { clubId: g.userClubId, season: g.season, round: g.round, reason: 'Você pediu demissão.', resigned: true }, jobOffers: [], boardLow: 0, wageCover: 0 };
   return news(ensureAiCoaches(s), `🧳 Você pediu demissão do ${former}.`, 'info');
@@ -160,7 +161,7 @@ export type HireResult = { ok: true; state: GameState } | { ok: false; error: st
 
 /** Assume o clube: zera humor, listas e propostas e escala o melhor time. */
 export function hire(g: GameState, clubId: string): GameState {
-  let s = g.unemployed ? g : leaveClub(g);
+  let s = cancelClubDeals(g.unemployed ? g : leaveClub(g), [g.userClubId, clubId]);
   if (!g.unemployed) {
     const jobs = jobsOf(s);
     s = { ...s, jobs: jobs.map((j, i) => (i === jobs.length - 1 ? { ...j, ended: 'contratado por outro clube' as const } : j)) };

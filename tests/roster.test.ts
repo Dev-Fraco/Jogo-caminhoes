@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { isSeasonOver, playRound, startNextSeason } from '../src/engine/game';
 import { MORALE_START, moodLabel, moraleFactor, targetPosition, updateMorale } from '../src/engine/morale';
+import { incomingDeals } from '../src/engine/deals';
+import { calOf } from '../src/engine/calendar';
 import { acceptOffer, checkRelease, generateOffers, myValue, rejectOffer, releasePlayer, repairLineup, returnLoans, rosterOk, toggleLoanList, toggleTransferList } from '../src/engine/roster';
 import { isValidSave, loadGame } from '../src/engine/save';
 import { makeRng } from '../src/engine/rng';
@@ -64,18 +66,21 @@ describe('propostas', () => {
   it('sem jogador listado só os destaques do elenco recebem propostas (os demais nunca)', () => {
     const g = makeCareer('flamengo');
     const top8 = new Set([...g.teams.flamengo.players].sort((a, b) => b.strength - a.strength).slice(0, 8).map((p) => p.id));
-    for (let i = 0; i < 60; i++) for (const o of generateOffers(g, makeRng(i)).offers) expect(top8.has(o.playerId)).toBe(true);
+    for (let i = 0; i < 60; i++) for (const o of incomingDeals(generateOffers(g, makeRng(i)))) expect(top8.has(o.playerId)).toBe(true);
   });
   it('jogador listado recebe proposta de outro clube, valor perto do de mercado, validade de 3 rodadas', () => {
     const { g, p } = listed();
     let got = null as GameState | null;
-    for (let i = 0; i < 40 && !got; i++) { const s = generateOffers(g, makeRng(i)); if (s.offers.length) got = s; }
+    for (let i = 0; i < 40 && !got; i++) { const s = generateOffers(g, makeRng(i)); if (incomingDeals(s).length) got = s; }
     expect(got).not.toBeNull();
-    const o = got!.offers[0], v = myValue(g, p);
-    expect(o).toMatchObject({ kind: 'buy', playerId: p.id, expiresRound: g.round + 2, season: 2026 });
-    expect(o.clubId).not.toBe('flamengo');
-    expect(o.fee).toBeGreaterThanOrEqual(v * 0.8); expect(o.fee).toBeLessThanOrEqual(v * 1.2);
-    expect(got!.budgets[o.clubId]).toBeGreaterThanOrEqual(o.fee); // o clube tem como pagar
+    const o = incomingDeals(got!)[0], v = myValue(g, p);
+    expect(o).toMatchObject({ playerId: p.id, state: 'recebida', sellerId: 'flamengo' });
+    expect(['compra', 'troca']).toContain(o.kind);
+    expect(o.buyerId).not.toBe('flamengo');
+    expect(o.deadlineDay).toBe(calOf(g).day + 7); // prazo de resposta de 7 dias
+    if (o.kind === 'compra') { expect(o.terms.fee).toBeGreaterThanOrEqual(v * 0.8); expect(o.terms.fee).toBeLessThanOrEqual(v * 1.2); }
+    if (o.terms.installments) expect(o.terms.installments.reduce((a, i) => a + i.amount, 0)).toBe(o.terms.fee); // parcelas somam o valor
+    expect(got!.budgets[o.buyerId]).toBeGreaterThan(0); // o clube tem caixa
   });
   it('vender (aceitar): jogador sai, dinheiro entra, histórico e listas atualizados, escalação válida', () => {
     let { g, p } = listed();
@@ -176,9 +181,9 @@ describe('temporada com listas e propostas', () => {
     let g = makeCareer('flamengo', 3);
     for (const p of g.teams.flamengo.players.filter((x) => !g.teams.flamengo.lineup.includes(x.id)).slice(0, 3)) g = toggleTransferList(g, p.id);
     let seen = 0;
-    while (!isSeasonOver(g)) { g = playRound(g).state; seen += g.offers.length; for (const o of g.offers) expect(o.expiresRound).toBeGreaterThanOrEqual(g.round); }
+    while (!isSeasonOver(g)) { g = playRound(g).state; seen += incomingDeals(g).length; }
     expect(seen).toBeGreaterThan(0);
-    expect(startNextSeason(g).offers).toEqual([]);
+    expect(incomingDeals(startNextSeason(g)).filter((d) => d.createdDay < calOf(g).day)).toEqual([]); // as propostas antigas vencem (prazo de 7 dias)
   });
 });
 

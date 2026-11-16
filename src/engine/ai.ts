@@ -9,6 +9,7 @@ import { longInjured, needLabel, RETIRING_AGE, squadNeeds, type Need } from './a
 import { baseWage, payrollOf } from './finance';
 import { aiTrade, installmentPlan } from './aitrade';
 import { goalStatus } from './aigoals';
+import { finishLoans } from './loandeals';
 import { aiBalanceSquads, squadLimits } from './aisquad';
 import { aiLoanWindow, aiPromoteYouth, developYouth, ensureAiYouth, loanedIds, returnAiLoans } from './aiyouth';
 import { aiRenewals, aiSignFreeAgents, agedFreeAgents, newContract, WAGE_LIMIT } from './aicontracts';
@@ -114,7 +115,7 @@ function trimSquad(g: GameState, clubId: string, size: number, maxCuts = 12): Ga
     if (!cut) break;
     players = players.filter((x) => x.id !== cut.id);
     const { contract: _c, ...free } = cut;
-    freed.push(free);
+    freed.push({ ...free, lastClubId: clubId });
   }
   const t = g.teams[clubId];
   return players === t.players ? g : { ...g, freeAgents: [...(g.freeAgents ?? []), ...freed], teams: { ...g.teams, [clubId]: { ...t, players, lineup: autoLineup(players, t.formation) } } };
@@ -152,7 +153,7 @@ const pruneMoves = (g: GameState): GameState => (g.aiMoves ? { ...g, aiMoves: Ob
  * da aposentadoria, não foi negociado nesta temporada e não é um jogador que o próprio clube vendeu há pouco. O vendedor não vende titular, a não ser
  * para clube de divisão mais alta, nem fica sem o mínimo na posição.
  */
-export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[]): GameState {
+export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[], minPriority = 0): GameState {
   let s = pruneMoves(g);
   const ctx = profileCtx(s);
   const onLoan = loanedIds(s); // jogadores emprestados (seus ou entre clubes da IA): ninguém os vende
@@ -175,7 +176,7 @@ export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[
       if (cap < 20_000) break;
       const gs = goalStatus(s, buyerId); // objetivo e momento do clube mudam o jeito de contratar
       const needs = squadNeeds(s, buyerId, prof, { upgrade: maxBuys > 3 || gs.mode === 'disputa', divisionLevel: ctx.divAvg.get(divisionIndexOf(s, buyerId)) });
-      if (!needs.length) break;
+      if (!needs.length || needs[0].priority < minPriority) break; // no dia a dia só as necessidades urgentes levam o clube ao mercado
       if (bought === 0 && !only && needs[0].priority < 100 && rng() > clubActivity(buyerId, prof) * (maxBuys === 1 ? 0.7 : 1)) break; // este clube não vai ao mercado agora
       const bdi = divisionIndexOf(s, buyerId);
       const level = ctx.xi.get(buyerId) ?? avgXI(buyer);
@@ -295,7 +296,7 @@ export interface OffseasonInput {
 
 /** Virada de temporada: evolução dos jogadores, investimento dos promovidos, crises dos rebaixados e janela grande da IA. */
 export function offseason(g: GameState, rng: Rng, input: OffseasonInput): { state: GameState; promotion: NonNullable<import('./types').SeasonSummary['promotion']> } {
-  g = returnAiLoans(g); // emprestados voltam ao dono antes da evolução
+  g = finishLoans(returnAiLoans(g)); // emprestados voltam ao dono (com o contrato de origem) antes da evolução
   // 1) todos envelhecem/evoluem; a IA ainda aposenta veteranos e renova com garotos da base
   const teams: GameState['teams'] = {};
   const retiredNow: RetiredPlayer[] = [];

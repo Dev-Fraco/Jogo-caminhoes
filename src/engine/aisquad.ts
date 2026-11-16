@@ -70,7 +70,7 @@ export function squadReport(g: GameState, clubId: string): SquadReport {
 }
 
 const news = (g: GameState, text: string, tone: NewsItem['tone'] = 'info'): GameState => ({ ...g, news: [{ season: g.season, round: g.round, text, tone }, ...g.news].slice(0, 80) });
-const strip = (p: Player): Player => { const { contract: _c, ...rest } = p; return rest; };
+const strip = (p: Player, clubId?: string): Player => { const { contract: _c, ...rest } = p; return clubId ? { ...rest, lastClubId: clubId } : rest; };
 
 /** Quem o clube deve tirar primeiro: posição acima do limite/ideal, fora do time titular, não emprestado; o mais fraco (e mais velho como desempate). */
 export function surplusCandidates(g: GameState, clubId: string, loaned: Set<string>): Player[] {
@@ -117,7 +117,7 @@ export function aiBalanceSquads(g: GameState, rng: Rng, maxPerClub = 3): GameSta
       // 2) ninguém precisa: libera para o mercado de jogadores livres (ele continua no jogo)
       if (!sold) {
         const left = s.teams[id].players.filter((x) => x.id !== cand.id);
-        s = { ...s, teams: { ...s.teams, [id]: { ...s.teams[id], players: left, lineup: autoLineup(left, s.teams[id].formation) } }, freeAgents: [...(s.freeAgents ?? []), strip(cand)] };
+        s = { ...s, teams: { ...s.teams, [id]: { ...s.teams[id], players: left, lineup: autoLineup(left, s.teams[id].formation) } }, freeAgents: [...(s.freeAgents ?? []), strip(cand, id)] };
         if (cand.strength >= 60) s = news(s, `📋 ${s.clubs[id].name} libera ${cand.name} (overall ${cand.strength}) para organizar o elenco; ele fica livre no mercado.`);
       }
       moved++;

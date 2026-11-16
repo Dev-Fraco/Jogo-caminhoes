@@ -16,13 +16,18 @@ import { WAGE_LIMIT } from './aicontracts';
 
 export const today = (g: GameState) => calOf(g).day;
 
-const INDEX = new WeakMap<object, Map<string, string>>();
+/** Índice jogador → clube, compartilhado e SEMPRE conferido na consulta (se o jogador mudou de lugar, o índice é refeito). */
+let INDEX = new Map<string, string>();
+const rebuild = (g: GameState) => { INDEX = new Map(); for (const [id, t] of Object.entries(g.teams)) for (const p of t.players) INDEX.set(p.id, id); };
+/** Registra que o jogador está agora neste clube (mantém o índice sem refazê-lo). */
+export const noteMove = (playerId: string, clubId: string) => { INDEX.set(playerId, clubId); };
 /** Onde está o jogador: id do clube (ou null se for jogador livre) e o jogador. undefined se não existir. */
 export function locate(g: GameState, playerId: string): { clubId: string | null; player: Player } | undefined {
-  let m = INDEX.get(g.teams);
-  if (!m) { m = new Map(); for (const [id, t] of Object.entries(g.teams)) for (const p of t.players) m.set(p.id, id); INDEX.set(g.teams, m); }
-  const clubId = m.get(playerId);
-  if (clubId) { const player = g.teams[clubId].players.find((p) => p.id === playerId); return player ? { clubId, player } : undefined; }
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const cid = INDEX.get(playerId);
+    if (cid) { const player = g.teams[cid]?.players.find((p) => p.id === playerId); if (player) return { clubId: cid, player }; }
+    if (attempt === 0) rebuild(g);
+  }
   const f = (g.freeAgents ?? []).find((p) => p.id === playerId);
   return f ? { clubId: null, player: f } : undefined;
 }

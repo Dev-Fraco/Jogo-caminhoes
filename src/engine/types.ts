@@ -36,6 +36,8 @@ export interface Player {
   strength: number; // 1..100
   /** Contrato negociado (só jogadores contratados por você): salário anual e última temporada. */
   contract?: { wage: number; until: number };
+  /** Último clube (jogadores livres): de onde saiu ao ficar sem contrato. */
+  lastClubId?: string;
 }
 
 export interface Club {

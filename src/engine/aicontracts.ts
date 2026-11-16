@@ -5,8 +5,9 @@ import { hashString, type Rng } from './rng';
 import { rosterOk } from './roster';
 import { divisionIndexOf, MIN_BY_POS } from './transfers';
 import { AI_MAX_SQUAD, developPlayer } from './ai';
-import { longInjured, RETIRING_AGE, squadNeeds } from './aineeds';
-import { autoLineup, spotOf } from './squad';
+import { longInjured, needLabel, RETIRING_AGE, squadNeeds } from './aineeds';
+import { aiTrade } from './aitrade';
+import { spotOf } from './squad';
 import { goalStatus } from './aigoals';
 import { forgetClub } from './aisales';
 import { loanedIds } from './aiyouth';
@@ -130,7 +131,7 @@ export function aiRenewals(g: GameState, _rng: Rng, mode: 'meio' | 'virada', las
       } else if (mode === 'virada') {
         team = { ...team, players: rosterWithout, lineup: team.lineup.filter((x) => x !== p.id) };
         payroll -= cur.contract?.wage ?? 0;
-        free.push({ ...p, contract: undefined });
+        free.push({ ...p, contract: undefined, lastClubId: id });
         if (notable < 5 && p.strength >= 72) { notable++; s = news(s, `🆓 ${p.name} (overall ${p.strength}) deixa o ${s.clubs[id].name} ao fim do contrato e fica livre no mercado.`, 'info'); }
       }
     }
@@ -153,13 +154,13 @@ export const wageRoomOf = (g: GameState, clubId: string, prof: ClubProfile, boos
  * Clubes da IA contratam jogadores livres (sem pagar transferência) onde há necessidade real, se o salário cabe na folha.
  * Cada clube leva no máximo `perClub` livres por rodada de contratação; o livre que ninguém quis continua no mercado.
  */
-export function aiSignFreeAgents(g: GameState, rng: Rng, perClub = 2): GameState {
+export function aiSignFreeAgents(g: GameState, rng: Rng, perClub = 2, only?: string[]): GameState {
   if (!(g.freeAgents ?? []).length) return g;
   let s = g;
   const ctx = profileCtx(s);
-  const ids = Object.keys(s.teams).filter((id) => isAi(s, id)).sort(() => rng() - 0.5);
-  let signed = 0;
+  const ids = (only ?? Object.keys(s.teams)).filter((id) => isAi(s, id)).sort(() => rng() - 0.5);
   for (const id of ids) {
+    const tried = new Set<string>();
     for (let k = 0; k < perClub; k++) {
       const pool = s.freeAgents ?? [];
       if (!pool.length || s.teams[id].players.length >= AI_MAX_SQUAD) break;
@@ -173,7 +174,7 @@ export function aiSignFreeAgents(g: GameState, rng: Rng, perClub = 2): GameState
       for (const need of needs) {
         for (const p of pool) {
           if (p.pos !== need.pos || (need.spot && spotOf(p) !== need.spot) || p.strength < need.minStrength || p.age > need.maxAge || p.age >= RETIRING_AGE) continue;
-          if (p.strength > level + 12 || longInjured(s, p.id)) continue;
+          if (p.strength > level + 12 || longInjured(s, p.id) || tried.has(`${id}:${p.id}`)) continue;
           const c = newContract(s, id, p, 1);
           if (c.wage > room) continue; // salário impossível para o orçamento: não contrata
           let score = signingScore(prof, Math.max(1, p.strength - need.minStrength), 0, p.age);
@@ -185,12 +186,12 @@ export function aiSignFreeAgents(g: GameState, rng: Rng, perClub = 2): GameState
       }
       if (!pick) break;
       const p = pick.p;
-      const t = s.teams[id];
-      const players = [...t.players, { ...p, contract: newContract(s, id, p, 1) }];
-      s = { ...s, teams: { ...s.teams, [id]: { ...t, players, lineup: autoLineup(players, t.formation) } }, freeAgents: pool.filter((x) => x.id !== p.id) };
+      tried.add(`${id}:${p.id}`);
+      const top = needs.find((n) => n.pos === p.pos);
+      const tr = aiTrade(s, { kind: 'livre', playerId: p.id, buyerId: id, fee: 0, reason: `${top?.reasons.includes('falta-gente') ? 'falta de ' : 'reposição de '}${top ? needLabel(top) : p.pos} · jogador livre` });
+      if (!tr.ok) continue;
+      s = tr.state;
       forgetClub(ctx, id);
-      signed++;
-      if (signed <= 4 && p.strength >= 68) s = news(s, `🆓 ${s.clubs[id].name} contrata o jogador livre ${p.name} (overall ${p.strength}).`, 'info');
     }
   }
   return s;

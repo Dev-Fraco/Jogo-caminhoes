@@ -56,7 +56,16 @@ export function avgXI(t: TeamState): number {
 
 /** Contexto reutilizável (médias por divisão): evita recalcular a nota de todos os times a cada perfil. */
 export interface ProfileCtx { divAvg: Map<number, number>; xi: Map<string, number>; /** posição relativa e aproveitamento recente de cada clube (calculados uma vez por divisão) */ moments: Map<string, { frac: number | null; form: number }> }
+const CTX_CACHE = new WeakMap<object, { results: unknown; divisions: unknown; budgets: unknown; ctx: ProfileCtx }>();
+/** O contexto só depende dos elencos, da tabela e das divisões: enquanto isso não muda (mesmos objetos), todos reaproveitam o mesmo. */
 export function profileCtx(g: GameState): ProfileCtx {
+  const hit = CTX_CACHE.get(g.teams);
+  if (hit && hit.results === g.results && hit.divisions === g.divisions && hit.budgets === g.budgets) return hit.ctx;
+  const ctx = buildProfileCtx(g);
+  CTX_CACHE.set(g.teams, { results: g.results, divisions: g.divisions, budgets: g.budgets, ctx });
+  return ctx;
+}
+function buildProfileCtx(g: GameState): ProfileCtx {
   const xi = new Map<string, number>(), sum = new Map<number, { s: number; n: number }>();
   for (const [id, t] of Object.entries(g.teams)) {
     const a = avgXI(t); xi.set(id, a);

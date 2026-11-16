@@ -111,7 +111,19 @@ const effective = (p: Player, slot: Spot) => p.strength * spotFit(spotOf(p), slo
  * depois, nas vagas que sobrarem, o melhor jogador da linha mesmo fora da função (rende um pouco menos).
  * `unavailable` (lesionados) fica de fora, a não ser que falte gente na linha.
  */
+const LINEUP_MEMO = new WeakMap<Player[], Map<FormationId, string[]>>();
 export function autoLineup(players: Player[], formation: FormationId, unavailable?: Set<string>): string[] {
+  // sem lesionados, o resultado só depende do elenco (e da formação): guarda por elenco (a IA pergunta a mesma coisa milhares de vezes)
+  if (!unavailable || unavailable.size === 0) {
+    let m = LINEUP_MEMO.get(players);
+    if (!m) LINEUP_MEMO.set(players, (m = new Map()));
+    let hit = m.get(formation);
+    if (!hit) m.set(formation, (hit = computeLineup(players, formation)));
+    return hit.slice();
+  }
+  return computeLineup(players, formation, unavailable);
+}
+function computeLineup(players: Player[], formation: FormationId, unavailable?: Set<string>): string[] {
   const ids: string[] = [];
   for (const pos of ['GK', 'DEF', 'MID', 'ATT'] as Position[]) {
     let pool = players.filter((p) => p.pos === pos && !unavailable?.has(p.id)).sort((a, b) => b.strength - a.strength);

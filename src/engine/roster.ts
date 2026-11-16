@@ -2,9 +2,9 @@ import type { Rng } from './rng';
 import { inflate } from './economy';
 import { autoLineup } from './squad';
 import { transferBlock } from './windows';
-import { notifyPhone } from './phone';
+import { proposeToUser } from './aimarket';
 import { divisionIndexOf, MAX_SQUAD, MIN_BY_POS, MIN_SQUAD, playerValue } from './transfers';
-import { FORMATIONS, type GameState, type Offer, type Player, type Position, type TeamState, type Transfer } from './types';
+import { FORMATIONS, type GameState, type Player, type Position, type TeamState, type Transfer } from './types';
 
 /** O elenco cumpre o mínimo de jogadores e de cada posição? */
 export function rosterOk(players: Player[]): boolean {
@@ -79,7 +79,6 @@ export function releasePlayer(g: GameState, playerId: string): GameState {
 
 /* ---------------- propostas dos outros clubes ---------------- */
 
-const VALID_FOR = 3; // rodadas
 
 /** Chance, por rodada, de aparecer proposta por um jogador listado. */
 /** Chance por rodada de um clube procurar um jogador que você colocou na lista (antes 35% e 25%). */
@@ -91,48 +90,15 @@ export const STAR_COUNT = 8;
 export const MAX_OPEN_OFFERS = 8;
 export const LOAN_FEE_RATE = 0.08;
 
-/** Depois de uma rodada: apaga propostas vencidas e sorteia novas para os jogadores das listas. */
+/**
+ * Depois de uma rodada: propostas oficiais dos clubes da IA pelos seus jogadores (listas de venda/empréstimo e destaques).
+ * Agora são negociações completas (`g.deals`): você aceita, recusa ou contrapropõe. As propostas simples antigas (`g.offers`, de saves
+ * antigos) continuam valendo até vencerem.
+ */
 export function generateOffers(g: GameState, rng: Rng): GameState {
   if (g.unemployed) return { ...g, offers: [] };
-  let offers = g.offers.filter((o) => o.expiresRound >= g.round && mine(g, o.playerId));
-  const userPlayers = g.teams[g.userClubId].players;
-  const others = Object.keys(g.teams).filter((id) => id !== g.userClubId);
-
-  const tryOffer = (playerId: string, kind: Offer['kind']) => {
-    const p = userPlayers.find((x) => x.id === playerId);
-    if (!p || offers.some((o) => o.playerId === playerId)) return;
-    if (!rosterOk(userPlayers.filter((x) => x.id !== playerId))) return; // aceitar deixaria o elenco inválido
-    if (rng() >= OFFER_CHANCE[kind]) return;
-    const value = myValue(g, p);
-    const fee = kind === 'buy' ? Math.max(10_000, Math.round((value * (0.85 + 0.3 * rng())) / 10_000) * 10_000) : Math.max(10_000, Math.round((value * LOAN_FEE_RATE) / 10_000) * 10_000);
-    const buyers = others.filter((id) => g.teams[id].players.length < MAX_SQUAD && (g.budgets[id] ?? 0) >= fee);
-    if (!buyers.length) return;
-    const clubId = buyers[Math.floor(rng() * buyers.length)];
-    offers = [...offers, { id: `${g.season}-${g.round}-${playerId}-${kind}`, kind, playerId, clubId, fee, season: g.season, expiresRound: g.round + VALID_FOR - 1 }];
-  };
-  for (const id of g.transferList) tryOffer(id, 'buy');
-  for (const id of g.loanList) tryOffer(id, 'loan');
-  // os destaques do elenco chamam a atenção de outros clubes mesmo sem estar à venda: propostas com ágio
-  const stars = [...userPlayers].sort((a, b) => b.strength - a.strength).slice(0, STAR_COUNT);
-  for (const p of stars) {
-    if (g.transferList.includes(p.id) || offers.some((o) => o.playerId === p.id) || offers.length >= MAX_OPEN_OFFERS) continue;
-    if (!rosterOk(userPlayers.filter((x) => x.id !== p.id))) continue;
-    if (rng() >= STAR_INTEREST) continue;
-    const fee = Math.max(10_000, Math.round((myValue(g, p) * (1.1 + 0.4 * rng())) / 10_000) * 10_000);
-    const buyers = others.filter((id) => g.teams[id].players.length < MAX_SQUAD && (g.budgets[id] ?? 0) >= fee);
-    if (!buyers.length) continue;
-    const clubId = buyers[Math.floor(rng() * buyers.length)];
-    offers = [...offers, { id: `${g.season}-${g.round}-${p.id}-buy`, kind: 'buy', playerId: p.id, clubId, fee, season: g.season, expiresRound: g.round + VALID_FOR - 1 }];
-  }
-  // avisa no celular as propostas novas
-  const known = new Set(g.offers.map((o) => o.id));
-  let s: GameState = { ...g, offers };
-  for (const o of offers) {
-    if (known.has(o.id)) continue;
-    const pl = userPlayers.find((x) => x.id === o.playerId);
-    if (pl) s = notifyPhone(s, 'noticias', `${g.clubs[o.clubId]?.name ?? 'Um clube'} quer ${o.kind === 'buy' ? 'comprar' : 'emprestar'} ${pl.name} (${Math.round(o.fee / 1000).toLocaleString('pt-BR')} mil).`);
-  }
-  return s;
+  const offers = g.offers.filter((o) => o.expiresRound >= g.round && mine(g, o.playerId));
+  return proposeToUser({ ...g, offers }, rng);
 }
 
 export type OfferResult = { ok: true } | { ok: false; text: string };
