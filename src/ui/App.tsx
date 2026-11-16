@@ -43,6 +43,7 @@ import { Squad } from './Squad';
 import { Unemployed } from './Unemployed';
 import { Table } from './Table';
 import { Transfers } from './Transfers';
+import { marketBadge } from './MarketDeals';
 
 type Tab = 'home' | 'calendar' | 'squad' | 'table' | 'transfers' | 'lineup' | 'finance' | 'stadium' | 'shop' | 'profile' | 'youth'; // 'lineup' é uma tela dentro do Início
 /** Telas do app: menu inicial, uma das 8 opções (placeholder) ou a partida em andamento. */
@@ -207,7 +208,7 @@ export function App() {
             return (
               <button key={id} className={on ? 'on' : ''} disabled={!!live || (!!game.unemployed && (id === 'squad' || id === 'transfers' || id === 'stadium' || id === 'finance' || id === 'youth'))} onClick={() => setTab(id)} aria-label={id === 'transfers' ? 'Transferências' : label} aria-current={on ? 'page' : undefined}>
                 <span aria-hidden="true">{icon}</span>{label}
-                {id === 'transfers' && game.offers.length > 0 && <i className="nav-badge" aria-label={`${game.offers.length} propostas`}>{game.offers.length}</i>}
+                {id === 'transfers' && marketBadge(game) > 0 && <i className="nav-badge" aria-label={`${marketBadge(game)} propostas`}>{marketBadge(game)}</i>}
               </button>
             );
           })}

@@ -12,6 +12,7 @@ import { BUY_BLOCK_TEXT, buyPlayer, MAX_SQUAD, marketEntries } from '../engine/t
 import { banOf, FAIRPLAY_LIMIT, fairplayBlock, fairplayWarning, signingsThisSeason } from '../engine/fairplay';
 import { loanIn, loanMarket } from '../engine/loanin';
 import type { GameState, Position, Transfer } from '../engine/types';
+import { AgentsList, DealHistory, DealsPanel, FreeAgents, marketBadge, OfficialList, ProposalSheet, RequestsPanel, WindowBanner } from './MarketDeals';
 import { formatBudget } from '../newgame/format';
 
 const POS_SHORT: Record<Position, string> = { GK: 'GOL', DEF: 'DEF', MID: 'MEI', ATT: 'ATA' };
@@ -41,14 +42,18 @@ function Offers({ game, onChange }: { game: GameState; onChange: (g: GameState) 
     setNotice(r.result.ok ? { text: `✔ ${p?.name} ${o.kind === 'buy' ? 'vendido ao' : 'emprestado ao'} ${game.clubs[o.clubId].name} por ${formatBudget(o.fee)}.` } : { text: r.result.text, error: true });
   };
 
+  const say = (text: string, error?: boolean) => setNotice({ text, error });
   return (
     <>
       <div role="status" aria-live="polite">{notice && <p className={`tf-notice ${notice.error ? 'err' : ''}`}>{notice.text}</p>}</div>
 
-      <section>
-        <h3>Propostas recebidas ({game.offers.length})</h3>
+      <DealsPanel game={game} onChange={onChange} notify={say} />
+      <RequestsPanel game={game} onChange={onChange} notify={say} />
+
+      {game.offers.length > 0 && <section>
+        <h3>Propostas simples recebidas ({game.offers.length})</h3>
         {game.offers.length === 0 ? (
-          <div className="card"><p className="hint" style={{ margin: 0 }}>Nenhuma proposta no momento. Coloque jogadores nas listas de transferência ou de empréstimo (aba Elenco) e jogue as rodadas: os clubes podem fazer propostas.</p></div>
+          <div className="card"><p className="hint" style={{ margin: 0 }}>Nenhuma proposta no momento.</p></div>
         ) : (
           <ul className="tf-list">
             {game.offers.map((o) => {
@@ -73,7 +78,7 @@ function Offers({ game, onChange }: { game: GameState; onChange: (g: GameState) 
             })}
           </ul>
         )}
-      </section>
+      </section>}
 
       {([['Na lista de transferência', game.transferList, toggleTransferList], ['Na lista de empréstimo', game.loanList, toggleLoanList]] as const).map(([title, ids, toggle]) => (
         <section key={title}>
@@ -89,6 +94,8 @@ function Offers({ game, onChange }: { game: GameState; onChange: (g: GameState) 
           </div>
         </section>
       ))}
+
+      <DealHistory game={game} />
 
       <section>
         <h3>Movimentações da temporada {game.season}</h3>
@@ -142,9 +149,10 @@ export function Transfers({ game, onChange, view, onView }: { game: GameState; o
       <SubTabs items={[
         { icon: '👥', label: 'Clubes', on: view === 'clubs', onClick: () => onView('clubs') },
         { icon: '🔎', label: 'Mercado', on: view === 'buy', onClick: () => onView('buy') },
-        { icon: '📄', label: `Propostas${game.offers.length > 0 ? ` (${game.offers.length})` : ''}`, on: view === 'offers', onClick: () => onView('offers') },
+        { icon: '📄', label: `Propostas${marketBadge(game) > 0 ? ` (${marketBadge(game)})` : ''}`, on: view === 'offers', onClick: () => onView('offers') },
         { icon: '📰', label: 'Notícias', on: view === 'news', onClick: () => onView('news') },
       ]} />
+      <WindowBanner game={game} />
       <FairplayBar game={game} />
       {view === 'clubs' ? <Clubs game={game} onChange={onChange} /> : view === 'buy' ? <Market game={game} onChange={onChange} /> : view === 'offers' ? <Offers game={game} onChange={onChange} /> : <News game={game} />}
     </>
@@ -157,7 +165,8 @@ function Market({ game, onChange }: { game: GameState; onChange: (g: GameState) 
   const [spot, setSpot] = useState<'all' | Spot>('all');
   const [division, setDivision] = useState('all');
   const [afford, setAfford] = useState(true);
-  const [mode, setMode] = useState<'buy' | 'loan'>('buy');
+  const [mode, setMode] = useState<'buy' | 'loan' | 'official' | 'free' | 'agents'>('official');
+  const [prop, setProp] = useState<{ id: string; mode: 'compra' | 'emprestimo' | 'livre' } | null>(null);
   const [sort, setSort] = useState<Sort>('ovr');
   const [shown, setShown] = useState(PAGE);
   const [neg, setNeg] = useState<{ clubId: string; id: string } | null>(null);
@@ -172,7 +181,8 @@ function Market({ game, onChange }: { game: GameState; onChange: (g: GameState) 
     for (const d of game.divisions) for (const id of d.clubIds) m.set(id, { id: d.id, name: d.name });
     return m;
   }, [game.divisions]);
-  const entries = useMemo(() => (mode === 'loan' ? loanMarket(game).map((e) => ({ player: e.player, clubId: e.clubId, price: e.fee })) : marketEntries(game)), [game.teams, game.userClubId, game.season, game.loansIn, mode]); // eslint-disable-line react-hooks/exhaustive-deps
+  const special = mode === 'official' || mode === 'free' || mode === 'agents';
+  const entries = useMemo(() => (special ? [] : mode === 'loan' ? loanMarket(game).map((e) => ({ player: e.player, clubId: e.clubId, price: e.fee })) : marketEntries(game)), [game.teams, game.userClubId, game.season, game.loansIn, mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = useMemo(() => {
     const nq = norm(q.trim());
@@ -220,11 +230,14 @@ function Market({ game, onChange }: { game: GameState; onChange: (g: GameState) 
           <div><small>Contratações (fair play)</small><b>{signingsThisSeason(game)}/{FAIRPLAY_LIMIT}</b></div>
         </div>
         <div className="chips" role="tablist" aria-label="Tipo de contratação" style={{ marginBottom: 8 }}>
-          <button role="tab" aria-selected={mode === 'buy'} className={mode === 'buy' ? 'on' : ''} onClick={() => reset(() => setMode('buy'))}>💰 Comprar</button>
+          <button role="tab" aria-selected={mode === 'official'} className={mode === 'official' ? 'on' : ''} onClick={() => reset(() => setMode('official'))}>🏷️ À venda</button>
+          <button role="tab" aria-selected={mode === 'free'} className={mode === 'free' ? 'on' : ''} onClick={() => reset(() => setMode('free'))}>🆓 Livres</button>
+          <button role="tab" aria-selected={mode === 'agents'} className={mode === 'agents' ? 'on' : ''} onClick={() => reset(() => setMode('agents'))}>🕴️ Agentes</button>
+          <button role="tab" aria-selected={mode === 'buy'} className={mode === 'buy' ? 'on' : ''} onClick={() => reset(() => setMode('buy'))}>🔎 Buscar</button>
           <button role="tab" aria-selected={mode === 'loan'} className={mode === 'loan' ? 'on' : ''} onClick={() => reset(() => setMode('loan'))}>🤝 Empréstimo</button>
         </div>
         {mode === 'loan' && <p className="hint" style={{ margin: '0 0 8px' }}>Jogadores que os clubes colocaram na lista de empréstimo. Você paga uma taxa, o jogador fica até o fim da temporada e volta ao clube dono. Conta como contratação no fair play.</p>}
-        <div className="tf-filters">
+        {!special && <div className="tf-filters">
           <input type="search" aria-label="Buscar jogador ou clube" placeholder="Buscar jogador ou clube" value={q} onChange={(e) => reset(() => setQ(e.target.value))} />
           <div className="tf-pos" role="group" aria-label="Posição">
             {POS_FILTERS.map((f) => <button key={f.id} className={pos === f.id ? 'on' : ''} aria-pressed={pos === f.id} onClick={() => reset(() => setPos(f.id))}>{f.label}</button>)}
@@ -241,13 +254,17 @@ function Market({ game, onChange }: { game: GameState; onChange: (g: GameState) 
             <option value="ovr">Maior overall</option><option value="priceAsc">Menor preço</option><option value="priceDesc">Maior preço</option><option value="age">Mais jovens</option>
           </select>
           <label className="tf-check"><input type="checkbox" className="check" checked={afford} onChange={(e) => reset(() => setAfford(e.target.checked))} /> Só quem cabe no meu orçamento</label>
-        </div>
+        </div>}
       </div>
 
       <div role="status" aria-live="polite">{notice && <p className={`tf-notice ${notice.error ? 'err' : ''}`}>{notice.text}</p>}</div>
 
-      <p className="tf-count">{filtered.length} jogadores encontrados{full ? ' · elenco cheio, não é possível contratar' : ''}</p>
-      <ul className="tf-list">
+      {mode === 'official' && <OfficialList game={game} onPropose={(id) => setProp({ id, mode: 'compra' })} />}
+      {mode === 'free' && <FreeAgents game={game} onPropose={(id) => setProp({ id, mode: 'livre' })} />}
+      {mode === 'agents' && <AgentsList game={game} onPropose={(id, free) => setProp({ id, mode: free ? 'livre' : 'compra' })} />}
+      {prop && <ProposalSheet game={game} playerId={prop.id} mode={prop.mode} onChange={onChange} onClose={() => setProp(null)} onDone={(text, error) => { setProp(null); setNotice({ text, error }); }} />}
+      {!special && <p className="tf-count">{filtered.length} jogadores encontrados{full ? ' · elenco cheio, não é possível contratar' : ''}</p>}
+      {!special && <ul className="tf-list">
         {filtered.slice(0, shown).map(({ player: p, clubId, price }) => {
           const club = game.clubs[clubId];
           const tooExpensive = price > budget;
@@ -264,6 +281,7 @@ function Market({ game, onChange }: { game: GameState; onChange: (g: GameState) 
                 {mode === 'loan'
                   ? <button className="tf-buy" disabled={tooExpensive || full || banned} onClick={() => { setNotice(null); setConfirmId(open ? null : p.id); }} aria-label={`Pegar ${p.name} emprestado`}>Emprestar</button>
                   : <button className="tf-buy" disabled={tooExpensive || full || banned} onClick={() => { setNotice(null); setNeg({ clubId, id: p.id }); }} aria-label={`Negociar ${p.name}`}>Negociar</button>}
+                <button className="tf-buy" disabled={full || banned} onClick={() => { setNotice(null); setProp({ id: p.id, mode: mode === 'loan' ? 'emprestimo' : 'compra' }); }} aria-label={`Fazer proposta oficial por ${p.name}`}>Propor</button>
               </div>
               {open && (
                 <div className="tf-confirm">
@@ -276,10 +294,10 @@ function Market({ game, onChange }: { game: GameState; onChange: (g: GameState) 
             </li>
           );
         })}
-      </ul>
-      {filtered.length === 0 && <div className="card center"><p className="hint">Nenhum jogador com esses filtros. {afford && 'Desmarque "Só quem cabe no meu orçamento" para ver todos.'}</p></div>}
+      </ul>}
+      {!special && filtered.length === 0 && <div className="card center"><p className="hint">Nenhum jogador com esses filtros. {afford && 'Desmarque "Só quem cabe no meu orçamento" para ver todos.'}</p></div>}
       {neg && <NegotiationSheet game={game} clubId={neg.clubId} playerId={neg.id} onChange={onChange} onClose={() => setNeg(null)} onDone={(m) => { setNeg(null); setNotice({ text: `✔ ${m}` }); }} />}
-      {filtered.length > shown && <button className="btn tf-more" onClick={() => setShown(shown + PAGE)}>Mostrar mais ({filtered.length - shown})</button>}
+      {!special && filtered.length > shown && <button className="btn tf-more" onClick={() => setShown(shown + PAGE)}>Mostrar mais ({filtered.length - shown})</button>}
 
     </>
   );

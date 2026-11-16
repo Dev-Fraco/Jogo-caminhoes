@@ -1,3 +1,4 @@
+import { marketBadge } from './MarketDeals';
 import { useState } from 'react';
 import { fixturesOfRound, leagueNameOf, seasonOutcome, slotsOf, userDivision } from '../engine/game';
 import { estadualOfUser, estadualRanking, estadualSummary, stepLabel } from '../engine/estadual';
@@ -229,7 +230,7 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
       )}
       <section className="fm-panel">
         <ScreenTitle icon="🔁" title="Transferências" />
-        <SubTabs items={[{ icon: '🛒', label: 'Mercado', on: true, onClick: () => onTab('transfers') }, { icon: '📄', label: `Propostas${game.offers.length ? ` (${game.offers.length})` : ''}`, onClick: onSeeOffers }, { icon: '📰', label: 'Notícias', onClick: onNews }]} />
+        <SubTabs items={[{ icon: '🛒', label: 'Mercado', on: true, onClick: () => onTab('transfers') }, { icon: '📄', label: `Propostas${marketBadge(game) ? ` (${marketBadge(game)})` : ''}`, onClick: onSeeOffers }, { icon: '📰', label: 'Notícias', onClick: onNews }]} />
         <ul className="fm-feed">
           {feed.length === 0 && <li className="fm-empty">Nenhuma transferência ainda. Os clubes negociam durante a temporada.</li>}
           {feed.map((n, i) => <li key={i} className={n.mine ? 'mine' : ''}><span aria-hidden="true">{n.mine ? '⭐' : '🔁'}</span><span>{n.text}</span></li>)}
@@ -246,9 +247,9 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
         </FmCard>
       )}
 
-      {game.offers.length > 0 && (
+      {marketBadge(game) > 0 && (
         <button className="home-offers" onClick={onSeeOffers}>
-          📨 Você tem <b>{game.offers.length}</b> {game.offers.length === 1 ? 'proposta' : 'propostas'} por jogadores <span>Ver propostas ›</span>
+          📨 Você tem <b>{marketBadge(game)}</b> {marketBadge(game) === 1 ? 'assunto' : 'assuntos'} no mercado (propostas e pedidos de jogadores) <span>Ver propostas ›</span>
         </button>
       )}
 

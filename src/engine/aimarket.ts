@@ -89,7 +89,16 @@ function moodTick(g: GameState, due: string[]): GameState {
   const day = today(g);
   const mood = { ...(g.mood ?? {}) };
   let s = g;
-  for (const [pid, m] of Object.entries(mood)) { const l = locate(g, pid); if (!l || !l.clubId || day - m.since > 120) delete mood[pid]; }
+  let transferList = g.transferList;
+  for (const [pid, m] of Object.entries(mood)) {
+    const l = locate(g, pid);
+    if (!l || !l.clubId || day - m.since > 120) { delete mood[pid]; continue; }
+    // pedido de saída ignorado por muito tempo: o jogador é colocado à venda (só no seu clube; a IA resolve pela lista)
+    if (!g.unemployed && l.clubId === g.userClubId && m.want === 'sair' && m.level >= 3 && day - m.since > 45 && !transferList.includes(pid)) {
+      transferList = [...transferList, pid]; delete mood[pid];
+      s = notifyPhone(news(s, `📋 ${l.player.name} foi colocado na lista de transferência: o pedido de saída ficou sem resposta.`, 'info'), 'noticias', `${l.player.name} foi colocado à venda.`);
+    }
+  }
   for (const id of due) {
     const team = g.teams[id];
     if (!team) continue;
@@ -133,7 +142,7 @@ function moodTick(g: GameState, due: string[]): GameState {
     if (payroll - (l.player.contract?.wage ?? 0) + raise <= prof.revenue * 1.05) teams[l.clubId] = { ...t, players: t.players.map((p) => (p.id === pid ? { ...p, contract: { wage: raise, until: Math.max(p.contract?.until ?? s.season, s.season + 1) } } : p)) };
     delete mood[pid];
   }
-  return { ...s, teams, mood };
+  return { ...s, teams, mood, transferList };
 }
 
 /* ---------- agentes ---------- */
@@ -200,6 +209,7 @@ export function marketTick(g: GameState): GameState {
     const buyers = aiDue.filter((id) => (s.dealLog ?? []).filter((r) => r.buyerId === id && r.state === 'concluida' && day - r.day < 120).length < maxBuysFor(clubProfile(s, id, ctx0)) * 2);
     if (buyers.length) s = aiWindow(s, rng, 1, buyers, URGENT);
     if ((Math.floor(day / TICK_EVERY)) % 3 === 0) s = aiLoanWindow(s, rng, 1, aiDue);
+    if ((Math.floor(day / TICK_EVERY)) % 4 === 1) s = aiSwapTick(s, rng, aiDue);
   }
   if ((s.freeAgents ?? []).length && (Math.floor(day / TICK_EVERY)) % 2 === 0) s = aiSignFreeAgents(s, rng, 1, aiDue);
   s = agentTick(s, rng, dueOf(2));
@@ -261,3 +271,39 @@ export function proposeToUser(g: GameState, rng: Rng): GameState {
   return s;
 }
 export { fmt };
+
+/* ---------- trocas entre clubes da IA ---------- */
+
+/**
+ * Clubes sem caixa para pagar à vista oferecem um jogador que sobra no elenco (e que o outro clube precisa) mais algum dinheiro.
+ * No máximo 2 trocas por rodada de decisão.
+ */
+export function aiSwapTick(g: GameState, rng: Rng, due: string[]): GameState {
+  let s = g;
+  let done = 0;
+  const ctx = profileCtx(s);
+  const ids = aiIds(s);
+  for (const buyerId of due) {
+    if (done >= 2) break;
+    const prof = clubProfile(s, buyerId, ctx);
+    const needs = squadNeeds(s, buyerId, prof, { divisionLevel: ctx.divAvg.get(divisionIndexOf(s, buyerId)) });
+    const need = needs[0];
+    if (!need || need.priority < 25) continue;
+    const cash = (s.budgets[buyerId] ?? 0) * prof.spendShare;
+    const surplus = s.teams[buyerId].players.filter((p) => roleOf(s, buyerId, p, ctx).role === 'excedente' && !(s.loans ?? []).some((l) => l.playerId === p.id) && !(s.aiLoans ?? []).some((l) => l.playerId === p.id));
+    if (!surplus.length) continue;
+    const sample = ids.filter((id) => id !== buyerId).sort(() => rng() - 0.5).slice(0, 25);
+    for (const sellerId of sample) {
+      const sNeeds = squadNeeds(s, sellerId, clubProfile(s, sellerId, ctx));
+      const give = surplus.find((p) => sNeeds.some((n) => n.pos === p.pos) && p.strength >= 45);
+      if (!give) continue;
+      const target = s.teams[sellerId].players.filter((p) => p.pos === need.pos && p.strength >= need.minStrength && p.age <= need.maxAge).sort((a, b) => b.strength - a.strength)[0];
+      if (!target) continue;
+      const tv = marketValue(s, sellerId, target), gv = marketValue(s, buyerId, give) * 0.85;
+      if (gv < tv * 0.35 || tv - gv > cash) continue; // a troca só faz sentido se o jogador oferecido vale algo e o resto cabe no caixa
+      const r = aiTrade(s, { kind: 'troca', playerId: target.id, buyerId, fee: Math.max(0, Math.round((tv - gv) / 10_000) * 10_000), swapIds: [give.id], reason: `troca: ${needLabel(need)} por excedente em ${give.pos}` });
+      if (r.ok) { s = r.state; done++; break; }
+    }
+  }
+  return s;
+}

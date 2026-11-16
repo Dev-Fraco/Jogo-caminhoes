@@ -100,6 +100,12 @@ export function sellerAnswer(g: GameState, d: Deal, ctx: ProfileCtx = profileCtx
   if (ov >= floor) {
     const fix = paymentFix(g, d, ctx);
     if (fix) return { action: 'contra', terms: fix, note: `${name} aceita o valor, mas exige outra forma de pagamento.` };
+    // promessa jovem e valiosa: o clube formador exige uma parte da venda futura (uma única vez por negociação)
+    const hasResale = (d.terms.clauses ?? []).some((c) => c.type === 'revenda');
+    if (d.kind === 'compra' && !hasResale && l.player.age <= 23 && a.ask >= 1_500_000 && trait(d.sellerId!, 'revenda') > 0.5 && !d.history.some((h) => h.by === 'vendedor' && h.action === 'contraproposta' && /venda futura/.test(h.note))) {
+      const pct = Math.round((0.1 + 0.1 * trait(d.sellerId!, 'revpct')) * 20) / 20;
+      return { action: 'contra', terms: { ...d.terms, clauses: [...(d.terms.clauses ?? []), { type: 'revenda', pct, base: 'lucro' }] }, note: `${name} aceita o valor, mas exige ${Math.round(pct * 100)}% da venda futura de ${l.player.name} (cláusula de revenda).` };
+    }
     return { action: 'aceitar', note: `${name} aceita a proposta por ${l.player.name}.` };
   }
   const ratio = ov / a.ask;

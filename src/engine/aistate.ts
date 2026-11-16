@@ -2,8 +2,11 @@ import { ensureAiCoaches } from './aicoaches';
 import { ensureAiContracts } from './aicontracts';
 import { freezeGoals } from './aigoals';
 import { ensureAiYouth } from './aiyouth';
+import { seasonEndDay } from './aitrade';
+import { calOf } from './calendar';
+import { windowInfo } from './windows';
 import { makeRng } from './rng';
-import type { GameState, Player } from './types';
+import type { Deal, GameState, Player } from './types';
 
 /**
  * Compatibilidade de saves: completa o que a IA precisa (contratos, treinadores, base, objetivos) em carreiras criadas antes desses
@@ -17,6 +20,32 @@ export function ensureAiState(g: GameState): GameState {
   s = ensureAiCoaches(s);
   s = s.aiYouth ? s : ensureAiYouth(s, makeRng(s.seed * 67 + s.season * 11 + 3));
   s = freezeGoals(s);
+  s = ensureMarketState(s);
+  return s;
+}
+
+/**
+ * Mercado avançado em carreiras antigas: registra a situação atual da janela (sem avisos), e converte as propostas simples antigas
+ * (`offers`) em negociações oficiais, mantendo valor, jogador e clube. Idempotente.
+ */
+export function ensureMarketState(g: GameState): GameState {
+  let s = g;
+  if (!s.windowState) s = { ...s, windowState: { id: windowInfo(s).window?.id ?? null } };
+  if (s.offers?.length) {
+    const day = calOf(s).day;
+    const deals: Deal[] = [];
+    if (!s.unemployed) for (const o of s.offers) {
+      const p = s.teams[s.userClubId]?.players.find((x) => x.id === o.playerId);
+      if (!p || !s.teams[o.clubId]) continue;
+      deals.push({
+        id: `legacy:${o.id}`, kind: o.kind === 'buy' ? 'compra' : 'emprestimo', playerId: o.playerId, sellerId: s.userClubId, buyerId: o.clubId,
+        terms: { fee: o.fee, ...(o.kind === 'loan' ? { loan: { untilDay: seasonEndDay(s), originWagePct: 0, fee: o.fee } } : {}) },
+        state: 'recebida', turn: 'vendedor', createdDay: day, deadlineDay: day + 7, round: 0, answerDay: day,
+        history: [{ day, by: 'comprador', action: 'proposta', fee: o.fee, note: `${s.clubs[o.clubId].name} propõe ${o.fee.toLocaleString('pt-BR')} por ${p.name} (proposta de antes da atualização).` }],
+      });
+    }
+    s = { ...s, offers: [], deals: [...(s.deals ?? []), ...deals.filter((d) => !(s.deals ?? []).some((x) => x.id === d.id))] };
+  }
   return s;
 }
 

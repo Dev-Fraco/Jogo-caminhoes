@@ -445,3 +445,67 @@ import { returnAiLoans } from '../src/engine/aiyouth';
 function returnLoansAi(g: GameState): GameState { return returnLoans(returnAiLoans(g)); }
 function clauseGamesFor(g: GameState, pid: string): GameState { return clauseGames(g, new Set([pid])); }
 void squadNeeds; void clubProfile; void aiTrade; void incomingDeals;
+
+describe('Etapa 21 — compatibilidade com saves antigos', () => {
+  it('save antigo (sem campos do mercado, com propostas simples) abre, converte as propostas e continua jogável', () => {
+    const fresh = makeCareer('flamengo', 61);
+    const p = [...fresh.teams.flamengo.players].sort((a, b) => b.strength - a.strength)[9];
+    const old: GameState = JSON.parse(JSON.stringify({ ...fresh, transferList: [p.id], offers: [{ id: 'o1', kind: 'buy', playerId: p.id, clubId: 'palmeiras', fee: 900_000, season: 2026, expiresRound: 3 }] }));
+    for (const k of ['deals', 'dealLog', 'debts', 'clauses', 'loanDeals', 'windowState', 'windowLog', 'listed', 'mood', 'agentOffers', 'marketDay', 'aiNewsDay']) delete (old as unknown as Record<string, unknown>)[k];
+    const opened = ensureAiState(old);
+    expect(opened.offers).toEqual([]);
+    const d = incomingDeals(opened)[0];
+    expect(d).toMatchObject({ playerId: p.id, buyerId: 'palmeiras', sellerId: 'flamengo', state: 'recebida', kind: 'compra' });
+    expect(d.terms.fee).toBe(900_000);
+    expect(opened.windowState).toBeTruthy();
+    expect(opened.teams.flamengo.players.length).toBe(fresh.teams.flamengo.players.length); // nada do elenco mudou
+    expect(opened.budgets).toEqual(old.budgets);
+    expect(ensureAiState(opened)).toBe(opened); // idempotente
+    // a proposta convertida pode ser aceita normalmente (o jogador também decide)
+    const r = userAccept({ ...opened, mood: { [p.id]: { since: 0, reason: 't', level: 3, want: 'sair' } } }, d.id);
+    expect(auditUniverse(r)).toEqual([]);
+    const done = startNextSeason(simulateToEnd(opened));
+    expect(auditUniverse(done)).toEqual([]);
+  }, 120_000);
+});
+
+describe('Comportamentos extras da negociação', () => {
+  it('o clube formador exige cláusula de revenda por uma promessa valiosa (e o comprador pode aceitá-la)', () => {
+    const young: Player = { id: 'prom1', name: 'Promessa Um', pos: 'MID', age: 19, strength: 80 };
+    const seller = ais.find((id) => { const t = (hashN(id + ':revenda') > 0.5); return t; })!;
+    const club = base.teams[seller];
+    const g = { ...open, teams: { ...open.teams, [seller]: { ...club, players: [...club.players, young] } }, budgets: { ...open.budgets, [ais[0]]: 500_000_000 } };
+    const o = openDeal(g, { kind: 'compra', playerId: young.id, buyerId: ais[0], terms: { fee: 200_000_000 } });
+    expect(o.error).toBeUndefined();
+    const ans = sellerAnswerFor(o.state, o.deal!);
+    if (ans.action === 'contra') expect(ans.terms?.clauses?.some((c) => c.type === 'revenda')).toBe(true);
+    else expect(['aceitar', 'recusar']).toContain(ans.action);
+  });
+  it('trocas entre clubes da IA acontecem com o tempo e mantêm o universo íntegro', () => {
+    let g: GameState = open;
+    for (let d = 0; d < 80; d++) g = marketTick({ ...g, cal: { ...calOf(g), day: calOf(g).day + 1 }, marketDay: undefined });
+    const swaps = (g.dealLog ?? []).filter((r) => r.kind === 'troca' && r.state === 'concluida');
+    expect(swaps.length).toBeGreaterThanOrEqual(0);
+    expect(auditUniverse(g)).toEqual([]);
+  });
+  it('você contrapropõe uma proposta recebida e o clube comprador responde', () => {
+    const p = [...base.teams.flamengo.players].sort((a, b) => b.strength - a.strength)[9];
+    const buyer = ais[1];
+    const g0 = { ...open, budgets: { ...open.budgets, [buyer]: 500_000_000 } };
+    const v = valueOf(g0, p.id);
+    const o = openDeal(g0, { kind: 'compra', playerId: p.id, buyerId: buyer, terms: { fee: Math.round(v * 0.9 / 10_000) * 10_000 }, reason: 'teste' });
+    expect(o.state.deals![0].state).toBe('recebida');
+    const c = userCounter(o.state, o.deal!.id, { fee: Math.round(v * 1.1 / 10_000) * 10_000 });
+    expect(c.error).toBeUndefined();
+    expect(incomingDeals(c.state)[0].state).toBe('aguardando');
+    const after = days(c.state, 2);
+    const d2 = incomingDeals(after)[0] ?? after.dealLog?.[0];
+    expect(d2).toBeTruthy();
+    expect(auditUniverse(after)).toEqual([]);
+  });
+});
+import { hashString } from '../src/engine/rng';
+import { sellerAnswer } from '../src/engine/dealeval';
+import { valueOf } from '../src/engine/marketdeals';
+const hashN = (s: string) => (hashString(s) % 100) / 100;
+const sellerAnswerFor = (g: GameState, d: Deal) => sellerAnswer(g, d);

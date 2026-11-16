@@ -83,3 +83,31 @@ export const approachable = (g: GameState, clubId: string) => (g.teams[clubId]?.
 export const myLoanDeals = (g: GameState) => (g.loanDeals ?? []).filter((l) => !l.closed && !g.unemployed && (l.hostId === g.userClubId || l.originId === g.userClubId));
 export const clubReputation = (g: GameState, id: string) => clubProfile(g, id).label;
 export { baseWage };
+
+/* ---------- pedidos dos jogadores ---------- */
+
+/** Pedidos de jogadores do seu clube (quer sair / pede aumento), do mais urgente para o menos. */
+export const myRequests = (g: GameState) => Object.entries(g.mood ?? {}).flatMap(([pid, m]) => { const p = g.teams[g.userClubId]?.players.find((x) => x.id === pid); return p && !g.unemployed ? [{ player: p, mood: m }] : []; }).sort((a, b) => b.mood.level - a.mood.level);
+
+/**
+ * Responde a um pedido: 'listar' coloca o jogador na lista de transferência; 'conceder' dá o aumento pelo sistema de renovação existente;
+ * 'ignorar' deixa o jogador esperando (o descontentamento cresce, e depois de um tempo ele é colocado à venda).
+ */
+export function answerRequest(g: GameState, playerId: string, action: 'conceder' | 'listar' | 'ignorar'): { state: GameState; ok: boolean; text: string } {
+  const m = g.mood?.[playerId];
+  const p = g.teams[g.userClubId]?.players.find((x) => x.id === playerId);
+  if (!m || !p) return { state: g, ok: false, text: 'Pedido não encontrado.' };
+  const rest = (() => { const { [playerId]: _x, ...r } = g.mood!; return r; })();
+  if (action === 'listar') return { state: { ...g, mood: rest, transferList: g.transferList.includes(playerId) ? g.transferList : [...g.transferList, playerId] }, ok: true, text: `${p.name} foi colocado na lista de transferência.` };
+  if (action === 'ignorar') {
+    const day = calOf(g).day;
+    return { state: { ...g, mood: { ...g.mood!, [playerId]: { ...m, level: Math.min(3, m.level + 1) as 1 | 2 | 3, cooldown: day + 45 } } }, ok: true, text: `${p.name} continua insatisfeito.` };
+  }
+  const q = renewalQuote(g, playerId);
+  if (!q) return { state: g, ok: false, text: 'Renovação indisponível.' };
+  const r = renew(g, playerId, q.wageDemand, Math.min(q.yearsMax, Math.max(q.yearsMin, 3)));
+  if (!r.ok) return { state: g, ok: false, text: r.text };
+  const { [playerId]: _y, ...left } = r.state.mood ?? {};
+  return { state: { ...r.state, mood: left }, ok: true, text: r.text };
+}
+import { renew, renewalQuote } from './market';
