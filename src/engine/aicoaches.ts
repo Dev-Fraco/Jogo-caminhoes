@@ -51,6 +51,10 @@ export function ensureAiCoaches(g: GameState): GameState {
   }
   // o clube que o jogador comanda não tem treinador da IA: quem estava lá fica livre
   for (const c of Object.values(coaches)) if (c.clubId && managed(g, c.clubId)) { coaches[c.id] = { ...c, clubId: null, past: [...c.past, { clubId: c.clubId, fromSeason: c.since.season, toSeason: g.season, ended: 'substituído' }] }; delete club[c.clubId]; changed = true; }
+  for (const c of Object.values(coaches)) {
+    if (c.clubId && c.until === undefined) { coaches[c.id] = { ...c, until: g.season + Math.floor(rng() * coachTerm(c.rep)) }; changed = true; }
+    else if (!c.clubId && c.until !== undefined) { coaches[c.id] = { ...c, until: undefined }; changed = true; }
+  }
   const free = Object.values(coaches).filter((c) => c.clubId === null).length;
   const need = Math.max(POOL_MIN, Math.round(aiClubs(g).length / 7));
   for (let i = free; i < need; i++) mk(1 + Math.floor(rng() * 4) + (rng() < 0.2 ? 1 : 0), null);
@@ -150,9 +154,12 @@ function pickCoach(g: GameState, clubId: string, rng: Rng): { g: GameState; coac
   return { g: { ...g, aiCoaches: { ...(g.aiCoaches ?? {}), [c.id]: c } }, coach: c };
 }
 
+/** Duração do contrato: treinador de reputação alta recebe vínculo mais longo. */
+export const coachTerm = (rep: number) => (rep >= 4 ? 3 : 2);
+
 function assign(g: GameState, clubId: string, coachId: string): GameState {
   const c = g.aiCoaches![coachId];
-  return { ...g, aiCoaches: { ...g.aiCoaches!, [coachId]: { ...c, clubId, since: { season: g.season, round: g.round } } }, clubCoach: { ...(g.clubCoach ?? {}), [clubId]: coachId } };
+  return { ...g, aiCoaches: { ...g.aiCoaches!, [coachId]: { ...c, clubId, since: { season: g.season, round: g.round }, until: g.season + coachTerm(c.rep) - 1 } }, clubCoach: { ...(g.clubCoach ?? {}), [clubId]: coachId } };
 }
 function release(g: GameState, clubId: string, ended: 'demitido' | 'saiu' | 'substituído'): GameState {
   const c = coachOf(g, clubId);
@@ -218,6 +225,18 @@ export function aiCoachSeasonEnd(done: GameState, next: GameState, rng: Rng): Ga
   const cap = maxFirings(s, true);
   let fired = 0;
   for (const x of cands) { if (fired >= cap) break; s = replaceCoach(s, x.id, rng, 'demitido', x.p.why.slice(0, 2).join(' e ')); fired++; }
+  // contratos que terminam: quem foi bem renova; quem não rendeu sai (a diretoria contrata outro)
+  let ended = 0;
+  for (const id of aiClubs(done)) {
+    const c = coachOf(s, id), st = finals.get(id);
+    if (!c || c.until === undefined || c.until > done.season) continue;
+    const good = !st || st.pos <= st.target + 3 || c.merit >= 1;
+    if (good || ended >= maxFirings(s, true)) {
+      const y = coachTerm(c.rep);
+      s = { ...s, aiCoaches: { ...s.aiCoaches!, [c.id]: { ...s.aiCoaches![c.id], until: done.season + y } } };
+      if (st && st.pos <= 2) s = news(s, `✍️ ${s.clubs[id].name} renova com ${c.name} por mais ${y} anos.`);
+    } else { s = replaceCoach(s, id, rng, 'saiu', 'fim de contrato'); ended++; }
+  }
   // aposentadorias
   for (const c of Object.values(s.aiCoaches!)) {
     if (c.age < RETIRE_AGE) continue;

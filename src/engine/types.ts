@@ -248,6 +248,8 @@ export interface AiCoach {
   /** Temporadas de experiência como treinador principal. */
   exp: number;
   clubId: string | null;
+  /** Último ano da temporada coberto pelo contrato com o clube atual (a IA renova quem vai bem e libera quem não rende). */
+  until?: number;
   since: { season: number; round: number };
   past: { clubId: string; fromSeason: number; toSeason: number; ended: 'demitido' | 'saiu' | 'substituído' }[];
 }
