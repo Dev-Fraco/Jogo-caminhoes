@@ -93,7 +93,7 @@ export function ProposalSheet({ game, playerId, mode, deal, onChange, onClose, o
                 </select></label>
               {parts > 1 && <p className="hint" style={{ margin: '4px 0' }}>Entrada de 40% agora e o restante a cada 90 dias. Soma: {formatBudget(fee)}.</p>}
               {!(deal && deal.sellerId === game.userClubId) && <label className="tf-check">Troca: jogadores seus oferecidos (o valor acima é o dinheiro além deles)</label>}
-              {!(deal && deal.sellerId === game.userClubId) && <div className="chips" role="group" aria-label="Jogadores na troca">
+              {!(deal && deal.sellerId === game.userClubId) && <div className="chips" role="group" aria-label="Jogadores na troca" style={{ flexWrap: 'wrap' }}>
                 {mine.filter((x) => !game.loans.some((y) => y.playerId === x.id)).slice(0, 40).map((x) => <button key={x.id} className={swap.includes(x.id) ? 'on' : ''} aria-pressed={swap.includes(x.id)} onClick={() => setSwap((s) => (s.includes(x.id) ? s.filter((i) => i !== x.id) : s.length < 2 ? [...s, x.id] : s))}>{x.name.split(' ')[0]} {x.strength}</button>)}
               </div>}
             </>)}

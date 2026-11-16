@@ -229,7 +229,7 @@ function Market({ game, onChange }: { game: GameState; onChange: (g: GameState) 
           <div><small>Elenco</small><b>{squadSize}/{MAX_SQUAD}</b></div>
           <div><small>Contratações (fair play)</small><b>{signingsThisSeason(game)}/{FAIRPLAY_LIMIT}</b></div>
         </div>
-        <div className="chips" role="tablist" aria-label="Tipo de contratação" style={{ marginBottom: 8 }}>
+        <div className="chips" role="tablist" aria-label="Tipo de contratação" style={{ marginBottom: 8, flexWrap: 'wrap' }}>
           <button role="tab" aria-selected={mode === 'official'} className={mode === 'official' ? 'on' : ''} onClick={() => reset(() => setMode('official'))}>🏷️ À venda</button>
           <button role="tab" aria-selected={mode === 'free'} className={mode === 'free' ? 'on' : ''} onClick={() => reset(() => setMode('free'))}>🆓 Livres</button>
           <button role="tab" aria-selected={mode === 'agents'} className={mode === 'agents' ? 'on' : ''} onClick={() => reset(() => setMode('agents'))}>🕴️ Agentes</button>
