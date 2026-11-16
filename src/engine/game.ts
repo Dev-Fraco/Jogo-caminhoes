@@ -2,7 +2,7 @@ import type { ClubData } from '../data/clubs';
 import { offseason } from './ai';
 import { aiRenewals } from './aicontracts';
 import { freezeGoals } from './aigoals';
-import { ensureAiState } from './aistate';
+import { ensureAiState, prunePlayerMaps } from './aistate';
 import { settleLoanPurchases, trackLoanApps } from './loandeals';
 import { clauseGames, clauseSeasonEnd } from './dealpay';
 import { aiLineup, matchImportance, updateLoad } from './rotation';
@@ -375,7 +375,7 @@ function startNextSeasonCore(g: GameState, calNew: ReturnType<typeof newSeasonCa
   const relegatedU = out.movement === 'relegated', promotedU = out.movement === 'promoted';
   const reason = seasonEndFiring(g, out.userPosition, relegatedU);
   result = seasonPoints(result, out.userPosition, promotedU, relegatedU);
-  return ensureAiState(seasonEndOffers(reason ? fire(result, reason) : result, out.userPosition, promotedU)); // clubes que entraram na pirâmide e o clube que você deixou ficam completos
+  return ensureAiState(prunePlayerMaps(seasonEndOffers(reason ? fire(result, reason) : result, out.userPosition, promotedU))); // clubes que entraram na pirâmide e o clube que você deixou ficam completos
 }
 
 /** Aviso antes de virar a temporada: o treinador será demitido? (motivo ou null) */

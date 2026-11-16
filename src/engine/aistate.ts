@@ -16,6 +16,31 @@ import type { Deal, GameState, Player } from './types';
  * sistemas, sem mexer no que já existe (elencos, caixa, histórico e o seu clube ficam como estão). Idempotente e determinística:
  * a mesma carreira sempre gera o mesmo resultado, então abrir o save várias vezes não cria decisões novas.
  */
+/**
+ * Limpeza da virada: tabelas indexadas por jogador (cansaço, jogos, humor, conversas de renovação) guardam só quem ainda existe no jogo,
+ * e as conversas de renovação só valem por uma temporada. Sem isso o save e a virada engordam a cada ano. Não mexe em elencos nem em caixa.
+ */
+export function prunePlayerMaps(g: GameState): GameState {
+  const live = new Set<string>();
+  for (const t of Object.values(g.teams)) for (const p of t.players) live.add(p.id);
+  for (const p of g.freeAgents ?? []) live.add(p.id);
+  for (const list of Object.values(g.aiYouth ?? {})) for (const p of list) live.add(p.id);
+  const keep = <V,>(m: Record<string, V> | undefined, ok: (k: string, v: V) => boolean): Record<string, V> | undefined => {
+    if (!m) return m;
+    const out: Record<string, V> = {};
+    let dropped = 0;
+    for (const [k, v] of Object.entries(m)) { if (ok(k, v)) out[k] = v; else dropped++; }
+    return dropped ? out : m;
+  };
+  const today = g.cal?.day ?? 0;
+  const load = keep(g.load, (k) => live.has(k));
+  const apps = keep(g.apps, (k) => live.has(k));
+  const mood = keep(g.mood, (k) => live.has(k));
+  const renewTalks = keep(g.renewTalks, (k, v) => live.has(k) && today - v.day <= 400);
+  if (load === g.load && apps === g.apps && mood === g.mood && renewTalks === g.renewTalks) return g;
+  return { ...g, load, apps, mood, renewTalks };
+}
+
 export function ensureAiState(g: GameState): GameState {
   let s = g;
   s = dedupePlayers(s);

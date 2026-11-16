@@ -109,7 +109,7 @@ describe('ETAPA 5 — 4 temporadas de uma carreira (histórico, reputação, obj
       g = startNextSeason(simulateToEnd(g));
       if (g.history.length !== h + 1) problems.push(`T${g.season}: histórico não cresceu (${h} → ${g.history.length})`);
       if (!Number.isFinite(g.coachPoints ?? 0)) problems.push(`T${g.season}: pontos de treinador inválidos`);
-      if (!['title', 'continental', 'midtable', 'survive', 'promotion', 'top-half'].includes(g.clubs[g.userClubId].boardExpectation ?? 'midtable')) problems.push(`T${g.season}: objetivo inválido ${g.clubs[g.userClubId].boardExpectation}`);
+      if (!['title', 'top4', 'mid', 'survive'].includes(g.clubs[g.userClubId].boardExpectation)) problems.push(`T${g.season}: objetivo inválido ${g.clubs[g.userClubId].boardExpectation}`);
       if ((g.jobOffers ?? []).length > MAX_OFFERS) problems.push(`T${g.season}: ${(g.jobOffers ?? []).length} propostas`);
       if (g.unemployed) { // demitido: o fluxo continua (propostas aparecem, aceitar volta a ter clube)
         for (let i = 0; i < 14 && !(g.jobOffers ?? []).some((o) => !o.foreign); i++) g = generateJobOffers({ ...g, round: g.round + 1 }, makeRng(i), i > 6 ? 2 : 0);

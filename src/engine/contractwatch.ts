@@ -125,6 +125,7 @@ export function aiRenewTick(g: GameState, due: string[]): GameState {
       const talk = s.renewTalks?.[p.id];
       if (talk && (talk.done || day - talk.day < 30) && talk.day >= day - 330) continue;      // já resolvido ou conversou há pouco
       const st = stateOf(s, p);
+      if (st !== 'ultimo-ano' && st !== 'vence-em-2-anos') continue;       // só calcula o valor do jogador (caro) de quem pode entrar na conversa
       const { wage: fair, importance } = demandOf(s, id, p, ctx);
       const underpaid = importance >= 0.75 && p.contract.wage < fair * 0.7;
       if (!(st === 'ultimo-ano' || (st === 'vence-em-2-anos' && underpaid))) continue;

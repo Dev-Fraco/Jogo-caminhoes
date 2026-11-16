@@ -26,10 +26,13 @@ export function locate(g: GameState, playerId: string): { clubId: string | null;
   for (let attempt = 0; attempt < 2; attempt++) {
     const cid = INDEX.get(playerId);
     if (cid) { const player = g.teams[cid]?.players.find((p) => p.id === playerId); if (player) return { clubId: cid, player }; }
-    if (attempt === 0) rebuild(g);
+    if (attempt === 0) {
+      const f = (g.freeAgents ?? []).find((p) => p.id === playerId); // livre: não está em nenhum elenco, não adianta refazer o índice inteiro
+      if (f) return { clubId: null, player: f };
+      rebuild(g);
+    }
   }
-  const f = (g.freeAgents ?? []).find((p) => p.id === playerId);
-  return f ? { clubId: null, player: f } : undefined;
+  return undefined;
 }
 
 export const isActive = (d: Deal) => !['recusada', 'expirada', 'cancelada', 'concluida'].includes(d.state);

@@ -50,7 +50,7 @@ export function ensureAiCoaches(g: GameState): GameState {
     club[id] = mk(rep, id).id;
   }
   // o clube que o jogador comanda não tem treinador da IA: quem estava lá fica livre
-  for (const c of Object.values(coaches)) if (c.clubId && managed(g, c.clubId)) { coaches[c.id] = { ...c, clubId: null, past: [...c.past, { clubId: c.clubId, fromSeason: c.since.season, toSeason: g.season, ended: 'substituído' }] }; delete club[c.clubId]; changed = true; }
+  for (const c of Object.values(coaches)) if (c.clubId && managed(g, c.clubId)) { coaches[c.id] = { ...c, clubId: null, until: undefined, past: [...c.past, { clubId: c.clubId, fromSeason: c.since.season, toSeason: g.season, ended: 'substituído' }] }; delete club[c.clubId]; changed = true; }
   for (const c of Object.values(coaches)) {
     if (c.clubId && c.until === undefined) { coaches[c.id] = { ...c, until: g.season + Math.floor(rng() * coachTerm(c.rep)) }; changed = true; }
     else if (!c.clubId && c.until !== undefined) { coaches[c.id] = { ...c, until: undefined }; changed = true; }
@@ -165,7 +165,7 @@ function release(g: GameState, clubId: string, ended: 'demitido' | 'saiu' | 'sub
   const c = coachOf(g, clubId);
   if (!c) return g;
   const club = { ...(g.clubCoach ?? {}) }; delete club[clubId];
-  return { ...g, clubCoach: club, aiCoaches: { ...g.aiCoaches!, [c.id]: { ...c, clubId: null, merit: ended === 'demitido' ? c.merit - 1 : c.merit, past: [...c.past, { clubId, fromSeason: c.since.season, toSeason: g.season, ended }].slice(-8) } } };
+  return { ...g, clubCoach: club, aiCoaches: { ...g.aiCoaches!, [c.id]: { ...c, clubId: null, until: undefined, merit: ended === 'demitido' ? c.merit - 1 : c.merit, past: [...c.past, { clubId, fromSeason: c.since.season, toSeason: g.season, ended }].slice(-8) } } };
 }
 
 /** Demite o treinador do clube e contrata outro da fila de desempregados. */
