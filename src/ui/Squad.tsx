@@ -4,7 +4,9 @@ import { checkRelease, myValue, releasePlayer, toggleLoanList, toggleTransferLis
 import { teamRatings } from '../engine/squad';
 import { MAX_SQUAD } from '../engine/transfers';
 import { wageOf } from '../engine/finance';
-import { contractLeft, renew, renewalQuote } from '../engine/market';
+import { contractLeft, renewalQuote } from '../engine/market';
+import { renewOffer } from '../engine/contractwatch';
+import { potentialOf, TALENT_LABEL, tierOf } from '../engine/potential';
 import { SPOT_LABEL, SPOT_SHORT, type GameState, type Player, type Position } from '../engine/types';
 import { spotOf } from '../engine/squad';
 import { isInjured, roundsLeft } from '../engine/injuries';
@@ -55,6 +57,9 @@ function PlayerSheet({ game, player: p, onChange, onClose, onDone }: SheetProps)
             <p>{SPOT_LABEL[spotOf(p)]} · {p.age} anos · {starter ? 'Titular' : 'Reserva'}</p>
             {isInjured(game, p.id) && <p className="ps-warn">🤕 Lesionado ({game.injuries?.[p.id]?.kind}): fora por mais {roundsLeft(game, p.id)} {roundsLeft(game, p.id) === 1 ? 'rodada' : 'rodadas'}.</p>}
             <p>Valor de mercado: <b>{formatBudget(value)}</b></p>
+            {p.age <= 25 && <p>Potencial: <b>~{Math.round(potentialOf(p) / 5) * 5}</b> · {TALENT_LABEL[tierOf(potentialOf(p))]}</p>}
+            {p.formedAt && <p>Formado no <b>{game.clubs[p.formedAt]?.name ?? p.formedAt}</b>{p.formedSeason ? ` (${p.formedSeason})` : ''}</p>}
+            {game.mood?.[p.id] && <p className="ps-warn">😠 {game.mood[p.id].want === 'sair' ? 'Quer sair' : 'Pede aumento'}: {game.mood[p.id].reason}</p>}
             <p>Salário: <b>{formatBudget(wageOf(game, game.userClubId, p))}/ano</b> · {left === null ? 'sem contrato fixo' : left <= 1 ? <b className="ps-warn">contrato termina no fim desta temporada</b> : `contrato por mais ${left} temporadas`}</p>
           </div>
           <button className="ps-x" aria-label="Fechar" onClick={onClose}>✕</button>
@@ -76,7 +81,7 @@ function PlayerSheet({ game, player: p, onChange, onClose, onDone }: SheetProps)
               </div>
               <div className="ng-years" role="radiogroup" aria-label="Duração">{[1, 2, 3, 4, 5].map((y) => <button key={y} role="radio" aria-checked={rYears === y} className={rYears === y ? 'on' : ''} onClick={() => setRYears(y)}>{y} {y === 1 ? 'ano' : 'anos'}</button>)}</div>
               {rMsg && <p className={`ng-say ${rMsg.ok ? 'ok' : 'no'}`}>{rMsg.text}{rMsg.counter ? <button className="ng-counter" onClick={() => setRWage(rMsg.counter!)}>Aceitar R$ {rMsg.counter.toLocaleString('pt-BR')}</button> : null}</p>}
-              <button className="primary" onClick={() => { const r = renew(game, p.id, rWage, rYears); setRMsg({ text: r.text, ok: r.ok, counter: r.counter }); if (r.ok) { onChange(r.state); setRenewing(false); } }}>Propor renovação</button>
+              <button className="primary" onClick={() => { const r = renewOffer(game, p.id, rWage, rYears); setRMsg({ text: r.text, ok: r.ok, counter: r.counter?.wage }); if (r.counter?.years) setRYears(r.counter.years); if (r.ok) { onChange(r.state); setRenewing(false); } else if (r.state !== game) onChange(r.state); }}>Propor renovação</button>
               <button className="btn" onClick={() => setRenewing(false)}>Cancelar</button>
             </div>
           )}

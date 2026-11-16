@@ -4,7 +4,8 @@ import { calOf, formatDay } from '../engine/calendar';
 import { locate } from '../engine/dealeval';
 import { dealsForUser, dealsWaitingUser } from '../engine/deals';
 import { answerRequest, freeList, myLoanDeals, myRequests, officialList, proposeBuy, proposeFree, proposeLoan, userAccept, userCancel, userCounter, userRefuse, valueOf, wageAsk } from '../engine/marketdeals';
-import { exerciseBuyOption } from '../engine/loandeals';
+import { exerciseBuyOption, loanReport } from '../engine/loandeals';
+import { contractAlerts, renewOffer } from '../engine/contractwatch';
 import { spotOf } from '../engine/squad';
 import { SPOT_SHORT, type Deal, type DealClause, type DealState, type GameState, type Player } from '../engine/types';
 import { transferBlock, windowInfo, windowLabel } from '../engine/windows';
@@ -202,7 +203,8 @@ export function DealsPanel({ game, onChange, notify }: { game: GameState; onChan
           <div className="card"><ul className="tf-log">{myLoanDeals(game).map((ld) => {
             const p = locate(game, ld.playerId)?.player;
             const host = ld.hostId === game.userClubId;
-            return <li key={ld.dealId} className="tf-lrow"><span><b>{p?.name}</b> <small>{host ? `do ${nameOf(game, ld.originId)}` : `no ${nameOf(game, ld.hostId)}`} · até {formatDay(ld.untilDay)} · origem paga {Math.round(ld.originWagePct * 100)}% · {ld.apps} jogos{ld.buyOption ? ` · opção ${formatBudget(ld.buyOption)}` : ''}{ld.buyObligation ? ` · obrigação ${formatBudget(ld.buyObligation)} aos ${ld.obligationGames} jogos` : ''}</small></span>
+            const rep = loanReport(game, ld);
+            return <li key={ld.dealId} className="tf-lrow"><span><b>{p?.name}</b> <small>{host ? `do ${nameOf(game, ld.originId)}` : `no ${nameOf(game, ld.hostId)}`} · até {formatDay(ld.untilDay)} · origem paga {Math.round(ld.originWagePct * 100)}% · {ld.apps} jogos como titular · overall {ld.startStrength ?? '?'} → {p?.strength ?? '?'} ({rep.evolution >= 0 ? '+' : ''}{rep.evolution}) · {rep.status}{rep.injured ? ' · 🤕 lesionado' : ''}{ld.reason ? ` · ${ld.reason}` : ''}{ld.buyOption ? ` · opção ${formatBudget(ld.buyOption)}` : ''}{ld.buyObligation ? ` · obrigação ${formatBudget(ld.buyObligation)} aos ${ld.obligationGames} jogos` : ''}</small></span>
               {host && ld.buyOption ? <button className="mini" disabled={!!transferBlock(game, 'comum')} onClick={() => { const r = exerciseBuyOption(game, ld.playerId); if (r.ok) { onChange(r.state); notify(`Opção exercida: ${p?.name} é do seu clube.`); } else notify(r.reason ?? 'Não foi possível.', true); }}>Exercer opção</button> : null}</li>;
           })}</ul></div>
         </section>
@@ -299,3 +301,57 @@ export function AgentsList({ game, onPropose }: { game: GameState; onPropose: (i
 /** Quantas coisas esperam por você no mercado (para o selo do menu). */
 export const marketBadge = (g: GameState) => g.offers.length + dealsWaitingUser(g).length + myRequests(g).length;
 export type { Player };
+
+const CONTRACT_STATE: Record<string, string> = { 'ultimo-ano': 'último ano', 'vencido': 'vencido', 'vence-em-2-anos': 'vence em 2 anos', ok: 'em dia', 'sem-contrato': 'sem contrato' };
+
+/** Contratos que pedem atenção (último ano, mal pagos, recusas) e o histórico de mudanças contratuais; daqui você propõe a renovação. */
+export function ContractsPanel({ game, onChange, notify }: { game: GameState; onChange: (g: GameState) => void; notify: (t: string, e?: boolean) => void }) {
+  const alerts = contractAlerts(game, game.userClubId).slice(0, 12);
+  const [open, setOpen] = useState<string | null>(null);
+  const [wage, setWage] = useState(0);
+  const [years, setYears] = useState(3);
+  const log = (game.contractLog ?? []).filter((e) => e.clubId === game.userClubId).slice(0, 10);
+  const send = (pid: string) => {
+    const r = renewOffer(game, pid, wage, years);
+    if (r.ok) { onChange(r.state); setOpen(null); notify(r.text); return; }
+    if (r.state !== game) onChange(r.state);
+    if (r.counter?.wage) setWage(r.counter.wage);
+    if (r.counter?.years) setYears(r.counter.years);
+    notify(r.text, true);
+  };
+  return (
+    <section>
+      <h3>Contratos ({alerts.length})</h3>
+      <div className="card">
+        {alerts.length === 0 ? <p className="hint" style={{ margin: 0 }}>Nenhum contrato pede atenção agora. Os avisos chegam no último ano de contrato.</p> : (
+          <ul className="tf-log">{alerts.map((a) => (
+            <li key={a.player.id}>
+              <div className="tf-lrow"><span><b>{a.player.name}</b> <small>({a.player.strength}, {a.player.age} anos) · {CONTRACT_STATE[a.state]}{a.underpaid ? ' · salário abaixo do justo' : ''}{a.refusals ? ` · recusou ${a.refusals}×` : ''} · ganha {formatBudget(a.wage)}/ano (justo ~{formatBudget(a.fair)})</small></span>
+                <button className="mini" onClick={() => { setOpen(open === a.player.id ? null : a.player.id); setWage(Math.max(a.wage, a.fair)); setYears(3); }}>Renovar</button></div>
+              {open === a.player.id && (
+                <div className="tf-confirm">
+                  <div className="ng-input"><input inputMode="numeric" aria-label="Novo salário por ano" value={wage.toLocaleString('pt-BR')} onChange={(e) => setWage(Number(e.target.value.replace(/\D/g, '')))} /><span>R$/ano</span></div>
+                  <label className="tf-check">Duração <select value={years} onChange={(e) => setYears(Number(e.target.value))}>{[1, 2, 3, 4, 5].map((y) => <option key={y} value={y}>{y} {y === 1 ? 'ano' : 'anos'}</option>)}</select></label>
+                  <button className="primary" onClick={() => send(a.player.id)}>Propor renovação</button>
+                </div>
+              )}
+            </li>
+          ))}</ul>
+        )}
+      </div>
+      {log.length > 0 && <div className="card"><h4 style={{ margin: '0 0 6px' }}>Histórico de contratos</h4><ul className="tf-log">{log.map((e, i) => <li key={i}><small>{formatDay(e.day)} · <b>{e.playerName}</b>: {e.kind}{e.wageFrom && e.wageTo ? ` (${formatBudget(e.wageFrom)} → ${formatBudget(e.wageTo)}/ano)` : e.wageTo ? ` (${formatBudget(e.wageTo)}/ano)` : ''} · {e.note}</small></li>)}</ul></div>}
+    </section>
+  );
+}
+
+/** Histórico dos empréstimos encerrados que envolveram o seu clube. */
+export function LoanHistory({ game }: { game: GameState }) {
+  const log = (game.loanLog ?? []).filter((l) => l.originId === game.userClubId || l.hostId === game.userClubId).slice(0, 10);
+  if (!log.length) return null;
+  return (
+    <section>
+      <h3>Histórico de empréstimos</h3>
+      <div className="card"><ul className="tf-log">{log.map((l) => <li key={l.dealId}><b>{l.playerName}</b> <small>· {nameOf(game, l.originId)} → {nameOf(game, l.hostId)} · {l.apps} jogos · overall {l.strengthFrom} → {l.strengthTo} · {l.outcome === 'devolvido' ? 'devolvido' : l.outcome === 'comprado-opcao' ? 'opção exercida' : 'obrigação cumprida'} · {formatDay(l.endDay)}</small></li>)}</ul></div>
+    </section>
+  );
+}

@@ -12,7 +12,7 @@ import { BUY_BLOCK_TEXT, buyPlayer, MAX_SQUAD, marketEntries } from '../engine/t
 import { banOf, FAIRPLAY_LIMIT, fairplayBlock, fairplayWarning, signingsThisSeason } from '../engine/fairplay';
 import { loanIn, loanMarket } from '../engine/loanin';
 import type { GameState, Position, Transfer } from '../engine/types';
-import { AgentsList, DealHistory, DealsPanel, FreeAgents, marketBadge, OfficialList, ProposalSheet, RequestsPanel, WindowBanner } from './MarketDeals';
+import { AgentsList, ContractsPanel, DealHistory, LoanHistory, DealsPanel, FreeAgents, marketBadge, OfficialList, ProposalSheet, RequestsPanel, WindowBanner } from './MarketDeals';
 import { formatBudget } from '../newgame/format';
 
 const POS_SHORT: Record<Position, string> = { GK: 'GOL', DEF: 'DEF', MID: 'MEI', ATT: 'ATA' };
@@ -49,6 +49,7 @@ function Offers({ game, onChange }: { game: GameState; onChange: (g: GameState) 
 
       <DealsPanel game={game} onChange={onChange} notify={say} />
       <RequestsPanel game={game} onChange={onChange} notify={say} />
+      <ContractsPanel game={game} onChange={onChange} notify={say} />
 
       {game.offers.length > 0 && <section>
         <h3>Propostas simples recebidas ({game.offers.length})</h3>
@@ -95,6 +96,7 @@ function Offers({ game, onChange }: { game: GameState; onChange: (g: GameState) 
         </section>
       ))}
 
+      <LoanHistory game={game} />
       <DealHistory game={game} />
 
       <section>
