@@ -82,3 +82,26 @@ describe('zip', () => {
     await expect(readZip(new Uint8Array(10))).rejects.toThrow();
   });
 });
+
+describe('pacote com jogadores sem posição (valem pela ordem do elenco)', () => {
+  it('nome, idade e overall entram nas vagas do jogo, na ordem; posição e função continuam as do jogo; vazio mantém o original', () => {
+    const c = first();
+    const players = c.squad.map((_, i) => (i === 2 ? { age: 33 } : { name: `Craque ${i}`, age: 20 + (i % 10), overall: 50 + i }));
+    const r = validatePack(JSON.stringify({ name: 'Ordem', clubs: [{ id: c.id, players }] }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.report.warnings).toEqual([]);
+    expect(r.pack.clubs[0].slots).toHaveLength(c.squad.length);
+    const original = c.squad;
+    applyPack(r.pack);
+    try {
+      expect(c.squad.map((p) => p.pos)).toEqual(original.map((p) => p.pos));           // posições do jogo
+      expect(c.squad.map((p) => p.spot)).toEqual(original.map((p) => p.spot));
+      expect(c.squad[0]).toMatchObject({ name: 'Craque 0', age: 20, strength: 50 });
+      expect(c.squad[2].name).toBe(original[2].name);                                    // sem nome: mantém
+      expect(c.squad[2].age).toBe(33);
+      expect(new Set(c.squad.map((p) => p.id)).size).toBe(c.squad.length);
+    } finally { applyPack(null); }
+    expect(c.squad).toEqual(original);                                                   // remover o pacote restaura tudo
+  });
+});

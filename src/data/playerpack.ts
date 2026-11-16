@@ -15,7 +15,9 @@ export const MAX_PACK_CLUBS = 5000;
 
 export interface PackPlayer { name: string; pos: Position; /** função (LD, LE, ZAG, MC, MD, ME, PD, PE, CA), se o pacote disser */ spot?: Spot; age?: number; overall?: number }
 /** `players` = elenco completo com posição; `names` = só nomes, na ordem do elenco do jogo (vazio = mantém o nome). */
-export interface PackClub { id: string; badge?: string; players?: PackPlayer[]; names?: string[] }
+/** Vaga do elenco do jogo (na ordem: goleiros, defensores, meias, atacantes): o pacote dá nome, idade e overall; a posição e a função vêm do jogo. Campo vazio = mantém o do jogo. */
+export interface PackSlot { name?: string; age?: number; overall?: number }
+export interface PackClub { id: string; badge?: string; players?: PackPlayer[]; names?: string[]; slots?: PackSlot[] }
 export interface Pack { name: string; author?: string; version?: string; clubs: PackClub[] }
 export interface PackReport { clubs: number; players: number; badges: number; warnings: string[] }
 export type PackResult = { ok: true; pack: Pack; report: PackReport } | { ok: false; error: string };
@@ -79,6 +81,17 @@ export function validatePack(text: string, badgeFiles: string[] = []): PackResul
       });
       const filled = names.filter(Boolean).length;
       if (filled > 0) { club.names = names; players += filled; }
+    } else if (Array.isArray(c.players) && c.players.length > 0 && (c.players as Record<string, unknown>[]).every((x) => x && typeof x === 'object' && pick(x, 'pos', 'posicao', 'posição', 'position') === undefined && normSpot(pick(x, 'spot', 'funcao', 'função')) === undefined)) {
+      // jogadores sem posição: valem pela ORDEM do elenco do jogo (3 goleiros, 8 defensores, 8 meias, 5 atacantes); a posição vem do jogo
+      const seenN = new Set<string>();
+      const slots: PackSlot[] = (c.players as Record<string, unknown>[]).slice(0, 40).map((p0) => {
+        const nm = pick(p0, 'name', 'nome'), ag = pick(p0, 'age', 'idade'), ov = pick(p0, 'overall', 'ovr', 'forca', 'força', 'strength');
+        const name = typeof nm === 'string' && nm.trim().length >= 2 && nm.trim().length <= 40 && !seenN.has(nm.trim()) ? nm.trim() : undefined;
+        if (name) seenN.add(name);
+        return { ...(name ? { name } : {}), ...(typeof ag === 'number' && ag >= 15 && ag <= 45 ? { age: Math.round(ag) } : {}), ...(typeof ov === 'number' && ov >= 1 && ov <= 99 ? { overall: Math.round(ov) } : {}) };
+      });
+      const filled = slots.filter((s) => s.name || s.age !== undefined || s.overall !== undefined).length;
+      if (filled > 0) { club.slots = slots; players += slots.filter((s) => s.name).length; }
     } else if (Array.isArray(c.players)) {
       const list: PackPlayer[] = [];
       const names = new Set<string>();
@@ -99,7 +112,7 @@ export function validatePack(text: string, badgeFiles: string[] = []): PackResul
       if (list.length > 0 && list.length < 14) warn(`${id}: só ${list.length} jogadores; o jogo completa o elenco com nomes fictícios.`);
       if (list.length > 0) { club.players = list; players += list.length; }
     }
-    if (club.badge || club.players || club.names) clubs.push(club);
+    if (club.badge || club.players || club.names || club.slots) clubs.push(club);
   }
   if (clubs.length === 0) return { ok: false, error: 'Nenhum clube válido no pacote. Use os ids do modelo gerado pelo jogo.' };
   return { ok: true, pack: { name: r.name.trim().slice(0, 40), author: typeof r.author === 'string' ? r.author.slice(0, 40) : undefined, version: typeof r.version === 'string' ? r.version.slice(0, 12) : undefined, clubs }, report: { clubs: clubs.length, players, badges, warnings } };
@@ -141,6 +154,16 @@ export function renameSquad(squad: Player[], names: string[]): Player[] {
     const n = names[i];
     if (n) return { ...p, name: n };
     return taken.has(p.name) ? { ...p, name: `${p.name} Jr.` } : p; // o original não pode repetir um nome novo
+  });
+}
+
+/** Aplica nome, idade e overall às vagas do elenco do jogo, na ordem. Posição, função e id não mudam; campo vazio mantém o do jogo; nome não repete. */
+export function applySlots(squad: Player[], slots: PackSlot[]): Player[] {
+  const taken = new Set(slots.map((s) => s.name).filter(Boolean) as string[]);
+  return squad.map((p, i) => {
+    const s = slots[i];
+    if (!s) return taken.has(p.name) ? { ...p, name: `${p.name} Jr.` } : p;
+    return { ...p, name: s.name ?? (taken.has(p.name) ? `${p.name} Jr.` : p.name), ...(s.age !== undefined ? { age: s.age } : {}), ...(s.overall !== undefined ? { strength: s.overall } : {}) };
   });
 }
 
@@ -187,6 +210,7 @@ export function applyPack(pack: Pack | null, urls: Record<string, string> = {}):
     if (!c) continue;
     ORIGINAL.set(c.id, { squad: c.squad, badge: c.badge });
     if (pc.players?.length) c.squad = buildPackSquad(c, pc.players);
+    else if (pc.slots?.length) c.squad = applySlots(c.squad, pc.slots);
     else if (pc.names?.length) c.squad = renameSquad(c.squad, pc.names);
     if (pc.badge && urls[pc.badge]) { BADGE_URLS.set(c.id, urls[pc.badge]); c.badge = `pack:${c.id}`; }
   }
