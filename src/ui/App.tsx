@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { pyramidOf, slotsOfLeague } from '../data/pyramid';
 import { getLeague } from '../data/world';
 import { audio } from '../audio/audio';
-import { isSeasonOver, newCareer, playNext, skipSeasons, startNextSeason, userDivision } from '../engine/game';
+import { isSeasonOver, newCareer, playNext, startNextSeason, userDivision } from '../engine/game';
 import { pendingEvent } from '../engine/events';
 import { balanceOf } from '../engine/bank';
 import { clubOf, teamOf } from '../engine/lookup';
@@ -168,7 +168,6 @@ export function App() {
   // seu time com as mudanças táticas já feitas (formação e escalação); serve para a tela de formação e para os bonecos
   const liveUserTeam = (() => { const t = healUserLineup(game, true).teams[game.userClubId]; const last = tactics[tactics.length - 1]; return t && last ? { ...t, formation: last.formation, lineup: last.lineup } : t; })();
   const liveFormation = (side: 'home' | 'away') => { const id = side === 'home' ? liveResult?.homeId : liveResult?.awayId; return id === game.userClubId && liveUserTeam ? liveUserTeam.formation : teamOf(game, id ?? game.userClubId).formation; };
-  const skipSeason = (years = 1) => { if (blocked()) return; audio.sfx('whoosh'); setLast([]); setGame(skipSeasons(game, years)); setTableView('hist'); setTab('table'); };
   const nextSeason = () => { setLast([]); setGame(startNextSeason(game)); };
 
   return (
@@ -201,8 +200,8 @@ export function App() {
             <LiveMatch key={`${game.season}-${game.round}-${ev?.kind ?? 'l'}`} home={clubOf(game, liveResult.homeId)} away={clubOf(game, liveResult.awayId)} result={liveResult}
               homeFormation={liveFormation('home')} awayFormation={liveFormation('away')} userTeam={liveUserTeam} unavailable={injuredSet(game)} tacticsUsed={tactics.length} onTactic={applyTactic} userSide={liveResult.homeId === game.userClubId ? 'home' : 'away'} divisionName={liveLabel} stadium={clubOf(game, liveResult.homeId).stadium} onFinish={finishMatch} />
           )}
-          {!live && game.unemployed && tab === 'home' && <Unemployed game={game} over={isSeasonOver(game)} onChange={setGame} onPlay={play} onAdvance={() => runAdvance(false)} onAdvanceToMatch={() => runAdvance(true)} onSkip={() => skipSeason(1)} onNextSeason={nextSeason} onSeeTables={() => { setTableView('rounds'); setTab('table'); }} />}
-          {!live && !game.unemployed && tab === 'home' && <Home game={game} onChange={setGame} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onSkip={skipSeason} onSeeTables={() => { setTableView('div'); setTab('table'); }} onSeeResults={() => { setTableView('rounds'); setTab('table'); }} onEditLineup={() => setTab('lineup')} onFinance={() => setTab('finance')} onStadium={() => setTab('stadium')} onCalendar={() => setTab('calendar')} onTab={(t) => setTab(t)} onNews={() => setPhoneOpen(true)} onSeeHist={() => { setTableView('hist'); setTab('table'); }} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} onAdvance={() => runAdvance(false)} onAdvanceToMatch={() => runAdvance(true)} />}
+          {!live && game.unemployed && tab === 'home' && <Unemployed game={game} over={isSeasonOver(game)} onChange={setGame} onPlay={play} onAdvance={() => runAdvance(false)} onAdvanceToMatch={() => runAdvance(true)} onNextSeason={nextSeason} onSeeTables={() => { setTableView('rounds'); setTab('table'); }} />}
+          {!live && !game.unemployed && tab === 'home' && <Home game={game} onChange={setGame} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onSeeTables={() => { setTableView('div'); setTab('table'); }} onSeeResults={() => { setTableView('rounds'); setTab('table'); }} onEditLineup={() => setTab('lineup')} onTab={(t) => setTab(t)} onNews={() => setPhoneOpen(true)} onSeeHist={() => { setTableView('hist'); setTab('table'); }} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} onAdvance={() => runAdvance(false)} onAdvanceToMatch={() => runAdvance(true)} />}
           {!live && !game.unemployed && tab === 'youth' && <YouthScreen game={game} onChange={setGame} />}
           {!live && tab === 'profile' && <CoachProfile game={game} onNext={(t) => setTab(t)} />}
           {!live && tab === 'shop' && <ShopScreen game={game} onChange={setGame} onOpenPhone={() => setPhoneOpen(true)} />}

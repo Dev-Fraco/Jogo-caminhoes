@@ -7,13 +7,13 @@ import { EXPECTATION_LABEL, formatBudget } from '../newgame/format';
 import { ClubBadge } from './ClubBadge';
 import { calOf, daysToMatch, formatDayLong, formatDayShort, isMatchDay, nextMatchDay } from '../engine/calendar';
 
-interface Props { game: GameState; over: boolean; onChange: (g: GameState) => void; onPlay: () => void; onAdvance: () => void; onAdvanceToMatch: () => void; onSkip: (years: number) => void; onNextSeason: () => void; onSeeTables: () => void }
+interface Props { game: GameState; over: boolean; onChange: (g: GameState) => void; onPlay: () => void; onAdvance: () => void; onAdvanceToMatch: () => void; onNextSeason: () => void; onSeeTables: () => void }
 
 const ODDS_CLASS = { Alta: 'good', Média: 'mid', Baixa: 'bad', 'Muito baixa': 'bad' } as const;
 const stars = (n: number) => '★'.repeat(n) + '☆'.repeat(5 - n);
 
 /** Sem clube: propostas de emprego, candidaturas e o tempo passando (rodadas e temporadas) até ser contratado. */
-export function Unemployed({ game, over, onChange, onPlay, onAdvance, onAdvanceToMatch, onSkip, onNextSeason, onSeeTables }: Props) {
+export function Unemployed({ game, over, onChange, onPlay, onAdvance, onAdvanceToMatch, onNextSeason, onSeeTables }: Props) {
   const [div, setDiv] = useState(0);
   const [notice, setNotice] = useState<{ text: string; ok: boolean } | null>(null);
   const info = game.firedInfo;
@@ -50,7 +50,6 @@ export function Unemployed({ game, over, onChange, onPlay, onAdvance, onAdvanceT
                 <button className="btn home-lineup" onClick={onAdvanceToMatch}>⏩ Ir até o dia da rodada</button>
               </>
             )}
-            <button className="btn home-lineup" onClick={() => onSkip(1)}>⏭ Pular temporada</button>
           </>
         ) : (
           <>

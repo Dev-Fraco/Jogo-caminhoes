@@ -27,7 +27,7 @@ import { EXPECTATION_LABEL, formatBudget } from '../newgame/format';
 
 interface Props {
   game: GameState; onChange: (g: GameState) => void; last: MatchResult[]; over: boolean;
-  onPlay: () => void; onSkip: (years: number) => void; onSeeTables: () => void; onSeeResults: () => void; onNextSeason: () => void; onEditLineup: () => void; onFinance: () => void; onStadium: () => void; onCalendar: () => void; onAdvance: () => void; onAdvanceToMatch: () => void; onTab: (t: 'squad' | 'table' | 'transfers' | 'profile') => void; onNews: () => void; onSeeHist: () => void; onSeeOffers: () => void;
+  onPlay: () => void; onSeeTables: () => void; onSeeResults: () => void; onNextSeason: () => void; onEditLineup: () => void; onAdvance: () => void; onAdvanceToMatch: () => void; onTab: (t: 'squad' | 'table' | 'transfers' | 'profile') => void; onNews: () => void; onSeeHist: () => void; onSeeOffers: () => void;
 }
 
 function Meter({ label, value, note }: { label: string; value: number; note?: string }) {
@@ -70,11 +70,9 @@ function EstadualNotice({ game, onChange }: { game: GameState; onChange: (g: Gam
 }
 
 /** Início: próxima partida, escalação, humor (equipe, dirigentes e torcida), propostas e resultados da rodada. */
-export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, onSeeResults, onNextSeason, onEditLineup, onFinance, onStadium, onCalendar, onSeeOffers, onTab, onNews, onSeeHist, onAdvance, onAdvanceToMatch }: Props) {
+export function Home({ game, onChange, last, over, onPlay, onSeeTables, onSeeResults, onNextSeason, onEditLineup, onSeeOffers, onTab, onNews, onSeeHist, onAdvance, onAdvanceToMatch }: Props) {
   const name = (id: string) => clubOf(game, id).name;
   const [open, setOpen] = useState<string | null>(null);
-  const [askSkip, setAskSkip] = useState(false);
-  const [skipYears, setSkipYears] = useState(1);
   const [askLeave, setAskLeave] = useState(false);
   const [askJob, setAskJob] = useState<string | null>(null);
   const division = userDivision(game);
@@ -186,26 +184,6 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
         <button className="btn home2-lineup" onClick={onEditLineup}><span aria-hidden="true">📋</span> Editar escalação</button>
       </div>
       {!isMatchDay(game) && <button className="btn home2-wide" onClick={onAdvanceToMatch}>⏩ {plays ? 'Ir até o dia do jogo' : mineDay === undefined ? 'Avançar até o fim da temporada' : 'Ir até o seu próximo jogo'}</button>}
-      <div className="home2-grid">
-        <button className="mk-card" onClick={() => onTab('transfers')}><span aria-hidden="true">🔁</span>Transferências</button>
-        <button className="mk-card" onClick={onFinance}><span aria-hidden="true">💰</span>Finanças</button>
-        <button className="mk-card" onClick={onStadium}><span aria-hidden="true">🏟️</span>Estádio</button>
-        <button className="mk-card" onClick={() => onTab('profile')}><span aria-hidden="true">🧑‍💼</span>Treinador</button>
-        <button className="mk-card" onClick={() => setAskSkip(true)}><span aria-hidden="true">⏭</span>Pular temporada</button>
-        <button className="mk-card" onClick={onCalendar}><span aria-hidden="true">🗓️</span>Calendário</button>
-      </div>
-        {askSkip && (
-          <div className="skip-ask mk-card" role="alert">
-            <p>Quantos anos pular? Todos os jogos de todas as divisões, as copas e o Mundial serão simulados, inclusive os do seu clube. No fim você vê os campeões de cada ano.</p>
-            <div className="chips" role="radiogroup" aria-label="Anos para pular">
-              {[1, 2, 3, 4, 5].map((n) => <button key={n} role="radio" aria-checked={skipYears === n} className={skipYears === n ? 'on' : ''} onClick={() => setSkipYears(n)}>{n} {n === 1 ? 'ano' : 'anos'}</button>)}
-            </div>
-            <p className="hint">Boletos em aberto serão pagos automaticamente com o seu saldo do banco, se houver. Contratos de jogadores que terminarem no período serão encerrados.</p>
-            <button className="primary" onClick={() => { setAskSkip(false); onSkip(skipYears); }}>Pular {skipYears} {skipYears === 1 ? 'ano' : 'anos'}</button>
-            <button className="btn" onClick={() => setAskSkip(false)}>Cancelar</button>
-          </div>
-        )}
-
       <section className="fm-hero">
         <Jersey club={game.clubs[game.userClubId]} />
         <div className="fm-hero-r">
