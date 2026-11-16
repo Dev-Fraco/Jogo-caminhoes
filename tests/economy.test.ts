@@ -41,7 +41,7 @@ describe('inflação', () => {
     expect(baseWage(b, 'palmeiras', p)).toBeGreaterThan(baseWage(a, 'palmeiras', p) * 1.45);
     expect(payrollOf(b, 'palmeiras')).toBeGreaterThan(payrollOf(a, 'palmeiras') * 1.4);
     expect(gateOf(b, 'palmeiras')).toBeGreaterThan(gateOf(a, 'palmeiras') * 1.4);
-    expect(coachSalary(b)).toBeGreaterThanOrEqual(coachSalary(a) * 1.4);
+    expect(coachSalary(b)).toBe(coachSalary(a)); // os limites salariais do treinador por divisão são valores fixos (não sobem com a inflação)
     expect(seasonIncome(0, 4, 5, 20, 1.5)).toBeGreaterThan(seasonIncome(0, 4, 5, 20, 1) * 1.4);
     expect(prize(b, 10_000_000)).toBeGreaterThan(prize(a, 10_000_000) * 1.4);
     expect(inflate(a, 105_000)).toBe(105_000);

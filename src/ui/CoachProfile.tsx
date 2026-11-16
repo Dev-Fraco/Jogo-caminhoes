@@ -1,5 +1,6 @@
 import { balanceOf } from '../engine/bank';
 import { coachLevel, jobsOf } from '../engine/jobs';
+import { clubQuality, coachMonthly, coachOverallInt, salaryRange, TIER_LABEL } from '../engine/coachpay';
 import { totalFollowers, fmtCount } from '../engine/social';
 import { prestigeScore } from '../engine/assets';
 import type { CoachTitle, GameState } from '../engine/types';
@@ -11,6 +12,8 @@ import { ScreenTitle } from './FmParts';
 const KIND: Record<CoachTitle['kind'], { icon: string; label: string }> = {
   liga: { icon: '🏆', label: 'Ligas' }, copa: { icon: '🥇', label: 'Copas' }, continental: { icon: '🌎', label: 'Continentais' }, mundial: { icon: '🌍', label: 'Mundiais' }, estadual: { icon: '🏟️', label: 'Estaduais' },
 };
+
+const ovrText = (o: number) => (o >= 85 ? 'Lenda do banco de reservas.' : o >= 70 ? 'Treinador de elite.' : o >= 50 ? 'Treinador respeitado.' : o >= 30 ? 'Em construção.' : 'Começando do zero.');
 
 /** Perfil do treinador: nível, clube atual, passagens, títulos e números da carreira (tudo vindo do jogo). */
 export function CoachProfile({ game, onNext }: { game: GameState; onNext: (t: 'finance' | 'table' | 'home') => void }) {
@@ -33,6 +36,13 @@ export function CoachProfile({ game, onNext }: { game: GameState; onNext: (t: 'f
       <section className="card cp-head">
         <div className="cp-avatar" aria-hidden="true">{c.name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()}</div>
         <div className="grow"><h2>{c.name}</h2><small>{nat?.label ?? '—'} · {rep?.label ?? '—'}</small></div>
+      </section>
+
+      <section className="card cp-level" aria-label="Overall do treinador">
+        <div className="row"><span className="grow">Overall do treinador</span><b style={{ fontSize: '1.6rem' }}>{coachOverallInt(game)}</b></div>
+        <div className="cp-bar" role="progressbar" aria-valuenow={coachOverallInt(game)} aria-valuemin={1} aria-valuemax={100}><i style={{ width: `${coachOverallInt(game)}%` }} /></div>
+        <small>{ovrText(coachOverallInt(game))} Sobe com vitórias, sequências, entrevistas respondidas e objetivos cumpridos; cai com derrotas seguidas, risco de rebaixamento e metas não cumpridas.</small>
+        {!game.unemployed && (() => { const r = salaryRange(game, game.userClubId), q = clubQuality(game, game.userClubId); return <small style={{ display: 'block', marginTop: 8 }}>Salário: <b>{formatBudget(coachMonthly(game))}/mês</b> · {TIER_LABEL[r.tier]} (de {formatBudget(r.min)} a {formatBudget(r.max)}) · elenco {Math.round(q.ovr)} · reputação {q.rep}</small>; })()}
       </section>
 
       <section className="card cp-level">

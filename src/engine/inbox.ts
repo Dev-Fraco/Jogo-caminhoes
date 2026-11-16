@@ -1,4 +1,6 @@
 import { creditAccount, openBoletos, createBoleto, hasBank } from './bank';
+import { bumpOverall, clubQuality, coachMonthly, coachOverallInt, PAY_CONFIG, TIER_LABEL } from './coachpay';
+import { declineRenewal } from './jobs';
 import { inflate } from './economy';
 import { notifyPhone } from './phone';
 import { makeRng, type Rng } from './rng';
@@ -11,7 +13,7 @@ import type { GameState } from './types';
    quem não responde perde a oportunidade ou leva um desgaste. Metas semanais pagam em dinheiro.
    ===================================================================== */
 
-export type MsgKind = 'sponsor' | 'clubspons' | 'press' | 'board' | 'fans';
+export type MsgKind = 'sponsor' | 'clubspons' | 'press' | 'board' | 'fans' | 'contract' | 'tier';
 export interface MsgOption { id: string; label: string; hint: string }
 export interface InboxMsg {
   id: string; kind: MsgKind; from: string; title: string; body: string;
@@ -111,9 +113,39 @@ function newMessage(g: GameState, inbox: InboxState, rng: Rng): { inbox: InboxSt
     }
     case 'board':
       return mk(g, inbox, { kind, from: 'Diretoria', title: 'A diretoria quer ouvir você', body: 'O presidente pergunta o que você precisa para o resto da temporada.', lifetime: 4, options: [{ id: 'cash', label: 'Pedir verba para reforços', hint: 'Só funciona se a diretoria confia em você' }, { id: 'time', label: 'Pedir paciência', hint: 'A diretoria fica um pouco mais tranquila' }, { id: 'fine', label: 'Dizer que está tudo bem', hint: 'Sem efeito' }] });
+    case 'tier': return null;
+    case 'contract': return null; // só é criada no início da temporada (postContractOffer)
     case 'fans':
       return mk(g, inbox, { kind, from: 'Torcida organizada', title: 'A torcida convida você', body: 'A organizada abriu o treino e quer ouvir o treinador. Responda pelo celular se vai aparecer.', lifetime: 3, options: [{ id: 'go', label: 'Ir ao treino aberto', hint: 'Torcida e elenco ganham ânimo' }, { id: 'video', label: 'Mandar um vídeo', hint: 'Agrada um pouco a torcida' }, { id: 'ignore', label: 'Não ir', hint: 'A torcida se chateia' }] });
   }
+}
+
+/**
+ * Proposta de contrato do início da temporada (uma única vez por temporada: o estado fica salvo em `coachOffer`).
+ * O salário oferecido é o vigente, calculado pela qualidade do clube e pelo overall do treinador, dentro da faixa da divisão.
+ */
+export function postContractOffer(g: GameState): GameState {
+  if (g.unemployed || g.observer) return g;
+  if (g.coachOffer && g.coachOffer.season === g.season && g.coachOffer.clubId === g.userClubId) return g; // já houve proposta nesta temporada
+  const q = clubQuality(g, g.userClubId);
+  const club = g.clubs[g.userClubId];
+  const salary = coachMonthly(g);
+  const inbox = inboxOf(g);
+  const { inbox: ib, msg } = mk(g, inbox, {
+    kind: 'contract', from: `Diretoria · ${club.name}`, title: 'PROPOSTA DE RENOVAÇÃO DE CONTRATO',
+    body: `Clube: ${club.name}\nCompetição: ${TIER_LABEL[q.tier]}\nOverall do elenco: ${Math.round(q.ovr)}\nReputação: ${q.rep}\nOverall do treinador: ${coachOverallInt(g)}\n\nSalário oferecido: ${brl(salary)} por mês.\n\nA diretoria deseja renovar seu contrato para a temporada ${g.season}. Se recusar, você deixa o clube e passa a ouvir propostas de outros.`,
+    lifetime: 150, amount: salary,
+    options: [{ id: 'accept', label: 'Aceitar proposta', hint: 'Fica no clube' }, { id: 'refuse', label: 'Recusar proposta', hint: 'Deixa o clube e procura outras oportunidades' }],
+  });
+  const s: GameState = { ...put(g, ib), coachOffer: { season: g.season, clubId: g.userClubId, status: 'pendente', salary, msgId: msg.id } };
+  return notifyPhone(s, 'mensagens', `${club.name} enviou a proposta de renovação do seu contrato.`);
+}
+
+/** Aviso de promoção ou rebaixamento (faixa salarial nova). Informativo: um toque em "Entendi". */
+export function postTierMessage(g: GameState, title: string, body: string): GameState {
+  const { inbox, msg } = mk(g, inboxOf(g), { kind: 'tier', from: `Diretoria · ${g.clubs[g.userClubId].name}`, title, body, lifetime: 150, options: [{ id: 'ok', label: 'Entendi', hint: 'Fechar o aviso' }] });
+  void msg;
+  return notifyPhone(put(g, inbox), 'mensagens', `${title}: veja o novo limite salarial.`);
 }
 
 /** Responde uma mensagem aberta. */
@@ -142,6 +174,7 @@ export function answerMessage(g: GameState, msgId: string, optionId: string): Ga
         praise: { team: 3, fans: 1 }, humble: { board: 2, team: -1 }, taunt: { fans: 3, board: -2 },
       };
       s = bump(s, eff[optionId] ?? {});
+      s = bumpOverall(s, PAY_CONFIG.evolve.interview); // só a entrevista respondida rende evolução (a ignorada não)
       rec('A imprensa registrou a sua resposta.');
       break;
     }
@@ -150,6 +183,18 @@ export function answerMessage(g: GameState, msgId: string, optionId: string): Ga
         if (g.morale.board >= 55) { const v = Math.round(inflate(g, 1_500_000 * (0.5 + 0.3 * rep(g))) / 10_000) * 10_000; s = { ...s, budgets: { ...s.budgets, [s.userClubId]: s.budgets[s.userClubId] + v } }; rec(`A diretoria liberou ${brl(v)} para reforços.`); }
         else { s = bump(s, { board: -3 }); rec('A diretoria negou: não confia em você o bastante.'); }
       } else if (optionId === 'time') { s = bump(s, { board: 1 }); rec('A diretoria vai esperar.'); } else rec('Sem efeito.');
+      break;
+    case 'tier': rec('Aviso lido.'); break;
+    case 'contract':
+      if (optionId === 'accept') {
+        s = { ...s, coachOffer: s.coachOffer ? { ...s.coachOffer, status: 'aceita' } : s.coachOffer };
+        s = bump(s, { board: 2 });
+        rec(`Contrato renovado para a temporada ${g.season}: ${brl(msg.amount!)} por mês (o valor acompanha a situação do clube, dentro do limite da divisão).`);
+      } else {
+        s = { ...s, coachOffer: s.coachOffer ? { ...s.coachOffer, status: 'recusada' } : s.coachOffer };
+        s = declineRenewal(s);
+        rec('Você recusou a renovação e deixou o clube. Agora ouça as propostas de outros clubes.');
+      }
       break;
     case 'fans':
       if (optionId === 'go') { s = bump(s, { fans: 4, team: 1 }); rec('A torcida adorou ver você no treino.'); }
@@ -173,6 +218,8 @@ function expire(g: GameState): GameState {
       case 'fans': s = bump(s, { fans: -3 }); result = 'Você ignorou a torcida: ela se chateou.'; break;
       case 'press': s = bump(s, { fans: -1, board: -1 }); result = 'Você não deu entrevista e a imprensa inventou a versão dela.'; break;
       case 'board': s = bump(s, { board: -2 }); result = 'A diretoria ficou sem resposta e achou desinteresse.'; break;
+      case 'tier': result = 'Aviso encerrado.'; break;
+      case 'contract': result = 'A proposta ficou sem resposta: você segue no clube com o salário vigente.'; s = { ...s, coachOffer: s.coachOffer && s.coachOffer.status === 'pendente' ? { ...s.coachOffer, status: 'expirada' } : s.coachOffer }; break;
       case 'sponsor': case 'clubspons': result = 'A proposta expirou: o patrocinador fechou com outra pessoa.'; break;
     }
     s = notifyPhone(s, 'mensagens', `Você deixou passar: ${m.title}.`);

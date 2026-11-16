@@ -235,7 +235,7 @@ export interface MundialState {
 /** Clube de outro país que quer contratar o treinador (aceitar leva a carreira para a liga dele). */
 export interface ForeignOffer { countryId: string; leagueId: string; countryName: string; leagueName: string; divisionName: string; club: ClubInfo }
 export interface JobOffer { clubId: string; season: number; round: number; /** vale até esta rodada da mesma temporada (ou da seguinte) */ expires: number; foreign?: ForeignOffer }
-export interface JobSpell { clubId: string; fromSeason: number; toSeason?: number; ended?: 'demitido' | 'pediu demissão' | 'contratado por outro clube' }
+export interface JobSpell { clubId: string; fromSeason: number; toSeason?: number; ended?: 'demitido' | 'pediu demissão' | 'contratado por outro clube' | 'não renovou' }
 export interface RetiredPlayer { name: string; age: number; pos: Position; strength: number; clubId: string; season: number }
 
 /** Treinador controlado pela IA: perfil, clube atual (ou null se desempregado) e passagens. */
@@ -492,6 +492,20 @@ export interface GameState {
   jobs?: JobSpell[];
   /** Pontos de reputação ganhos na carreira (títulos, acessos) ou perdidos (demissões). */
   coachPoints?: number;
+  /** Overall do treinador (1 a 100): capacidade e reconhecimento profissional. */
+  coachOverall?: number;
+  /** Sequência atual de resultados do seu time (positivo = vitórias seguidas, negativo = derrotas seguidas). */
+  coachStreak?: number;
+  /** Proposta de contrato do início da temporada (uma por temporada). */
+  coachOffer?: { season: number; clubId: string; status: 'pendente' | 'aceita' | 'recusada' | 'expirada'; salary: number; msgId?: string };
+  /** Faixa salarial vigente: serve para avisar promoção/rebaixamento uma vez só. */
+  payTier?: { clubId: string; tier: string; season: number };
+  /** Último dia em que o salário foi pago (impede pagamento duplicado). */
+  salaryPaidDay?: number;
+  /** Último pagamento (para o extrato do banco registrar uma única vez, sem creditar de novo). */
+  salaryPaid?: { day: number; amount: number; clubId: string; recorded?: boolean };
+  /** Pressão de reputação por clube: temporadas seguidas com elenco no nível do porte acima. */
+  repPressure?: Record<string, number>;
   /** Quantas rodadas seguidas a diretoria esteve no limite. */
   boardLow?: number;
   /** Última rodada em que o treinador se candidatou a uma vaga. */

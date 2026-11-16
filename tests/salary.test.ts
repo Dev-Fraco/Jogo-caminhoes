@@ -62,7 +62,7 @@ describe('negociar o salário no fim da temporada', () => {
     expect(negotiateRaise(g, 33)).toMatchObject({ ok: false }); // valor que não está nas opções
   });
   it('rebaixado: o corte pode vir (55%) e dá para tentar manter (50%)', () => {
-    const g = endWith('csa', 20, 'bad');
+    const g = endWith('palmeiras', 20, 'bad');
     expect(standingOf(g)).toBe('bad');
     expect(negotiateRaise(g, 5)).toMatchObject({ ok: false });
     let cuts = 0, kept = 0;

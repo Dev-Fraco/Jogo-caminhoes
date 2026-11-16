@@ -1,8 +1,9 @@
 import { useState } from 'react';
+import { monthlySalaryFor, coachOverallOf } from '../engine/coachpay';
 import { applicationOdds, applyForJob, coachLevel, declineOffer, offerClub } from '../engine/jobs';
 import { acceptAnyOffer } from '../engine/abroad';
 import type { GameState } from '../engine/types';
-import { EXPECTATION_LABEL } from '../newgame/format';
+import { EXPECTATION_LABEL, formatBudget } from '../newgame/format';
 import { ClubBadge } from './ClubBadge';
 import { calOf, daysToMatch, formatDayLong, formatDayShort, isMatchDay, nextMatchDay } from '../engine/calendar';
 
@@ -71,7 +72,7 @@ export function Unemployed({ game, over, onChange, onPlay, onAdvance, onAdvanceT
             return (
               <li key={o.clubId} className="un-offer">
                 <ClubBadge club={c} size={44} />
-                <div className="grow"><b>{c.name}</b><small>{o.foreign ? `🌍 ${o.foreign.countryName} · ${o.foreign.leagueName} · ${o.foreign.divisionName}` : divName(o.clubId)} · {stars(c.reputation)} · meta: {EXPECTATION_LABEL[c.boardExpectation]}</small></div>
+                <div className="grow"><b>{c.name}</b><small>{o.foreign ? `🌍 ${o.foreign.countryName} · ${o.foreign.leagueName} · ${o.foreign.divisionName}` : divName(o.clubId)} · {stars(c.reputation)} · meta: {EXPECTATION_LABEL[c.boardExpectation]}{!o.foreign && game.teams[o.clubId] ? ` · salário ≈ ${formatBudget(monthlySalaryFor(game, o.clubId, coachOverallOf(game)))}/mês` : ''}</small></div>
                 <div className="un-btns"><button className="btn main" onClick={() => accept(o.clubId)}>Aceitar</button><button className="btn" onClick={() => onChange(declineOffer(game, o.clubId))}>Recusar</button></div>
               </li>
             );

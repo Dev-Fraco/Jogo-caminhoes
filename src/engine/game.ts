@@ -3,6 +3,9 @@ import { offseason } from './ai';
 import { aiRenewals } from './aicontracts';
 import { freezeGoals } from './aigoals';
 import { ensureAiState, prunePlayerMaps } from './aistate';
+import { coachAfterMatch, coachRelegationRisk, coachSeasonEval, payTierNotice, reputationDrift, stampPayTier } from './coachcareer';
+import { startingOverall } from './coachpay';
+import { postContractOffer } from './inbox';
 import { settleLoanPurchases, trackLoanApps } from './loandeals';
 import { clauseGames, clauseSeasonEnd } from './dealpay';
 import { aiLineup, matchImportance, updateLoad } from './rotation';
@@ -103,13 +106,13 @@ export function newCareer(input: CareerInput, seed = Date.now() % 2147483647): G
   if (input.outside) divisions.push({ id: 'fora', name: 'Estadual', clubIds: [input.outside.id], format: 'outside' });
   const { fixtures, totalRounds } = buildSeason(divisions);
   const career: GameState = {
-    version: 5, leagueName: input.leagueName, slots, saveName: input.saveName, coach: input.coach, difficulty: input.difficulty, mode: input.mode,
+    coachOverall: startingOverall(input.difficulty), version: 5, leagueName: input.leagueName, slots, saveName: input.saveName, coach: input.coach, difficulty: input.difficulty, mode: input.mode,
     userClubId: input.userClubId, seed, season: input.season, round: 1, totalRounds,
     clubs, budgets, transfers: [], morale: { ...MORALE_START }, transferList: [], loanList: [], offers: [], loans: [], news: [], divisions, teams, fixtures, results: [], history: [],
   };
   // a carreira já nasce completa (contratos, treinadores, base, objetivos): carregar o save depois não muda nada
-  if (!input.cup) return ensureAiState(freezeGoals(createContinentals(career)));
-  return ensureAiState(freezeGoals(createContinentals({ ...career, cup: createCup(career), estadual: createEstaduais(input.outside ? { id: input.outside.id, uf: input.outside.uf ?? 'SP' } : undefined) })));
+  if (!input.cup) return stampPayTier(ensureAiState(freezeGoals(createContinentals(career))));
+  return stampPayTier(ensureAiState(freezeGoals(createContinentals({ ...career, cup: createCup(career), estadual: createEstaduais(input.outside ? { id: input.outside.id, uf: input.outside.uf ?? 'SP' } : undefined) }))));
 }
 
 export const isSeasonOver = (g: GameState) => g.round > g.totalRounds && !g.mundial?.due;
@@ -174,6 +177,12 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
       gf: home ? my.homeGoals : my.awayGoals, ga: home ? my.awayGoals : my.homeGoals, home,
       position: table.findIndex((r) => r.clubId === g.userClubId) + 1, size: grp ? 20 : table.length, round: g.round, expectation: g.clubs[g.userClubId].boardExpectation,
     }) };
+  }
+  if (my && !g.unemployed) {
+    const home = my.homeId === g.userClubId;
+    state = coachAfterMatch(state, home ? my.homeGoals : my.awayGoals, home ? my.awayGoals : my.homeGoals); // overall do treinador: resultado e sequência
+    const tb = isGroups(userDivision(state)) ? undefined : divisionTable(state, userDivision(state).id);
+    if (tb) state = coachRelegationRisk(state, tb.findIndex((r) => r.clubId === g.userClubId) + 1, tb.length, slotsOf(g));
   }
   if (my && !g.unemployed) state = socialAfterMatch(state, my.homeId === g.userClubId ? my.homeGoals : my.awayGoals, my.homeId === g.userClubId ? my.awayGoals : my.homeGoals);
   const myHome = my && !g.unemployed && my.homeId === g.userClubId ? my : undefined;
@@ -375,7 +384,11 @@ function startNextSeasonCore(g: GameState, calNew: ReturnType<typeof newSeasonCa
   const relegatedU = out.movement === 'relegated', promotedU = out.movement === 'promoted';
   const reason = seasonEndFiring(g, out.userPosition, relegatedU);
   result = seasonPoints(result, out.userPosition, promotedU, relegatedU);
-  return ensureAiState(prunePlayerMaps(seasonEndOffers(reason ? fire(result, reason) : result, out.userPosition, promotedU))); // clubes que entraram na pirâmide e o clube que você deixou ficam completos
+  result = coachSeasonEval(result, out.userPosition, out.movement, (result.titles ?? []).filter((t) => t.season === g.season && t.clubId === g.userClubId).length); // overall do treinador: objetivos e títulos
+  result = reputationDrift(result);                                          // reputação dos clubes: sobe devagar, só no fim da temporada
+  const after = seasonEndOffers(reason ? fire(result, reason) : result, out.userPosition, promotedU);
+  const started = after.unemployed ? after : postContractOffer(payTierNotice(after)); // início da temporada: aviso de nova divisão e proposta de contrato (uma vez por temporada)
+  return ensureAiState(prunePlayerMaps(started)); // clubes que entraram na pirâmide e o clube que você deixou ficam completos
 }
 
 /** Aviso antes de virar a temporada: o treinador será demitido? (motivo ou null) */

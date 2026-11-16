@@ -1,12 +1,13 @@
-import { calOf } from './calendar';
+import { calOf, fromDay } from './calendar';
 import { coachMoneyOf } from './finance';
 import { notifyPhone, phoneOf } from './phone';
 import type { BankState, BankTx, Boleto, GameState, PayPurpose, PixCharge } from './types';
 
+const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 export const MIN_PASSWORD = 6;
 export const PIX_PREFIX = 'vrpix:';
 const LATE_FINE = 0.05; // multa de 5% sobre boleto vencido
-const MAX_TXS = 80;
+const MAX_TXS = 150;
 
 export const bankOf = (g: Pick<GameState, 'bank'>): BankState | undefined => g.bank;
 /** A conta só existe depois do cadastro (cobranças e boletos podem chegar antes). */
@@ -100,6 +101,21 @@ export function creditAccount(g: GameState, title: string, detail: string, amoun
   const b = g.bank ?? { name: g.coach.name, passHash: '', txs: [], charges: [], boletos: [], seq: 1 };
   const { bank } = addTx(b, g, 'income', title, detail, amount);
   return { ...g, coachMoney: balanceOf(g) + amount, bank };
+}
+
+/**
+ * Extrato do salário de treinador: registra a movimentação SEM creditar de novo (o dinheiro já entrou no saldo pessoal no pagamento).
+ * Sem conta aberta, a movimentação fica guardada no histórico e aparece quando a conta for aberta (registerBank mantém `txs`).
+ */
+export function recordSalaryTx(g: GameState): GameState {
+  const p = g.salaryPaid;
+  if (!p || p.recorded) return g;
+  const b = g.bank ?? { name: g.coach.name, passHash: '', txs: [], charges: [], boletos: [], seq: 1 };
+  const { y, m } = fromDay(p.day);
+  const detail = `${g.clubs[p.clubId]?.name ?? 'Clube'} · ${MONTHS[m - 1]} de ${y}`;
+  const tx: BankTx = { id: `SAL${p.day}`, kind: 'income', title: 'Salário de treinador', detail, amount: p.amount, season: g.season, round: g.round, day: p.day };
+  if (b.txs.some((t) => t.id === tx.id)) return { ...g, salaryPaid: { ...p, recorded: true } };
+  return { ...g, bank: { ...b, seq: b.seq + 1, txs: [tx, ...b.txs].slice(0, MAX_TXS) }, salaryPaid: { ...p, recorded: true } };
 }
 
 /* ---------- Boletos ---------- */

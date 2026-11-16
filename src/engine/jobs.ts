@@ -2,6 +2,7 @@ import { coachLeaves, ensureAiCoaches } from './aicoaches';
 import { returnAiLoans } from './aiyouth';
 import { cancelClubDeals } from './deals';
 import { creditAccount } from './bank';
+import { stampPayTier } from './coachcareer';
 import { coachSalary } from './finance';
 import { MORALE_START } from './morale';
 import { notifyPhone } from './phone';
@@ -71,6 +72,16 @@ export function resign(g: GameState): GameState {
   const jobs = jobsOf(s);
   s = { ...s, jobs: jobs.map((j, i) => (i === jobs.length - 1 ? { ...j, ended: 'pediu demissão' as const } : j)), unemployed: true, firedInfo: { clubId: g.userClubId, season: g.season, round: g.round, reason: 'Você pediu demissão.', resigned: true }, jobOffers: [], boardLow: 0, wageCover: 0 };
   return news(ensureAiCoaches(s), `🧳 Você pediu demissão do ${former}.`, 'info');
+}
+
+/** Recusar a renovação do início da temporada: o treinador não fica no clube, vira desempregado e passa a receber propostas (dados e carreira preservados). */
+export function declineRenewal(g: GameState): GameState {
+  if (g.unemployed) return g;
+  const former = g.clubs[g.userClubId].name;
+  let s = cancelClubDeals(leaveClub(g), [g.userClubId]);
+  const jobs = jobsOf(s);
+  s = { ...s, jobs: jobs.map((j, i) => (i === jobs.length - 1 ? { ...j, ended: 'não renovou' as const } : j)), unemployed: true, firedInfo: { clubId: g.userClubId, season: g.season, round: g.round, reason: 'Você não renovou o contrato.', resigned: true }, jobOffers: [], boardLow: 0, wageCover: 0 };
+  return generateJobOffers(news(ensureAiCoaches(s), `🧳 Você não renovou o contrato com o ${former} e está livre para ouvir outros clubes.`, 'info'), makeRng(g.seed * 47 + g.season * 13 + g.round), 2);
 }
 
 /** Depois de cada rodada: acompanha a paciência da diretoria (3 rodadas no limite = demissão) e, sem clube, procura propostas. */
@@ -175,6 +186,8 @@ export function hire(g: GameState, clubId: string): GameState {
     jobs: [...jobsOf(s), { clubId, fromSeason: g.season }],
     social: s.social ? { ...s.social, lastMatch: undefined } : s.social,
   };
+  s = { ...s, coachStreak: 0, coachOffer: { season: s.season, clubId, status: 'aceita', salary: 0 } }; // o contrato de quem acaba de chegar já vale: sem nova proposta nesta temporada
+  s = stampPayTier(s);
   s = returnAiLoans(s, clubId); // empréstimos entre clubes da IA que envolviam o clube acabam
   s = ensureAiCoaches(coachLeaves(s, clubId)); // o treinador da IA que estava lá sai; o clube que você deixou já tem treinador novo
   return news(s, `✍️ Você é o novo treinador do ${s.clubs[clubId].name}!`, 'good');

@@ -4,6 +4,7 @@ import { freezeGoals } from './aigoals';
 import { ensureAiYouth } from './aiyouth';
 import { ensureMarketState, ensureYouthLoanState } from './aistate';
 import { computeTable } from './table';
+import { payTierOf, startingOverall } from './coachpay';
 import { makeRng } from './rng';
 import { SAVE_SCHEMA } from './schema';
 import { migrateSave, withSpotsAll } from './save';
@@ -21,7 +22,7 @@ import type { GameState, Player } from './types';
 export { SAVE_SCHEMA };
 export const SCHEMA_NOTE: Record<number, string> = {
   1: 'versão original', 2: 'IA dos clubes (contratos, treinadores, base, objetivos)', 3: 'mercado avançado (propostas, janelas de transferência)',
-  4: 'potencial dos jovens, empréstimos e histórico de contratos', 5: 'estado atual do jogo',
+  4: 'potencial dos jovens, empréstimos e histórico de contratos', 5: 'IA sem congelar (idades, artilharia, treinadores com contrato)', 6: 'estado atual do jogo (overall do treinador e salário por divisão)',
 };
 
 /** Que geração de save é esta? Usa o registro (`schema`) quando existe; senão deduz pelos campos que cada geração introduziu. */
@@ -59,6 +60,7 @@ export const STEPS: MigrationStep[] = [
   { id: 'base-ia', label: 'categorias de base dos clubes', run: (g) => (g.aiYouth ? g : ensureAiYouth(g, rngFor(g, 3))) },
   { id: 'objetivos', label: 'objetivos de cada clube na temporada', run: (g) => freezeGoals(g) },
   { id: 'mercado', label: 'janelas de transferência e propostas (as propostas antigas viram negociações)', run: (g) => ensureMarketState(g) },
+  { id: 'treinador', label: 'overall do treinador e faixa salarial da divisão', run: (g) => (g.coachOverall !== undefined && (g.payTier || g.unemployed) ? g : { ...g, coachOverall: g.coachOverall ?? startingOverall(g.difficulty), payTier: g.payTier ?? (g.unemployed ? undefined : { clubId: g.userClubId, tier: payTierOf(g, g.userClubId), season: g.season }) }) },
   { id: 'jovens-emprestimos', label: 'potencial dos jovens, minutos jogados e empréstimos', run: (g) => ensureYouthLoanState(g) },
 ];
 

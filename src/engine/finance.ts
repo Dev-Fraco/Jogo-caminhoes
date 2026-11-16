@@ -1,8 +1,9 @@
-import { fromDay, toDay } from './calendar';
+import { calOf, fromDay, toDay } from './calendar';
 import { DIVISION_INCOME, GATE_SHARE, priceIndex, WAGE_SHARE } from './economy';
 import { managed } from './lookup';
 import { divisionIndexOf } from './transfers';
 import { COUNTRY_ORDER, WORLD_DATA } from '../data/world';
+import { coachMonthly } from './coachpay';
 import type { GameState, Morale, NewsItem, Player } from './types';
 
 /** Dinheiro pessoal do treinador no início da carreira, conforme a reputação (R$). */
@@ -67,7 +68,8 @@ export function coachMonthlyBase(g: GameState): number {
   return lo + ((hi - lo) * (rep - 1)) / 4;
 }
 /** Salário anual do treinador, pago pelo clube (mensal x 12, com inflação e aumentos negociados). */
-export const coachSalary = (g: GameState) => Math.round(((g.payMult ?? 1) * coachMonthlyBase(g) * 12 * priceIndex(g)) / 1_000) * 1_000;
+/** Salário anual do treinador = salário mensal vigente × 12 (a fórmula e a faixa por divisão ficam em coachpay.ts; o teto é absoluto, sem inflação). */
+export const coachSalary = (g: GameState) => coachMonthly(g) * 12;
 
 export const coachMoneyOf = (g: Pick<GameState, 'coachMoney' | 'coach'>) => g.coachMoney ?? COACH_WALLET[g.coach.reputation] ?? 100_000;
 export const wageCoverOf = (g: Pick<GameState, 'wageCover'>) => g.wageCover ?? 0;
@@ -90,13 +92,15 @@ export const monthly = (annual: number) => annual / 12;
 
 /** Salários de todo mês: cada clube paga a folha dos atletas e o seu clube paga também o seu salário (que cai na sua conta). Você pode cobrir parte da folha do bolso. */
 export function payMonthlySalaries(g: GameState): GameState {
+  const payDay = calOf(g).day;
+  if (g.salaryPaidDay === payDay) return g;                      // este dia de pagamento já foi processado (recarregar o jogo não paga de novo)
   const budgets = { ...g.budgets };
   const ledger = g.ledger && g.ledger.season === g.season ? { ...g.ledger } : emptyLedger(g.season);
   let wallet = coachMoneyOf(g);
   let cover = wageCoverOf(g);
   const news: NewsItem[] = [];
   const say = (text: string, tone: NewsItem['tone']) => news.push({ season: g.season, round: g.round, text, tone });
-  let mineWages = 0, mineSalary = 0;
+  let mineWages = 0, mineSalary = 0, mineClub = '';
   const active = new Set([g.userClubId, ...g.divisions.flatMap((d) => d.clubIds)]); // clubes fora da pirâmide não têm folha
   for (const id of Object.keys(g.teams)) {
     if (!active.has(id)) continue;
@@ -109,13 +113,13 @@ export function payMonthlySalaries(g: GameState): GameState {
       const salary = monthly(coachSalary(g));
       wallet += salary; budgets[id] -= salary; ledger.coachSalary += salary;
       ledger.wages += wages;
-      mineWages = wages; mineSalary = salary;
+      mineWages = wages; mineSalary = salary; mineClub = id;
     }
     budgets[id] -= wages;
     budgets[id] = Math.round(budgets[id]);
   }
   if (!g.unemployed && mineWages > 0) say(`💸 Dia de pagamento: o clube pagou ${Math.round(mineWages / 1000).toLocaleString('pt-BR')} mil aos atletas e você recebeu ${Math.round(mineSalary / 1000).toLocaleString('pt-BR')} mil de salário.`, 'info');
-  return { ...g, budgets, ledger, coachMoney: Math.round(wallet), wageCover: cover, news: [...news, ...g.news].slice(0, 80) };
+  return { ...g, budgets, ledger, coachMoney: Math.round(wallet), wageCover: cover, salaryPaidDay: payDay, ...(mineSalary > 0 ? { salaryPaid: { day: payDay, amount: Math.round(mineSalary), clubId: mineClub } } : {}), news: [...news, ...g.news].slice(0, 80) };
 }
 
 /** Depois de cada rodada do campeonato: bilheteria de quem jogou em casa e o aviso de caixa no vermelho (os salários agora saem uma vez por mês). */

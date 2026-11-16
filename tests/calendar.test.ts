@@ -71,9 +71,9 @@ describe('calendário', () => {
     expect(calOf(n).slot).toBe(0);
     expect(calOf(n).day).toBeGreaterThan(calOf(g).day);
   });
-  it('salário do treinador: Série A de 100 mil a 450 mil por mês', () => {
+  it('salário do treinador: Série A de 20 mil a 800 mil por mês', () => {
     const g = mk();
-    expect(coachSalary(g) / 12).toBeGreaterThanOrEqual(99_000);
-    expect(coachSalary(g) / 12).toBeLessThanOrEqual(451_000);
+    expect(coachSalary(g) / 12).toBeGreaterThanOrEqual(20_000);
+    expect(coachSalary(g) / 12).toBeLessThanOrEqual(800_000);
   });
 });

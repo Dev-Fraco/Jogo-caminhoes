@@ -4,7 +4,7 @@ import { smsOf } from '../engine/accounts';
 import type { GameState } from '../engine/types';
 
 const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
-const ICON: Record<string, string> = { sponsor: '🤝', clubspons: '🏟️', press: '🎙️', board: '👔', fans: '📣' };
+const ICON: Record<string, string> = { sponsor: '🤝', clubspons: '🏟️', press: '🎙️', board: '👔', fans: '📣', contract: '📝', tier: '📊' };
 
 function GoalRow({ game, goal, onClaim }: { game: GameState; goal: Goal; onClaim: () => void }) {
   const done = goalDone(game, goal);
@@ -46,8 +46,8 @@ export function MessagesApp({ game, onChange }: { game: GameState; onChange: (g:
               const left = m.expires - absRound(game);
               return (
                 <li key={m.id} className="ms-msg">
-                  <div className="ms-head"><span aria-hidden="true">{ICON[m.kind]}</span><span className="grow"><b>{m.title}</b><small>{m.from}</small></span><em className={left <= 1 ? 'hot' : ''}>{left <= 0 ? 'Último jogo' : `${left + 1} ${left + 1 === 1 ? 'jogo' : 'jogos'}`}</em></div>
-                  <p>{m.body}</p>
+                  <div className="ms-head"><span aria-hidden="true">{ICON[m.kind]}</span><span className="grow"><b>{m.title}</b><small>{m.from}</small></span><em className={left <= 1 && m.kind !== 'contract' ? 'hot' : ''}>{m.kind === 'contract' ? 'Nesta temporada' : left <= 0 ? 'Último jogo' : `${left + 1} ${left + 1 === 1 ? 'jogo' : 'jogos'}`}</em></div>
+                  <p style={{ whiteSpace: 'pre-line' }}>{m.body}</p>
                   <div className="ms-opts">
                     {m.options.map((o) => <button key={o.id} className="btn" onClick={() => onChange(answerMessage(game, m.id, o.id))}><b>{o.label}</b><small>{o.hint}</small></button>)}
                   </div>

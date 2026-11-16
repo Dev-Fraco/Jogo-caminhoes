@@ -1,5 +1,5 @@
 import { monthlyContracts } from './assets';
-import { autoDebitOn, brl, debitNow } from './bank';
+import { autoDebitOn, brl, debitNow, recordSalaryTx } from './bank';
 import { isPayday, payMonthlySalaries } from './finance';
 import { advanceDay, calOf, ensureCalendar, isMatchDay } from './calendar';
 import './dataplan';
@@ -49,7 +49,7 @@ function dayTick(g: GameState): GameState {
     }
   }
 
-  if (isPayday(today)) s = payMonthlySalaries(s); // salários dos atletas e do treinador, uma vez por mês
+  if (isPayday(today)) s = recordSalaryTx(payMonthlySalaries(s)); // salários dos atletas e do treinador, uma vez por mês (o do treinador entra no extrato do banco sem creditar de novo)
   s = chipDay(s);
   s = windowTick(s);
   s = endLoans(s);               // empréstimos que chegaram à data de encerramento: compra pendente ou devolução

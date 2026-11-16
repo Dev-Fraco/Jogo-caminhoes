@@ -130,7 +130,7 @@ function TxList({ txs }: { txs: BankTx[] }) {
       {txs.map((t) => (
         <li key={t.id} className="bk2-row">
           <span className={`bk2-tile ${t.amount >= 0 || t.kind === 'pix' ? 'green' : 'blue'}`}>{t.kind === 'boleto' ? '🧾' : t.kind === 'income' ? '💵' : '💠'}</span>
-          <div className="grow"><b>{t.title}</b><small>{t.detail}</small><small>{t.day !== undefined ? formatDay(t.day) : `Temp. ${t.season}, rodada ${t.round}`}</small></div>
+          <div className="grow"><b>{t.title}</b><small>{t.detail}</small><small>{t.day !== undefined ? `Data: ${formatDay(t.day)}` : `Temp. ${t.season}, rodada ${t.round}`} · {t.amount < 0 ? 'Saída' : 'Entrada'}</small></div>
           <b className={t.amount < 0 ? 'out' : 'in'}>{t.amount < 0 ? '−' : '+'} {brl(Math.abs(t.amount))}</b>
         </li>
       ))}
