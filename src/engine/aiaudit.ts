@@ -37,8 +37,10 @@ export function auditUniverse(g: GameState): string[] {
     if (lists !== 1) problems.push(`empréstimo fora das listas de devolução (ou em duas): ${l.playerId}`);
   }
   // contratos válidos
+  const onLoan = new Set((g.loanDeals ?? []).filter((l) => !l.closed).map((l) => l.playerId));
   for (const [cid, t] of Object.entries(g.teams)) for (const p of t.players) {
-    if (p.contract && (!(p.contract.wage > 0) || !Number.isFinite(p.contract.until))) problems.push(`contrato inválido: ${p.id} em ${cid}`);
+    // salário nunca é negativo; só o emprestido pode ter salário zero no clube que o recebe (o clube de origem paga tudo)
+    if (p.contract && (!(p.contract.wage > 0 || (p.contract.wage === 0 && onLoan.has(p.id))) || !Number.isFinite(p.contract.until))) problems.push(`contrato inválido: ${p.id} em ${cid}`);
     if (p.contract && p.contract.until < g.season - 1) problems.push(`contrato vencido há tempo: ${p.id} em ${cid}`);
   }
   for (const p of g.freeAgents ?? []) if (p.contract) problems.push(`jogador livre com contrato: ${p.id}`);

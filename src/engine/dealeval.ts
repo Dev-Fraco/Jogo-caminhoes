@@ -168,7 +168,7 @@ export function playerDecision(g: GameState, d: Deal, ctx: ProfileCtx = profileC
   const p = l.player;
   const from = l.clubId, to = d.buyerId;
   const curWage = p.contract?.wage ?? (from ? baseWage(g, from, p) : baseWage(g, to, p) * 0.8);
-  const offered = d.terms.wage ?? newContract(g, to, p, 1).wage;
+  const offered = d.kind === 'emprestimo' ? curWage : d.terms.wage ?? newContract(g, to, p, 1).wage; // no empréstimo o contrato dele continua o mesmo
   const fair = baseWage(g, to, { ...p, contract: undefined });
   // salário em relação ao que ele ganha (ou ao justo, se for livre/sem contrato) — pesa mais para veteranos
   const ref = Math.max(curWage, fair * 0.9);
@@ -182,24 +182,26 @@ export function playerDecision(g: GameState, d: Deal, ctx: ProfileCtx = profileC
   const startsNew = posPeers.slice(0, slots).every((q) => q.strength <= p.strength + 2) || p.strength >= (posPeers[slots - 1]?.strength ?? 0);
   const curRole = from ? roleOf(g, from, p, ctx).role : 'reserva';
   const playW = p.age <= 23 ? 1.6 : p.age >= 31 ? 0.6 : 1;
-  score += (startsNew ? 1.6 : -1.4) * playW;
+  const loan = d.kind === 'emprestimo';
+  score += (startsNew ? 1.6 : -1.4) * playW * (loan ? 1.4 : 1); // no empréstimo o que pesa é jogar
   if (curRole === 'craque' || curRole === 'titular') score -= startsNew ? 0 : 2.2; // titular não vira reserva por dinheiro
   if (curRole === 'excedente') score += 1.2;
   // prestígio e divisão
   const repTo = g.clubs[to]?.reputation ?? 2, repFrom = from ? g.clubs[from]?.reputation ?? 2 : 2;
   const prestW = p.age >= 31 ? 0.5 : 1;
-  score += clamp((repTo - repFrom) * 1.1, -3, 3) * prestW;
+  const loanW = loan ? 0.4 : 1;                                  // é temporário: prestígio e divisão pesam bem menos
+  score += clamp((repTo - repFrom) * 1.1, -3, 3) * prestW * loanW;
   const dTo = divisionIndexOf(g, to), dFrom = from ? divisionIndexOf(g, from) : dTo;
-  score += clamp((dFrom - dTo) * 1.0, -2, 2);
+  score += clamp((dFrom - dTo) * 1.0, -2, 2) * loanW;
   if (p.strength >= lvlTo + 6 && repTo <= 2) score -= 1; // craque não se encaixa num clube pequeno
   // insatisfação (quer sair) e lealdade
   const mood = g.mood?.[p.id];
   if (mood?.want === 'sair') score += 0.8 + mood.level;
   const loyal = from ? trait(p.id, 'lealdade') : 0;
   score -= loyal * 1.6;
-  if (d.kind === 'emprestimo') score += 0.8; // empréstimo é um compromisso menor
+  if (loan) score += 0.8; // empréstimo é um compromisso menor
   if (!from) score += 0.6; // sem clube, qualquer clube é uma oportunidade
-  if (score >= 0.4) return { action: 'aceitar', score, note: `${p.name} aceitou a proposta do ${g.clubs[to].name}.` };
+  if (score >= 0.4 || (loan && score >= -1.2)) return { action: 'aceitar', score, note: `${p.name} aceitou a proposta do ${g.clubs[to].name}.` };
   if (score >= -1.6) {
     const want = Math.round(Math.max(offered * 1.15, ref * 1.1) / 1_000) * 1_000;
     return { action: 'pedir-mais', wage: want, score, note: `${p.name} pede salário maior para aceitar: ${fmt(want)} por ano.` };

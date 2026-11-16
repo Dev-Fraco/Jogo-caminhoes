@@ -268,7 +268,7 @@ export function aiLoanOut(g: GameState, rng: Rng, due: string[]): GameState {
       if (host.players.length >= AI_MAX_SQUAD) continue;
       const hp = clubProfile(s, hostId, ctx);
       const needs = squadNeeds(s, hostId, hp, { divisionLevel: ctx.divAvg.get(divisionIndexOf(s, hostId)) });
-      const need = needs.find((n) => n.pos === p.pos && (!n.spot || n.spot === spotOf(p)));
+      const need = needs.find((n) => n.pos === p.pos && (!n.spot || n.spot === spotOf(p) || n.reasons.includes('falta-gente')));
       if (!need) continue;
       const hxi = new Set(autoLineup(host.players, host.formation));
       const weak = Math.min(...host.players.filter((q) => q.pos === p.pos && hxi.has(q.id)).map((q) => q.strength));
