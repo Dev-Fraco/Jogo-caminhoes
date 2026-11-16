@@ -384,6 +384,8 @@ export interface TransferBan { clubId: string; since: number; until: number }
 
 export interface GameState {
   version: 5;
+  /** Geração do conteúdo do save (que sistemas ele já conhece). Ausente = save anterior a esse registro: é deduzido dos campos presentes. */
+  schema?: number;
   /** Liga da carreira (nome exibido) e quantos clubes sobem/descem por fronteira. Ausentes em saves antigos (Brasileirão, 4). */
   leagueName?: string;
   slots?: number;

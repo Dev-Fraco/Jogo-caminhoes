@@ -3,7 +3,8 @@ import { installPack, preparePack, removePack, type Prepared } from '../data/pac
 import { packTemplate } from '../data/playerpack';
 import { applyMods, loadMods, modTemplate, parseMod, saveMods, type Mod } from '../data/mods';
 import { clearHall, loadHall, type HallEntry } from '../engine/hall';
-import { isValidSave, readRawSave } from '../engine/save';
+import { isValidSave, listAutoCopies, listOriginals, readRawSave, restoreAutoCopy, restoreOriginal } from '../engine/save';
+import { SCHEMA_NOTE } from '../engine/migrate';
 import type { GameState } from '../engine/types';
 import { createBackup, deleteBackup, listBackups, restoreBackup, MAX_BACKUPS, type Backup } from '../settings/backups';
 import { APP_VERSION, COMMUNITY_LINK } from '../version';
@@ -65,6 +66,26 @@ export function LoadGame({ onBack, onLoaded }: { onBack: () => void; onLoaded: (
         {msg && <p className={`tf-notice ${msg.err ? 'err' : ''}`} role="status" style={{ marginTop: 10 }}>{msg.text}</p>}
         <p className="hint">Carregar um backup substitui o jogo salvo atual.</p>
       </section>
+      {(listAutoCopies().length > 0 || listOriginals().length > 0) && (
+        <section>
+          <h3>Cópias de segurança automáticas</h3>
+          <p className="hint">O jogo guarda cópias sozinho. Use se o save atual estiver com problema. Restaurar substitui o jogo salvo atual.</p>
+          <ul className="un-list">
+            {listAutoCopies().map((c) => (
+              <li key={c.kind}>
+                <div className="grow"><b>{c.label}</b><small>Temporada {c.season} · Rodada {Math.min(c.round, 99)} · {when(c.savedAt)}</small></div>
+                <div className="un-btns"><button className="btn main" onClick={() => { if (restoreAutoCopy(c.kind)) onLoaded(); else setMsg({ text: 'Não foi possível restaurar esta cópia.', err: true }); }}>Restaurar</button></div>
+              </li>
+            ))}
+            {listOriginals().map((o) => (
+              <li key={`o${o.schema}`}>
+                <div className="grow"><b>Save original antes da atualização</b><small>Versão "{SCHEMA_NOTE[o.schema] ?? o.schema}" · Temporada {o.season} · Rodada {Math.min(o.round, 99)} · {when(o.savedAt)}</small></div>
+                <div className="un-btns"><button className="btn main" onClick={() => { if (restoreOriginal(o.schema)) onLoaded(); else setMsg({ text: 'Não foi possível restaurar o save original.', err: true }); }}>Restaurar</button></div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </Screen>
   );
 }

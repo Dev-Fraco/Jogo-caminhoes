@@ -8,6 +8,7 @@ import { ensurePotentials } from './potential';
 import { calOf } from './calendar';
 import { windowInfo } from './windows';
 import { makeRng } from './rng';
+import { SAVE_SCHEMA } from './schema';
 import type { Deal, GameState, Player } from './types';
 
 /**
@@ -24,7 +25,7 @@ export function ensureAiState(g: GameState): GameState {
   s = freezeGoals(s);
   s = ensureMarketState(s);
   s = ensureYouthLoanState(s);
-  return s;
+  return s.schema === SAVE_SCHEMA ? s : { ...s, schema: SAVE_SCHEMA };
 }
 
 /**

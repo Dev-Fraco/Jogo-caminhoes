@@ -1,4 +1,4 @@
-import { ensureAiState } from './aistate';
+import { migrateGame, migrationNotice, SAVE_SCHEMA, type MigrationReport } from './migrate';
 import { CLUBS_DATA } from '../data/clubs';
 import { compress, decompress } from './lzstore';
 import { withSpots } from './squad';
@@ -16,6 +16,7 @@ import type { GameState } from './types';
 
 const KEY = 'caminhoes-save-v1'; // mesma chave de antes; o campo `version` do conteúdo diz o formato
 export const SAVE_VERSION = 5;
+export const originalKey = (schema: number) => `${KEY}:original-s${schema}`;
 export const SAVE_KEYS = { meta: `${KEY}:meta`, bak1: `${KEY}:bak1`, bak2: `${KEY}:bak2`, fim: `${KEY}:fim`, corrupt: `${KEY}:corrupto` } as const;
 /** Intervalos mínimos entre cópias de segurança (ms): a cópia recente é renovada a cada 2 min; a antiga, a cada 20 min. */
 export const BACKUP_EVERY_MS = 2 * 60_000;
@@ -32,7 +33,7 @@ export interface SaveMeta { seq: number; savedAt: number; season: number; round:
 export type SaveFailure = 'serializar' | 'espaco' | 'conferencia' | 'armazenamento';
 export type SaveOutcome = { ok: true; bytes: number; skipped?: boolean; backedUp?: boolean } | { ok: false; reason: SaveFailure; message: string };
 export type LoadSource = 'principal' | 'copia-recente' | 'copia-antiga' | 'fim-de-temporada';
-export interface LoadReport { game: GameState | null; source?: LoadSource; notice?: string; damaged?: boolean }
+export interface LoadReport { game: GameState | null; source?: LoadSource; notice?: string; damaged?: boolean; migration?: MigrationReport }
 
 const MSG: Record<SaveFailure, string> = {
   serializar: 'Não foi possível preparar o jogo para salvar.',
@@ -158,6 +159,52 @@ export function withSpotsAll(g: GameState): GameState {
   return { ...g, teams: fix(g.teams), ...(g.foreign ? { foreign: { ...g.foreign, teams: fix(g.foreign.teams) } } : {}) };
 }
 
+/** Guarda o save original (antes de migrar) numa cópia comprimida: uma por geração de origem, nunca sobrescrita. */
+function preserveOriginal(raw: string, g: GameState, fromSchema: number): boolean {
+  if (get(originalKey(fromSchema))) return true;
+  const rec = pack(raw, { savedAt: Date.now(), season: g.season, round: g.round });
+  for (let level = 0; ; level++) { if (set(originalKey(fromSchema), rec)) return true; if (!freeSpace(level)) return false; }
+}
+
+/** Abre o save: migra para a geração atual (guardando antes o original) e devolve o jogo com o relatório. */
+function prepareGame(raw: string): { game: GameState; migration: MigrationReport; notice: string | null } {
+  const g = JSON.parse(raw) as GameState;
+  const { game, report } = migrateGame(g);
+  let notice = migrationNotice(report);
+  if (report.migrated || report.rejected || report.failed.length) {
+    const kept = preserveOriginal(raw, g, report.fromSchema);
+    if (!kept && notice) notice += ' Atenção: não houve espaço para guardar a cópia do save original.';
+  }
+  return { game, migration: report, notice };
+}
+
+/** Lista os saves originais guardados antes de migrações (para restaurar se o jogador quiser). */
+export function listOriginals(): { schema: number; savedAt: number; season: number; round: number }[] {
+  const out: { schema: number; savedAt: number; season: number; round: number }[] = [];
+  for (let s = 0; s <= SAVE_SCHEMA; s++) { const u = unpack(get(originalKey(s))); if (u) out.push({ schema: s, savedAt: u.savedAt, season: u.season, round: u.round }); }
+  return out;
+}
+
+/** Volta ao save original guardado antes da migração (ele será migrado de novo ao abrir). */
+export function restoreOriginal(schema: number): boolean {
+  const u = unpack(get(originalKey(schema)));
+  if (!u || !verifyRaw(u.json, null).ok) return false;
+  try { return commitSave(u.json, { season: u.season, round: u.round }, { urgent: true }).ok; } catch { return false; }
+}
+
+export type AutoCopyKind = 'bak1' | 'bak2' | 'fim';
+const COPY_LABEL: Record<AutoCopyKind, string> = { bak1: 'Cópia automática recente', bak2: 'Cópia automática antiga', fim: 'Início da última temporada' };
+/** Cópias automáticas de segurança disponíveis (a mais recente, a antiga e o ponto de recuperação do fim da temporada). */
+export function listAutoCopies(): { kind: AutoCopyKind; label: string; savedAt: number; season: number; round: number }[] {
+  return (['bak1', 'bak2', 'fim'] as const).flatMap((kind) => { const u = unpack(get(SAVE_KEYS[kind])); return u ? [{ kind, label: COPY_LABEL[kind], savedAt: u.savedAt, season: u.season, round: u.round }] : []; });
+}
+/** Volta o jogo para uma cópia automática (o save atual vira cópia antes de ser substituído). */
+export function restoreAutoCopy(kind: AutoCopyKind): boolean {
+  const u = unpack(get(SAVE_KEYS[kind]));
+  if (!u || !verifyRaw(u.json, null).ok) return false;
+  return commitSave(u.json, { season: u.season, round: u.round }, { urgent: true }).ok;
+}
+
 /** Carrega a carreira: confere o save principal e, se estiver corrompido, recupera a cópia válida mais recente. O relatório diz de onde veio. */
 export function loadGameDetailed(): LoadReport {
   try {
@@ -165,8 +212,8 @@ export function loadGameDetailed(): LoadReport {
     const raw = get(KEY);
     const v = verifyRaw(raw, meta);
     if (v.ok) {
-      const g = JSON.parse(raw!);
-      return { game: ensureAiState(withSpotsAll(migrateSave(g))), source: 'principal' };
+      const p = prepareGame(raw!);
+      return { game: p.game, source: 'principal', migration: p.migration, ...(p.notice ? { notice: p.notice } : {}) };
     }
     const hadData = raw !== null && raw.length > 0;
     if (hadData) corruptPending = raw; // preservado para não ser perdido pelo próximo salvamento
@@ -175,12 +222,12 @@ export function loadGameDetailed(): LoadReport {
     ];
     const best = candidates.filter((c) => c.rec && verifyRaw(c.rec.json, null).ok).sort((a, b) => b.rec!.savedAt - a.rec!.savedAt)[0];
     if (best) {
-      const g = JSON.parse(best.rec!.json);
+      const pg = prepareGame(best.rec!.json);
       set(KEY, best.rec!.json); // o principal volta a ser um save válido
       set(SAVE_KEYS.meta, JSON.stringify({ seq: (meta?.seq ?? 0) + 1, savedAt: best.rec!.savedAt, season: best.rec!.season, round: best.rec!.round, len: best.rec!.json.length, sum: checksum(best.rec!.json), bakAt: meta?.bakAt, bak2At: meta?.bak2At } satisfies SaveMeta));
       lastSum = null;
       const label = best.src === 'fim-de-temporada' ? 'o ponto de recuperação do fim da temporada' : 'a cópia de segurança mais recente';
-      return { game: ensureAiState(withSpotsAll(migrateSave(g))), source: best.src, damaged: true, notice: `⚠️ O save mais recente estava danificado (${v.why}). Recuperamos ${label}: temporada ${best.rec!.season}, rodada ${Math.min(best.rec!.round, 99)}. Pode ser que as últimas partidas precisem ser jogadas de novo.` };
+      return { game: pg.game, source: best.src, damaged: true, migration: pg.migration, notice: `${pg.notice ? `${pg.notice} ` : ''}⚠️ O save mais recente estava danificado (${v.why}). Recuperamos ${label}: temporada ${best.rec!.season}, rodada ${Math.min(best.rec!.round, 99)}. Pode ser que as últimas partidas precisem ser jogadas de novo.` };
     }
     return { game: null, damaged: hadData, notice: hadData ? '⚠️ Não foi possível abrir o save: ele está danificado e não há cópia de segurança válida. O conteúdo foi preservado no aparelho e não será apagado.' : undefined };
   } catch { return { game: null }; }
@@ -197,7 +244,7 @@ export function takeLoadNotice(): string | null { const n = pendingNotice; pendi
 
 /** Apaga o save e todas as cópias (só quando o jogador decide apagar a carreira). */
 export function clearSave() {
-  for (const k of [KEY, ...Object.values(SAVE_KEYS)]) del(k);
+  for (const k of [KEY, ...Object.values(SAVE_KEYS), ...Array.from({ length: SAVE_SCHEMA + 1 }, (_, i) => originalKey(i))]) del(k);
   lastSum = null; corruptPending = null;
 }
 
