@@ -31,10 +31,10 @@ describe('ETAPA 7 — o universo da IA não congela (carreira em 5 temporadas)',
       const sc = Object.values(e.scorers ?? {});
       for (const d of e.divisions.filter((x) => x.format !== 'outside')) {
         const goals = e.results.filter((r) => r.divisionId === d.id).reduce((a, r) => a + r.homeGoals + r.awayGoals, 0);
-        const logged = sc.filter((s) => s.divisionId === d.id).reduce((a, s) => a + s.g, 0);
+        const logged = sc.filter((s) => s[2] === d.id).reduce((a, s) => a + s[3], 0);
         if (logged !== goals) problems.push(`T${e.season}: ${d.id}: artilharia soma ${logged} gols, partidas têm ${goals}`);
       }
-      if (!sc.some((s) => s.clubId !== e.userClubId && !e.teams[s.clubId] === false && s.g >= 3)) problems.push(`T${e.season}: sem artilheiros fora do seu clube`);
+      if (!sc.some((s) => s[1] !== e.userClubId && !!e.teams[s[1]] && s[3] >= 3)) problems.push(`T${e.season}: sem artilheiros fora do seu clube`);
       g = startNextSeason(e);
       const sum = g.history[g.history.length - 1];
       if (!sum.topScorers?.length || sum.topScorers.some((x) => x.rows.length === 0)) problems.push(`T${e.season}: resumo sem artilheiros`);

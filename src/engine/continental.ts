@@ -3,6 +3,7 @@ import { prize } from './economy';
 import { clubOf, teamOf } from './lookup';
 import { moraleFactor } from './morale';
 import { simulateCupMatch, simulateMatch } from './match';
+import { addScorers, clearGoals, drainGoals, logGoals } from './scorers';
 import { makeRng, type Rng } from './rng';
 import { buildFixtures } from './schedule';
 import { injuredSet } from './injuries';
@@ -137,6 +138,7 @@ function playTie(g: GameState, rng: Rng, t: CupTie, divisionId: string, round: n
   const factor = moraleFactor(g.morale.team);
   const mods = { home: t.homeId === g.userClubId ? factor : 1, away: t.awayId === g.userClubId ? factor : 1 };
   const out = simulateCupMatch(lineupTeam(g, t.homeId), lineupTeam(g, t.awayId), rng, mods, { home: clubOf(g, t.homeId).name, away: clubOf(g, t.awayId).name });
+  logGoals(out.events, t.homeId, t.awayId, divisionId === MUNDIAL_ID ? 'mundial' : divisionId); // artilharia
   let pens: [number, number] | undefined;
   let penKicks: { home: PenKick[]; away: PenKick[] } | undefined;
   let winnerId = out.homeGoals > out.awayGoals ? t.homeId : out.awayGoals > out.homeGoals ? t.awayId : '';
@@ -167,6 +169,7 @@ export function playContStep(g: GameState, key: Comp): { state: GameState; resul
   const comp = g[key];
   if (!comp || !comp.due) return { state: g, results: [] };
   const step = comp.step;
+  clearGoals();
   const rng = makeRng(g.seed * 6151 + g.season * 97 + step * 19 + (key === 'lib' ? 7 : key === 'sula' ? 23 : 43));
   const results: MatchResult[] = [];
   const news: NewsItem[] = [];
@@ -217,13 +220,14 @@ export function playContStep(g: GameState, key: Comp): { state: GameState; resul
     if (winners.length > 1) ko.push({ name: cfg.stepNames[step + 1], ties: winners.reduce<CupTie[]>((acc, w, i) => (i % 2 ? acc : [...acc, { homeId: w, awayId: winners[i + 1] }]), []) });
     next = { ...comp, ko, step: step + 1, due: false, alive: winners, championId: winners.length === 1 ? winners[0] : undefined };
   }
-  return { state: { ...g, budgets, [key]: next, news: [...news, ...g.news].slice(0, 80) }, results };
+  return { state: { ...g, budgets, [key]: next, scorers: addScorers(g, drainGoals()), news: [...news, ...g.news].slice(0, 80) }, results };
 }
 
 function playTieGroup(g: GameState, rng: Rng, m: { homeId: string; awayId: string }, divisionId: string, round: number, results: MatchResult[]) {
   const factor = moraleFactor(g.morale.team);
   const mods = { home: m.homeId === g.userClubId ? factor : 1, away: m.awayId === g.userClubId ? factor : 1 };
   const out = simulateMatch(lineupTeam(g, m.homeId), lineupTeam(g, m.awayId), rng, mods, { home: clubOf(g, m.homeId).name, away: clubOf(g, m.awayId).name });
+  logGoals(out.events, m.homeId, m.awayId, divisionId); // artilharia
   results.push({ divisionId, round, homeId: m.homeId, awayId: m.awayId, homeGoals: out.homeGoals, awayGoals: out.awayGoals, events: isMine(g)(m) ? out.events : [] });
   return { homeGoals: out.homeGoals, awayGoals: out.awayGoals };
 }
@@ -258,6 +262,7 @@ export function mundialAfterLeagueRound(g: GameState): GameState {
 export function playMundialStep(g: GameState): { state: GameState; results: MatchResult[] } {
   const m = g.mundial;
   if (!m?.due) return { state: g, results: [] };
+  clearGoals();
   const rng = makeRng(g.seed * 4271 + g.season * 59 + m.step * 11 + 5);
   const results: MatchResult[] = [];
   const news: NewsItem[] = [];
@@ -281,5 +286,5 @@ export function playMundialStep(g: GameState): { state: GameState; results: Matc
   let next: MundialState;
   if (final) next = { ...m, ko: [...prev, ...ko], due: false, alive: winners, championId: winners[0] };
   else next = { ...m, ko: [...prev, ...ko, { name: 'Final', ties: [{ homeId: winners[0], awayId: winners[1] }] }], step: 1, alive: winners, due: true };
-  return { state: { ...g, budgets, mundial: next, news: [...news, ...g.news].slice(0, 80) }, results };
+  return { state: { ...g, budgets, mundial: next, scorers: addScorers(g, drainGoals()), news: [...news, ...g.news].slice(0, 80) }, results };
 }

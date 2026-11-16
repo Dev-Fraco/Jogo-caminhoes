@@ -1,6 +1,7 @@
 import { prize } from './economy';
 import { moraleFactor } from './morale';
 import { simulateCupMatch } from './match';
+import { addScorers, clearGoals, drainGoals, logGoals } from './scorers';
 import { makeRng, type Rng } from './rng';
 import { injuredSet } from './injuries';
 import { aiLineup } from './rotation';
@@ -110,10 +111,12 @@ export function playCupRound(g: GameState): { state: GameState; results: MatchRe
   const factor = moraleFactor(g.morale.team);
   const round = cup.rounds[cup.roundIndex];
   const results: MatchResult[] = [];
+  clearGoals();
   const news: NewsItem[] = [];
   const ties: CupTie[] = round.ties.map((t) => {
     const mods = { home: t.homeId === g.userClubId ? factor : 1, away: t.awayId === g.userClubId ? factor : 1 };
     const out = simulateCupMatch(lineupTeam(g, t.homeId), lineupTeam(g, t.awayId), rng, mods, { home: g.clubs[t.homeId].name, away: g.clubs[t.awayId].name });
+    logGoals(out.events, t.homeId, t.awayId, 'copa'); // artilharia da copa
     let pens: [number, number] | undefined;
     let penKicks: { home: PenKick[]; away: PenKick[] } | undefined;
     let winnerId = out.homeGoals > out.awayGoals ? t.homeId : out.awayGoals > out.homeGoals ? t.awayId : '';
@@ -142,5 +145,5 @@ export function playCupRound(g: GameState): { state: GameState; results: MatchRe
   if (!finished) rounds.push({ name: CUP_ROUND_NAMES[CUP_ROUND_NAMES.length - cup.totalRounds + cup.roundIndex + 1], ties: pair(rng, winners) });
   const next: CupState = { ...cup, rounds, roundIndex: cup.roundIndex + 1, due: false, alive: winners, championId: finished ? winners[0] : undefined };
   const state: GameState = { ...g, budgets, cup: next, news: [...news, ...g.news].slice(0, 80) };
-  return { state, results };
+  return { state: { ...state, scorers: addScorers(state, drainGoals()) }, results };
 }

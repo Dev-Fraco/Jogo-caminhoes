@@ -6,6 +6,7 @@ import { ensureAiState, prunePlayerMaps } from './aistate';
 import { coachAfterMatch, coachRelegationRisk, coachSeasonEval, payTierNotice, reputationDrift, stampPayTier } from './coachcareer';
 import { startingOverall } from './coachpay';
 import { postContractOffer } from './inbox';
+import { addScorers, topScorersOf, type GoalEntry } from './scorers';
 import { settleLoanPurchases, trackLoanApps } from './loandeals';
 import { clauseGames, clauseSeasonEnd } from './dealpay';
 import { aiLineup, matchImportance, updateLoad } from './rotation';
@@ -146,12 +147,12 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
   }
   const hits: InjuryHit[] = [];
   const factor = moraleFactor(g.morale.team); // humor da equipe mexe um pouco na força do seu time
-  const goalLog: { clubId: string; name: string; divisionId: string }[] = [];
+  const goalLog: GoalEntry[] = [];
   const results: MatchResult[] = fixturesOfRound(g, g.round).map((f) => {
     const mods = { home: f.homeId === g.userClubId ? factor : 1, away: f.awayId === g.userClubId ? factor : 1 };
     const out = simulateMatch(teams[f.homeId], teams[f.awayId], rng, mods, { home: g.clubs[f.homeId].name, away: g.clubs[f.awayId].name });
     if (out.injured) hits.push(...out.injured);
-    for (const e of out.events) if (e.type === 'goal' && e.player && e.side !== 'none') goalLog.push({ clubId: e.side === 'home' ? f.homeId : f.awayId, name: e.player, divisionId: f.divisionId });
+    for (const e of out.events) if (e.type === 'goal' && e.player && e.side !== 'none') goalLog.push({ clubId: e.side === 'home' ? f.homeId : f.awayId, name: e.player, comp: f.divisionId });
     const mine = f.homeId === g.userClubId || f.awayId === g.userClubId;
     // jogo eliminatório empatado: pênaltis
     const sk = f.ko && out.homeGoals === out.awayGoals ? shootoutKicks(rng, teamRatings(teams[f.homeId]).gk, teamRatings(teams[f.awayId]).gk, penaltyTakers(teams[f.homeId]), penaltyTakers(teams[f.awayId])) : undefined;
@@ -274,26 +275,6 @@ export function seasonOutcome(g: GameState): SeasonOutcome {
   const movement: Movement = m.promoted.includes(g.userClubId) ? 'promoted' : m.relegated.includes(g.userClubId) ? 'relegated' : 'stay';
   const next = movement === 'promoted' ? i - 1 : movement === 'relegated' ? i + 1 : i;
   return { moves, userDivisionId: g.divisions[i].id, userPosition: m.table.findIndex((r) => r.clubId === g.userClubId) + 1, movement, nextDivisionId: g.divisions[next]?.id ?? 'fora' }; // 'fora' = volta para o estadual (caiu da Série D)
-}
-
-/** Soma os gols da rodada (de todos os clubes) na artilharia da temporada. */
-function addScorers(g: GameState, log: { clubId: string; name: string; divisionId: string }[]): GameState['scorers'] {
-  if (!log.length) return g.scorers;
-  const sc = { ...(g.scorers ?? {}) };
-  for (const e of log) {
-    const p = g.teams[e.clubId]?.players.find((x) => x.name === e.name);
-    const id = `${p?.id ?? `${e.clubId}:${e.name}`}@${e.divisionId}`; // quem muda de divisão no meio do ano tem uma linha em cada
-    const cur = sc[id];
-    sc[id] = { name: e.name, clubId: e.clubId, divisionId: e.divisionId, g: (cur?.g ?? 0) + 1 };
-  }
-  return sc;
-}
-
-/** Os 10 maiores artilheiros de cada divisão. */
-export function topScorersOf(g: GameState): NonNullable<SeasonSummary['topScorers']> {
-  const by = new Map<string, [string, string, number][]>();
-  for (const s of Object.values(g.scorers ?? {})) { const l = by.get(s.divisionId) ?? []; l.push([s.name, s.clubId, s.g]); by.set(s.divisionId, l); }
-  return [...by.entries()].map(([divisionId, rows]) => ({ divisionId, rows: rows.sort((a, b) => b[2] - a[2] || a[0].localeCompare(b[0])).slice(0, 10) }));
 }
 
 /** Resumo da temporada que acabou de terminar (campeões, classificações, copas). */

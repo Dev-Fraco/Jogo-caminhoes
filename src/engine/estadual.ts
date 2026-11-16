@@ -11,6 +11,7 @@ import { injuredSet } from './injuries';
 import { aiLineup } from './rotation';
 import { penaltyTakers, shootoutKicks } from './cup';
 import { computeTable } from './table';
+import { addScorers, clearGoals, drainGoals, logGoals, spreadGoals } from './scorers';
 import type { EstadualComp, EstadualDivision, EstadualState, Fixture, GameState, MatchResult, TableRow, TeamState } from './types';
 
 export const ESTADUAL_ID = 'estadual';
@@ -192,6 +193,7 @@ export function playEstadualStep(g: GameState): { state: GameState; results: Mat
   const step = e.step;
   const rng = makeRng(g.seed * 8191 + g.season * 131 + step * 17 + 5);
   const results: MatchResult[] = [];
+  clearGoals();
   const ratingCache = new Map<string, number>();
   const rating = (id: string) => { let r = ratingCache.get(id); if (r === undefined) { r = g.teams[id] ? teamRatings(g.teams[id]).overall : (estadualClub(id)?.rating ?? 45); ratingCache.set(id, r); } return r; };
   const injSet = injuredSet(g);
@@ -206,12 +208,17 @@ export function playEstadualStep(g: GameState): { state: GameState; results: Mat
       const add = fixturesAt(g, d, step).map((f): [number, number, number, number, number] => {
         const mine = managed(g, f.homeId) || managed(g, f.awayId);
         let hg: number, ag: number;
+        const comp = `est:${c.uf}:${c.divisions.indexOf(d)}`;
         if (mine) {
           const mods = { home: managed(g, f.homeId) ? factor : 1, away: managed(g, f.awayId) ? factor : 1 };
           const out = simulateMatch(lineup(f.homeId), lineup(f.awayId), rng, mods, { home: clubOf(g, f.homeId).name, away: clubOf(g, f.awayId).name });
           hg = out.homeGoals; ag = out.awayGoals;
+          logGoals(out.events, f.homeId, f.awayId, comp);
           results.push({ divisionId: ESTADUAL_ID, round: step, homeId: f.homeId, awayId: f.awayId, homeGoals: hg, awayGoals: ag, events: out.events });
-        } else [hg, ag] = quickScore(rng, rating(f.homeId), rating(f.awayId));
+        } else {
+          [hg, ag] = quickScore(rng, rating(f.homeId), rating(f.awayId));
+          spreadGoals(g, f.homeId, hg, comp, `${step}:${f.homeId}:${f.awayId}`); spreadGoals(g, f.awayId, ag, comp, `${step}:${f.awayId}:${f.homeId}`); // artilharia (sorteio à parte: o resultado não muda)
+        }
         // mata-mata empatado (no agregado da semifinal ou na final): pênaltis
         let tied = false;
         if (k === 3) tied = hg === ag;
@@ -229,7 +236,7 @@ export function playEstadualStep(g: GameState): { state: GameState; results: Mat
   }));
 
   const done = step >= e.totalSteps;
-  let state: GameState = { ...g, estadual: { ...e, comps, step: done ? step : step + 1, due: !done, done } };
+  let state: GameState = { ...g, estadual: { ...e, comps, step: done ? step : step + 1, due: !done, done }, scorers: addScorers(g, drainGoals()) };
   if (done) {
     // campeões recebem um prêmio e o seu estado vira notícia
     const budgets = { ...state.budgets };

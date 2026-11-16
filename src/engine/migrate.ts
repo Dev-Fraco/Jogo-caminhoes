@@ -4,6 +4,7 @@ import { freezeGoals } from './aigoals';
 import { ensureAiYouth } from './aiyouth';
 import { ensureMarketState, ensureYouthLoanState } from './aistate';
 import { computeTable } from './table';
+import { compactScorers } from './scorers';
 import { payTierOf, startingOverall } from './coachpay';
 import { makeRng } from './rng';
 import { SAVE_SCHEMA } from './schema';
@@ -61,6 +62,7 @@ export const STEPS: MigrationStep[] = [
   { id: 'objetivos', label: 'objetivos de cada clube na temporada', run: (g) => freezeGoals(g) },
   { id: 'mercado', label: 'janelas de transferência e propostas (as propostas antigas viram negociações)', run: (g) => ensureMarketState(g) },
   { id: 'treinador', label: 'overall do treinador e faixa salarial da divisão', run: (g) => (g.coachOverall !== undefined && (g.payTier || g.unemployed) ? g : { ...g, coachOverall: g.coachOverall ?? startingOverall(g.difficulty), payTier: g.payTier ?? (g.unemployed ? undefined : { clubId: g.userClubId, tier: payTierOf(g, g.userClubId), season: g.season }) }) },
+  { id: 'artilharia', label: 'artilharia da temporada (formato compacto)', run: (g) => compactScorers(g) },
   { id: 'jovens-emprestimos', label: 'potencial dos jovens, minutos jogados e empréstimos', run: (g) => ensureYouthLoanState(g) },
 ];
 

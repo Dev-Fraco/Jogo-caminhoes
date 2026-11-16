@@ -450,7 +450,7 @@ export interface GameState {
   /** Jogadores livres no mercado (contrato acabou e não foi renovado): os clubes podem contratá-los sem pagar transferência. */
   freeAgents?: Player[];
   /** Gols dos campeonatos nacionais na temporada, por jogador (todos os clubes, não só o seu). Zera na virada. */
-  scorers?: Record<string, { name: string; clubId: string; divisionId: string; g: number }>;
+  scorers?: Record<string, [name: string, clubId: string, competition: string, goals: number]>;
   aiMoves?: Record<string, { season: number; round: number; from: string; to: string }>;
   /** propostas da IA recusadas por jogador na temporada (limite de assédio: ninguém é alvo de todos os clubes) */
   chase?: Record<string, { season: number; n: number }>;
