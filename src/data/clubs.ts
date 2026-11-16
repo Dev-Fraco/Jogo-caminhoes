@@ -196,6 +196,27 @@ const ESTADUAL_ONLY: ClubData[] = [...buildEstadualClubs(['serie-a', 'serie-b', 
 CLUBS_DATA['br-estaduais'] = ESTADUAL_ONLY;
 
 /** Clubes de uma divisão (lista vazia se ainda não houver dados). */
+/** Garante siglas únicas por divisão depois que um pacote troca os nomes (ex.: Real Betis e Real Madrid não podem ser ambos "REA").
+ *  Só mexe nos clubes de `touched` (os que o pacote alterou, cujos originais ele sabe devolver). */
+export function dedupeShorts(touched: Set<string>): void {
+  for (const list of Object.values(CLUBS_DATA)) {
+    const used = new Map<string, number>();
+    for (const c of list) used.set(c.shortName, (used.get(c.shortName) ?? 0) + 1);
+    for (const c of list) {
+      if (!touched.has(c.id) || (used.get(c.shortName) ?? 0) < 2) continue;
+      const letters = c.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z ]/g, '').toUpperCase();
+      const words = letters.split(/\s+/).filter(Boolean);
+      const flat = words.join('');
+      const cands: string[] = [];
+      if (words.length >= 2) { cands.push(words[0][0] + words[1].slice(0, 2)); cands.push(words[0].slice(0, 2) + words[1][0]); cands.push(words[0][0] + words[1][0] + (words[2]?.[0] ?? words[1][1] ?? '')); }
+      for (let i = 1; i < flat.length - 1; i++) for (let j = i + 1; j < flat.length; j++) cands.push(flat[0] + flat[i] + flat[j]);
+      const pick = cands.find((x) => /^[A-Z]{3}$/.test(x) && !used.has(x));
+      if (!pick) continue;
+      used.set(c.shortName, (used.get(c.shortName) ?? 1) - 1); used.set(pick, 1); c.shortName = pick;
+    }
+  }
+}
+
 export const getClubs = (divisionId: string): ClubData[] => CLUBS_DATA[divisionId] ?? [];
 export const getClub = (divisionId: string, clubId: string): ClubData | undefined =>
   getClubs(divisionId).find((c) => c.id === clubId);

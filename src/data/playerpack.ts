@@ -1,5 +1,5 @@
 import { SPOT_LINE, type Player, type Position, type Spot } from '../engine/types';
-import { CLUBS_DATA, type ClubData } from './clubs';
+import { CLUBS_DATA, dedupeShorts, type ClubData } from './clubs';
 import { autoShort, COMP_KEYS, competitionIds, setCompetitionSource } from './names';
 import { resetEstadualCache } from './estaduais_clubs';
 import { generateSquad, pickSpot } from '../engine/squad';
@@ -73,7 +73,7 @@ export function validatePack(text: string, badgeFiles: string[] = []): PackResul
     for (const [f, keys] of [['name', ['name', 'nome']], ['shortName', ['shortName', 'sigla', 'short']], ['stadium', ['stadium', 'estadio', 'estádio']], ['city', ['city', 'cidade']]] as const) {
       const v = pick(c0, ...keys);
       if (v === undefined) continue;
-      if (typeof v !== 'string' || !v.trim() || v.trim().length > 40) { warn(`${id}: campo "${f}" inválido (ignorado).`); continue; }
+      if (typeof v !== 'string' || !v.trim() || v.trim().length > (f === 'stadium' ? 60 : 40)) { warn(`${id}: campo "${f}" inválido (ignorado).`); continue; }
       info[f] = v.trim();
     }
     for (const [f, keys] of [['primaryColor', ['primaryColor', 'corPrincipal']], ['secondaryColor', ['secondaryColor', 'corSecundaria']]] as const) {
@@ -243,6 +243,7 @@ export function applyPack(pack: Pack | null, urls: Record<string, string> = {}):
     else if (pc.names?.length) c.squad = renameSquad(c.squad, pc.names);
     if (pc.badge && urls[pc.badge]) { BADGE_URLS.set(c.id, urls[pc.badge]); c.badge = `pack:${c.id}`; }
   }
+  dedupeShorts(new Set(ORIGINAL.keys()));
   resetEstadualCache();
 }
 

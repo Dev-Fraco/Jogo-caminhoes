@@ -1,4 +1,4 @@
-import { CLUBS_DATA } from './clubs';
+import { CLUBS_DATA, dedupeShorts } from './clubs';
 import { COMP_KEYS, competitionIds, setCompetitionSource } from './names';
 import { resetEstadualCache } from './estaduais_clubs';
 
@@ -46,7 +46,7 @@ export function parseMod(text: string): ParseResult {
     for (const f of FIELDS) {
       const v = c[f];
       if (v === undefined) continue;
-      if (typeof v !== 'string' || !v.trim() || v.length > 40) return { ok: false, error: `Campo "${f}" inválido em ${c.id}.` };
+      if (typeof v !== 'string' || !v.trim() || v.length > (f === 'stadium' ? 60 : 40)) return { ok: false, error: `Campo "${f}" inválido em ${c.id}.` };
       if ((f === 'primaryColor' || f === 'secondaryColor') && !HEX.test(v)) return { ok: false, error: `Cor inválida em ${c.id}.${f}: use #RRGGBB.` };
       (patch as unknown as Record<string, string>)[f] = v.trim();
     }
@@ -79,6 +79,7 @@ export function applyMods(mods: Mod[]): void {
       for (const f of FIELDS) if (p[f]) (c as unknown as Record<string, string>)[f] = p[f]!;
     }
   }
+  dedupeShorts(new Set(ORIGINAL.keys()));
   const comp: Record<string, string> = {};
   for (const m of mods.filter((x) => x.enabled)) Object.assign(comp, m.competitions ?? {});
   setCompetitionSource('mods', comp);
