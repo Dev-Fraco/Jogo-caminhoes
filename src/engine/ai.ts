@@ -5,8 +5,9 @@ import { DIVISION_INCOME, inflate, priceIndex, SEASON_INCOME_FACTOR } from './ec
 import { autoLineup, pickSpot, randomName, spotOf } from './squad';
 import { divisionIndexOf, playerValue } from './transfers';
 import { avgXI, clubProfile, profileCtx, signingScore, type ClubProfile } from './aiprofile';
-import { longInjured, RETIRING_AGE, squadNeeds, type Need } from './aineeds';
+import { longInjured, needLabel, RETIRING_AGE, squadNeeds, type Need } from './aineeds';
 import { baseWage, payrollOf } from './finance';
+import { aiTrade, installmentPlan } from './aitrade';
 import { goalStatus } from './aigoals';
 import { aiBalanceSquads, squadLimits } from './aisquad';
 import { aiLoanWindow, aiPromoteYouth, developYouth, ensureAiYouth, loanedIds, returnAiLoans } from './aiyouth';
@@ -158,10 +159,10 @@ export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[
   const ai = shuffle(Object.keys(s.teams).filter((id) => !managed(s, id)), rng);
   const startersSold = new Map<string, number>(); // titulares vendidos por clube nesta janela
   const refusals: { seller: string; buyer: string; player: Player; offer: number }[] = [];
-  let dealNews = 0; // idem: no máximo 8 notícias de contratação por janela
   for (const buyerId of ai) {
     if (only && !only.includes(buyerId)) continue;
-    let bought = 0;
+    let bought = 0, failures = 0;
+    const tried = new Set<string>();
     const pool = ai.length > SELLER_POOL ? shuffle(ai, rng).slice(0, SELLER_POOL) : ai;
     while (bought < maxBuys) {
       // elenco cheio: dispensa o menos cotado para abrir vaga
@@ -179,7 +180,7 @@ export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[
       const bdi = divisionIndexOf(s, buyerId);
       const level = ctx.xi.get(buyerId) ?? avgXI(buyer);
       const wageRoom = prof.revenue * WAGE_LIMIT[prof.tier] * (maxBuys > 3 ? 1.35 : 1) - payrollOf(s, buyerId); // investimento forte de promovido também libera folha
-      type Cand = { id: string; from: string; price: number; strength: number; score: number; need: Need; st: Stance };
+      type Cand = { id: string; from: string; price: number; strength: number; score: number; need: Need; st: Stance; plan: number };
       let best = null as Cand | null;
       const xi = new Set(autoLineup(buyer.players, buyer.formation));
       for (const need of needs) {
@@ -197,14 +198,17 @@ export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[
             const st = stance(s, sellerId, p, buyerId, ctx, startersSold.get(sellerId) ?? 0);
             const price = Math.max(10_000, Math.round((marketValue(s, sellerId, p) * st.ask) / 10_000) * 10_000);
             if (!st.willing) { if (st.refusal === 'fundamental' && p.strength >= 72 && price <= cap) refusals.push({ seller: sellerId, buyer: buyerId, player: p, offer: Math.round(marketValue(s, sellerId, p) * 1.3) }); continue; }
-            if (price > cap * (gs.mode === 'disputa' ? 1.25 : 1) || baseWage(s, buyerId, p) > wageRoom) continue; // não cabe no caixa nem na folha
+            if (tried.has(`${buyerId}:${p.id}`)) continue;                       // já tentou nesta janela e não deu
+            const capM = cap * (gs.mode === 'disputa' ? 1.25 : 1);
+            const plan = price <= capM ? 1 : price <= capM * 1.8 ? installmentPlan(s, buyerId, price) : 1; // sem caixa para pagar à vista: tenta parcelar
+            if ((price > capM && plan < 2) || baseWage(s, buyerId, p) > wageRoom) continue; // não cabe no caixa nem na folha
             const gain = need.forStarter && Number.isFinite(weak) ? p.strength - weak : Math.max(1, p.strength - need.minStrength);
             let score = signingScore(prof, gain, price, p.age);
             if (gs.mode === 'sobrevivencia') score *= p.age >= 26 && p.age <= 33 ? 1.3 : p.age <= 21 ? 0.7 : 1; // fugindo do rebaixamento: experiência
             else if (gs.mode === 'disputa') score = (score + Math.max(0, gain) * 0.6) * (p.age <= 21 && gain < 4 ? 0.7 : 1); // disputando algo: reforço que melhora já
             if (best && score <= best.score) continue;
             if (!rosterOk(seller.players.filter((x) => x.id !== p.id))) continue;
-            best = { id: p.id, from: sellerId, price, strength: p.strength, score, need, st };
+            best = { id: p.id, from: sellerId, price, strength: p.strength, score, need, st, plan };
           }
         }
         if (best) break; // a necessidade mais urgente que tem alguém disponível
@@ -212,15 +216,14 @@ export function aiWindow(g: GameState, rng: Rng, maxBuys: number, only?: string[
       const deal = best as Cand | null;
       if (!deal) break;
       const p = s.teams[deal.from].players.find((x) => x.id === deal.id)!;
-      s = move(s, deal.id, deal.from, buyerId, deal.price);
+      tried.add(`${buyerId}:${p.id}`);
+      const why = `${deal.need.reasons.includes('falta-gente') || deal.need.reasons.includes('falta-funcao') ? 'falta de' : deal.need.reasons.includes('titular-fraco') ? 'reforço de titular em' : 'reposição de'} ${needLabel(deal.need)}${gs.mode === 'sobrevivencia' ? ' · experiência contra o rebaixamento' : gs.mode === 'disputa' && p.strength >= 70 ? ' · reforço para a briga lá em cima' : ''}`;
+      const tr = aiTrade(s, { kind: 'compra', playerId: deal.id, buyerId, fee: deal.price, reason: why, installments: deal.plan > 1 ? deal.plan : undefined });
+      if (!tr.ok) { if (++failures >= 3) break; continue; }       // sem acordo: tenta outro jogador (no máximo 3 tentativas por clube)
+      s = tr.state;
       forgetClub(ctx, deal.from); forgetClub(ctx, buyerId);
       bought++;
       if (deal.st.role === 'craque' || deal.st.role === 'titular') startersSold.set(deal.from, (startersSold.get(deal.from) ?? 0) + 1);
-      if (dealNews < 8 && (p.strength >= 70 || deal.price >= 5_000_000)) {
-        dealNews++;
-        s = news(s, `🔁 ${s.clubs[buyerId].name} contrata ${p.name} (${p.pos === 'GK' ? 'goleiro' : p.pos === 'DEF' ? 'defensor' : p.pos === 'MID' ? 'meia' : 'atacante'}, overall ${p.strength}) do ${s.clubs[deal.from].name} por ${fmtMoney(deal.price)}${gs.mode === 'sobrevivencia' ? ', reforço de experiência contra o rebaixamento' : gs.mode === 'disputa' && p.strength >= 70 ? ', para reforçar a briga lá em cima' : ''}.`, 'info');
-        s = { ...s, market: [{ season: s.season, round: s.round, text: `${s.clubs[buyerId].name} contrata ${p.name} (overall ${p.strength}) do ${s.clubs[deal.from].name} por ${fmtMoney(deal.price)}.` }, ...(s.market ?? [])].slice(0, 60) };
-      }
     }
   }
   // propostas recusadas por jogadores fundamentais (só quem não acabou comprando o próprio jogador): vira notícia de mercado
@@ -245,7 +248,6 @@ export function aiBalanceBooks(g: GameState, rng: Rng): GameState {
   const needCache = new Map<string, Need[]>();
   const needsOf = (id: string) => { let n = needCache.get(id); if (!n) needCache.set(id, (n = squadNeeds(s, id, clubProfile(s, id, ctx)))); return n; };
   const startersSold = new Map<string, number>();
-  let saleNews = 0; // o noticiário (80 itens) não pode ser engolido pelas vendas: só as maiores viram notícia
   for (const id of shuffle(Object.keys(s.teams).filter((x) => !managed(s, x)), rng)) {
     const prof = clubProfile(s, id, ctx);
     const di = divisionIndexOf(s, id);
@@ -269,15 +271,14 @@ export function aiBalanceBooks(g: GameState, rng: Rng): GameState {
         const wants = needsOf(b).some((n) => n.pos === p.pos); // o comprador precisa da posição
         if (!wants && prof.financial !== 'crise') continue;
         if (!rosterOk(s.teams[id].players.filter((x) => x.id !== p.id))) continue;
-        s = move(s, p.id, id, b, fee);
+        const need = needsOf(b).find((n) => n.pos === p.pos);
+        const why = `${need ? (need.reasons.includes('falta-gente') ? 'falta de ' : 'reposição de ') + needLabel(need) : 'oportunidade de mercado'} · vendedor: ${st.reasons.includes('fim-contrato') ? 'fim de contrato' : st.reasons.includes('financas') && broke ? 'equilibrar as contas' : st.reasons.includes('salario-alto') ? 'salário alto' : 'sem espaço no elenco'}`;
+        const tr = aiTrade(s, { kind: 'compra', playerId: p.id, buyerId: b, fee, reason: why });
+        if (!tr.ok) continue;
+        s = tr.state;
         needCache.delete(b); forgetClub(ctx, id); forgetClub(ctx, b);
         if (st.role === 'craque' || st.role === 'titular') startersSold.set(id, (startersSold.get(id) ?? 0) + 1);
         sales++; done = true;
-        if (saleNews < 4 && (p.strength >= 70 || fee >= 2_000_000)) {
-          saleNews++;
-          const why = st.reasons.includes('fim-contrato') ? 'fim de contrato' : st.reasons.includes('financas') && broke ? 'para equilibrar as contas' : st.reasons.includes('salario-alto') ? 'salário alto' : 'sem espaço no elenco';
-          s = news(s, `💸 ${s.clubs[id].name} vende ${p.name} (overall ${p.strength}) ao ${s.clubs[b].name} por ${fmtMoney(fee)}: ${why}.`, 'info');
-        }
         break;
       }
       if (!done) continue;
@@ -333,7 +334,9 @@ export function offseason(g: GameState, rng: Rng, input: OffseasonInput): { stat
       const buyers = Object.keys(s.teams).filter((id) => id !== clubId && !managed(s, id) && s.teams[id].players.length < AI_MAX_SQUAD && (s.budgets[id] ?? 0) >= fee);
       const left = s.teams[clubId].players.filter((x) => x.id !== p.id);
       if (!buyers.length || !rosterOk(left)) continue;
-      s = move(s, p.id, clubId, buyers[Math.floor(rng() * buyers.length)], fee);
+      const tr = aiTrade(s, { kind: 'compra', playerId: p.id, buyerId: buyers[Math.floor(rng() * buyers.length)], fee, reason: 'oportunidade de mercado · vendedor: crise financeira' });
+      if (!tr.ok) continue;
+      s = tr.state;
       sold.push(p.name);
     }
     s = news(s, `💸 ${s.clubs[clubId].name} cai e entra em crise financeira${sold.length ? `: vendeu ${sold.join(' e ')}` : ''}.`, 'info');

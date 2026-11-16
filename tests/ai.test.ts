@@ -60,7 +60,7 @@ describe('virada de temporada com a IA', () => {
   });
   it('a IA contrata, e as notícias registram os negócios e os investimentos dos promovidos', () => {
     expect(next.news.length).toBeGreaterThan(5);
-    expect(next.news.some((n) => n.text.includes('contrata'))).toBe(true);
+    expect(next.news.some((n) => n.text.includes('anuncia') || n.text.includes('contrata'))).toBe(true);
     expect(next.news.filter((n) => n.text.includes('sobe')).length).toBeGreaterThanOrEqual(8);
     expect(next.news.length).toBeLessThanOrEqual(80);
     expect(next.history[0].promotion).toHaveLength(12); // 4 que sobem de B, de C e de D

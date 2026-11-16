@@ -99,7 +99,8 @@ describe('IA com personalidade nas transferências', () => {
     for (const [cid, t] of Object.entries(s.teams)) if (cid !== 'flamengo') expect(rosterOk(t.players), cid).toBe(true);
     // clube saudável não vende
     const calm = aiBalanceBooks(withBudget(g0, id, 50_000_000), makeRng(3));
-    expect(calm.teams[id].players.length).toBe(g0.teams[id].players.length);
+    expect((calm.dealLog ?? []).some((r) => r.sellerId === id && r.summary.includes('equilibrar as contas'))).toBe(false); // sem pressão financeira não vende para fechar o caixa (pode vender por outros motivos)
+    expect(calm.budgets[id]).toBeGreaterThanOrEqual(50_000_000);
     expect(divisionIndexOf(s, id)).toBe(3);
   });
 

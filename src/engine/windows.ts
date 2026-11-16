@@ -1,5 +1,5 @@
 import { fromDay, formatDay, toDay } from './calendar';
-import { homeLeague } from './market';
+import { homeLeague } from './homeleague';
 import { notifyPhone } from './phone';
 import type { GameState, NewsItem, TransferWindow } from './types';
 

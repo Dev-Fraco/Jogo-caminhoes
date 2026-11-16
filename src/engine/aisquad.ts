@@ -1,12 +1,12 @@
 import { avgXI, clubProfile, profileCtx } from './aiprofile';
-import { move } from './ai';
+import { aiTrade } from './aitrade';
 import { squadNeeds } from './aineeds';
 import { marketValue } from './aisales';
 import { managed } from './lookup';
 import type { Rng } from './rng';
 import { rosterOk } from './roster';
 import { autoLineup } from './squad';
-import { divisionIndexOf, MIN_BY_POS } from './transfers';
+import { divisionIndexOf } from './transfers';
 import { loanedIds } from './aiyouth';
 import type { GameState, NewsItem, Player, Position, SquadLimits } from './types';
 
@@ -20,7 +20,7 @@ import type { GameState, NewsItem, Player, Position, SquadLimits } from './types
 export const POSITIONS: Position[] = ['GK', 'DEF', 'MID', 'ATT'];
 export const DEFAULT_LIMITS: SquadLimits = {
   total: { min: 20, max: 27 },
-  pos: { GK: { min: MIN_BY_POS.GK, ideal: 3, max: 4 }, DEF: { min: MIN_BY_POS.DEF, ideal: 8, max: 11 }, MID: { min: MIN_BY_POS.MID, ideal: 8, max: 11 }, ATT: { min: MIN_BY_POS.ATT, ideal: 5, max: 8 } },
+  pos: { GK: { min: 2, ideal: 3, max: 4 }, DEF: { min: 5, ideal: 8, max: 11 }, MID: { min: 5, ideal: 8, max: 11 }, ATT: { min: 3, ideal: 5, max: 8 } }, // mínimos = MIN_BY_POS (valores fixos aqui para não depender da ordem de carga dos módulos)
   age: { min: 23, max: 29.5 },
 };
 
@@ -109,7 +109,9 @@ export function aiBalanceSquads(g: GameState, rng: Rng, maxPerClub = 3): GameSta
         if ((s.budgets[b] ?? 0) < fee * 1.5 || divisionIndexOf(s, b) < divisionIndexOf(s, id) - 1) continue;
         const prof = clubProfile(s, b, ctx);
         if (!squadNeeds(s, b, prof).some((n) => n.pos === cand.pos)) continue;
-        s = move(s, cand.id, id, b, fee);
+        const tr = aiTrade(s, { kind: 'compra', playerId: cand.id, buyerId: b, fee, reason: `reposição de ${LABEL[cand.pos]} · vendedor: excesso na posição` });
+        if (!tr.ok) continue;
+        s = tr.state;
         sold = true; break;
       }
       // 2) ninguém precisa: libera para o mercado de jogadores livres (ele continua no jogo)

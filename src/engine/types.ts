@@ -332,6 +332,10 @@ export interface Deal {
   clubOk?: boolean; playerOk?: boolean;
   /** Por que o comprador quer o jogador (necessidade). */
   reason?: string;
+  /** Dia a partir do qual a outra parte responde (a resposta não é instantânea). */
+  answerDay?: number;
+  /** Quem deve agir agora: o clube vendedor, o comprador (a IA ou você) ou o jogador. */
+  turn?: 'vendedor' | 'comprador' | 'jogador';
 }
 export interface DealRecord { id: string; kind: DealKind; playerId: string; playerName: string; sellerId: string | null; buyerId: string; fee: number; state: DealState; day: number; summary: string }
 /** Dívida entre clubes (parcela de transferência). */
@@ -339,7 +343,7 @@ export interface Debt { id: string; dealId: string; playerId: string; debtorId: 
 /** Cláusula em vigor (revenda e bônus), ligada ao jogador. */
 export interface ActiveClause { id: string; dealId: string; playerId: string; type: DealClause['type']; beneficiaryId: string; payerId: string; pct?: number; base?: 'valor' | 'lucro'; baseFee: number; amount?: number; threshold?: number; progress?: number; fromSeason: number; untilSeason?: number; paid?: boolean; paidDay?: number }
 /** Empréstimo registrado com todas as condições. */
-export interface LoanDeal { dealId: string; playerId: string; originId: string; hostId: string; season: number; fromDay: number; untilDay: number; fullWage: number; originWagePct: number; fee: number; buyOption?: number; buyObligation?: number; obligationGames?: number; apps: number; closed?: boolean }
+export interface LoanDeal { origContract?: { wage: number; until: number }; dealId: string; playerId: string; originId: string; hostId: string; season: number; fromDay: number; untilDay: number; fullWage: number; originWagePct: number; fee: number; buyOption?: number; buyObligation?: number; obligationGames?: number; apps: number; closed?: boolean }
 export interface TransferWindow { id: string; countryId: string; label: string; opens: number; closes: number }
 export interface WindowEvent { id: string; event: 'aberta' | 'fechada'; day: number }
 export interface Mood { since: number; reason: string; level: 1 | 2 | 3; want: 'sair' | 'aumento'; cooldown?: number }
@@ -410,6 +414,8 @@ export interface GameState {
   agentOffers?: AgentOffer[];
   /** Último dia em que o mercado da IA foi processado (evita repetir a mesma decisão). */
   marketDay?: number;
+  /** Quantas notícias de negócios entre clubes da IA já saíram no dia (o noticiário não pode ser engolido por elas). */
+  aiNewsDay?: { day: number; n: number };
   /** Carga de jogos seguidos de cada jogador (rodízio dos clubes da IA). */
   load?: Record<string, number>;
   /** Objetivos da temporada de cada clube, fixados no início dela (persistem mesmo se o clube sair de uma copa). */

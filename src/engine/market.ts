@@ -1,6 +1,7 @@
 import { CLUBS_DATA, type ClubData } from '../data/clubs';
 import { estadualClub } from '../data/estaduais_clubs';
 import { COUNTRY_ORDER, WORLD_DATA } from '../data/world';
+import { homeLeague } from './homeleague';
 import { developPlayer } from './ai';
 import { inflate } from './economy';
 import { afterSigning, fairplayBlock } from './fairplay';
@@ -38,12 +39,7 @@ function foreignIndex(): Map<string, Foreign> {
   return (FOREIGN = m);
 }
 
-/** País e liga da carreira (pela 1ª divisão da pirâmide). */
-export function homeLeague(g: Pick<GameState, 'divisions'>): { countryId: string; countryName: string; flag: string; leagueName: string } {
-  const first = g.divisions[0].id;
-  for (const cid of COUNTRY_ORDER) for (const l of WORLD_DATA[cid].leagues) if (l.divisions[0].id === first) return { countryId: cid, countryName: WORLD_DATA[cid].name, flag: WORLD_DATA[cid].flag, leagueName: l.name };
-  return { countryId: 'BR', countryName: 'Brasil', flag: '🇧🇷', leagueName: 'Campeonato' };
-}
+export { homeLeague };
 
 /** Todos os clubes onde dá para buscar jogadores: os da sua liga e os de outras ligas (com elencos dos dados do jogo). */
 export function directory(g: GameState): DirClub[] {
