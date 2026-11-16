@@ -28,7 +28,7 @@ function formOf(game: GameState, divisionId: string, clubId: string): ('W' | 'D'
   return out.slice(-5);
 }
 
-export function Table({ game, initialView = 'div' }: { game: GameState; initialView?: 'div' | 'rounds' | 'hist' }) {
+export function Table({ game, initialView = 'div' }: { game: GameState; initialView?: 'div' | 'rounds' | 'hist' | 'scorers' }) {
   const mineIndex = userDivisionIndex(game);
   const [idx, setIdx] = useState(mineIndex);
   const [view, setView] = useState<'div' | 'cup' | Comp | 'mundial' | 'rounds' | 'hist' | 'titles' | 'estadual' | 'scorers'>(initialView);

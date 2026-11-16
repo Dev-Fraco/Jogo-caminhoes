@@ -16,7 +16,7 @@ import { ClubBadge } from './ClubBadge';
 import { isInjured, remainingLabel, roundsLeft } from '../engine/injuries';
 import { stadiumOf } from '../engine/stadium';
 import { nextUserMatchDay, userPlaysNextSlot } from '../engine/advance';
-import { calOf, daysToMatch, formatDay, formatDayLong, formatDayShort, isMatchDay, matchTimeOf, nextMatchDay } from '../engine/calendar';
+import { calOf, daysToMatch, formatDayLong, formatDayShort, isMatchDay, matchTimeOf, nextMatchDay } from '../engine/calendar';
 import { SalaryCard } from './SalaryCard';
 import { FmCard, Jersey, ScreenTitle, StatStrip, SubTabs } from './FmParts';
 import { transferFeed } from '../engine/news';
@@ -152,10 +152,6 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
   return (
     <>
       <EstadualNotice game={game} onChange={onChange} />
-      <div className="home2-top">
-        <div className="mk-card home2-pill"><span aria-hidden="true">💵</span><b>{formatBudget(game.budgets[game.userClubId])}</b></div>
-        <div className="mk-card home2-pill"><span aria-hidden="true">📅</span><span><small>Temporada {game.season}</small><b>{formatDay(calOf(game).day)}</b></span></div>
-      </div>
       <div className="card mk-card home2-match">
         <div className="home2-comp">
           <span className="home2-trophy" aria-hidden="true">🏆</span>

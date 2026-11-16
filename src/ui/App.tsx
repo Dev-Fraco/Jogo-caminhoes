@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { pyramidOf, slotsOfLeague } from '../data/pyramid';
 import { getLeague } from '../data/world';
 import { audio } from '../audio/audio';
@@ -21,7 +21,7 @@ import { Placeholder } from './Placeholder';
 import { Home } from './Home';
 import { Finance } from './Finance';
 import { Stadium } from './Stadium';
-import { calOf, formatDay } from '../engine/calendar';
+import { calOf, formatDayShort } from '../engine/calendar';
 import { advanceToUserMatch } from '../engine/advance';
 import { advanceOneDay } from '../engine/daily';
 import { homeBlocked, housingSteps } from '../engine/housing';
@@ -45,7 +45,7 @@ import { Squad } from './Squad';
 import { Unemployed } from './Unemployed';
 import { Table } from './Table';
 import { Transfers } from './Transfers';
-import { marketBadge } from './MarketDeals';
+import { SideMenu, type MenuTarget } from './SideMenu';
 
 type Tab = 'home' | 'calendar' | 'squad' | 'table' | 'transfers' | 'lineup' | 'finance' | 'stadium' | 'shop' | 'profile' | 'youth'; // 'lineup' é uma tela dentro do Início
 /** Telas do app: menu inicial, uma das 8 opções (placeholder) ou a partida em andamento. */
@@ -56,15 +56,12 @@ export function App() {
   const [screen, setScreen] = useState<Screen>('menu');
   const [tab, setTab] = useState<Tab>('home');
   const [phoneOpen, setPhoneOpen] = useState(false);
-  const navRef = useRef<HTMLElement>(null);
-  const [navMore, setNavMore] = useState(true);
-  const onNavScroll = () => { const n = navRef.current; if (n) setNavMore(n.scrollLeft + n.clientWidth < n.scrollWidth - 4); };
-  useEffect(() => { navRef.current?.querySelector<HTMLElement>('button.on')?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' }); }, [tab]);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [homeGate, setHomeGate] = useState(false);
   const [calAnim, setCalAnim] = useState<{ from: number; to: number } | null>(null);
   const [gateAt, setGateAt] = useState(0);
   const [phoneGate, setPhoneGate] = useState(false);
-  const [tableView, setTableView] = useState<'div' | 'rounds' | 'hist'>('div');
+  const [tableView, setTableView] = useState<'div' | 'rounds' | 'hist' | 'scorers'>('div');
   const [tfView, setTfView] = useState<'clubs' | 'buy' | 'offers' | 'news'>('clubs');
   // partida em andamento: o resultado já foi calculado, mas só entra no jogo quando a partida termina
   const [live, setLive] = useState<{ state: GameState; results: MatchResult[] } | null>(null);
@@ -92,6 +89,12 @@ export function App() {
   }, []);
 
   const toMenu = () => setScreen('menu');
+  const goMenu = (t: MenuTarget) => {
+    if (t === 'exit') return toMenu();
+    if (t === 'phone') return ownsPhone(game!) ? setPhoneOpen(true) : setTab('shop');
+    if (t === 'table' || t === 'scorers' || t === 'hist') { setTableView(t === 'table' ? 'div' : t); return setTab('table'); }
+    setTab(t);
+  };
 
   // Termina o assistente: cria a carreira na liga escolhida (pirâmide completa) e abre o jogo.
   const startCareer = (s: NewGameState) => {
@@ -172,21 +175,21 @@ export function App() {
     <>
       {bg}
       <div className="app">
-        <header style={{ '--club-tint': tintColor(club) } as React.CSSProperties}>
-          <div className="gh-id">
-            <ClubBadge club={club} size={50} />
-            <i className="gh-div" aria-hidden="true" />
+        <header className="tv-bar" style={{ '--club-tint': tintColor(club) } as React.CSSProperties}>
+          <button className="tv-burger" onClick={() => setMenuOpen(true)} aria-label="Abrir o menu" aria-expanded={menuOpen} disabled={!!live}><i /><i /><i /></button>
+          <div className="tv-id">
+            <ClubBadge club={club} size={40} />
             <div>
-              <strong>{game.unemployed ? 'Sem clube' : club.name}</strong>
-              <small>{game.unemployed ? "Sem clube" : userDivision(game).name} · {formatDay(calOf(game).day)}</small>
+              <strong>{game.unemployed ? 'Sem clube' : club.name.length > 14 ? club.shortName : club.name}</strong>
+              <small>{game.unemployed ? 'Procurando clube' : userDivision(game).name} · {formatDayShort(calOf(game).day)}</small>
             </div>
           </div>
-          <div className="gh-right">
-            <span className="gh-money" title={game.unemployed ? 'Seu saldo no banco' : 'Orçamento para transferências'}>{game.unemployed ? formatBudget(balanceOf(game)) : formatBudget(game.budgets[game.userClubId])}</span>
-            <button className="ghost gh-phone" onClick={() => (ownsPhone(game) ? setPhoneOpen(true) : setTab('shop'))} disabled={!!live} aria-label={ownsPhone(game) ? `Celular${unreadCount(game) + pendingCount(game) > 0 ? `, ${unreadCount(game) + pendingCount(game)} pendências` : ''}` : 'Comprar um celular'}>📱{ownsPhone(game) && unreadCount(game) + pendingCount(game) > 0 && <i className="nav-badge">{unreadCount(game) + pendingCount(game)}</i>}</button>
-            <button className="ghost" onClick={toMenu} disabled={!!live}>☰ Menu</button>
+          <div className="tv-right">
+            <span className="tv-money" title={game.unemployed ? 'Seu saldo no banco' : 'Orçamento para transferências'}>{game.unemployed ? formatBudget(balanceOf(game)) : formatBudget(game.budgets[game.userClubId])}</span>
+            <button className="tv-phone gh-phone" onClick={() => (ownsPhone(game) ? setPhoneOpen(true) : setTab('shop'))} disabled={!!live} aria-label={ownsPhone(game) ? `Celular${unreadCount(game) + pendingCount(game) > 0 ? `, ${unreadCount(game) + pendingCount(game)} pendências` : ''}` : 'Comprar um celular'}>📱{ownsPhone(game) && unreadCount(game) + pendingCount(game) > 0 && <i className="nav-badge">{unreadCount(game) + pendingCount(game)}</i>}</button>
           </div>
         </header>
+        <SideMenu game={game} open={menuOpen} current={(tab === 'table' ? (tableView === 'scorers' ? 'scorers' : tableView === 'hist' ? 'hist' : 'table') : tab) as MenuTarget} locked={!!live} onClose={() => setMenuOpen(false)} onGo={goMenu} />
         {(autosave.failure || autosave.notice) && (
           <div className={`save-bar ${autosave.failure ? 'bad' : ''}`} role={autosave.failure ? 'alert' : 'status'}>
             <span>{autosave.failure ?? autosave.notice}</span>
@@ -208,23 +211,10 @@ export function App() {
           {!live && !game.unemployed && tab === 'finance' && <Finance game={game} onChange={setGame} onBack={() => setTab('home')} />}
           {!live && !game.unemployed && tab === 'lineup' && <Lineup game={game} onChange={setGame} onBack={() => setTab('home')} />}
           {!live && !game.unemployed && tab === 'squad' && <Squad game={game} onChange={setGame} />}
-          {!live && tab === 'table' && <Table game={game} initialView={tableView} />}
+          {!live && tab === 'table' && <Table key={tableView} game={game} initialView={tableView} />}
           {!live && !game.unemployed && tab === 'transfers' && <Transfers game={game} onChange={setGame} view={tfView} onView={setTfView} />}
         </main>
-        <div className="nav-wrap">
-        <nav ref={navRef} onScroll={onNavScroll} aria-label="Menu principal (arraste para o lado para ver mais)">
-          {([['home', '🏠', 'Início'], ['squad', '👕', 'Elenco'], ['table', '📊', 'Tabela'], ['transfers', '🔁', 'Transf.'], ['stadium', '🏟️', 'Estádio'], ['finance', '💰', 'Finanças'], ['youth', '🌱', 'Base'], ['shop', '🛒', 'Loja']] as const).map(([id, icon, label]) => {
-            const on = tab === id || (id === 'home' && tab === 'lineup');
-            return (
-              <button key={id} className={on ? 'on' : ''} disabled={!!live || (!!game.unemployed && (id === 'squad' || id === 'transfers' || id === 'stadium' || id === 'finance' || id === 'youth'))} onClick={() => setTab(id)} aria-label={id === 'transfers' ? 'Transferências' : label} aria-current={on ? 'page' : undefined}>
-                <span aria-hidden="true">{icon}</span>{label}
-                {id === 'transfers' && marketBadge(game) > 0 && <i className="nav-badge" aria-label={`${marketBadge(game)} propostas`}>{marketBadge(game)}</i>}
-              </button>
-            );
-          })}
-        </nav>
-        {navMore && <span className="nav-more" aria-hidden="true">›</span>}
-        </div>
+
         {sheet && !live && <ResultsSheet game={game} results={sheet} onClose={() => setSheet(null)} />}
         {calAnim && <DayCalendar game={game} from={calAnim.from} to={calAnim.to} onClose={() => setCalAnim(null)} />}
         {homeGate && (
