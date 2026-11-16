@@ -28,7 +28,7 @@ function PlayerSheet({ game, player: p, onChange, onClose, onDone }: SheetProps)
   const starter = team.lineup.includes(p.id);
   const onSale = game.transferList.includes(p.id), onLoan = game.loanList.includes(p.id);
   const value = myValue(game, p);
-  const release = checkRelease(game, p.id);
+  const release = checkRelease(game, p.id, true);
   const left = contractLeft(game, p);
   const rq = renewalQuote(game, p.id);
   const [renewing, setRenewing] = useState(false);

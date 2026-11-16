@@ -10,6 +10,7 @@ import { clubOf } from './lookup';
 import { clamp, hashString, makeRng } from './rng';
 import { rosterOk } from './roster';
 import { transferBlock } from './windows';
+import { FREE_AGENT_MAX, mayBeFree } from './freeagents';
 import { logContract } from './contractwatch';
 import { autoLineup, randomName } from './squad';
 import { divisionIndexOf, MAX_SQUAD, MIN_BY_POS, MIN_SQUAD, playerValue } from './transfers';
@@ -244,8 +245,8 @@ export function expireContracts(g: GameState): GameState {
   for (const p of t.players) {
     if (!p.contract || p.contract.until > g.season) continue;
     const next = players.filter((x) => x.id !== p.id);
-    if (rosterOk(next)) { players = next; s = logContract(news(s, `📄 O contrato de ${p.name} terminou e ele deixou o clube (agora é jogador livre).`, 'info'), { playerId: p.id, playerName: p.name, clubId: g.userClubId, kind: 'fim', wageFrom: p.contract.wage, note: 'contrato terminou' }); freed.push({ ...p, contract: undefined, lastClubId: g.userClubId }); }
-    else players = players.map((x) => (x.id === p.id ? { ...x, contract: { ...x.contract!, until: g.season + 1 } } : x));
+    if (rosterOk(next) && mayBeFree(p)) { players = next; s = logContract(news(s, `📄 O contrato de ${p.name} terminou e ele deixou o clube (agora é jogador livre).`, 'info'), { playerId: p.id, playerName: p.name, clubId: g.userClubId, kind: 'fim', wageFrom: p.contract.wage, note: 'contrato terminou' }); freed.push({ ...p, contract: undefined, lastClubId: g.userClubId }); }
+    else { players = players.map((x) => (x.id === p.id ? { ...x, contract: { ...x.contract!, until: g.season + 1 } } : x)); if (!mayBeFree(p)) s = news(s, `📄 O contrato de ${p.name} (overall ${p.strength}) terminou e foi prorrogado por 1 ano: jogadores acima de ${FREE_AGENT_MAX} de overall não ficam livres.`, 'info'); }
   }
   if (players === t.players) return s;
   return { ...s, freeAgents: [...(s.freeAgents ?? []), ...freed], teams: { ...s.teams, [g.userClubId]: { ...t, players, lineup: autoLineup(players, t.formation) } } };

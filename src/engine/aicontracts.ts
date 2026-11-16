@@ -10,6 +10,7 @@ import { aiTrade } from './aitrade';
 import { spotOf } from './squad';
 import { goalStatus } from './aigoals';
 import { forgetClub } from './aisales';
+import { FREE_AGENT_MAX, freeAgentLimit, mayBeFree } from './freeagents';
 import { logContract } from './contractwatch';
 import { loanedIds } from './aiyouth';
 import type { GameState, NewsItem, Player } from './types';
@@ -122,7 +123,7 @@ export function aiRenewals(g: GameState, _rng: Rng, mode: 'meio' | 'virada', las
       const cur = team.players.find((x) => x.id === p.id);
       if (!cur) continue;
       const rosterWithout = team.players.filter((x) => x.id !== p.id);
-      const forced = mode === 'virada' && !rosterOk(rosterWithout); // sem ele o elenco ficaria inválido: renova mesmo assim (com salário ajustado)
+      const forced = mode === 'virada' && (!rosterOk(rosterWithout) || !mayBeFree(p)); // elenco inválido sem ele, ou overall acima de 70 (esses nunca ficam livres): renova mesmo assim, com salário ajustado
       const talk = s.renewTalks?.[p.id];
       const refused = !!talk && talk.refusals >= 1 && talk.done;           // já recusou renovar nas conversas: não renova à força
       const d = refused && !forced ? { renew: false, wage: 0, years: 0, reason: 'recusou renovar', importance: 0 } as RenewalDecision : decideRenewal(s, id, cur, prof, ctx, payroll, forced);
@@ -149,7 +150,7 @@ export function aiRenewals(g: GameState, _rng: Rng, mode: 'meio' | 'virada', las
 
 /** Jogadores livres envelhecem e evoluem a cada virada; quem passa dos 33 anos ou fica sem nível profissional (sem clube) encerra a carreira. */
 export function agedFreeAgents(g: GameState, rng: Rng): Player[] {
-  return (g.freeAgents ?? []).map((p) => developPlayer(p, rng)).filter((p) => p.age < 34 && !(p.age >= 24 && p.strength < 40)).sort((a, b) => b.strength - a.strength).slice(0, MAX_FREE_AGENTS);
+  return (g.freeAgents ?? []).map((p) => { const d = developPlayer(p, rng); return d.strength > Math.max(FREE_AGENT_MAX, p.strength) ? { ...d, strength: Math.max(FREE_AGENT_MAX, p.strength) } : d; }).filter((p) => p.age < 34 && !(p.age >= 24 && p.strength < 40)).sort((a, b) => b.strength - a.strength).slice(0, MAX_FREE_AGENTS);
 }
 
 /** Folga de folha do clube (R$/ano) para contratar. */
@@ -174,12 +175,13 @@ export function aiSignFreeAgents(g: GameState, rng: Rng, perClub = 2, only?: str
       if (!needs.length) break;
       const room = wageRoomOf(s, id, prof);
       const mode = goalStatus(s, id).mode;
+      const cap = freeAgentLimit(s, id, ctx); // só livres de overall parecido com o do time
       const level = ctx.xi.get(id) ?? avgXI(s.teams[id]);
       let pick: { p: Player; score: number } | null = null;
       for (const need of needs) {
         for (const p of pool) {
           if (p.pos !== need.pos || (need.spot && spotOf(p) !== need.spot) || p.strength < need.minStrength || p.age > need.maxAge || p.age >= RETIRING_AGE) continue;
-          if (p.strength > level + 12 || longInjured(s, p.id) || tried.has(`${id}:${p.id}`)) continue;
+          if (p.strength > level + 12 || p.strength > cap || !mayBeFree(p) || longInjured(s, p.id) || tried.has(`${id}:${p.id}`)) continue;
           const c = newContract(s, id, p, 1);
           if (c.wage > room) continue; // salário impossível para o orçamento: não contrata
           let score = signingScore(prof, Math.max(1, p.strength - need.minStrength), 0, p.age);

@@ -13,6 +13,7 @@ import { makeInstallments } from './dealpay';
 import { baseWage } from './finance';
 import { managed } from './lookup';
 import { notifyPhone } from './phone';
+import { freeAgentLimit, mayBeFree } from './freeagents';
 import { hashString, makeRng, type Rng } from './rng';
 import { MAX_OPEN_OFFERS, OFFER_CHANCE, rosterOk, STAR_COUNT, STAR_INTEREST } from './roster';
 import { autoLineup, spotOf } from './squad';
@@ -155,7 +156,7 @@ function agentTick(g: GameState, rng: Rng, due: string[]): GameState {
   const ctx = profileCtx(s);
   const open = (s.agentOffers ?? []).filter((o) => o.state === 'aberta');
   const pool: { p: Player; clubId: string | null; ask: number; why: string }[] = [
-    ...(s.freeAgents ?? []).slice(0, 80).map((p) => ({ p, clubId: null as string | null, ask: 0, why: 'jogador livre' })),
+    ...(s.freeAgents ?? []).filter(mayBeFree).slice(0, 80).map((p) => ({ p, clubId: null as string | null, ask: 0, why: 'jogador livre' })),
     ...listedPlayers(s).slice(0, 80).map((x) => ({ p: x.player, clubId: x.clubId as string | null, ask: marketValue(s, x.clubId, x.player), why: `à venda (${x.reason})` })),
   ];
   if (!pool.length) return s;
@@ -170,7 +171,8 @@ function agentTick(g: GameState, rng: Rng, due: string[]): GameState {
     const need = needs[0];
     if (!need || need.priority < 25) continue;
     const level = ctx.xi.get(id) ?? avgXI(s.teams[id]);
-    const fit = pool.filter(({ p, clubId }) => clubId !== id && p.pos === need.pos && (!need.spot || spotOf(p) === need.spot) && p.strength >= need.minStrength && p.age <= need.maxAge && p.strength <= level + 12 && !longInjured(s, p.id) && !activeDeals(s, p.id).some((d) => d.buyerId === id))
+    const cap = freeAgentLimit(s, id, ctx);
+    const fit = pool.filter(({ p, clubId }) => (clubId !== null || p.strength <= cap) && clubId !== id && p.pos === need.pos && (!need.spot || spotOf(p) === need.spot) && p.strength >= need.minStrength && p.age <= need.maxAge && p.strength <= level + 12 && !longInjured(s, p.id) && !activeDeals(s, p.id).some((d) => d.buyerId === id))
       .filter(({ p }) => baseWage(s, id, p) <= prof.revenue * 0.08).sort((a, b) => b.p.strength - a.p.strength);
     const pick = fit[Math.floor(rng() * Math.min(3, fit.length))];
     if (!pick) continue;

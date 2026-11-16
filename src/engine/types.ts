@@ -345,7 +345,7 @@ export interface Deal {
   /** Quem deve agir agora: o clube vendedor, o comprador (a IA ou você) ou o jogador. */
   turn?: 'vendedor' | 'comprador' | 'jogador';
 }
-export interface DealRecord { id: string; kind: DealKind; playerId: string; playerName: string; sellerId: string | null; buyerId: string; fee: number; state: DealState; day: number; summary: string }
+export interface DealRecord { /** overall do jogador e nível (média dos titulares) do clube comprador na hora do negócio */ ovr?: number; lvl?: number; id: string; kind: DealKind; playerId: string; playerName: string; sellerId: string | null; buyerId: string; fee: number; state: DealState; day: number; summary: string }
 /** Dívida entre clubes (parcela de transferência). */
 export interface Debt { id: string; dealId: string; playerId: string; debtorId: string; creditorId: string; amount: number; due: number; paidDay?: number; late?: boolean }
 /** Cláusula em vigor (revenda e bônus), ligada ao jogador. */
@@ -446,6 +446,8 @@ export interface GameState {
   /** Jogadores livres no mercado (contrato acabou e não foi renovado): os clubes podem contratá-los sem pagar transferência. */
   freeAgents?: Player[];
   aiMoves?: Record<string, { season: number; round: number; from: string; to: string }>;
+  /** propostas da IA recusadas por jogador na temporada (limite de assédio: ninguém é alvo de todos os clubes) */
+  chase?: Record<string, { season: number; n: number }>;
   /** Lesões (o jogo ainda não gera lesões; se existirem, a IA as considera): jogador → temporada e rodada em que volta. */
   injuries?: Record<string, Injury>;
   news: NewsItem[]; // últimas notícias (mais recente primeiro)

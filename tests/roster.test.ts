@@ -10,6 +10,8 @@ import { MAX_SQUAD, MIN_SQUAD } from '../src/engine/transfers';
 import type { GameState } from '../src/engine/types';
 import { makeCareer } from './helpers';
 
+/** Elenco do Flamengo com overall até 65 (a regra dos livres só deixa dispensar quem tem overall 70 ou menos). */
+const modest = (g: GameState): GameState => ({ ...g, teams: { ...g.teams, flamengo: { ...g.teams.flamengo, players: g.teams.flamengo.players.map((p) => ({ ...p, strength: Math.min(p.strength, 65) })) } } });
 const bench = (g: GameState, pos: 'MID' | 'ATT' | 'DEF' | 'GK' = 'MID') => { const t = g.teams[g.userClubId]; return t.players.filter((p) => p.pos === pos && !t.lineup.includes(p.id)).sort((a, b) => a.strength - b.strength)[0]; };
 /** Joga a temporada inteira mantendo a diretoria satisfeita (sem demissão), para testar o resto. */
 const playSeason = (g: GameState) => { while (!isSeasonOver(g)) { g = playRound(g).state; g = { ...g, morale: { ...g.morale, board: 60 } }; } return g; };
@@ -27,9 +29,13 @@ describe('listas de transferência e de empréstimo', () => {
 describe('dispensar jogador', () => {
   it('remove do elenco, das listas e refaz a escalação se era titular; fica no histórico', () => {
     let g = makeCareer('flamengo'); const t = g.teams.flamengo;
-    const starter = t.players.find((p) => t.lineup.includes(p.id) && p.pos === 'ATT')!;
+    const starter0 = t.players.find((p) => t.lineup.includes(p.id) && p.pos === 'ATT')!;
+    g = { ...g, teams: { ...g.teams, flamengo: { ...t, players: t.players.map((p) => (p.id === starter0.id ? { ...p, strength: 66 } : p)) } } }; // overall até 70 pode ser dispensado
+    const starter = g.teams.flamengo.players.find((p) => p.id === starter0.id)!;
     g = toggleTransferList(g, starter.id);
     const s = releasePlayer(g, starter.id);
+    expect(s.freeAgents?.find((p) => p.id === starter.id)).toMatchObject({ lastClubId: 'flamengo' }); // vai para o mercado de livres, não some
+    expect(checkRelease(makeCareer('flamengo'), starter0.id, true).ok).toBe(false); // astro (acima de 70) não pode ser dispensado
     expect(s.teams.flamengo.players).toHaveLength(23);
     expect(s.teams.flamengo.players.some((p) => p.id === starter.id)).toBe(false);
     expect(s.teams.flamengo.lineup).toHaveLength(11); expect(s.teams.flamengo.lineup).not.toContain(starter.id);
@@ -38,14 +44,14 @@ describe('dispensar jogador', () => {
     expect(g.teams.flamengo.players).toHaveLength(24); // imutável
   });
   it('não deixa o elenco abaixo do mínimo (total e por posição)', () => {
-    let g = makeCareer('flamengo');
+    let g = modest(makeCareer('flamengo'));
     const gks = g.teams.flamengo.players.filter((p) => p.pos === 'GK');
     g = releasePlayer(g, gks[2].id); // 3 → 2 goleiros: ok
     expect(checkRelease(g, gks[0].id)).toMatchObject({ ok: false });
     expect(releasePlayer(g, gks[0].id)).toBe(g);
     // total
-    let h = makeCareer('flamengo');
-    for (const p of [...h.teams.flamengo.players]) if (h.teams.flamengo.players.length > MIN_SQUAD && checkRelease(h, p.id).ok) h = releasePlayer(h, p.id);
+    let h = modest(makeCareer('flamengo'));
+    for (const p of [...h.teams.flamengo.players]) if (h.teams.flamengo.players.length > MIN_SQUAD && checkRelease(h, p.id, true).ok) h = releasePlayer(h, p.id);
     expect(h.teams.flamengo.players.length).toBeGreaterThanOrEqual(MIN_SQUAD);
     expect(rosterOk(h.teams.flamengo.players)).toBe(true);
   });
@@ -98,7 +104,8 @@ describe('propostas', () => {
     expect(s.teams.flamengo.lineup).toHaveLength(11);
   });
   it('recusar remove a proposta; aceitar é bloqueado se deixaria o elenco inválido', () => {
-    const { g, p } = listed();
+    const { g: g0, p } = listed();
+    const g = modest(g0);
     const withOffer = { ...g, offers: [{ id: 'o1', kind: 'buy' as const, playerId: p.id, clubId: 'palmeiras', fee: 100_000, season: 2026, expiresRound: 3 }] };
     expect(rejectOffer(withOffer, 'o1').offers).toEqual([]);
     const gk = withOffer.teams.flamengo.players.filter((x) => x.pos === 'GK');

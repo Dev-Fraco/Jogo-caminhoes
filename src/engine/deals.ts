@@ -1,9 +1,10 @@
-import { profileCtx } from './aiprofile';
+import { avgXI, profileCtx } from './aiprofile';
 import { AI_MAX_SQUAD } from './ai';
 import { activeDeals, buyerAnswer, defaultContract, noteMove, fmt, isActive, locate, playerDecision, sellerAnswer, today, wageFits } from './dealeval';
 import { canAfford, cashDue, clausesFor, debtsFor, installmentsOk, payResaleClauses, termsTotal } from './dealpay';
 import { fairplayBlock, afterSigning } from './fairplay';
 import { baseWage } from './finance';
+import { freeAgentBlock } from './freeagents';
 import { marketValue } from './aisales';
 import { managed } from './lookup';
 import { notifyPhone } from './phone';
@@ -68,6 +69,7 @@ export function openDeal(g: GameState, p: OpenParams): OpenResult {
   const closed = transferBlock(g, p.kind === 'livre' ? 'livre' : p.kind === 'emprestimo' ? 'emprestimo' : 'comum', { urgent: g.teams[p.buyerId].players.length < 18 });
   if (closed) return { state: g, error: closed };
   if (userIs(g, p.buyerId)) { const ban = fairplayBlock(g); if (ban) return { state: g, error: ban }; }
+  if (p.kind === 'livre') { const fb = freeAgentBlock(g, p.buyerId, l.player); if (fb) return { state: g, error: fb }; } // regra dos livres: overall até 70 e parecido com o do time
   if (activeDeals(g, p.playerId).some((d) => d.buyerId === p.buyerId && d.kind !== 'troca' && p.kind !== 'troca')) return { state: g, error: 'Já existe uma negociação em andamento por este jogador.' };
   if (lockedPlayers(g).has(p.playerId)) return { state: g, error: 'O jogador já está em uma negociação aprovada.' };
   if (loanedNow(g, p.playerId)) return { state: g, error: 'Jogador emprestado não pode ser negociado.' };
@@ -99,7 +101,8 @@ export function openDeal(g: GameState, p: OpenParams): OpenResult {
 
 function archive(g: GameState, d: Deal, state: DealState, note: string): GameState {
   const l = locate(g, d.playerId);
-  const rec: DealRecord = { id: d.id, kind: d.kind, playerId: d.playerId, playerName: l?.player.name ?? d.history[0]?.note.split(' por ').pop()?.replace('.', '') ?? d.playerId, sellerId: d.sellerId, buyerId: d.buyerId, fee: d.terms.fee, state, day: today(g), summary: note };
+  const buyerTeam = g.teams[d.buyerId];
+  const rec: DealRecord = { ...(l ? { ovr: l.player.strength } : {}), ...(buyerTeam ? { lvl: Math.round(avgXI(buyerTeam)) } : {}), id: d.id, kind: d.kind, playerId: d.playerId, playerName: l?.player.name ?? d.history[0]?.note.split(' por ').pop()?.replace('.', '') ?? d.playerId, sellerId: d.sellerId, buyerId: d.buyerId, fee: d.terms.fee, state, day: today(g), summary: note };
   const notable = (l?.player.strength ?? 0) >= 66 || d.terms.fee >= 1_000_000 || userIs(g, d.buyerId) || userIs(g, d.sellerId);
   const log = notable || state === 'concluida' ? [rec, ...(g.dealLog ?? [])].slice(0, MAX_DEAL_LOG) : g.dealLog;
   return { ...g, deals: (g.deals ?? []).filter((x) => x.id !== d.id), dealLog: log };

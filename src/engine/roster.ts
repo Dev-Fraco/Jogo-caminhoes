@@ -3,6 +3,7 @@ import { inflate } from './economy';
 import { autoLineup } from './squad';
 import { transferBlock } from './windows';
 import { proposeToUser } from './aimarket';
+import { FREE_AGENT_MAX, mayBeFree } from './freeagents';
 import { divisionIndexOf, MAX_SQUAD, MIN_BY_POS, MIN_SQUAD, playerValue } from './transfers';
 import { FORMATIONS, type GameState, type Player, type Position, type TeamState, type Transfer } from './types';
 
@@ -50,9 +51,12 @@ export function toggleLoanList(g: GameState, playerId: string): GameState {
 
 export type ReleaseCheck = { ok: true } | { ok: false; text: string };
 
-export function checkRelease(g: GameState, playerId: string): ReleaseCheck {
+/** Pode sair do elenco? `dismiss` = é uma dispensa (vira jogador livre): aí só vale para overall 70 ou menos. Venda e empréstimo não têm essa regra. */
+export function checkRelease(g: GameState, playerId: string, dismiss = false): ReleaseCheck {
   if (!mine(g, playerId)) return { ok: false, text: 'Este jogador não é do seu clube.' };
   if ((g.loansIn ?? []).some((l) => l.playerId === playerId)) return { ok: false, text: 'Jogador emprestado: ele volta ao clube dono no fim da temporada.' };
+  const pl = mine(g, playerId)!;
+  if (dismiss && !mayBeFree(pl)) return { ok: false, text: `Jogadores acima de ${FREE_AGENT_MAX} de overall não ficam livres no mercado: venda ou empreste ${pl.name}.` };
   const left = g.teams[g.userClubId].players.filter((p) => p.id !== playerId);
   return rosterOk(left) ? { ok: true } : { ok: false, text: `Não dá para dispensar: o elenco ficaria abaixo do mínimo (${MIN_SQUAD} jogadores; ${MIN_BY_POS.GK} goleiros, ${MIN_BY_POS.DEF} defensores, ${MIN_BY_POS.MID} meias e ${MIN_BY_POS.ATT} atacantes).` };
 }
@@ -72,9 +76,9 @@ function withoutPlayer(g: GameState, playerId: string): GameState {
 
 export function releasePlayer(g: GameState, playerId: string): GameState {
   const p = mine(g, playerId);
-  if (!p || !checkRelease(g, playerId).ok) return g;
+  if (!p || !checkRelease(g, playerId, true).ok) return g;
   const s = withoutPlayer(g, playerId);
-  return { ...s, transfers: log(g, { kind: 'release', playerId, playerName: p.name, pos: p.pos, strength: p.strength, fromClubId: g.userClubId, toClubId: '', fee: 0 }) };
+  return { ...s, freeAgents: [...(s.freeAgents ?? []), { ...p, contract: undefined, lastClubId: g.userClubId }], transfers: log(g, { kind: 'release', playerId, playerName: p.name, pos: p.pos, strength: p.strength, fromClubId: g.userClubId, toClubId: '', fee: 0 }) };
 }
 
 /* ---------------- propostas dos outros clubes ---------------- */

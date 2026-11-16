@@ -3,7 +3,8 @@ import { agentOf } from '../engine/aimarket';
 import { calOf, formatDay } from '../engine/calendar';
 import { locate } from '../engine/dealeval';
 import { dealsForUser, dealsWaitingUser } from '../engine/deals';
-import { answerRequest, freeList, myLoanDeals, myRequests, officialList, proposeBuy, proposeFree, proposeLoan, userAccept, userCancel, userCounter, userRefuse, valueOf, wageAsk } from '../engine/marketdeals';
+import { FREE_AGENT_MAX } from '../engine/freeagents';
+import { answerRequest, freeLimitOf, freeList, myLoanDeals, myRequests, officialList, proposeBuy, proposeFree, proposeLoan, userAccept, userCancel, userCounter, userRefuse, valueOf, wageAsk } from '../engine/marketdeals';
 import { exerciseBuyOption, loanReport } from '../engine/loandeals';
 import { contractAlerts, renewOffer } from '../engine/contractwatch';
 import { spotOf } from '../engine/squad';
@@ -266,7 +267,7 @@ export function FreeAgents({ game, onPropose }: { game: GameState; onPropose: (i
   const rows = freeList(game).slice(0, 60);
   return (
     <>
-      <p className="hint">Jogadores sem clube: sem taxa de transferência, só salário. Podem ser contratados mesmo com o mercado fechado.</p>
+      <p className="hint">Jogadores sem clube: sem taxa de transferência, só salário. Podem ser contratados mesmo com o mercado fechado. Só ficam livres jogadores de overall {FREE_AGENT_MAX} ou menos, e o seu clube só pode contratar quem tem overall parecido com o do seu time: <b>até {freeLimitOf(game)}</b>.</p>
       {rows.length === 0 && <div className="card center"><p className="hint">Nenhum jogador livre no momento. Eles aparecem quando contratos terminam e clubes liberam jogadores.</p></div>}
       <ul className="tf-list">{rows.map(({ player: p, ask, agent, lastClub }) => (
         <li key={p.id} className="tf-item"><div className="tf-row">

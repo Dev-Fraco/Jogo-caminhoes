@@ -1,5 +1,6 @@
 import { avgXI, clubProfile, profileCtx } from './aiprofile';
 import { aiTrade } from './aitrade';
+import { mayBeFree } from './freeagents';
 import { squadNeeds } from './aineeds';
 import { marketValue } from './aisales';
 import { managed } from './lookup';
@@ -114,7 +115,8 @@ export function aiBalanceSquads(g: GameState, rng: Rng, maxPerClub = 3): GameSta
         s = tr.state;
         sold = true; break;
       }
-      // 2) ninguém precisa: libera para o mercado de jogadores livres (ele continua no jogo)
+      // 2) ninguém precisa: libera para o mercado de jogadores livres (só quem tem overall 70 ou menos; os demais ficam no clube)
+      if (!sold && !mayBeFree(cand)) break;
       if (!sold) {
         const left = s.teams[id].players.filter((x) => x.id !== cand.id);
         s = { ...s, teams: { ...s.teams, [id]: { ...s.teams[id], players: left, lineup: autoLineup(left, s.teams[id].formation) } }, freeAgents: [...(s.freeAgents ?? []), strip(cand, id)] };

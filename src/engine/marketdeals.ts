@@ -1,4 +1,5 @@
 import { clubProfile } from './aiprofile';
+import { freeAgentLimit, mayBeFree } from './freeagents';
 import { agentOf, listedPlayers } from './aimarket';
 import { seasonEndDay } from './aitrade';
 import { marketValue } from './aisales';
@@ -66,10 +67,13 @@ export function valueOf(g: GameState, playerId: string): number {
 /** Salário que um jogador livre pede ao seu clube (R$/ano). */
 export const wageAsk = (g: GameState, p: Player) => defaultContract(g, g.userClubId, p).wage;
 
+/** Maior overall que o seu clube pode contratar entre os livres. */
+export const freeLimitOf = (g: GameState) => freeAgentLimit(g, g.userClubId);
 export interface FreeRow { player: Player; ask: number; agent: string; lastClub?: string }
 /** Jogadores livres do mercado, com salário pedido, agente e último clube. */
 export function freeList(g: GameState): FreeRow[] {
-  return [...(g.freeAgents ?? [])].sort((a, b) => b.strength - a.strength).map((player) => ({ player, ask: wageAsk(g, player), agent: agentOf(player.id).name, lastClub: player.lastClubId ? g.clubs[player.lastClubId]?.name : undefined }));
+  const cap = freeAgentLimit(g, g.userClubId);
+  return [...(g.freeAgents ?? [])].filter((p) => mayBeFree(p) && p.strength <= cap).sort((a, b) => b.strength - a.strength).map((player) => ({ player, ask: wageAsk(g, player), agent: agentOf(player.id).name, lastClub: player.lastClubId ? g.clubs[player.lastClubId]?.name : undefined }));
 }
 
 export interface ListedRow { player: Player; clubId: string; reason: string; value: number; since: number }
