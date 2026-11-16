@@ -7,6 +7,7 @@ import { homeBlocked } from './housing';
 import './netfibra';
 import { FIBRA_MONTHLY, fibraLeft, notifyPhone, phoneOf, PLAN_PRICE, planLeft } from './phone';
 import { chipDay } from './shop';
+import { windowTick } from './windows';
 import type { GameState } from './types';
 
 /** O que acontece a cada dia do calendário: mensalidades (com débito automático no banco), avisos de vencimento, chip e contratos (aluguel e parcelas). */
@@ -46,6 +47,7 @@ function dayTick(g: GameState): GameState {
 
   if (isPayday(today)) s = payMonthlySalaries(s); // salários dos atletas e do treinador, uma vez por mês
   s = chipDay(s);
+  s = windowTick(s);
   return monthlyContracts(s);
 }
 

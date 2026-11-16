@@ -1,6 +1,7 @@
 import type { Rng } from './rng';
 import { inflate } from './economy';
 import { autoLineup } from './squad';
+import { transferBlock } from './windows';
 import { notifyPhone } from './phone';
 import { divisionIndexOf, MAX_SQUAD, MIN_BY_POS, MIN_SQUAD, playerValue } from './transfers';
 import { FORMATIONS, type GameState, type Offer, type Player, type Position, type TeamState, type Transfer } from './types';
@@ -142,6 +143,8 @@ export function acceptOffer(g: GameState, offerId: string): { state: GameState; 
   if (!offer) return { state: g, result: { ok: false, text: 'Proposta não encontrada.' } };
   const p = mine(g, offer.playerId);
   if (!p) return drop('O jogador não está mais no seu clube.');
+  const closed = transferBlock(g, offer.kind === 'loan' ? 'emprestimo' : 'comum');
+  if (closed) return { state: g, result: { ok: false, text: closed } };
   if ((g.loansIn ?? []).some((l) => l.playerId === p.id)) return drop('Jogador emprestado não pode ser vendido.');
   const host = g.teams[offer.clubId];
   if ((g.budgets[offer.clubId] ?? 0) < offer.fee) return drop('O clube não tem mais orçamento para essa proposta.');

@@ -97,7 +97,7 @@ describe('contratação', () => {
     const gk = rich.teams.palmeiras.players.filter((x) => x.pos === 'GK');
     const thin = { ...rich, teams: { ...rich.teams, palmeiras: { ...rich.teams.palmeiras, players: rich.teams.palmeiras.players.filter((x) => x.pos !== 'GK' || x.id === gk[0].id || x.id === gk[1].id) } } };
     expect(checkBuy(thin, gk[0].id)).toMatchObject({ ok: false, reason: 'seller-short' });
-    expect(Object.keys(BUY_BLOCK_TEXT)).toEqual(['ban', 'not-found', 'own-player', 'budget', 'squad-full', 'seller-short']);
+    expect(Object.keys(BUY_BLOCK_TEXT)).toEqual(['window', 'ban', 'not-found', 'own-player', 'budget', 'squad-full', 'seller-short']);
   });
 
   it('um clube vendedor nunca fica abaixo do mínimo de elenco/posições', () => {

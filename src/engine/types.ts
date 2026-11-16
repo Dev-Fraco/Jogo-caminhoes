@@ -297,6 +297,54 @@ export interface Transfer {
   fee: number; // R$
 }
 
+
+/* ---------- Mercado avançado: propostas, parcelas, trocas, empréstimos, cláusulas, janelas, agentes ---------- */
+
+export type DealKind = 'compra' | 'troca' | 'emprestimo' | 'livre';
+export type DealState = 'enviada' | 'recebida' | 'em-analise' | 'contraproposta' | 'aguardando' | 'aceita-clube' | 'aceita-jogador' | 'recusada' | 'expirada' | 'cancelada' | 'concluida';
+/** Parcela de uma transferência: vencimento (dia do calendário), valor e, depois de paga, o dia do pagamento. */
+export interface Installment { due: number; amount: number; paidDay?: number }
+/** Cláusula negociada. revenda: % sobre a venda futura (sobre o valor ou o lucro); os bônus pagam quando a condição é cumprida. */
+export interface DealClause { type: 'revenda' | 'bonus-jogos' | 'bonus-titulos' | 'bonus-desempenho'; pct?: number; base?: 'valor' | 'lucro'; amount?: number; threshold?: number; untilSeason?: number }
+/** Empréstimo: até quando, quanto do salário o clube de origem paga, taxa, opção e obrigação de compra. */
+export interface LoanTerms { untilDay: number; originWagePct: number; fee: number; buyOption?: number; buyObligation?: number; obligationGames?: number }
+export interface DealTerms {
+  /** Valor total negociado (R$). */
+  fee: number;
+  /** Parcelas (ausente = à vista). A soma é o `fee`. */
+  installments?: Installment[];
+  /** Jogadores do comprador oferecidos em troca (o `fee` é o valor em dinheiro além deles). */
+  swapPlayerIds?: string[];
+  clauses?: DealClause[];
+  loan?: LoanTerms;
+  /** Contrato oferecido ao jogador no clube comprador. */
+  wage?: number; years?: number;
+}
+export interface DealStep { day: number; by: 'comprador' | 'vendedor' | 'jogador' | 'sistema'; action: string; fee?: number; note: string }
+/** Proposta/negociação oficial. Concluída ou encerrada, vai para o histórico (`dealLog`). */
+export interface Deal {
+  id: string; kind: DealKind; playerId: string;
+  /** Clube vendedor (null = jogador livre). */
+  sellerId: string | null; buyerId: string;
+  terms: DealTerms; state: DealState;
+  createdDay: number; deadlineDay: number; round: number;
+  history: DealStep[];
+  clubOk?: boolean; playerOk?: boolean;
+  /** Por que o comprador quer o jogador (necessidade). */
+  reason?: string;
+}
+export interface DealRecord { id: string; kind: DealKind; playerId: string; playerName: string; sellerId: string | null; buyerId: string; fee: number; state: DealState; day: number; summary: string }
+/** Dívida entre clubes (parcela de transferência). */
+export interface Debt { id: string; dealId: string; playerId: string; debtorId: string; creditorId: string; amount: number; due: number; paidDay?: number; late?: boolean }
+/** Cláusula em vigor (revenda e bônus), ligada ao jogador. */
+export interface ActiveClause { id: string; dealId: string; playerId: string; type: DealClause['type']; beneficiaryId: string; payerId: string; pct?: number; base?: 'valor' | 'lucro'; baseFee: number; amount?: number; threshold?: number; progress?: number; fromSeason: number; untilSeason?: number; paid?: boolean; paidDay?: number }
+/** Empréstimo registrado com todas as condições. */
+export interface LoanDeal { dealId: string; playerId: string; originId: string; hostId: string; season: number; fromDay: number; untilDay: number; fullWage: number; originWagePct: number; fee: number; buyOption?: number; buyObligation?: number; obligationGames?: number; apps: number; closed?: boolean }
+export interface TransferWindow { id: string; countryId: string; label: string; opens: number; closes: number }
+export interface WindowEvent { id: string; event: 'aberta' | 'fechada'; day: number }
+export interface Mood { since: number; reason: string; level: 1 | 2 | 3; want: 'sair' | 'aumento'; cooldown?: number }
+export interface AgentOffer { id: string; agentId: string; playerId: string; clubId: string; day: number; expiresDay: number; ask: number; pitch: string; state: 'aberta' | 'aceita' | 'recusada' | 'expirada' }
+
 /** Humor (0–100) da equipe, dos dirigentes e da torcida. */
 export interface Morale { team: number; board: number; fans: number }
 
@@ -348,6 +396,20 @@ export interface GameState {
   /** Categoria de base dos clubes da IA e empréstimos entre clubes da IA. */
   aiYouth?: Record<string, Prospect[]>;
   aiLoans?: AiLoan[];
+  /** Mercado avançado (todos opcionais; saves antigos abrem sem eles). */
+  deals?: Deal[];
+  dealLog?: DealRecord[];
+  debts?: Debt[];
+  clauses?: ActiveClause[];
+  loanDeals?: LoanDeal[];
+  windowState?: { id: string | null; closingWarned?: string };
+  windowLog?: WindowEvent[];
+  /** Jogadores que os clubes da IA colocaram oficialmente à venda. */
+  listed?: Record<string, { clubId: string; day: number; reason: string }>;
+  mood?: Record<string, Mood>;
+  agentOffers?: AgentOffer[];
+  /** Último dia em que o mercado da IA foi processado (evita repetir a mesma decisão). */
+  marketDay?: number;
   /** Carga de jogos seguidos de cada jogador (rodízio dos clubes da IA). */
   load?: Record<string, number>;
   /** Objetivos da temporada de cada clube, fixados no início dela (persistem mesmo se o clube sair de uma copa). */

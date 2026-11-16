@@ -8,6 +8,7 @@ import { baseWage } from './finance';
 import { clubOf } from './lookup';
 import { clamp, hashString, makeRng } from './rng';
 import { rosterOk } from './roster';
+import { transferBlock } from './windows';
 import { autoLineup, randomName } from './squad';
 import { divisionIndexOf, MAX_SQUAD, MIN_BY_POS, MIN_SQUAD, playerValue } from './transfers';
 import type { GameState, NewsItem, Player, Position, TeamState } from './types';
@@ -137,6 +138,8 @@ function blocker(g: GameState, q: Quote, fee: number): string | undefined {
   if (g.unemployed) return 'Você está sem clube.';
   const ban = fairplayBlock(g);
   if (ban) return ban;
+  const closed = transferBlock(g, 'comum');
+  if (closed) return closed;
   if (g.teams[g.userClubId].players.some((p) => p.id === q.player.id)) return 'Este jogador já é do seu clube.';
   if (g.teams[g.userClubId].players.length >= MAX_SQUAD) return `Elenco cheio (máximo de ${MAX_SQUAD} jogadores).`;
   if ((g.budgets[g.userClubId] ?? 0) < fee) return 'Orçamento do clube insuficiente para essa proposta.';

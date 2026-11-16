@@ -3,6 +3,7 @@ import { afterSigning, fairplayBlock } from './fairplay';
 import { baseWage } from './finance';
 import { hashString } from './rng';
 import { autoLineup } from './squad';
+import { transferBlock } from './windows';
 import { divisionIndexOf, MAX_SQUAD, MIN_BY_POS, MIN_SQUAD, playerValue } from './transfers';
 import type { GameState, NewsItem, Player, Position } from './types';
 
@@ -40,6 +41,8 @@ export function checkLoanIn(g: GameState, playerId: string): LoanCheck {
   const ban = fairplayBlock(g);
   if (g.unemployed) return { ok: false, reason: 'Você está sem clube.' };
   if (ban) return { ok: false, reason: ban };
+  const closed = transferBlock(g, 'emprestimo');
+  if (closed) return { ok: false, reason: closed };
   const entry = loanMarket(g).find((e) => e.player.id === playerId);
   if (!entry) return { ok: false, reason: 'Este jogador não está na lista de empréstimo.' };
   const me = g.teams[g.userClubId];

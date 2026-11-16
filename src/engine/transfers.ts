@@ -1,5 +1,6 @@
 import { inflate } from './economy';
 import { afterSigning, fairplayBlock } from './fairplay';
+import { transferBlock } from './windows';
 import { autoLineup } from './squad';
 import type { GameState, Player, Position } from './types';
 
@@ -39,9 +40,10 @@ export function marketEntries(g: GameState): MarketEntry[] {
   return out;
 }
 
-export type BuyBlock = 'ban' | 'not-found' | 'own-player' | 'budget' | 'squad-full' | 'seller-short';
+export type BuyBlock = 'window' | 'ban' | 'not-found' | 'own-player' | 'budget' | 'squad-full' | 'seller-short';
 
 export const BUY_BLOCK_TEXT: Record<BuyBlock, string> = {
+  window: '🔒 Mercado fechado: aguarde a próxima janela de transferências.',
   ban: 'Transfer ban (fair play financeiro): o clube não pode contratar agora.',
   'not-found': 'Jogador não encontrado.',
   'own-player': 'Este jogador já é do seu clube.',
@@ -53,6 +55,7 @@ export const BUY_BLOCK_TEXT: Record<BuyBlock, string> = {
 export type BuyCheck = { ok: true; price: number; fromClubId: string } | { ok: false; reason: BuyBlock; price?: number; fromClubId?: string };
 
 export function checkBuy(g: GameState, playerId: string): BuyCheck {
+  if (transferBlock(g, 'comum')) return { ok: false, reason: 'window' };
   if (fairplayBlock(g)) return { ok: false, reason: 'ban' };
   const user = g.teams[g.userClubId];
   if (user.players.some((p) => p.id === playerId)) return { ok: false, reason: 'own-player' };
