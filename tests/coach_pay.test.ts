@@ -198,7 +198,7 @@ describe('Pagamento mensal e extrato do banco', () => {
     const tx = g.bank!.txs.filter((t) => t.title === 'Salário de treinador');
     expect(tx.length).toBe(1);
     expect(tx[0].amount).toBe(coachMonthly(g0)); expect(tx[0].kind).toBe('income');
-    expect(tx[0].detail).toContain('Palmeiras'); expect(tx[0].detail).toMatch(/de 2026$/); expect(tx[0].day).toBe(pay);
+    expect(tx[0].detail).toContain(g0.clubs.palmeiras?.name ?? 'Atlético Santa Aurora'); expect(tx[0].detail).toMatch(/de 2026$/); expect(tx[0].day).toBe(pay);
     expect(formatDay(tx[0].day!)).toMatch(/^05\//);
     expect(balanceOf(g) - before).toBe(coachMonthly(g0));                   // creditado uma única vez no saldo pessoal
   });

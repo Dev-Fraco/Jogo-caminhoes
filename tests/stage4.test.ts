@@ -1,3 +1,4 @@
+import { COMP_NAMES } from '../src/data/names';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { applyMods, modTemplate, parseMod } from '../src/data/mods';
 import { CLUBS_DATA } from '../src/data/clubs';
@@ -80,7 +81,7 @@ describe('simular anos sem treinador', () => {
     expect(e.length).toBe(2);
     expect(e[0]).toMatchObject({ mode: 'simulacao', season: 2026 });
     expect(e[0].divisions.map((d) => d.name)).toEqual(['Série A', 'Série B', 'Série C', 'Série D']);
-    expect(e[0].cups.map((c) => c.name)).toEqual(expect.arrayContaining(['Copa do Brasil', 'Libertadores', 'Champions League', 'Mundial de Clubes']));
+    expect(e[0].cups.map((c) => c.name)).toEqual(expect.arrayContaining([COMP_NAMES.cup, COMP_NAMES.lib, COMP_NAMES.ucl, COMP_NAMES.mundial]));
     expect(new Set(e.map((x) => x.key)).size).toBe(2);
     const car = entriesOf(skipSeasons(keepBoard(makeCareer('flamengo', 1)), 2));
     expect(car[0].mode).toBe('carreira');

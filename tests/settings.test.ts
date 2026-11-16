@@ -47,7 +47,7 @@ describe('backups', () => {
     expect(r.ok).toBe(true);
     saveGame({ ...g, season: 9 });
     const [b] = listBackups();
-    expect(b.clubName).toBe('Flamengo');
+    expect(b.clubName).toBe('Sporting Navegantes');
     expect(restoreBackup(b.id)).toBe(true);
     expect(loadGame()!.season).toBe(2026);
     deleteBackup(b.id);

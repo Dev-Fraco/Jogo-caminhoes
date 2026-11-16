@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { COMP_NAMES, shortCompName } from '../data/names';
 import { ClubBadge } from './ClubBadge';
 import { ScreenTitle } from './FmParts';
 import { COMPS, CONTINENTALS, groupTable, type Comp } from '../engine/continental';
@@ -54,7 +55,7 @@ export function Table({ game, initialView = 'div' }: { game: GameState; initialV
         <button role="tab" aria-selected={view === 'rounds'} className={view === 'rounds' ? 'on' : ''} onClick={() => setView('rounds')}>📋 Jogos</button>
         {game.estadual && <button role="tab" aria-selected={view === 'estadual'} className={view === 'estadual' ? 'on' : ''} onClick={() => setView('estadual')}>🏟️ Estadual</button>}
         {game.cup && <button role="tab" aria-selected={view === 'cup'} className={view === 'cup' ? 'on' : ''} onClick={() => setView('cup')}>🏆 Copa</button>}
-        {COMPS.map((k) => game[k] && <button key={k} role="tab" aria-selected={view === k} className={view === k ? 'on' : ''} onClick={() => setView(k)}>{CONTINENTALS[k].icon} {k === 'lib' ? 'Liberta' : k === 'sula' ? 'Sula' : 'Champions'}</button>)}
+        {COMPS.map((k) => game[k] && <button key={k} role="tab" aria-selected={view === k} className={view === k ? 'on' : ''} onClick={() => setView(k)}>{CONTINENTALS[k].icon} {shortCompName(COMP_NAMES[k])}</button>)}
         {game.mundial && <button role="tab" aria-selected={view === 'mundial'} className={view === 'mundial' ? 'on' : ''} onClick={() => setView('mundial')}>🌍 Mundial</button>}
       </div>
       {view === 'scorers' && <ScorersView game={game} />}
@@ -95,7 +96,7 @@ export function Table({ game, initialView = 'div' }: { game: GameState; initialV
       </table>
       </div>
       <p className="legend">
-        {idx === 0 && brazil && <><i className="k lib" /> Libertadores <i className="k sul" /> Sul-Americana </>}
+        {idx === 0 && brazil && <><i className="k lib" /> {COMP_NAMES.lib} <i className="k sul" /> {COMP_NAMES.sula} </>}
         {idx > 0 && <><i className="k acc" /> Acesso (sobem {slots}) </>}
         {idx < count - 1 && <><i className="k rel" /> Rebaixamento (descem {slots})</>}
       </p>

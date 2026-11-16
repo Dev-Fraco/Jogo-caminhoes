@@ -1,5 +1,7 @@
 import { SPOT_LINE, type Player, type Position, type Spot } from '../engine/types';
 import { CLUBS_DATA, type ClubData } from './clubs';
+import { autoShort, COMP_KEYS, competitionIds, setCompetitionSource } from './names';
+import { resetEstadualCache } from './estaduais_clubs';
 import { generateSquad, pickSpot } from '../engine/squad';
 
 /* =====================================================================
@@ -17,9 +19,11 @@ export interface PackPlayer { name: string; pos: Position; /** função (LD, LE,
 /** `players` = elenco completo com posição; `names` = só nomes, na ordem do elenco do jogo (vazio = mantém o nome). */
 /** Vaga do elenco do jogo (na ordem: goleiros, defensores, meias, atacantes): o pacote dá nome, idade e overall; a posição e a função vêm do jogo. Campo vazio = mantém o do jogo. */
 export interface PackSlot { name?: string; age?: number; overall?: number }
-export interface PackClub { id: string; badge?: string; players?: PackPlayer[]; names?: string[]; slots?: PackSlot[] }
-export interface Pack { name: string; author?: string; version?: string; clubs: PackClub[] }
-export interface PackReport { clubs: number; players: number; badges: number; warnings: string[] }
+/** Dados do clube trocados pelo pacote: nome, sigla, estádio, cidade e cores. */
+export interface ClubInfoPatch { name?: string; shortName?: string; stadium?: string; city?: string; primaryColor?: string; secondaryColor?: string }
+export interface PackClub { id: string; badge?: string; players?: PackPlayer[]; names?: string[]; slots?: PackSlot[]; info?: ClubInfoPatch }
+export interface Pack { name: string; author?: string; version?: string; clubs: PackClub[]; /** nomes de competições (copas, ligas, divisões) */ competitions?: Record<string, string> }
+export interface PackReport { clubs: number; players: number; badges: number; names: number; warnings: string[] }
 export type PackResult = { ok: true; pack: Pack; report: PackReport } | { ok: false; error: string };
 
 const POS: Record<string, Position> = {
@@ -47,17 +51,17 @@ export function validatePack(text: string, badgeFiles: string[] = []): PackResul
   let raw: unknown;
   try { raw = JSON.parse(text); } catch { return { ok: false, error: 'O arquivo não é um JSON válido.' }; }
   const r0 = raw as Record<string, unknown>;
-  const r = { name: pick(r0, 'name', 'nome'), author: pick(r0, 'author', 'autor'), version: pick(r0, 'version', 'versao', 'versão'), clubs: pick(r0, 'clubs', 'clubes', 'times') };
+  const r: { name: unknown; author: unknown; version: unknown; clubs: unknown } = { name: pick(r0, 'name', 'nome'), author: pick(r0, 'author', 'autor'), version: pick(r0, 'version', 'versao', 'versão'), clubs: pick(r0, 'clubs', 'clubes', 'times') };
   if (!r0 || typeof r0 !== 'object' || typeof r.name !== 'string' || !r.name.trim()) return { ok: false, error: 'O pacote precisa de um "name".' };
-  if (!Array.isArray(r.clubs) || r.clubs.length === 0) return { ok: false, error: 'O pacote precisa de uma lista "clubs" com pelo menos 1 clube.' };
-  if (r.clubs.length > MAX_PACK_CLUBS) return { ok: false, error: `Pacote grande demais (máximo de ${MAX_PACK_CLUBS.toLocaleString('pt-BR')} clubes).` };
+  if (!Array.isArray(r.clubs) || r.clubs.length === 0) { if (!pick(r0, 'competitions', 'competicoes', 'competições')) return { ok: false, error: 'O pacote precisa de uma lista "clubs" com pelo menos 1 clube.' }; r.clubs = []; }
+  if ((r.clubs as unknown[]).length > MAX_PACK_CLUBS) return { ok: false, error: `Pacote grande demais (máximo de ${MAX_PACK_CLUBS.toLocaleString('pt-BR')} clubes).` };
   const known = new Set(Object.values(CLUBS_DATA).flat().map((c) => c.id));
   const files = new Set(badgeFiles.map(baseName));
   const warnings: string[] = [];
   const warn = (t: string) => { if (warnings.length < 60) warnings.push(t); };
   const seen = new Set<string>();
   const clubs: PackClub[] = [];
-  let players = 0, badges = 0;
+  let players = 0, badges = 0, names = 0;
   for (const c0 of r.clubs as Record<string, unknown>[]) {
     const c = { id: pick(c0, 'id', 'clubId', 'clube_id', 'clubeId'), badge: pick(c0, 'badge', 'escudo', 'logo'), players: pick(c0, 'players', 'jogadores', 'elenco') } as Record<string, unknown>;
     const id = typeof c.id === 'string' ? c.id : '';
@@ -65,6 +69,18 @@ export function validatePack(text: string, badgeFiles: string[] = []): PackResul
     if (seen.has(id)) { warn(`Clube repetido: "${id}" (usei o primeiro).`); continue; }
     seen.add(id);
     const club: PackClub = { id };
+    const info: ClubInfoPatch = {};
+    for (const [f, keys] of [['name', ['name', 'nome']], ['shortName', ['shortName', 'sigla', 'short']], ['stadium', ['stadium', 'estadio', 'estádio']], ['city', ['city', 'cidade']]] as const) {
+      const v = pick(c0, ...keys);
+      if (v === undefined) continue;
+      if (typeof v !== 'string' || !v.trim() || v.trim().length > 40) { warn(`${id}: campo "${f}" inválido (ignorado).`); continue; }
+      info[f] = v.trim();
+    }
+    for (const [f, keys] of [['primaryColor', ['primaryColor', 'corPrincipal']], ['secondaryColor', ['secondaryColor', 'corSecundaria']]] as const) {
+      const v = pick(c0, ...keys);
+      if (typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v.trim())) info[f] = v.trim();
+    }
+    if (Object.keys(info).length) { club.info = info; names++; }
     if (typeof c.badge === 'string' && c.badge.trim()) {
       if (!IMG.test(c.badge)) warn(`${id}: escudo "${c.badge}" não é imagem PNG/JPG/WEBP.`);
       else if (!files.has(baseName(c.badge))) warn(`${id}: o escudo "${c.badge}" não veio no ZIP.`);
@@ -112,10 +128,21 @@ export function validatePack(text: string, badgeFiles: string[] = []): PackResul
       if (list.length > 0 && list.length < 14) warn(`${id}: só ${list.length} jogadores; o jogo completa o elenco com nomes fictícios.`);
       if (list.length > 0) { club.players = list; players += list.length; }
     }
-    if (club.badge || club.players || club.names || club.slots) clubs.push(club);
+    if (club.badge || club.players || club.names || club.slots || club.info) clubs.push(club);
   }
-  if (clubs.length === 0) return { ok: false, error: 'Nenhum clube válido no pacote. Use os ids do modelo gerado pelo jogo.' };
-  return { ok: true, pack: { name: r.name.trim().slice(0, 40), author: typeof r.author === 'string' ? r.author.slice(0, 40) : undefined, version: typeof r.version === 'string' ? r.version.slice(0, 12) : undefined, clubs }, report: { clubs: clubs.length, players, badges, warnings } };
+  // nomes de competições (copas, ligas e divisões) pela chave de cada uma
+  const rawComp = pick(r0, 'competitions', 'competicoes', 'competições');
+  let competitions: Record<string, string> | undefined;
+  if (rawComp && typeof rawComp === 'object' && !Array.isArray(rawComp)) {
+    const ok = new Set<string>([...COMP_KEYS, ...competitionIds()]);
+    for (const [k, v] of Object.entries(rawComp as Record<string, unknown>)) {
+      if (!ok.has(k)) { warn(`Competição desconhecida: "${k}" (ignorada).`); continue; }
+      if (typeof v !== 'string' || !v.trim() || v.trim().length > 40) { warn(`Competição "${k}": nome inválido (ignorado).`); continue; }
+      (competitions ??= {})[k] = v.trim();
+    }
+  }
+  if (clubs.length === 0 && !competitions) return { ok: false, error: 'Nenhum clube válido no pacote. Use os ids do modelo gerado pelo jogo.' };
+  return { ok: true, pack: { name: r.name.trim().slice(0, 40), author: typeof r.author === 'string' ? r.author.slice(0, 40) : undefined, version: typeof r.version === 'string' ? r.version.slice(0, 12) : undefined, clubs, ...(competitions ? { competitions } : {}) }, report: { clubs: clubs.length, players, badges, names, warnings } };
 }
 
 const hash = (s: string) => { let h = 7; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; };
@@ -193,7 +220,7 @@ export function extractEmbedded(text: string): { text: string; files: { name: st
 }
 
 /* ---------- aplicar sobre os dados do jogo ---------- */
-const ORIGINAL = new Map<string, { squad: Player[]; badge: string }>();
+const ORIGINAL = new Map<string, { squad: Player[]; badge: string; info: Required<ClubInfoPatch> }>();
 const BADGE_URLS = new Map<string, string>();
 
 /** Endereço real do escudo: escudos do pacote usam "pack:<id>", resolvidos para a imagem guardada. */
@@ -202,18 +229,21 @@ export const resolveBadge = (badge: string): string => (badge.startsWith('pack:'
 /** Aplica (ou, com null, remove) o pacote nos clubes do jogo. `urls` liga o nome da imagem ao endereço dela. */
 export function applyPack(pack: Pack | null, urls: Record<string, string> = {}): void {
   const all = new Map(Object.values(CLUBS_DATA).flat().map((c) => [c.id, c]));
-  for (const [id, o] of ORIGINAL) { const c = all.get(id); if (c) { c.squad = o.squad; c.badge = o.badge; } }
+  for (const [id, o] of ORIGINAL) { const c = all.get(id); if (c) { c.squad = o.squad; c.badge = o.badge; Object.assign(c, o.info); } }
   ORIGINAL.clear(); BADGE_URLS.clear();
-  if (!pack) return;
+  setCompetitionSource('pack', pack?.competitions);
+  if (!pack) { resetEstadualCache(); return; }
   for (const pc of pack.clubs) {
     const c = all.get(pc.id);
     if (!c) continue;
-    ORIGINAL.set(c.id, { squad: c.squad, badge: c.badge });
+    ORIGINAL.set(c.id, { squad: c.squad, badge: c.badge, info: { name: c.name, shortName: c.shortName, stadium: c.stadium, city: c.city, primaryColor: c.primaryColor, secondaryColor: c.secondaryColor } });
+    if (pc.info) { Object.assign(c, pc.info); if (pc.info.name && !pc.info.shortName) c.shortName = autoShort(pc.info.name); } // só o nome veio: a sigla sai dele
     if (pc.players?.length) c.squad = buildPackSquad(c, pc.players);
     else if (pc.slots?.length) c.squad = applySlots(c.squad, pc.slots);
     else if (pc.names?.length) c.squad = renameSquad(c.squad, pc.names);
     if (pc.badge && urls[pc.badge]) { BADGE_URLS.set(c.id, urls[pc.badge]); c.badge = `pack:${c.id}`; }
   }
+  resetEstadualCache();
 }
 
 /** Modelo para o jogador preencher: os primeiros clubes de cada divisão, com ids certos e jogadores de exemplo. */

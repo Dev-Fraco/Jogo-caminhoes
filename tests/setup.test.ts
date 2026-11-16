@@ -27,7 +27,7 @@ describe('Etapa 4 — opções', () => {
 describe('nome do save', () => {
   it('sugestão "Treinador - Clube - 2026"', () => {
     expect(START_SEASON).toBe(2026);
-    expect(suggestSaveName('  Carlos Almeida ', 'Palmeiras')).toBe('Carlos Almeida - Palmeiras - 2026');
+    expect(suggestSaveName('  Carlos Almeida ', 'Atlético Santa Aurora')).toBe('Carlos Almeida - Atlético Santa Aurora - 2026');
   });
   it('sugestão nunca passa do limite (corta o nome do treinador)', () => {
     const s = suggestSaveName('x'.repeat(40), 'Red Bull Bragantino');
@@ -36,10 +36,10 @@ describe('nome do save', () => {
   });
   it('sincroniza com treinador/clube enquanto não foi editado; respeita a edição do jogador', () => {
     const a = syncSaveName(full());
-    expect(a.setup.saveName).toBe('Carlos Almeida - Palmeiras - 2026');
+    expect(a.setup.saveName).toBe('Carlos Almeida - Atlético Santa Aurora - 2026');
     expect(syncSaveName(a)).toBe(a); // sem mudança, mesma referência
     const b = syncSaveName({ ...a, club: getClub('serie-a', 'flamengo')! });
-    expect(b.setup.saveName).toBe('Carlos Almeida - Flamengo - 2026');
+    expect(b.setup.saveName).toBe('Carlos Almeida - Sporting Navegantes - 2026');
     const edited = { ...b, setup: { ...b.setup, saveName: 'Meu save', saveNameEdited: true } };
     expect(syncSaveName({ ...edited, club: getClub('serie-a', 'santos')! }).setup.saveName).toBe('Meu save');
   });

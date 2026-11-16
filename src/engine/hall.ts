@@ -1,3 +1,4 @@
+import { COMP_NAMES } from '../data/names';
 import { anyClubName } from './market';
 import type { GameState } from './types';
 
@@ -25,11 +26,11 @@ export function entriesOf(g: GameState): HallEntry[] {
     states: h.estadualChampions?.map((c) => ({ name: c.name.replace('Campeonato ', ''), champion: c.divisions.map((d) => anyClubName(g, d.championId)).join(' / ') })),
     divisions: h.divisions.map((d, i) => ({ name: g.divisions[i]?.name ?? d.id, champion: anyClubName(g, d.championId) })),
     cups: [
-      ...(h.cupChampionId ? [{ icon: '🏆', name: g.cup?.name ?? 'Copa do Brasil', champion: anyClubName(g, h.cupChampionId) }] : []),
-      ...(h.libChampionId ? [{ icon: '🌎', name: 'Libertadores', champion: anyClubName(g, h.libChampionId) }] : []),
-      ...(h.sulaChampionId ? [{ icon: '🌴', name: 'Sul-Americana', champion: anyClubName(g, h.sulaChampionId) }] : []),
-      ...(h.uclChampionId ? [{ icon: '⭐', name: 'Champions League', champion: anyClubName(g, h.uclChampionId) }] : []),
-      ...(h.mundialChampionId ? [{ icon: '🌍', name: 'Mundial de Clubes', champion: anyClubName(g, h.mundialChampionId) }] : []),
+      ...(h.cupChampionId ? [{ icon: '🏆', name: g.cup?.name ?? COMP_NAMES.cup, champion: anyClubName(g, h.cupChampionId) }] : []),
+      ...(h.libChampionId ? [{ icon: '🌎', name: COMP_NAMES.lib, champion: anyClubName(g, h.libChampionId) }] : []),
+      ...(h.sulaChampionId ? [{ icon: '🌴', name: COMP_NAMES.sula, champion: anyClubName(g, h.sulaChampionId) }] : []),
+      ...(h.uclChampionId ? [{ icon: '⭐', name: COMP_NAMES.ucl, champion: anyClubName(g, h.uclChampionId) }] : []),
+      ...(h.mundialChampionId ? [{ icon: '🌍', name: COMP_NAMES.mundial, champion: anyClubName(g, h.mundialChampionId) }] : []),
     ],
   }));
 }

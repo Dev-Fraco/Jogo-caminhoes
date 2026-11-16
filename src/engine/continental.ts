@@ -3,6 +3,7 @@ import { prize } from './economy';
 import { clubOf, teamOf } from './lookup';
 import { moraleFactor } from './morale';
 import { simulateCupMatch, simulateMatch } from './match';
+import { COMP_NAMES } from '../data/names';
 import { addScorers, clearGoals, drainGoals, logGoals } from './scorers';
 import { makeRng, type Rng } from './rng';
 import { buildFixtures } from './schedule';
@@ -29,14 +30,14 @@ interface Cfg {
 const GROUP_NAMES = [1, 2, 3, 4, 5, 6].map((n) => `Grupos · rodada ${n}`);
 export const CONTINENTALS: Record<Comp, Cfg> = {
   lib: {
-    key: 'lib', id: 'libertadores', name: 'Libertadores', icon: '🌎',
+    key: 'lib', id: 'libertadores', get name() { return COMP_NAMES.lib; }, icon: '🌎',
     quotas: [['serie-a', 6], ['ar-primera', 5], ['co-primera', 3], ['cl-primera', 3], ['uy-primera', 3], ['ec-primera', 3], ['py-primera', 3], ['pe-primera', 2], ['bo-primera', 2], ['ve-primera', 2]],
     groups: 8, stepNames: [...GROUP_NAMES, 'Oitavas de final', 'Quartas de final', 'Semifinal', 'Final'],
     dates: [6, 11, 16, 21, 24, 28, 30, 32, 35, 37],
     win: 2.5 * M, draw: 1 * M, qualified: 8 * M, koPrize: [12 * M, 18 * M, 30 * M, 150 * M], runnerUp: 50 * M,
   },
   sula: {
-    key: 'sula', id: 'sulamericana', name: 'Sul-Americana', icon: '🌴',
+    key: 'sula', id: 'sulamericana', get name() { return COMP_NAMES.sula; }, icon: '🌴',
     // os clubes logo depois dos da Libertadores em cada país (as vagas são as mesmas, a partir da posição seguinte)
     quotas: [['serie-a', 6], ['ar-primera', 5], ['co-primera', 3], ['cl-primera', 3], ['uy-primera', 3], ['ec-primera', 3], ['py-primera', 3], ['pe-primera', 2], ['bo-primera', 2], ['ve-primera', 2]],
     groups: 8, stepNames: [...GROUP_NAMES, 'Oitavas de final', 'Quartas de final', 'Semifinal', 'Final'],
@@ -44,7 +45,7 @@ export const CONTINENTALS: Record<Comp, Cfg> = {
     win: 1.5 * M, draw: 0.6 * M, qualified: 5 * M, koPrize: [7 * M, 12 * M, 20 * M, 80 * M], runnerUp: 30 * M,
   },
   ucl: {
-    key: 'ucl', id: 'champions', name: 'Champions League', icon: '⭐',
+    key: 'ucl', id: 'champions', get name() { return COMP_NAMES.ucl; }, icon: '⭐',
     quotas: [['premier', 3], ['es-primera', 3], ['it-serie-a', 3], ['bundesliga', 3], ['ligue-1', 2], ['pt-primeira', 2]],
     groups: 4, stepNames: [...GROUP_NAMES, 'Quartas de final', 'Semifinal', 'Final'],
     dates: [7, 12, 17, 22, 25, 29, 31, 34, 36],
@@ -254,7 +255,7 @@ export function mundialAfterLeagueRound(g: GameState): GameState {
   const lib = finalists(g.lib), ucl = finalists(g.ucl);
   if (!lib || !ucl) return g;
   const ties: CupTie[] = [{ homeId: ucl[0], awayId: lib[1] }, { homeId: lib[0], awayId: ucl[1] }];
-  let s: GameState = { ...g, mundial: { id: MUNDIAL_ID, name: 'Mundial de Clubes', ko: [{ name: 'Semifinal', ties }], step: 0, due: true, alive: [...ucl, ...lib] } };
+  let s: GameState = { ...g, mundial: { id: MUNDIAL_ID, name: COMP_NAMES.mundial, ko: [{ name: 'Semifinal', ties }], step: 0, due: true, alive: [...ucl, ...lib] } };
   while (s.mundial?.due && !mundialUserIn(s)) s = playMundialStep(s).state;
   return s;
 }

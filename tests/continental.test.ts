@@ -1,3 +1,4 @@
+import { COMP_NAMES } from '../src/data/names';
 import { describe, expect, it } from 'vitest';
 import { brazilPyramid } from '../src/data/pyramid';
 import { isSeasonOver, newCareer, playNext, playRound, startNextSeason } from '../src/engine/game';
@@ -115,7 +116,7 @@ describe('Libertadores', () => {
     expect(new Set(sula.alive).size).toBe(32);
     expect(sula.alive.filter((id) => g.lib!.alive.includes(id))).toEqual([]);
     expect(sula.alive.filter((id) => g.clubs[id]).length).toBe(6);
-    expect(sula.name).toBe('Sul-Americana');
+    expect(sula.name).toBe(COMP_NAMES.sula);
     let k = g, guard = 0;
     while (!isSeasonOver(k) && guard++ < 400) k = playNext(k).state;
     expect(k.sula!.championId).toBeTruthy();

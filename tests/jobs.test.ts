@@ -139,7 +139,7 @@ describe('ficar sem clube e ser contratado', () => {
     expect(h.userClubId).toBe('santos');
     expect(h.transferList).toEqual([]);
     expect(h.teams.santos.lineup).toHaveLength(11);
-    expect(h.news[0].text).toMatch(/novo treinador do Santos/);
+    expect(h.news[0].text).toMatch(/novo treinador do Serranos Clube/);
   });
 });
 

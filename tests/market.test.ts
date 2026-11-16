@@ -19,8 +19,8 @@ describe('diretório de clubes', () => {
     expect(homeLeague(g).countryId).toBe('BR');
     expect(d.filter((c) => c.domestic).length).toBe(155);
     expect(d.some((c) => c.id === 'palmeiras')).toBe(false);
-    expect(d.some((c) => !c.domestic && c.countryId === 'EN' && c.name === 'Arsenal')).toBe(true);
-    expect(d.some((c) => !c.domestic && c.countryId === 'AR' && c.divisionName === 'Primera Nacional')).toBe(true);
+    expect(d.some((c) => !c.domestic && c.countryId === 'EN' && c.name === 'Crownmere Harriers')).toBe(true);
+    expect(d.some((c) => !c.domestic && c.countryId === 'AR' && c.divisionName === '2ª Divisão')).toBe(true);
     expect(new Set(d.map((c) => c.id)).size).toBe(d.length);
     expect(d.length).toBeGreaterThan(300);
     expect(leagueScore('EN', 0)).toBeGreaterThan(leagueScore('BR', 0));
@@ -34,7 +34,7 @@ describe('diretório de clubes', () => {
     const later = foreignSquad({ ...g, history: new Array(8).fill(g.history) as never }, 'en-arsenal');
     expect(later.length).toBe(24);
     expect(later.every((p) => p.age < 40)).toBe(true);
-    expect(anyClubName(g, 'en-arsenal')).toBe('Arsenal');
+    expect(anyClubName(g, 'en-arsenal')).toBe('Crownmere Harriers');
   });
 });
 
@@ -131,7 +131,7 @@ describe('negociação', () => {
     expect(clubPlayers(r.state, 'it-roma').some((x) => x.id === p.id)).toBe(false);
     expect(r.state.teams.palmeiras.players.some((x) => x.id === p.id)).toBe(true);
     expect(r.state.transfers.at(-1)!.fromClubId).toBe('it-roma');
-    expect(anyClubName(r.state, 'it-roma')).toBe('Roma');
+    expect(anyClubName(r.state, 'it-roma')).toBe('Fortitudo Cometa');
     expect(quote(r.state, 'it-roma', p.id)).toBeNull();
   });
   it('compra direta pelo preço pedido usa um contrato padrão', () => {

@@ -1,3 +1,4 @@
+import { COMP_NAMES } from '../data/names';
 import { clubOf } from '../engine/lookup';
 import { ClubBadge } from './ClubBadge';
 import { useState } from 'react';
@@ -16,11 +17,11 @@ export function HistoryView({ game }: { game: GameState }) {
   if (list.length === 0) return <div className="card center"><p className="hint">Nenhuma temporada encerrada ainda. Os campeões aparecem aqui quando cada temporada terminar.</p></div>;
 
   const cups = (h: SeasonSummary) => [
-    h.cupChampionId && ['🏆', game.cup?.name ?? 'Copa do Brasil', h.cupChampionId],
-    h.libChampionId && ['🌎', 'Libertadores', h.libChampionId],
-    h.sulaChampionId && ['🌴', 'Sul-Americana', h.sulaChampionId],
-    h.uclChampionId && ['⭐', 'Champions League', h.uclChampionId],
-    h.mundialChampionId && ['🌍', 'Mundial de Clubes', h.mundialChampionId],
+    h.cupChampionId && ['🏆', game.cup?.name ?? COMP_NAMES.cup, h.cupChampionId],
+    h.libChampionId && ['🌎', COMP_NAMES.lib, h.libChampionId],
+    h.sulaChampionId && ['🌴', COMP_NAMES.sula, h.sulaChampionId],
+    h.uclChampionId && ['⭐', COMP_NAMES.ucl, h.uclChampionId],
+    h.mundialChampionId && ['🌍', COMP_NAMES.mundial, h.mundialChampionId],
   ].filter(Boolean) as [string, string, string][];
 
   return (

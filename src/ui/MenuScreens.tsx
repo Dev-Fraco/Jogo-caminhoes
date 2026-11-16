@@ -176,12 +176,12 @@ export function Mods({ onBack }: { onBack: () => void }) {
     if (!r.ok) { setMsg({ text: r.error, err: true }); return; }
     try { await installPack(r.p); localStorage.setItem('vr-pack-name', r.p.pack.name); } catch { setMsg({ text: 'Não consegui guardar o pacote neste aparelho.', err: true }); return; }
     setBump((n) => n + 1); setText('');
-    setMsg({ text: `Pacote de elencos "${r.p.pack.name}" instalado: ${r.p.report.clubs} clubes, ${r.p.report.players} jogadores e ${r.p.report.badges} escudos${r.p.report.warnings.length ? ` (${r.p.report.warnings.length} avisos na seção "Elencos e escudos")` : ''}. Comece uma nova carreira para ver.` });
+    setMsg({ text: `Pacote de elencos "${r.p.pack.name}" instalado: ${r.p.report.clubs} clubes, ${r.p.report.names} nomes de clube, ${r.p.report.players} jogadores e ${r.p.report.badges} escudos${r.p.report.warnings.length ? ` (${r.p.report.warnings.length} avisos na seção "Elencos e escudos")` : ''}. Comece uma nova carreira para ver.` });
   };
   const add = (src: string) => {
     const r = parseMod(src);
     if (!r.ok) { setMsg({ text: r.error, err: true }); return; }
-    commit([...mods, r.mod]); setText(''); setMsg({ text: `Pacote "${r.mod.name}" instalado (${r.mod.clubs.length} clubes). Vale para as próximas carreiras.` });
+    commit([...mods, r.mod]); setText(''); setMsg({ text: `Pacote "${r.mod.name}" instalado (${r.mod.clubs.length} clubes${r.mod.competitions ? `, ${Object.keys(r.mod.competitions).length} competições` : ''}). Vale para as próximas carreiras.` });
   };
   const download = () => {
     const url = URL.createObjectURL(new Blob([modTemplate()], { type: 'application/json' }));
@@ -248,8 +248,8 @@ export function Credits({ onBack }: { onBack: () => void }) {
       <section>
         <h3>Avisos</h3>
         <div className="card cr-list">
-          <p>Nomes de clubes e ligas são usados de forma descritiva. Os jogadores, elencos, valores e resultados são <b>fictícios</b>.</p>
-          <p>Escudos e licenças oficiais podem ser adicionados por pacotes de dados (Mods da Comunidade).</p>
+          <p>Os clubes, estádios, jogadores, elencos, valores e resultados do jogo são <b>fictícios</b>. Qualquer semelhança com clubes reais é coincidência.</p>
+          <p>Nomes e escudos reais só aparecem se <b>você</b> instalar um pacote (Mods da Comunidade). Os direitos de nomes e escudos pertencem aos seus donos.</p>
           <p>Comunidade: {COMMUNITY_LINK}</p>
         </div>
       </section>

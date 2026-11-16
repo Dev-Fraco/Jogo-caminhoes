@@ -1,5 +1,6 @@
 import { prize } from './economy';
 import { moraleFactor } from './morale';
+import { COMP_NAMES } from '../data/names';
 import { simulateCupMatch } from './match';
 import { addScorers, clearGoals, drainGoals, logGoals } from './scorers';
 import { makeRng, type Rng } from './rng';
@@ -47,7 +48,7 @@ export function createCup(g: Pick<GameState, 'divisions' | 'teams' | 'userClubId
   const alive = list.map((c) => c.id);
   const total = Math.log2(list.length);
   return {
-    id: COPA_DO_BRASIL, name: 'Copa do Brasil', rounds: [{ name: CUP_ROUND_NAMES[CUP_ROUND_NAMES.length - total], ties }],
+    id: COPA_DO_BRASIL, name: COMP_NAMES.cup, rounds: [{ name: CUP_ROUND_NAMES[CUP_ROUND_NAMES.length - total], ties }],
     roundIndex: 0, totalRounds: total, dueAfter: CUP_DATES.slice(CUP_ROUND_NAMES.length - total), due: false, alive,
   };
 }

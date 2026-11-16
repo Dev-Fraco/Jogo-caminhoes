@@ -1,3 +1,4 @@
+import { COMP_NAMES } from '../data/names';
 import { makeRng, hashString } from './rng';
 import { teamOf } from './lookup';
 import type { GameState, MatchEvent, Player, SeasonSummary } from './types';
@@ -72,7 +73,7 @@ export function competitionName(g: GameState, id: string): string {
   if (d) return d.name;
   if (id === 'copa') return g.cup?.name ?? 'Copa';
   for (const k of ['lib', 'sula', 'ucl'] as const) if (g[k]?.id === id || id === k) return g[k]?.name ?? id;
-  if (id === 'mundial') return g.mundial?.name ?? 'Mundial de Clubes';
+  if (id === 'mundial') return g.mundial?.name ?? COMP_NAMES.mundial;
   if (id.startsWith('est:')) {
     const [, uf, di] = id.split(':');
     const c = g.estadual?.comps.find((x) => x.uf === uf);

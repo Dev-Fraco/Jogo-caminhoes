@@ -96,6 +96,6 @@ describe('notícias', () => {
     expect(feed.length).toBeGreaterThan(0);
     expect(feed.some((n) => /contrata|anuncia/.test(n.text))).toBe(true); // a lista também traz recusas de propostas
     const mine = transferFeed({ ...g, transfers: [{ kind: 'buy', season: g.season, round: 3, playerId: 'x', playerName: 'João Silva', pos: 'ATT', strength: 70, fromClubId: 'santos', toClubId: 'palmeiras', fee: 1_000_000 }] });
-    expect(mine.some((n) => n.mine && /contratou João Silva do Santos/.test(n.text))).toBe(true);
+    expect(mine.some((n) => n.mine && /contratou João Silva do Serranos Clube/.test(n.text))).toBe(true);
   });
 });

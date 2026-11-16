@@ -5,17 +5,17 @@ import { squadOverall, startingEleven } from '../src/newgame/squadInfo';
 
 const DIVS = ['serie-a', 'serie-b', 'serie-c', 'serie-d'] as const;
 const all = DIVS.flatMap((d) => CLUBS_DATA[d]);
-const names = (d: string) => CLUBS_DATA[d].map((c) => c.name).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+const names = (d: string) => CLUBS_DATA[d].map((c) => c.id).sort();
 
 describe('CLUBS_DATA — listas de 2026', () => {
   it('Série A: os 20 clubes pedidos', () => {
-    expect(names('serie-a')).toEqual(['Flamengo', 'Palmeiras', 'Cruzeiro', 'Mirassol', 'Fluminense', 'Bahia', 'Botafogo', 'São Paulo', 'Red Bull Bragantino', 'Corinthians', 'Grêmio', 'Vasco da Gama', 'Atlético-MG', 'Santos', 'Athletico-PR', 'Coritiba', 'Internacional', 'Chapecoense', 'Vitória', 'Remo'].sort((a, b) => a.localeCompare(b, 'pt-BR')));
+    expect(names('serie-a')).toEqual(["athletico-pr","atletico-mg","bahia","botafogo","bragantino","chapecoense","corinthians","coritiba","cruzeiro","flamengo","fluminense","gremio","internacional","mirassol","palmeiras","remo","santos","sao-paulo","vasco","vitoria"]);
   });
   it('Série B: os 20 clubes pedidos', () => {
-    expect(names('serie-b')).toEqual(['América-MG', 'Athletic', 'Atlético-GO', 'Avaí', 'Botafogo-SP', 'Ceará', 'CRB', 'Criciúma', 'Cuiabá', 'Fortaleza', 'Goiás', 'Juventude', 'Londrina', 'Náutico', 'Novorizontino', 'Operário-PR', 'Ponte Preta', 'São Bernardo', 'Sport', 'Vila Nova'].sort((a, b) => a.localeCompare(b, 'pt-BR')));
+    expect(names('serie-b')).toEqual(["america-mg","athletic","atletico-go","avai","botafogo-sp","ceara","crb","criciuma","cuiaba","fortaleza","goias","juventude","londrina","nautico","novorizontino","operario-pr","ponte-preta","sao-bernardo","sport","vila-nova"]);
   });
   it('Série C: os 20 clubes pedidos', () => {
-    expect(names('serie-c')).toEqual(['Amazonas', 'Anápolis', 'Barra', 'Botafogo-PB', 'Brusque', 'Caxias', 'Confiança', 'Ferroviária', 'Figueirense', 'Floresta', 'Guarani', 'Inter de Limeira', 'Itabaiana', 'Ituano', 'Maranhão', 'Maringá', 'Paysandu', 'Santa Cruz', 'Volta Redonda', 'Ypiranga'].sort((a, b) => a.localeCompare(b, 'pt-BR')));
+    expect(names('serie-c')).toEqual(["amazonas","anapolis","barra","botafogo-pb","brusque","caxias","confianca","ferroviaria","figueirense","floresta","guarani","inter-de-limeira","itabaiana","ituano","maranhao","maringa","paysandu","santa-cruz","volta-redonda","ypiranga"]);
   });
   it('Série D: 96 clubes reais (16 grupos de 6), sem repetir clubes das Séries A–C, siglas únicas', () => {
     const d = CLUBS_DATA['serie-d'];
@@ -52,8 +52,8 @@ describe('CLUBS_DATA — campos', () => {
   });
   it('exemplo do Flamengo', () => {
     expect(getClub('serie-a', 'flamengo')).toMatchObject({
-      id: 'flamengo', name: 'Flamengo', shortName: 'FLA', primaryColor: '#C52613', secondaryColor: '#111111',
-      stadium: 'Maracanã', city: 'Rio de Janeiro', budget: 150_000_000, boardExpectation: 'title', reputation: 5,
+      id: 'flamengo', primaryColor: '#C52613', secondaryColor: '#111111',
+      city: 'Rio de Janeiro', budget: 150_000_000, boardExpectation: 'title', reputation: 5,
     });
   });
   it('meta da diretoria é coerente com a reputação nas Séries A, B e C', () => {
@@ -117,7 +117,7 @@ describe('CLUBS_DATA — estrutura', () => {
     const a = CLUBS_DATA['serie-a'];
     const before = a.map((c) => c.id);
     const sorted = sortByName(a).map((c) => c.name);
-    expect(sorted.slice(0, 5)).toEqual(['Athletico-PR', 'Atlético-MG', 'Bahia', 'Botafogo', 'Chapecoense']);
+    expect(sorted).toEqual([...sorted].sort((x, y) => x.localeCompare(y, 'pt-BR')));
     expect(a.map((c) => c.id)).toEqual(before);
   });
 });

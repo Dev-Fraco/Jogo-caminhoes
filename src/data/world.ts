@@ -46,30 +46,30 @@ export const WORLD_DATA: Record<string, Country> = {
   AR: {
     name: 'Argentina', flag: '🇦🇷',
     leagues: [{
-      id: 'liga-profesional', name: 'Liga Profesional', description: 'Campeonato nacional de pontos corridos da Argentina.',
+      id: 'liga-profesional', name: 'Liga Argentina', description: 'Campeonato nacional de pontos corridos da Argentina.',
       divisions: [
         { id: 'ar-primera', name: '1ª Divisão', alias: 'Primera División', teams: 30 },
-        { id: 'ar-nacional', name: '2ª Divisão', alias: 'Primera Nacional', teams: 34 },
+        { id: 'ar-nacional', name: '2ª Divisão', alias: 'Segunda Divisão Argentina', teams: 34 },
       ],
     }],
   },
   EN: {
     name: 'Inglaterra', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
     leagues: [{
-      id: 'premier-league', name: 'Premier League', description: 'Campeonato nacional de pontos corridos da Inglaterra.',
+      id: 'premier-league', name: 'Liga Inglesa', description: 'Campeonato nacional de pontos corridos da Inglaterra.',
       divisions: [
-        { id: 'premier', name: '1ª Divisão', alias: 'Premier League', teams: 20 },
-        { id: 'championship', name: '2ª Divisão', alias: 'Championship', teams: 24 },
-        { id: 'league-one', name: '3ª Divisão', alias: 'League One', teams: 24 },
+        { id: 'premier', name: '1ª Divisão', alias: 'Liga Inglesa', teams: 20 },
+        { id: 'championship', name: '2ª Divisão', alias: 'Segunda Divisão Inglesa', teams: 24 },
+        { id: 'league-one', name: '3ª Divisão', alias: 'Terceira Divisão Inglesa', teams: 24 },
       ],
     }],
   },
   ES: {
     name: 'Espanha', flag: '🇪🇸',
     leagues: [{
-      id: 'la-liga', name: 'La Liga', description: 'Campeonato nacional de pontos corridos da Espanha.',
+      id: 'la-liga', name: 'Liga Espanhola', description: 'Campeonato nacional de pontos corridos da Espanha.',
       divisions: [
-        { id: 'es-primera', name: '1ª Divisão', alias: 'La Liga', teams: 20 },
+        { id: 'es-primera', name: '1ª Divisão', alias: 'Liga Espanhola', teams: 20 },
         { id: 'es-segunda', name: '2ª Divisão', alias: 'Segunda División', teams: 22 },
       ],
     }],
@@ -77,40 +77,40 @@ export const WORLD_DATA: Record<string, Country> = {
   IT: {
     name: 'Itália', flag: '🇮🇹',
     leagues: [{
-      id: 'serie-a-it', name: 'Serie A', description: 'Campeonato nacional de pontos corridos da Itália.',
+      id: 'serie-a-it', name: 'Liga Italiana', description: 'Campeonato nacional de pontos corridos da Itália.',
       divisions: [
-        { id: 'it-serie-a', name: '1ª Divisão', alias: 'Serie A', teams: 20 },
-        { id: 'it-serie-b', name: '2ª Divisão', alias: 'Serie B', teams: 20 },
+        { id: 'it-serie-a', name: '1ª Divisão', alias: 'Liga Italiana', teams: 20 },
+        { id: 'it-serie-b', name: '2ª Divisão', alias: 'Segunda Divisão Italiana', teams: 20 },
       ],
     }],
   },
   DE: {
     name: 'Alemanha', flag: '🇩🇪',
     leagues: [{
-      id: 'bundesliga', name: 'Bundesliga', description: 'Campeonato nacional de pontos corridos da Alemanha.',
+      id: 'bundesliga', name: 'Liga Alemã', description: 'Campeonato nacional de pontos corridos da Alemanha.',
       divisions: [
-        { id: 'bundesliga', name: '1ª Divisão', alias: 'Bundesliga', teams: 18 },
-        { id: 'bundesliga-2', name: '2ª Divisão', alias: '2. Bundesliga', teams: 18 },
+        { id: 'bundesliga', name: '1ª Divisão', alias: 'Liga Alemã', teams: 18 },
+        { id: 'bundesliga-2', name: '2ª Divisão', alias: 'Segunda Liga Alemã', teams: 18 },
       ],
     }],
   },
   FR: {
     name: 'França', flag: '🇫🇷',
     leagues: [{
-      id: 'ligue-1', name: 'Ligue 1', description: 'Campeonato nacional de pontos corridos da França.',
+      id: 'ligue-1', name: 'Liga Francesa', description: 'Campeonato nacional de pontos corridos da França.',
       divisions: [
-        { id: 'ligue-1', name: '1ª Divisão', alias: 'Ligue 1', teams: 18 },
-        { id: 'ligue-2', name: '2ª Divisão', alias: 'Ligue 2', teams: 18 },
+        { id: 'ligue-1', name: '1ª Divisão', alias: 'Liga Francesa', teams: 18 },
+        { id: 'ligue-2', name: '2ª Divisão', alias: 'Segunda Liga Francesa', teams: 18 },
       ],
     }],
   },
   PT: {
     name: 'Portugal', flag: '🇵🇹',
     leagues: [{
-      id: 'primeira-liga', name: 'Primeira Liga', description: 'Campeonato nacional de pontos corridos de Portugal.',
+      id: 'primeira-liga', name: 'Liga Portuguesa', description: 'Campeonato nacional de pontos corridos de Portugal.',
       divisions: [
-        { id: 'pt-primeira', name: '1ª Divisão', alias: 'Primeira Liga', teams: 18 },
-        { id: 'pt-segunda', name: '2ª Divisão', alias: 'Liga Portugal 2', teams: 18 },
+        { id: 'pt-primeira', name: '1ª Divisão', alias: 'Liga Portuguesa', teams: 18 },
+        { id: 'pt-segunda', name: '2ª Divisão', alias: 'Segunda Liga Portuguesa', teams: 18 },
       ],
     }],
   },
@@ -132,7 +132,7 @@ export const WORLD_DATA: Record<string, Country> = {
     name: 'Colômbia', flag: '🇨🇴',
     leagues: [{
       id: 'liga-colombiana', name: 'Liga Colombiana', description: 'Campeonato nacional de pontos corridos — Colômbia (1ª divisão).',
-      divisions: [{ id: 'co-primera', name: '1ª Divisão', alias: 'Liga BetPlay', teams: 20 }],
+      divisions: [{ id: 'co-primera', name: '1ª Divisão', alias: 'Liga Colombiana', teams: 20 }],
     }],
   },
   EC: {
@@ -166,8 +166,8 @@ export const WORLD_DATA: Record<string, Country> = {
   VE: {
     name: 'Venezuela', flag: '🇻🇪',
     leagues: [{
-      id: 'liga-futve', name: 'Liga FUTVE', description: 'Campeonato nacional de pontos corridos — Venezuela (1ª divisão).',
-      divisions: [{ id: 've-primera', name: '1ª Divisão', alias: 'Liga FUTVE', teams: 14 }],
+      id: 'liga-futve', name: 'Liga Venezuelana', description: 'Campeonato nacional de pontos corridos — Venezuela (1ª divisão).',
+      divisions: [{ id: 've-primera', name: '1ª Divisão', alias: 'Liga Venezuelana', teams: 14 }],
     }],
   },
 };
