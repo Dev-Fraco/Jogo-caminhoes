@@ -3,7 +3,7 @@ import { setFormation, swapPlayer } from '../engine/game';
 import { teamRatings } from '../engine/squad';
 import { FORMATIONS, SPOT_LABEL, SPOT_SHORT, type FormationId, type GameState, type Player, type Position } from '../engine/types';
 import { spotOf } from '../engine/squad';
-import { isInjured, roundsLeft } from '../engine/injuries';
+import { isInjured, remainingLabel } from '../engine/injuries';
 import { badgeColors } from './badge';
 
 const POS_ONE: Record<Position, string> = { GK: 'Goleiro', DEF: 'Defensor', MID: 'Meio-campista', ATT: 'Atacante' };
@@ -131,7 +131,7 @@ export function Lineup({ game, onChange, onBack }: { game: GameState; onChange: 
             <li key={p.id}>
               <button className="row bench" aria-label={`${p.name}, reserva, ${SPOT_LABEL[spotOf(p)]}, overall ${p.strength}. Escolher quem sai`} onClick={(e) => openFor(p, e.currentTarget)}>
                 <span className="tag">{SPOT_SHORT[spotOf(p)]}</span>
-                <span className="grow">{isInjured(game, p.id) ? '🤕 ' : ''}{p.name}<small>{p.age} anos{isInjured(game, p.id) ? ` · lesionado (${roundsLeft(game, p.id)} rod.)` : ''}</small></span>
+                <span className="grow">{isInjured(game, p.id) ? '🤕 ' : ''}{p.name}<small>{p.age} anos{isInjured(game, p.id) ? ` · lesionado (${remainingLabel(game, p.id)})` : ''}</small></span>
                 <b className="str">{p.strength}</b>
               </button>
             </li>

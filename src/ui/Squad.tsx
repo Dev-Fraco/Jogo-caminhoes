@@ -9,7 +9,7 @@ import { renewOffer } from '../engine/contractwatch';
 import { potentialOf, TALENT_LABEL, tierOf } from '../engine/potential';
 import { SPOT_LABEL, SPOT_SHORT, type GameState, type Player, type Position } from '../engine/types';
 import { spotOf } from '../engine/squad';
-import { isInjured, roundsLeft } from '../engine/injuries';
+import { isInjured, remainingLabel, roundsLeft } from '../engine/injuries';
 import { ScreenTitle } from './FmParts';
 import { Face } from './Face';
 import { formatBudget } from '../newgame/format';
@@ -55,7 +55,7 @@ function PlayerSheet({ game, player: p, onChange, onClose, onDone }: SheetProps)
           <div className="grow">
             <h2 id="ps-title">{p.name}</h2>
             <p>{SPOT_LABEL[spotOf(p)]} · {p.age} anos · {starter ? 'Titular' : 'Reserva'}</p>
-            {isInjured(game, p.id) && <p className="ps-warn">🤕 Lesionado ({game.injuries?.[p.id]?.kind}): fora por mais {roundsLeft(game, p.id)} {roundsLeft(game, p.id) === 1 ? 'rodada' : 'rodadas'}.</p>}
+            {isInjured(game, p.id) && <p className="ps-warn">🤕 Lesionado ({game.injuries?.[p.id]?.kind}): fora por mais {remainingLabel(game, p.id)}{game.injuries?.[p.id]?.severity === 'grave' ? ' · lesão grave' : ''}.</p>}
             <p>Valor de mercado: <b>{formatBudget(value)}</b></p>
             {p.age <= 25 && <p>Potencial: <b>~{Math.round(potentialOf(p) / 5) * 5}</b> · {TALENT_LABEL[tierOf(potentialOf(p))]}</p>}
             {p.formedAt && <p>Formado no <b>{game.clubs[p.formedAt]?.name ?? p.formedAt}</b>{p.formedSeason ? ` (${p.formedSeason})` : ''}</p>}
@@ -138,7 +138,7 @@ export function Squad({ game, onChange }: { game: GameState; onChange: (g: GameS
         <div><small>À venda</small><b>{game.transferList.length}</b></div>
         <div><small>Emprestados</small><b>{loaned.length}</b></div>
       </div>
-      {hurtList.length > 0 && <p className="sq-hurtbar" role="status">🤕 <b>{hurtList.length} {hurtList.length === 1 ? 'lesionado' : 'lesionados'}:</b> {hurtList.slice(0, 4).map((p) => `${p.name} (${roundsLeft(game, p.id)} rod.)`).join(', ')}{hurtList.length > 4 ? '…' : ''}</p>}
+      {hurtList.length > 0 && <p className="sq-hurtbar" role="status">🤕 <b>{hurtList.length} {hurtList.length === 1 ? 'lesionado' : 'lesionados'}:</b> {hurtList.slice(0, 4).map((p) => `${p.name} (${remainingLabel(game, p.id)})`).join(', ')}{hurtList.length > 4 ? '…' : ''}</p>}
       <p className="sq-info"><span aria-hidden="true">ℹ️</span> Toque em um jogador para vender, emprestar ou dispensar.</p>
       <div role="status" aria-live="polite">{notice && <p className="tf-notice">{notice}</p>}</div>
 
@@ -160,7 +160,7 @@ export function Squad({ game, onChange }: { game: GameState; onChange: (g: GameS
                         <span className={`sq-ovr ${p.strength >= 80 ? 'elite' : ''}`}>{p.strength}</span>
                       </span>
                       <span className="sq-role">{SPOT_SHORT[spotOf(p)]} · {starter ? 'TITULAR' : 'RESERVA'}</span>
-                      {isInjured(game, p.id) && <em className="sq-hurt" title={`Lesionado: ${roundsLeft(game, p.id)} rodadas`}>🤕 {roundsLeft(game, p.id)}</em>}
+                      {isInjured(game, p.id) && <em className="sq-hurt" title={`Lesionado: fora por mais ${remainingLabel(game, p.id)}`}>🤕 {remainingLabel(game, p.id)}</em>}
                       <span className="sq-name">{p.name}</span>
                       <span className="sq-meta">{p.age} anos
                         {game.transferList.includes(p.id) && <em className="pill sale">À venda</em>}

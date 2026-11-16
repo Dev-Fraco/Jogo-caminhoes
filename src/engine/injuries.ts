@@ -16,19 +16,47 @@ const KINDS: Record<Severity, string[]> = {
 };
 /** Quanto do descanso da pausa entre temporadas conta para a recuperação (rodadas). */
 export const OFFSEASON_RECOVERY = 8;
-/** Chance de um jogador se lesionar por minuto em campo (por time) e quando é vítima de falta. */
-export const INJURY_PER_MINUTE = 0.0012;
-export const FOUL_INJURY = 0.03;
 
-/** Sorteia gravidade, tipo e duração (rodadas fora). Veteranos demoram mais para se recuperar. */
-export function rollInjury(rng: Rng, age: number): { kind: string; rounds: number; severity: Severity } {
-  const r = rng();
-  const severity: Severity = r < 0.6 ? 'leve' : r < 0.9 ? 'media' : 'grave';
-  const base = severity === 'leve' ? 1 + Math.floor(rng() * 3) : severity === 'media' ? 4 + Math.floor(rng() * 5) : 9 + Math.floor(rng() * 12);
-  const rounds = Math.max(1, Math.round(base * (age >= 32 ? 1.3 : age <= 21 ? 0.85 : 1)));
-  const list = KINDS[severity];
-  return { severity, rounds, kind: list[Math.floor(rng() * list.length)] };
+/**
+ * Chance de lesão por TIME em CADA PARTIDA (sorteadas uma vez por partida, de forma independente):
+ * leve 10% e grave 3%. Não há mais sorteio por minuto nem por falta: esses percentuais são exatamente o que o sorteio respeita.
+ */
+export const INJURY_CHANCE = { leve: 0.1, grave: 0.03 } as const;
+/** Quantas lesões um time pode ter na mesma partida. */
+export const MAX_INJURIES_PER_MATCH = 2;
+/** Dias do calendário do jogo entre uma rodada e outra (38 rodadas em ~5 meses): converte dias de afastamento em rodadas. */
+export const DAYS_PER_ROUND = 4;
+/** Duração em dias de jogo: leve de 2 a 20 dias; grave de 31 a 180 dias (mais de 1 mês, até cerca de 6 meses). */
+export const INJURY_DAYS = { leve: [2, 20], grave: [31, 180] } as const;
+export const MONTH_DAYS = 30;
+
+/** Sorteia as lesões de UM time numa partida: cada gravidade acontece (ou não) com a sua chance, em um minuto qualquer. */
+export function rollMatchInjuries(rng: Rng): { severity: 'leve' | 'grave'; minute: number }[] {
+  const out: { severity: 'leve' | 'grave'; minute: number }[] = [];
+  for (const severity of ['grave', 'leve'] as const) if (rng() < INJURY_CHANCE[severity]) out.push({ severity, minute: 1 + Math.floor(rng() * 90) });
+  return out;
 }
+
+/** "9 dias" ou "2 meses": o afastamento em dias/meses do jogo (a partir de rodadas ou de dias). */
+export function spanLabel(days: number): string {
+  if (days >= MONTH_DAYS) { const m = Math.max(1, Math.round(days / MONTH_DAYS)); return `${m} ${m === 1 ? 'mês' : 'meses'}`; }
+  const d = Math.max(1, Math.round(days));
+  return `${d} ${d === 1 ? 'dia' : 'dias'}`;
+}
+
+/** Sorteia o tipo e a duração (em dias e em rodadas) de uma lesão da gravidade dada. Veteranos demoram mais para se recuperar. */
+export function rollInjury(rng: Rng, age: number, severity?: 'leve' | 'grave'): { kind: string; rounds: number; days: number; severity: Severity } {
+  const sev: 'leve' | 'grave' = severity ?? (rng() < INJURY_CHANCE.leve / (INJURY_CHANCE.leve + INJURY_CHANCE.grave) ? 'leve' : 'grave');
+  const [lo, hi] = INJURY_DAYS[sev];
+  const factor = age >= 32 ? 1.3 : age <= 21 ? 0.85 : 1;
+  const days = Math.max(sev === 'grave' ? 31 : 1, Math.round((lo + Math.floor(rng() * (hi - lo + 1))) * factor));
+  const rounds = Math.max(1, Math.ceil(days / DAYS_PER_ROUND));
+  const list = sev === 'leve' ? [...KINDS.leve, ...KINDS.media] : KINDS.grave; // os tipos que eram "médios" agora são lesões leves (de dias)
+  return { severity: sev, days, rounds, kind: list[Math.floor(rng() * list.length)] };
+}
+
+/** Quanto falta para o jogador voltar, em dias ou meses do jogo (para mostrar na tela). */
+export const remainingLabel = (g: Pick<GameState, 'injuries' | 'season' | 'round'>, playerId: string) => spanLabel(roundsLeft(g, playerId) * DAYS_PER_ROUND);
 
 /** Rodadas que faltam para o jogador voltar (0 = disponível). */
 export function roundsLeft(g: Pick<GameState, 'injuries' | 'season' | 'round'>, playerId: string): number {
@@ -67,7 +95,7 @@ export function replaceInjuredStarters(team: TeamState, injured: Set<string>): {
 
 const news = (g: GameState, text: string, tone: NewsItem['tone']): GameState => ({ ...g, news: [{ season: g.season, round: g.round, text, tone }, ...g.news].slice(0, 80) });
 
-export interface InjuryHit { playerId: string; clubId: string; rounds: number; kind: string }
+export interface InjuryHit { playerId: string; clubId: string; rounds: number; kind: string; /** afastamento em dias de jogo */ days?: number; severity?: Severity }
 
 /** Registra lesões novas (acontecidas na rodada atual) e avisa o seu clube. A lesão conta a partir da próxima rodada. */
 export function applyInjuries(g: GameState, hits: InjuryHit[], atRound: number = g.round): GameState {
@@ -77,10 +105,10 @@ export function applyInjuries(g: GameState, hits: InjuryHit[], atRound: number =
   for (const h of hits) {
     const cur = injuries[h.playerId];
     if (cur && roundsLeft(g, h.playerId) >= h.rounds) continue; // já está fora por mais tempo
-    injuries[h.playerId] = { season: g.season, untilRound: atRound + 1 + h.rounds, kind: h.kind, rounds: h.rounds, clubId: h.clubId };
+    injuries[h.playerId] = { season: g.season, untilRound: atRound + 1 + h.rounds, kind: h.kind, rounds: h.rounds, clubId: h.clubId, ...(h.days ? { days: h.days } : {}), ...(h.severity ? { severity: h.severity } : {}) };
     if (h.clubId === g.userClubId && !g.unemployed) {
       const p = g.teams[h.clubId]?.players.find((x) => x.id === h.playerId);
-      if (p) s = news(s, `🤕 ${p.name} se lesionou (${h.kind}): fora por ${h.rounds} ${h.rounds === 1 ? 'rodada' : 'rodadas'}.`, h.rounds >= 8 ? 'bad' : 'info');
+      if (p) s = news(s, `🤕 ${p.name} se lesionou (${h.kind}): fora por ${spanLabel(h.days ?? h.rounds * DAYS_PER_ROUND)}${h.severity === 'grave' ? ' (lesão grave)' : ''}.`, h.severity === 'grave' || h.rounds >= 8 ? 'bad' : 'info');
     }
   }
   return { ...s, injuries };
@@ -124,6 +152,6 @@ export function healUserLineup(g: GameState, quiet = false): GameState {
 }
 
 /** Lesões que aconteceram nos jogos do seu clube (eventos da narração), para registrar no estado. */
-export function hitsFromEvents(events: { side: 'home' | 'away' | 'none'; injury?: { playerId: string; rounds: number; kind: string } }[], homeId: string, awayId: string): InjuryHit[] {
-  return events.filter((e) => e.injury).map((e) => ({ playerId: e.injury!.playerId, clubId: e.side === 'home' ? homeId : awayId, rounds: e.injury!.rounds, kind: e.injury!.kind }));
+export function hitsFromEvents(events: { side: 'home' | 'away' | 'none'; injury?: { playerId: string; rounds: number; kind: string; days?: number; severity?: Severity } }[], homeId: string, awayId: string): InjuryHit[] {
+  return events.filter((e) => e.injury).map((e) => ({ playerId: e.injury!.playerId, clubId: e.side === 'home' ? homeId : awayId, rounds: e.injury!.rounds, kind: e.injury!.kind, ...(e.injury!.days ? { days: e.injury!.days } : {}), ...(e.injury!.severity ? { severity: e.injury!.severity } : {}) }));
 }

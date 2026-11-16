@@ -79,7 +79,7 @@ export interface MatchEvent {
   /** Jogador principal do lance (autor do gol, da falta, do chute...). */
   player?: string;
   /** Lesão: id do jogador e quantas rodadas ele fica fora. */
-  injury?: { playerId: string; rounds: number; kind: string };
+  injury?: { playerId: string; rounds: number; kind: string; days?: number; severity?: 'leve' | 'media' | 'grave' };
   /** Placar [casa, fora] depois do lance (gols, intervalo e fim de jogo). */
   score?: [number, number];
 }
@@ -292,7 +292,7 @@ export interface SeasonSummary {
 }
 
 /** Lesão de um jogador: volta a poder jogar na rodada `untilRound` da temporada `season` (pode passar da última rodada e seguir na próxima temporada). */
-export interface Injury { season: number; untilRound: number; kind: string; /** quantas rodadas ficou fora no total */ rounds: number; clubId?: string }
+export interface Injury { season: number; untilRound: number; kind: string; /** quantas rodadas ficou fora no total */ rounds: number; clubId?: string; /** afastamento em dias de jogo e gravidade (lesões novas) */ days?: number; severity?: 'leve' | 'media' | 'grave' }
 
 /** Registro de uma contratação (o jogador passa de um clube para outro). */
 export interface Transfer {

@@ -1,6 +1,6 @@
 import { clamp, makeRng, type Rng } from './rng';
 import { autoLineup, spotOf, teamRatings } from './squad';
-import { INJURY_PER_MINUTE, FOUL_INJURY, rollInjury, type InjuryHit } from './injuries';
+import { MAX_INJURIES_PER_MATCH, rollInjury, rollMatchInjuries, spanLabel, type InjuryHit } from './injuries';
 import { FORMATIONS, type FormationId, type MatchEvent, type Player, type TeamState } from './types';
 
 /** Mudança tática feita pelo treinador durante a partida: vale a partir do minuto seguinte. */
@@ -43,6 +43,8 @@ export interface MatchNames { home: string; away: string }
 export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, mods: Mods = {}, names: MatchNames = { home: 'Mandante', away: 'Visitante' }): SimOutput {
   // um único sorteio do gerador geral decide a partida inteira (assim dá para refazer a partida a partir de um minuto com a mesma "sorte")
   const rng = makeRng(Math.floor(rngOuter() * 2 ** 31));
+  const injRng = makeRng(Math.floor(rngOuter() * 2 ** 31)); // lesões têm sorteio próprio: a chance (10% leve, 3% grave por time) não depende do resto da partida
+  const injPlan = { home: rollMatchInjuries(injRng), away: rollMatchInjuries(injRng) };
   const scale = (r: ReturnType<typeof teamRatings>, k: number, att = 1, def = 1) => ({ ...r, gk: r.gk * k, def: r.def * k * def, mid: r.mid * k, att: r.att * k * att });
   const mineSide: 'home' | 'away' | null = ACTIVE ? (home.clubId === ACTIVE.clubId ? 'home' : away.clubId === ACTIVE.clubId ? 'away' : null) : null;
   const tactics = mineSide && ACTIVE ? ACTIVE.list : [];
@@ -79,19 +81,19 @@ export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, m
 
   // lesões em campo: o jogador sai e um reserva da mesma linha entra (ou o time segue com um a menos)
   const hurtIds = new Set<string>();
-  const hurt = (side: 'home' | 'away', minute: number, p: Player) => {
-    const inj = rollInjury(rng, p.age);
+  const hurt = (side: 'home' | 'away', minute: number, p: Player, severity: 'leve' | 'grave') => {
+    const inj = rollInjury(injRng, p.age, severity);
     injCount[side]++; hurtIds.add(p.id);
     const team = side === 'home' ? hTeam : aTeam;
-    injured.push({ playerId: p.id, clubId: team.clubId, rounds: inj.rounds, kind: inj.kind });
+    injured.push({ playerId: p.id, clubId: team.clubId, rounds: inj.rounds, kind: inj.kind, days: inj.days, severity: inj.severity });
     const bench = team.players.filter((q) => q.pos === p.pos && !team.lineup.includes(q.id) && !UNAVAILABLE?.has(q.id) && !hurtIds.has(q.id)).sort((a, b) => b.strength - a.strength);
     let text: string;
     if (bench[0]) {
       const next: TeamState = { ...team, lineup: team.lineup.map((id) => (id === p.id ? bench[0].id : id)) };
       if (side === 'home') { hTeam = next; hR = teamRatings(next); hl = lineupOf(next); } else { aTeam = next; aR = teamRatings(next); al = lineupOf(next); }
-      text = `${p.name} (${club(side)}) se lesiona (${inj.kind}) e sai de campo. Entra ${bench[0].name}.`;
-    } else { handicap[side] *= 0.93; text = `${p.name} (${club(side)}) se lesiona (${inj.kind}) e o time segue com um a menos.`; }
-    push(minute, 'injury', side, text, { player: p.name, injury: { playerId: p.id, rounds: inj.rounds, kind: inj.kind } });
+      text = `${p.name} (${club(side)}) se lesiona (${inj.kind}${inj.severity === 'grave' ? ', lesão grave' : ''}) e sai de campo, fora por ${spanLabel(inj.days)}. Entra ${bench[0].name}.`;
+    } else { handicap[side] *= 0.93; text = `${p.name} (${club(side)}) se lesiona (${inj.kind}${inj.severity === 'grave' ? ', lesão grave' : ''}), fora por ${spanLabel(inj.days)}, e o time segue com um a menos.`; }
+    push(minute, 'injury', side, text, { player: p.name, injury: { playerId: p.id, rounds: inj.rounds, kind: inj.kind, days: inj.days, severity: inj.severity } });
   };
 
   const weighted = (list: Player[], weight: (p: Player) => number): Player => {
@@ -134,10 +136,12 @@ export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, m
         : `${c} muda para ${t.formation}.`;
       push(minute - 1, 'tactic', side, text);
     }
-    for (const side of ['home', 'away'] as const) { // lesão sem lance (desgaste, contusão): mais comum em veteranos
-      if (injCount[side] >= 2 || rng() >= INJURY_PER_MINUTE) continue;
-      const cands = lineup(side).filter((p) => !out.has(p.id) && !hurtIds.has(p.id));
-      if (cands.length) hurt(side, minute, weighted(cands, (p) => (p.pos === 'GK' ? 0.3 : 1) * (p.age >= 31 ? 1.5 : p.age <= 21 ? 0.8 : 1)));
+    for (const side of ['home', 'away'] as const) { // lesões sorteadas para esta partida (10% leve, 3% grave por time): acontecem no minuto sorteado, mais comuns em veteranos
+      for (const plan of injPlan[side]) {
+        if (plan.minute !== minute || injCount[side] >= MAX_INJURIES_PER_MATCH) continue;
+        const cands = lineup(side).filter((p) => !out.has(p.id) && !hurtIds.has(p.id));
+        if (cands.length) hurt(side, minute, weighted(cands, (p) => (p.pos === 'GK' ? 0.3 : 1) * (p.age >= 31 ? 1.5 : p.age <= 21 ? 0.8 : 1)), plan.severity);
+      }
     }
     const H = ratings('home', minute), A = ratings('away', minute);
     if (minute === 46) push(45, 'halftime', 'none', `Fim do primeiro tempo: ${names.home} ${hg} x ${ag} ${names.away}.`, { score: [hg, ag] });
@@ -148,7 +152,6 @@ export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, m
       const vs = fs === 'home' ? 'away' : 'home';
       const offender = pickOf(field(fs)), victim = pickOf(field(vs));
       push(minute, 'foul', fs, `Falta de ${offender.name} (${club(fs)}) em ${victim.name} (${club(vs)}).`, { player: offender.name });
-      if (injCount[vs] < 2 && !hurtIds.has(victim.id) && rng() < FOUL_INJURY) hurt(vs, minute, victim); // a vítima da falta pode se machucar
       const r = rng();
       if (r < 0.012 && redCards[fs] < 2) {
         redCards[fs]++; out.add(offender.id);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { aiWindow } from '../src/engine/ai';
-import { applyInjuries, healUserLineup, injuredSet, isInjured, pruneInjuries, replaceInjuredStarters, rollInjury, rolloverInjuries, roundsLeft } from '../src/engine/injuries';
+import { DAYS_PER_ROUND, INJURY_CHANCE, applyInjuries, healUserLineup, injuredSet, isInjured, pruneInjuries, replaceInjuredStarters, rollInjury, rollMatchInjuries, rolloverInjuries, roundsLeft, spanLabel } from '../src/engine/injuries';
 import { isSeasonOver, playNext, playRound, startNextSeason } from '../src/engine/game';
 import { simulateMatch, withInjured } from '../src/engine/match';
 import { makeRng } from '../src/engine/rng';
@@ -14,11 +14,53 @@ const g0 = makeCareer('flamengo', 4);
 const hit = (g: GameState, clubId: string, playerId: string, rounds: number) => applyInjuries(g, [{ playerId, clubId, rounds, kind: 'entorse no tornozelo' }]);
 
 describe('sistema de lesões', () => {
-  it('gravidade e duração: maioria leve, poucas graves; veterano demora mais que garoto', () => {
-    const rng = makeRng(1); const n = 4000; const c = { leve: 0, media: 0, grave: 0 }; let old = 0, young = 0;
-    for (let i = 0; i < n; i++) { const r = rollInjury(rng, 26); c[r.severity]++; expect(r.rounds).toBeGreaterThanOrEqual(1); expect(r.rounds).toBeLessThanOrEqual(20); old += rollInjury(rng, 34).rounds; young += rollInjury(rng, 19).rounds; }
-    expect(c.leve / n).toBeGreaterThan(0.5); expect(c.grave / n).toBeLessThan(0.15); expect(c.grave).toBeGreaterThan(0);
+  it('duração por gravidade: leve em dias (até ~3 semanas), grave acima de 1 mês em meses de jogo; veterano demora mais que garoto', () => {
+    const rng = makeRng(1); const n = 4000; let old = 0, young = 0;
+    for (let i = 0; i < n; i++) {
+      const l = rollInjury(rng, 26, 'leve'), g = rollInjury(rng, 26, 'grave');
+      expect(l.severity).toBe('leve'); expect(l.days).toBeGreaterThanOrEqual(2); expect(l.days).toBeLessThanOrEqual(20); expect(l.days).toBeLessThan(30);
+      expect(g.severity).toBe('grave'); expect(g.days).toBeGreaterThanOrEqual(31); expect(g.days).toBeLessThanOrEqual(180);
+      expect(l.rounds).toBe(Math.max(1, Math.ceil(l.days / DAYS_PER_ROUND))); expect(g.rounds).toBe(Math.ceil(g.days / DAYS_PER_ROUND));
+      expect(g.rounds).toBeGreaterThanOrEqual(8);                       // mais de um mês = pelo menos 8 rodadas
+      old += rollInjury(rng, 34, 'leve').days; young += rollInjury(rng, 19, 'leve').days;
+    }
     expect(old).toBeGreaterThan(young);
+    expect(spanLabel(3)).toBe('3 dias'); expect(spanLabel(1)).toBe('1 dia'); expect(spanLabel(31)).toBe('1 mês'); expect(spanLabel(95)).toBe('3 meses');
+  });
+  it('o sorteio respeita os percentuais: 10% leve e 3% grave por time em cada partida (200 mil sorteios)', () => {
+    const rng = makeRng(7); const n = 200_000; let leve = 0, grave = 0, both = 0;
+    for (let i = 0; i < n; i++) {
+      const r = rollMatchInjuries(rng);
+      const l = r.some((x) => x.severity === 'leve'), g = r.some((x) => x.severity === 'grave');
+      if (l) leve++; if (g) grave++; if (l && g) both++;
+      for (const x of r) { expect(x.minute).toBeGreaterThanOrEqual(1); expect(x.minute).toBeLessThanOrEqual(90); }
+    }
+    expect(leve / n).toBeGreaterThan(0.097); expect(leve / n).toBeLessThan(0.103);
+    expect(grave / n).toBeGreaterThan(0.028); expect(grave / n).toBeLessThan(0.032);
+    expect(both / n).toBeGreaterThan(0.002); expect(both / n).toBeLessThan(0.004); // independentes: 10% × 3% = 0,3%
+    expect(INJURY_CHANCE).toEqual({ leve: 0.1, grave: 0.03 });
+  });
+  it('nas partidas simuladas, a taxa real de lesões por time bate com os percentuais e a gravidade vem com a duração certa', () => {
+    const t = g0.teams.palmeiras, a = g0.teams.santos; const matches = 3000;
+    let leve = 0, grave = 0, otherSev = 0, mostPerTeam = 0;
+    for (let seed = 1; seed <= matches; seed++) {
+      const r = simulateMatch(t, a, makeRng(seed * 7 + 3));
+      const hits = r.injured ?? [];
+      const byClub = new Map<string, number>(); for (const h of hits) byClub.set(h.clubId, (byClub.get(h.clubId) ?? 0) + 1);
+      mostPerTeam = Math.max(mostPerTeam, ...byClub.values(), 0);
+      for (const h of hits) {
+        if (h.severity === 'leve') { leve++; expect(h.days!).toBeLessThan(30); }
+        else if (h.severity === 'grave') { grave++; expect(h.days!).toBeGreaterThanOrEqual(31); expect(h.rounds).toBeGreaterThanOrEqual(8); }
+        else otherSev++;
+        expect(h.rounds).toBe(Math.ceil(h.days! / DAYS_PER_ROUND));
+      }
+      for (const e of r.events.filter((x) => x.type === 'injury')) expect(e.text).toMatch(/fora por \d+ (dia|dias|mês|meses)/);
+    }
+    const sides = matches * 2;
+    expect(otherSev).toBe(0);
+    expect(leve / sides).toBeGreaterThan(0.085); expect(leve / sides).toBeLessThan(0.115);
+    expect(grave / sides).toBeGreaterThan(0.02); expect(grave / sides).toBeLessThan(0.04);
+    expect(mostPerTeam).toBeLessThanOrEqual(2);
   });
   it('o jogador volta no prazo: lesão de 3 rodadas na rodada 5 fica fora das rodadas 6, 7 e 8', () => {
     const id = g0.teams.flamengo.players[3].id;
@@ -46,7 +88,7 @@ describe('sistema de lesões', () => {
     expect(g.news[0].text).toMatch(/entra no time/);
     expect(healUserLineup(g0)).toBe(g0);
   });
-  it('lesões acontecem nas partidas: taxa razoável, com substituição e evento na narração', () => {
+  it('lesões acontecem nas partidas: taxa baixa, com substituição e evento na narração', () => {
     const t = g0.teams.palmeiras, a = g0.teams.santos; let hits = 0, matches = 400, withSub = 0;
     for (let seed = 1; seed <= matches; seed++) {
       const r = simulateMatch(t, a, makeRng(seed));
@@ -55,7 +97,7 @@ describe('sistema de lesões', () => {
       hits += ev.length; withSub += ev.filter((e) => /Entra /.test(e.text)).length;
       for (const e of ev) expect(e.injury!.rounds).toBeGreaterThanOrEqual(1);
     }
-    expect(hits / matches).toBeGreaterThan(0.12); expect(hits / matches).toBeLessThan(0.6);
+    expect(hits / matches).toBeGreaterThan(0.15); expect(hits / matches).toBeLessThan(0.4); // ~0,26 por partida (2 times × 13%)
     expect(withSub / hits).toBeGreaterThan(0.9);
   });
   it('quem já está lesionado nunca entra como substituto', () => {
@@ -100,5 +142,35 @@ describe('sistema de lesões', () => {
     const weak = { ...g, teams: { ...g.teams, [club]: { ...g.teams[club], players: g.teams[club].players.map((p) => (p.pos === 'ATT' ? { ...p, strength: 35 } : p)) } }, budgets: { ...g.budgets, [club]: 90_000_000 } };
     const s = aiWindow(weak, makeRng(2), 3, [club]);
     expect(s.teams[club].players.some((p) => p.id === star.id)).toBe(false);
+  });
+});
+
+describe('lesões — efeito numa temporada inteira', () => {
+  it('poucos jogadores fora ao mesmo tempo; lesão grave dura mais de 1 mês de jogo e atravessa a virada; a notícia fala em dias ou meses', () => {
+    let g = makeCareer('flamengo', 9);
+    const out: number[] = []; let guard = 0;
+    const seenGrave: number[] = [];
+    while (!isSeasonOver(g) && guard++ < 600) {
+      g = playNext(g).state;
+      const teams = Object.keys(g.teams);
+      out.push(teams.reduce((a, id) => a + g.teams[id].players.filter((p) => isInjured(g, p.id)).length, 0) / teams.length);
+      for (const i of Object.values(g.injuries ?? {})) if (i.severity === 'grave') seenGrave.push(i.days ?? 0);
+    }
+    const avg = out.reduce((a, b) => a + b, 0) / out.length;
+    expect(avg).toBeGreaterThan(0.1); expect(avg).toBeLessThan(2);          // lesões existem, mas nunca em excesso
+    expect(Math.max(...out)).toBeLessThan(3);
+    for (const d of seenGrave) expect(d).toBeGreaterThanOrEqual(31);
+    const txt = g.news.filter((n) => /se lesionou/.test(n.text)).map((n) => n.text);
+    for (const t of txt) expect(t).toMatch(/fora por \d+ (dia|dias|mês|meses)/);
+  }, 300_000);
+  it('lesão grave de 5 meses (150 dias) continua ativa na temporada seguinte e mostra o tempo restante em meses', () => {
+    const id = g0.teams.flamengo.players[3].id;
+    const days = 150, rounds = Math.ceil(days / DAYS_PER_ROUND);
+    const g = applyInjuries({ ...g0, round: 10 }, [{ playerId: id, clubId: 'flamengo', rounds, days, kind: 'ruptura de ligamento do joelho', severity: 'grave' }]);
+    expect(g.injuries![id]).toMatchObject({ days: 150, severity: 'grave' });
+    expect(g.news[0].text).toContain('5 meses'); expect(g.news[0].text).toContain('lesão grave');
+    const next = rolloverInjuries({ ...g, season: g.season + 1, round: 1 }, g.season, g.totalRounds);
+    expect(next.injuries![id]).toBeDefined();
+    expect(roundsLeft(next, id)).toBeGreaterThan(0);
   });
 });

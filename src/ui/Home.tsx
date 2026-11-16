@@ -13,7 +13,7 @@ import { declineOffer, offerClub, resign } from '../engine/jobs';
 import { acceptAnyOffer } from '../engine/abroad';
 import { firingWarning } from '../engine/game';
 import { ClubBadge } from './ClubBadge';
-import { isInjured, roundsLeft } from '../engine/injuries';
+import { isInjured, remainingLabel, roundsLeft } from '../engine/injuries';
 import { stadiumOf } from '../engine/stadium';
 import { calOf, daysToMatch, formatDay, formatDayLong, formatDayShort, isMatchDay, matchTimeOf, nextMatchDay } from '../engine/calendar';
 import { SalaryCard } from './SalaryCard';
@@ -175,7 +175,7 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
         {!ev && game.mundial && <small className="cup-line">{game.mundial.championId ? `🌍 ${game.mundial.name}: campeão ${name(game.mundial.championId)}` : `🌍 ${game.mundial.name}: ${mundialStepName(game.mundial)}`}</small>}
         {game.cup && !ev && <small className="cup-line">{game.cup.championId ? `🏆 ${game.cup.name}: campeão ${name(game.cup.championId)}` : userInCup(game) ? `🏆 ${game.cup.name}: você está na ${game.cup.rounds[game.cup.roundIndex].name}` : `🏆 ${game.cup.name}: seu clube já foi eliminado`}</small>}
       </div>
-      {hurt.length > 0 && <button className="mk-card home2-hurt" onClick={() => onTab('squad')}>🤕 <b>{hurt.length} {hurt.length === 1 ? 'lesionado' : 'lesionados'}</b> · {hurt.slice(0, 3).map((p) => `${p.name} (${roundsLeft(game, p.id)})`).join(', ')}{hurt.length > 3 ? '…' : ''}</button>}
+      {hurt.length > 0 && <button className="mk-card home2-hurt" onClick={() => onTab('squad')}>🤕 <b>{hurt.length} {hurt.length === 1 ? 'lesionado' : 'lesionados'}</b> · {hurt.slice(0, 3).map((p) => `${p.name} (${remainingLabel(game, p.id)})`).join(', ')}{hurt.length > 3 ? '…' : ''}</button>}
       <div className="home2-actions">
         {isMatchDay(game)
           ? <button className="primary home2-go" onClick={() => { setOpen(null); onPlay(); }}><span aria-hidden="true">▶</span> {next || ev ? 'Iniciar partida' : 'Simular a rodada'}</button>
