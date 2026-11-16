@@ -20,7 +20,7 @@ describe('diretório de clubes', () => {
     expect(d.filter((c) => c.domestic).length).toBe(155);
     expect(d.some((c) => c.id === 'palmeiras')).toBe(false);
     expect(d.some((c) => !c.domestic && c.countryId === 'EN' && c.name === 'Crownmere Harriers')).toBe(true);
-    expect(d.some((c) => !c.domestic && c.countryId === 'AR' && c.divisionName === '2ª Divisão')).toBe(true);
+    expect(d.some((c) => !c.domestic && c.countryId === 'AR' && c.divisionName === 'Segunda Divisão Argentina')).toBe(true);
     expect(new Set(d.map((c) => c.id)).size).toBe(d.length);
     expect(d.length).toBeGreaterThan(300);
     expect(leagueScore('EN', 0)).toBeGreaterThan(leagueScore('BR', 0));
