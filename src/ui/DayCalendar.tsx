@@ -15,7 +15,7 @@ export function DayCalendar({ game, from, to, onClose }: { game: GameState; from
 
   useEffect(() => {
     if (shown >= to) return;
-    const t = window.setTimeout(() => setShown((d) => d + 1), to - from > 3 ? 260 : 650);
+    const t = window.setTimeout(() => setShown((d) => d + 1), to - from > 3 ? Math.max(25, Math.min(260, 3600 / (to - from))) : 650); // períodos longos passam rápido (no máximo ~4 s)
     return () => window.clearTimeout(t);
   }, [shown, to, from]);
 

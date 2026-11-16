@@ -22,7 +22,8 @@ import { Home } from './Home';
 import { Finance } from './Finance';
 import { Stadium } from './Stadium';
 import { calOf, formatDay } from '../engine/calendar';
-import { advanceOneDay, advanceToMatchDays } from '../engine/daily';
+import { advanceToUserMatch } from '../engine/advance';
+import { advanceOneDay } from '../engine/daily';
 import { homeBlocked, housingSteps } from '../engine/housing';
 import { DayCalendar } from './DayCalendar';
 import { CalendarScreen } from './CalendarScreen';
@@ -139,12 +140,14 @@ export function App() {
   const runAdvance = (many: boolean) => { // avançar dia(s): mostra o calendário passando de um dia para o outro
     if (blocked()) return;
     const before = calOf(game).day;
-    const next = many ? advanceToMatchDays(game) : advanceOneDay(game);
+    let next: GameState;
+    if (many) { const r = advanceToUserMatch(game); next = r.state; if (r.simulated > 0) setLast(r.results); } // até o seu próximo jogo: as datas só de outros clubes são simuladas no caminho
+    else next = advanceOneDay(game);
     const after = calOf(next).day;
-    if (after === before) return;
+    if (next === game) return;
     audio.sfx('whoosh');
     setGame(next);
-    setCalAnim({ from: before, to: after });
+    if (after > before) setCalAnim({ from: before, to: after });
   };
   const play = () => {
     if (blocked()) return;

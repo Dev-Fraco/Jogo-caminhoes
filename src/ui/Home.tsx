@@ -15,6 +15,7 @@ import { firingWarning } from '../engine/game';
 import { ClubBadge } from './ClubBadge';
 import { isInjured, remainingLabel, roundsLeft } from '../engine/injuries';
 import { stadiumOf } from '../engine/stadium';
+import { nextUserMatchDay, userPlaysNextSlot } from '../engine/advance';
 import { calOf, daysToMatch, formatDay, formatDayLong, formatDayShort, isMatchDay, matchTimeOf, nextMatchDay } from '../engine/calendar';
 import { SalaryCard } from './SalaryCard';
 import { FmCard, Jersey, ScreenTitle, StatStrip, SubTabs } from './FmParts';
@@ -146,6 +147,7 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
   const cut = rawLabel.lastIndexOf(' · ');
   const compTitle = cut > 0 ? rawLabel.slice(0, cut) : rawLabel, compSub = cut > 0 ? rawLabel.slice(cut + 3) : '';
   const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+  const plays = userPlaysNextSlot(game), mineDay = nextUserMatchDay(game); // a próxima data do calendário é sua? se não, quando é o seu próximo jogo
 
   return (
     <>
@@ -167,10 +169,13 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
           </div>
         ) : <p className="hint" style={{ textAlign: 'center' }}>Seu clube não joga nesta rodada.</p>}
         <div className="home2-when">
-          <span>📅 {cap(formatDayLong(nextMatchDay(game)))}</span>
-          <span>🕒 {matchTimeOf(nextMatchDay(game))}</span>
+          <span>📅 {cap(formatDayLong(plays || mineDay === undefined ? nextMatchDay(game) : mineDay))}</span>
+          <span>🕒 {matchTimeOf(plays || mineDay === undefined ? nextMatchDay(game) : mineDay)}</span>
         </div>
-        {!isMatchDay(game) && <p className="cal-next" style={{ textAlign: 'center' }}>Hoje: <b>{formatDayShort(calOf(game).day)}</b> · {next || ev ? 'jogo' : 'rodada'} {daysToMatch(game) === 1 ? 'amanhã' : `em ${daysToMatch(game)} dias`}</p>}
+        {!isMatchDay(game) && (plays || mineDay === undefined
+          ? <p className="cal-next" style={{ textAlign: 'center' }}>Hoje: <b>{formatDayShort(calOf(game).day)}</b> · {mineDay === undefined ? 'seu clube não tem mais jogos marcados nesta temporada' : `${next || ev ? 'jogo' : 'rodada'} ${daysToMatch(game) === 1 ? 'amanhã' : `em ${daysToMatch(game)} dias`}`}</p>
+          : <p className="cal-next" style={{ textAlign: 'center' }}>Hoje: <b>{formatDayShort(calOf(game).day)}</b> · seu próximo jogo: <b>{formatDayShort(mineDay)}</b> ({mineDay - calOf(game).day === 1 ? 'amanhã' : `em ${mineDay - calOf(game).day} dias`}); até lá só jogam outros clubes</p>)}
+        {isMatchDay(game) && !plays && <p className="cal-next" style={{ textAlign: 'center' }}>{mineDay === undefined ? 'Nesta data só jogam outros clubes e o seu não tem mais jogos marcados nesta temporada.' : `Nesta data só jogam outros clubes. Seu próximo jogo: ${formatDayShort(mineDay)}.`}</p>}
         {!ev && COMPS.map((k) => { const c = game[k], cfg = CONTINENTALS[k]; if (!c) return null; const mine = c.groups.some((gr) => gr.clubIds.includes(game.userClubId)); return mine || c.championId ? <small key={k} className="cup-line">{c.championId ? `${cfg.icon} ${c.name}: campeão ${name(c.championId)}` : userIn(game, k) ? `${cfg.icon} ${c.name}: ${stepName(k, c)} em breve` : `${cfg.icon} ${c.name}: seu clube foi eliminado`}</small> : null; })}
         {!ev && game.mundial && <small className="cup-line">{game.mundial.championId ? `🌍 ${game.mundial.name}: campeão ${name(game.mundial.championId)}` : `🌍 ${game.mundial.name}: ${mundialStepName(game.mundial)}`}</small>}
         {game.cup && !ev && <small className="cup-line">{game.cup.championId ? `🏆 ${game.cup.name}: campeão ${name(game.cup.championId)}` : userInCup(game) ? `🏆 ${game.cup.name}: você está na ${game.cup.rounds[game.cup.roundIndex].name}` : `🏆 ${game.cup.name}: seu clube já foi eliminado`}</small>}
@@ -178,11 +183,13 @@ export function Home({ game, onChange, last, over, onPlay, onSkip, onSeeTables, 
       {hurt.length > 0 && <button className="mk-card home2-hurt" onClick={() => onTab('squad')}>🤕 <b>{hurt.length} {hurt.length === 1 ? 'lesionado' : 'lesionados'}</b> · {hurt.slice(0, 3).map((p) => `${p.name} (${remainingLabel(game, p.id)})`).join(', ')}{hurt.length > 3 ? '…' : ''}</button>}
       <div className="home2-actions">
         {isMatchDay(game)
-          ? <button className="primary home2-go" onClick={() => { setOpen(null); onPlay(); }}><span aria-hidden="true">▶</span> {next || ev ? 'Iniciar partida' : 'Simular a rodada'}</button>
+          ? (plays || over
+            ? <button className="primary home2-go" onClick={() => { setOpen(null); onPlay(); }}><span aria-hidden="true">▶</span> {next || ev ? 'Iniciar partida' : 'Simular a rodada'}</button>
+            : <button className="primary home2-go" onClick={() => { setOpen(null); onAdvanceToMatch(); }}><span aria-hidden="true">⏭</span> {mineDay === undefined ? 'Avançar até o fim da temporada' : 'Avançar até o seu próximo jogo'}</button>)
           : <button className="primary home2-go" onClick={onAdvance}><span aria-hidden="true">⏭</span> Avançar 1 dia</button>}
         <button className="btn home2-lineup" onClick={onEditLineup}><span aria-hidden="true">📋</span> Editar escalação</button>
       </div>
-      {!isMatchDay(game) && <button className="btn home2-wide" onClick={onAdvanceToMatch}>⏩ Ir até o dia do jogo</button>}
+      {!isMatchDay(game) && <button className="btn home2-wide" onClick={onAdvanceToMatch}>⏩ {plays ? 'Ir até o dia do jogo' : mineDay === undefined ? 'Avançar até o fim da temporada' : 'Ir até o seu próximo jogo'}</button>}
       <div className="home2-grid">
         <button className="mk-card" onClick={() => onTab('transfers')}><span aria-hidden="true">🔁</span>Transferências</button>
         <button className="mk-card" onClick={onFinance}><span aria-hidden="true">💰</span>Finanças</button>
