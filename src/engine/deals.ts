@@ -125,7 +125,6 @@ export function executeDeal(g: GameState, dealId: string, opts: { force?: boolea
     if (closed) return fail(closed);
   }
   if (userIs(g, d.buyerId)) { const ban = fairplayBlock(g); if (ban) return fail(ban); }
-  if (lockedPlayers(g, d.id).has(d.playerId)) return fail('O jogador está em outra negociação aprovada.');
   if (loanedNow(g, d.playerId)) return fail('Jogador emprestado.');
   const t = d.terms;
   if (!installmentsOk(t)) return fail('As parcelas não somam o valor negociado.');
@@ -133,7 +132,7 @@ export function executeDeal(g: GameState, dealId: string, opts: { force?: boolea
   // elencos
   const swaps = (t.swapPlayerIds ?? []).map((id) => locate(g, id));
   if (swaps.some((x) => !x || x.clubId !== d.buyerId)) return fail('Um jogador da troca não pertence ao comprador.');
-  if (swaps.some((x) => x && (lockedPlayers(g, d.id).has(x.player.id) || loanedNow(g, x.player.id)))) return fail('Um jogador da troca está comprometido em outra negociação.');
+  if (swaps.some((x) => x && loanedNow(g, x.player.id))) return fail('Um jogador da troca está emprestado.');
   const swapPlayers = swaps.map((x) => x!.player);
   const maxSquad = aiIs(g, d.buyerId) ? AI_MAX_SQUAD + 1 : MAX_SQUAD;
   const buyerAfter = [...buyer.players.filter((p) => !swapPlayers.some((s) => s.id === p.id)), l.player];
