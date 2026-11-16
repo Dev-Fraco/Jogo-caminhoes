@@ -2,6 +2,7 @@ import type { ClubData } from '../data/clubs';
 import { offseason } from './ai';
 import { aiRenewals } from './aicontracts';
 import { freezeGoals } from './aigoals';
+import { ensureAiState } from './aistate';
 import { settleLoanPurchases, trackLoanApps } from './loandeals';
 import { clauseGames, clauseSeasonEnd } from './dealpay';
 import { aiLineup, matchImportance, updateLoad } from './rotation';
@@ -106,8 +107,9 @@ export function newCareer(input: CareerInput, seed = Date.now() % 2147483647): G
     userClubId: input.userClubId, seed, season: input.season, round: 1, totalRounds,
     clubs, budgets, transfers: [], morale: { ...MORALE_START }, transferList: [], loanList: [], offers: [], loans: [], news: [], divisions, teams, fixtures, results: [], history: [],
   };
-  if (!input.cup) return freezeGoals(createContinentals(career));
-  return freezeGoals(createContinentals({ ...career, cup: createCup(career), estadual: createEstaduais(input.outside ? { id: input.outside.id, uf: input.outside.uf ?? 'SP' } : undefined) }));
+  // a carreira já nasce completa (contratos, treinadores, base, objetivos): carregar o save depois não muda nada
+  if (!input.cup) return ensureAiState(freezeGoals(createContinentals(career)));
+  return ensureAiState(freezeGoals(createContinentals({ ...career, cup: createCup(career), estadual: createEstaduais(input.outside ? { id: input.outside.id, uf: input.outside.uf ?? 'SP' } : undefined) })));
 }
 
 export const isSeasonOver = (g: GameState) => g.round > g.totalRounds && !g.mundial?.due;
@@ -349,7 +351,7 @@ function startNextSeasonCore(g: GameState, calNew: ReturnType<typeof newSeasonCa
   const relegatedU = out.movement === 'relegated', promotedU = out.movement === 'promoted';
   const reason = seasonEndFiring(g, out.userPosition, relegatedU);
   result = seasonPoints(result, out.userPosition, promotedU, relegatedU);
-  return seasonEndOffers(reason ? fire(result, reason) : result, out.userPosition, promotedU);
+  return ensureAiState(seasonEndOffers(reason ? fire(result, reason) : result, out.userPosition, promotedU)); // clubes que entraram na pirâmide e o clube que você deixou ficam completos
 }
 
 /** Aviso antes de virar a temporada: o treinador será demitido? (motivo ou null) */

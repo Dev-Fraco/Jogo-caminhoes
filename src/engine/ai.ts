@@ -15,7 +15,7 @@ import { finishLoans } from './loandeals';
 import { aiBalanceSquads, squadLimits } from './aisquad';
 import { aiLoanOut, aiLoanWindow, aiPromoteYouth, developYouth, ensureAiYouth, loanedIds, returnAiLoans } from './aiyouth';
 import { aiRenewals, aiSignFreeAgents, agedFreeAgents, newContract, WAGE_LIMIT } from './aicontracts';
-import { forgetClub, marketValue, saleReasons, stance, type Stance } from './aisales';
+import { forgetClub, marketValue, roleOf, saleReasons, stance, type Stance } from './aisales';
 import type { GameState, NewsItem, Player, Position, RetiredPlayer, TeamState } from './types';
 
 /**
@@ -264,7 +264,8 @@ export function aiBalanceBooks(g: GameState, rng: Rng): GameState {
     const team = s.teams[id];
     const rows = team.players.filter((p) => !onLoan.has(p.id) && !recentlyMoved(s, p.id)).map((p) => ({ p, reasons: saleReasons(s, id, p, prof, ctx), value: marketValue(s, id, p) }));
     // quem o clube quer ver pelas costas, do mais ao menos prioritário
-    const wanted = broke ? rows : rows.filter((r) => r.reasons.some((x) => x === 'fim-contrato' || x === 'fora-dos-planos' || x === 'salario-alto'));
+    // fim de contrato só vira venda para quem não é titular, ou para o titular que recusou renovar (e já está na lista): ao titular o clube oferece renovação
+    const wanted = broke ? rows : rows.filter((r) => r.reasons.some((x) => (x === 'fim-contrato' && (!!s.listed?.[r.p.id] || ['reserva', 'excedente'].includes(roleOf(s, id, r.p, ctx).role))) || x === 'fora-dos-planos' || x === 'salario-alto'));
     wanted.sort((a, b) => (b.reasons.includes('fim-contrato') ? 1 : 0) - (a.reasons.includes('fim-contrato') ? 1 : 0) || b.value - a.value);
     let sales = 0;
     const maxSales = broke ? (prof.financial === 'crise' ? 2 : 1) : 1;
