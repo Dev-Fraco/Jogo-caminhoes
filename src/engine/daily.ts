@@ -9,6 +9,7 @@ import { FIBRA_MONTHLY, fibraLeft, notifyPhone, phoneOf, PLAN_PRICE, planLeft } 
 import { chipDay } from './shop';
 import { windowTick } from './windows';
 import { dealsTick } from './deals';
+import { endLoans } from './loandeals';
 import { settleDebts } from './dealpay';
 import { marketTick } from './aimarket';
 import type { GameState } from './types';
@@ -51,6 +52,7 @@ function dayTick(g: GameState): GameState {
   if (isPayday(today)) s = payMonthlySalaries(s); // salários dos atletas e do treinador, uma vez por mês
   s = chipDay(s);
   s = windowTick(s);
+  s = endLoans(s);               // empréstimos que chegaram à data de encerramento: compra pendente ou devolução
   s = dealsTick(settleDebts(s)); // negociações: respostas, prazos e parcelas vencidas
   s = marketTick(s);             // a IA negocia (uma vez por dia, só nos dias de decisão)
   return monthlyContracts(s);

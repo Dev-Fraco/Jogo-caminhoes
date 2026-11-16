@@ -59,16 +59,17 @@ export function askOf(g: GameState, d: Deal, ctx: ProfileCtx = profileCtx(g)): {
   const rivals = activeDeals(g, d.playerId).filter((x) => x.id !== d.id && x.buyerId !== d.buyerId && x.kind !== 'emprestimo').length;
   const mv = marketValue(g, seller, l.player);
   const loan = d.kind === 'emprestimo';
-  let ask = loan ? mv * 0.1 * Math.max(0.8, st.ask) : mv * st.ask;
+  const push = loan && /^cedido:/.test(d.reason ?? ''); // o próprio clube quer ceder (jovem sem espaço): aceita pouco ou nada de taxa
+  let ask = loan ? mv * (push ? 0.01 : 0.1) * Math.max(0.8, st.ask) : mv * st.ask;
   ask *= 1 + Math.min(0.15, 0.05 * rivals); // concorrência: vários clubes interessados
   // pressionado financeiramente cede mais; clube estável (e de temperamento duro) exige mais
   const marginPct = clamp(0.03 + 0.14 * prof.sellPressure + 0.05 * trait(seller, 'neg'), 0.02, 0.2);
-  return { ask: Math.round(ask / 10_000) * 10_000 || 10_000, willing: st.willing, refusal: st.refusal, marginPct };
+  return { ask: push ? 0 : Math.round(ask / 10_000) * 10_000 || 10_000, willing: st.willing || (loan && st.refusal === 'promessa'), refusal: st.refusal, marginPct: push ? 1 : marginPct };
 }
 
 const REFUSAL_TEXT: Record<string, string> = {
   fundamental: 'é peça fundamental e não há substituto à altura', 'sem-reposicao': 'a posição ficaria sem reposição', 'titular-sem-substituto': 'é titular e o clube briga por objetivos grandes',
-  'nao-quer-descer': 'não quer perder um titular para uma divisão inferior', 'limite-de-titulares': 'já vendeu titulares demais nesta janela',
+  'nao-quer-descer': 'não quer perder um titular para uma divisão inferior', 'limite-de-titulares': 'já vendeu titulares demais nesta janela', promessa: 'é uma promessa que o clube quer desenvolver',
 };
 
 /** Pagamento aceitável para o vendedor? Clube em crise só aceita à vista; apertado exige entrada de metade e no máximo 3 parcelas. */

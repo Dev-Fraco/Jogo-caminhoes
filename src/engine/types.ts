@@ -35,9 +35,15 @@ export interface Player {
   age: number;
   strength: number; // 1..100
   /** Contrato negociado (só jogadores contratados por você): salário anual e última temporada. */
-  contract?: { wage: number; until: number };
+  contract?: { wage: number; until: number; /** temporada em que o contrato começou */ from?: number };
   /** Último clube (jogadores livres): de onde saiu ao ficar sem contrato. */
   lastClubId?: string;
+  /** Potencial (overall que pode alcançar). Ausente = ainda não avaliado; jogadores com mais de 25 anos já o atingiram. */
+  pot?: number;
+  /** Clube formador (revelado na base) e temporada: nunca muda, mesmo passando por vários clubes. */
+  formedAt?: string; formedSeason?: number;
+  /** Nacionalidade (código do país), nos jogadores revelados pelo jogo. */
+  nat?: string;
 }
 
 export interface Club {
@@ -345,7 +351,11 @@ export interface Debt { id: string; dealId: string; playerId: string; debtorId: 
 /** Cláusula em vigor (revenda e bônus), ligada ao jogador. */
 export interface ActiveClause { id: string; dealId: string; playerId: string; type: DealClause['type']; beneficiaryId: string; payerId: string; pct?: number; base?: 'valor' | 'lucro'; baseFee: number; amount?: number; threshold?: number; progress?: number; fromSeason: number; untilSeason?: number; paid?: boolean; paidDay?: number }
 /** Empréstimo registrado com todas as condições. */
-export interface LoanDeal { origContract?: { wage: number; until: number }; dealId: string; playerId: string; originId: string; hostId: string; season: number; fromDay: number; untilDay: number; fullWage: number; originWagePct: number; fee: number; buyOption?: number; buyObligation?: number; obligationGames?: number; apps: number; closed?: boolean }
+export interface LoanDeal { reason?: string; startStrength?: number; origContract?: { wage: number; until: number }; dealId: string; playerId: string; originId: string; hostId: string; season: number; fromDay: number; untilDay: number; fullWage: number; originWagePct: number; fee: number; buyOption?: number; buyObligation?: number; obligationGames?: number; apps: number; closed?: boolean }
+/** Empréstimo encerrado: o histórico fica guardado (resultado, jogos e evolução). */
+export interface LoanRecord { dealId: string; playerId: string; playerName: string; originId: string; hostId: string; season: number; fromDay: number; endDay: number; apps: number; strengthFrom: number; strengthTo: number; outcome: 'devolvido' | 'comprado-opcao' | 'comprado-obrigacao'; reason?: string; note: string }
+/** Mudança contratual de um jogador (histórico). */
+export interface ContractEvent { day: number; playerId: string; playerName: string; clubId: string; kind: 'novo' | 'renovou' | 'recusou' | 'fim' | 'aumento' | 'reducao'; wageFrom?: number; wageTo?: number; until?: number; note: string }
 export interface TransferWindow { id: string; countryId: string; label: string; opens: number; closes: number }
 export interface WindowEvent { id: string; event: 'aberta' | 'fechada'; day: number }
 export interface Mood { since: number; reason: string; level: 1 | 2 | 3; want: 'sair' | 'aumento'; cooldown?: number }
@@ -420,6 +430,12 @@ export interface GameState {
   aiNewsDay?: { day: number; n: number };
   /** Carga de jogos seguidos de cada jogador (rodízio dos clubes da IA). */
   load?: Record<string, number>;
+  /** Partidas como titular de cada jogador na temporada (minutos jogados): alimenta a evolução, os bônus e o acompanhamento de empréstimos. */
+  apps?: Record<string, number>;
+  loanLog?: LoanRecord[];
+  contractLog?: ContractEvent[];
+  /** Renovações em conversa/recusadas: jogador -> {dia, tentativas, recusas}. */
+  renewTalks?: Record<string, { day: number; tries: number; refusals: number; done?: boolean }>;
   /** Objetivos da temporada de cada clube, fixados no início dela (persistem mesmo se o clube sair de uma copa). */
   aiGoals?: Record<string, { season: number; league: string; extras: { kind: string; label: string }[] }>;
   /** Ajustes dos limites de elenco da IA (parciais sobre o padrão). */

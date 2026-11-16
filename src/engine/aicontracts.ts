@@ -10,6 +10,7 @@ import { aiTrade } from './aitrade';
 import { spotOf } from './squad';
 import { goalStatus } from './aigoals';
 import { forgetClub } from './aisales';
+import { logContract } from './contractwatch';
 import { loanedIds } from './aiyouth';
 import type { GameState, NewsItem, Player } from './types';
 
@@ -34,7 +35,7 @@ const isAi = (g: GameState, id: string) => !(id === g.userClubId && !g.unemploye
 
 /** Novo contrato de transferência: salário da fórmula do clube e prazo pela idade. */
 export function newContract(g: GameState, clubId: string, p: Player, bonus = 1.05): NonNullable<Player['contract']> {
-  return { wage: Math.round((baseWage(g, clubId, { ...p, contract: undefined }) * bonus) / 1_000) * 1_000, until: g.season + contractYears(p) - 1 };
+  return { wage: Math.round((baseWage(g, clubId, { ...p, contract: undefined }) * bonus) / 1_000) * 1_000, until: g.season + contractYears(p) - 1, from: g.season };
 }
 
 /**
@@ -122,16 +123,20 @@ export function aiRenewals(g: GameState, _rng: Rng, mode: 'meio' | 'virada', las
       if (!cur) continue;
       const rosterWithout = team.players.filter((x) => x.id !== p.id);
       const forced = mode === 'virada' && !rosterOk(rosterWithout); // sem ele o elenco ficaria inválido: renova mesmo assim (com salário ajustado)
-      const d = decideRenewal(s, id, cur, prof, ctx, payroll, forced);
+      const talk = s.renewTalks?.[p.id];
+      const refused = !!talk && talk.refusals >= 1 && talk.done;           // já recusou renovar nas conversas: não renova à força
+      const d = refused && !forced ? { renew: false, wage: 0, years: 0, reason: 'recusou renovar', importance: 0 } as RenewalDecision : decideRenewal(s, id, cur, prof, ctx, payroll, forced);
       if (d.renew) {
         const until = mode === 'meio' ? s.season + d.years : s.season + d.years - 1; // na virada, a temporada nova já é a 1ª do contrato
-        team = { ...team, players: team.players.map((x) => (x.id === p.id ? { ...x, contract: { wage: d.wage, until } } : x)) };
+        team = { ...team, players: team.players.map((x) => (x.id === p.id ? { ...x, contract: { wage: d.wage, until, from: s.season } } : x)) };
+        s = logContract(s, { playerId: p.id, playerName: p.name, clubId: id, kind: 'renovou', wageFrom: cur.contract?.wage, wageTo: d.wage, until, note: d.reason });
         payroll += d.wage - (cur.contract?.wage ?? d.wage);
         if (notable < 5 && d.importance >= 1 && p.strength >= 70) { notable++; s = news(s, `✍️ ${s.clubs[id].name} renova com ${p.name} (overall ${p.strength}) por ${d.years} ${d.years === 1 ? 'ano' : 'anos'}.`, 'info'); }
       } else if (mode === 'virada') {
         team = { ...team, players: rosterWithout, lineup: team.lineup.filter((x) => x !== p.id) };
         payroll -= cur.contract?.wage ?? 0;
         free.push({ ...p, contract: undefined, lastClubId: id });
+        s = logContract(s, { playerId: p.id, playerName: p.name, clubId: id, kind: 'fim', wageFrom: cur.contract?.wage, note: `contrato terminou (${d.reason})` });
         if (notable < 5 && p.strength >= 72) { notable++; s = news(s, `🆓 ${p.name} (overall ${p.strength}) deixa o ${s.clubs[id].name} ao fim do contrato e fica livre no mercado.`, 'info'); }
       }
     }

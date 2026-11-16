@@ -5,7 +5,7 @@ import { freezeGoals } from './aigoals';
 import { settleLoanPurchases, trackLoanApps } from './loandeals';
 import { clauseGames, clauseSeasonEnd } from './dealpay';
 import { aiLineup, matchImportance, updateLoad } from './rotation';
-import { aiPromoteYouth, ensureAiYouth } from './aiyouth';
+import { aiPromoteYouth, ensureAiYouth, trackApps } from './aiyouth';
 import { aiCoachSeasonEnd, aiCoachTick } from './aicoaches';
 import { contAfterLeagueRound, createContinentals, mundialAfterLeagueRound, playContStep, playMundialStep } from './continental';
 import { pendingEvent, playEvent } from './events';
@@ -156,7 +156,7 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
   // titulares da rodada: contam para bônus por jogos e para a obrigação de compra dos emprestados
   const started = new Set<string>();
   for (const f of fixturesOfRound(g, g.round)) for (const id of [f.homeId, f.awayId]) for (const pid of state.teams[id]?.lineup ?? []) started.add(pid);
-  state = trackLoanApps(clauseGames(state, started), started);
+  state = trackApps(trackLoanApps(clauseGames(state, started), started), started);
 
   // humor: depois do jogo do seu clube
   const my = results.find((r) => r.homeId === g.userClubId || r.awayId === g.userClubId);
@@ -344,6 +344,7 @@ function startNextSeasonCore(g: GameState, calNew: ReturnType<typeof newSeasonCa
   const withCup: GameState = createContinentals({ ...cupped, mundial: undefined }, moves[0].table.map((r) => r.clubId), g.cup?.championId);
   const cal = calNew;
   let result: GameState = freezeGoals(youthSeason({ ...withCup, cal, history: withCup.history.map((h, i) => (i === withCup.history.length - 1 ? { ...h, promotion } : h)) }));
+  result = { ...result, apps: {} }; // a evolução desta temporada já usou os minutos jogados: a contagem recomeça
   // carreira do treinador: pontos, demissão ou propostas de clubes maiores
   const relegatedU = out.movement === 'relegated', promotedU = out.movement === 'promoted';
   const reason = seasonEndFiring(g, out.userPosition, relegatedU);

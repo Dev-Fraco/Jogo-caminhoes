@@ -10,6 +10,7 @@ import { clubOf } from './lookup';
 import { clamp, hashString, makeRng } from './rng';
 import { rosterOk } from './roster';
 import { transferBlock } from './windows';
+import { logContract } from './contractwatch';
 import { autoLineup, randomName } from './squad';
 import { divisionIndexOf, MAX_SQUAD, MIN_BY_POS, MIN_SQUAD, playerValue } from './transfers';
 import type { GameState, NewsItem, Player, Position, TeamState } from './types';
@@ -178,7 +179,7 @@ export function negotiate(g: GameState, clubId: string, playerId: string, p: Pro
 
 /** Fecha a contratação: dinheiro ao vendedor, jogador no elenco com contrato. */
 export function sign(g: GameState, q: Quote, fee: number, wage: number, years: number): GameState {
-  const player: Player = { ...q.player, contract: { wage, until: g.season + years - 1 } };
+  const player: Player = { ...q.player, contract: { wage, until: g.season + years - 1, from: g.season } };
   const me = g.teams[g.userClubId];
   const buyer: TeamState = { ...me, players: [...me.players, player] };
   const log = { kind: 'buy' as const, season: g.season, round: g.round, playerId: player.id, playerName: player.name, pos: player.pos, strength: player.strength, fromClubId: q.club.id, toClubId: g.userClubId, fee };
@@ -229,8 +230,8 @@ export function renew(g: GameState, playerId: string, wage: number, years: numbe
   const need = yearsOk ? q.wageDemand * 0.95 : q.wageDemand * 1.1;
   if (wage < need) return { state: g, ok: false, counter: Math.round((yearsOk ? q.wageDemand : q.wageDemand * 1.1) / 1_000) * 1_000, text: yearsOk ? `${p.name} quer ${fmt(q.wageDemand)} por ano.` : `${p.name} prefere de ${q.yearsMin} a ${q.yearsMax} anos; com ${years} pediria ${fmt(q.wageDemand * 1.1)}.` };
   const t = g.teams[g.userClubId];
-  const players = t.players.map((x) => (x.id === playerId ? { ...x, contract: { wage: Math.round(wage), until: g.season + years - 1 } } : x));
-  return { state: news({ ...g, teams: { ...g.teams, [g.userClubId]: { ...t, players } } }, `📄 ${p.name} renovou por ${years} ${years === 1 ? 'ano' : 'anos'} (${fmt(wage)} por ano).`, 'good'), ok: true, text: `${p.name} renovou o contrato!` };
+  const players = t.players.map((x) => (x.id === playerId ? { ...x, contract: { wage: Math.round(wage), until: g.season + years - 1, from: g.season } } : x));
+  return { state: logContract(news({ ...g, teams: { ...g.teams, [g.userClubId]: { ...t, players } } }, `📄 ${p.name} renovou por ${years} ${years === 1 ? 'ano' : 'anos'} (${fmt(wage)} por ano).`, 'good'), { playerId, playerName: p.name, clubId: g.userClubId, kind: 'renovou', wageFrom: p.contract?.wage, wageTo: Math.round(wage), until: g.season + years - 1, note: 'renovação' }), ok: true, text: `${p.name} renovou o contrato!` };
 }
 
 /** Virada de temporada: contratos que terminaram. O jogador sai (a menos que isso deixe o elenco inválido: aí o contrato é estendido por 1 ano). */
@@ -239,14 +240,15 @@ export function expireContracts(g: GameState): GameState {
   const t = g.teams[g.userClubId];
   let players = t.players;
   let s = g;
+  const freed: Player[] = [];
   for (const p of t.players) {
     if (!p.contract || p.contract.until > g.season) continue;
     const next = players.filter((x) => x.id !== p.id);
-    if (rosterOk(next)) { players = next; s = news(s, `📄 O contrato de ${p.name} terminou e ele deixou o clube.`, 'info'); }
+    if (rosterOk(next)) { players = next; s = logContract(news(s, `📄 O contrato de ${p.name} terminou e ele deixou o clube (agora é jogador livre).`, 'info'), { playerId: p.id, playerName: p.name, clubId: g.userClubId, kind: 'fim', wageFrom: p.contract.wage, note: 'contrato terminou' }); freed.push({ ...p, contract: undefined, lastClubId: g.userClubId }); }
     else players = players.map((x) => (x.id === p.id ? { ...x, contract: { ...x.contract!, until: g.season + 1 } } : x));
   }
   if (players === t.players) return s;
-  return { ...s, teams: { ...s.teams, [g.userClubId]: { ...t, players, lineup: autoLineup(players, t.formation) } } };
+  return { ...s, freeAgents: [...(s.freeAgents ?? []), ...freed], teams: { ...s.teams, [g.userClubId]: { ...t, players, lineup: autoLineup(players, t.formation) } } };
 }
 
 export { clubOf };

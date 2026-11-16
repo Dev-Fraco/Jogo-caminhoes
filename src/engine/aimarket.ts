@@ -2,7 +2,8 @@ import { aiWindow, maxBuysFor } from './ai';
 import { avgXI, clubProfile, profileCtx } from './aiprofile';
 import { longInjured, needLabel, squadNeeds } from './aineeds';
 import { aiSignFreeAgents } from './aicontracts';
-import { aiLoanWindow } from './aiyouth';
+import { aiRenewTick, userContractTick } from './contractwatch';
+import { aiLoanOut, aiLoanWindow } from './aiyouth';
 import { marketValue, roleOf, saleReasons } from './aisales';
 import { aiTrade, installmentPlan, seasonEndDay } from './aitrade';
 import { calOf } from './calendar';
@@ -209,10 +210,13 @@ export function marketTick(g: GameState): GameState {
     const buyers = aiDue.filter((id) => (s.dealLog ?? []).filter((r) => r.buyerId === id && r.state === 'concluida' && day - r.day < 120).length < maxBuysFor(clubProfile(s, id, ctx0)) * 2);
     if (buyers.length) s = aiWindow(s, rng, 1, buyers, URGENT);
     if ((Math.floor(day / TICK_EVERY)) % 3 === 0) s = aiLoanWindow(s, rng, 1, aiDue);
+    if ((Math.floor(day / TICK_EVERY)) % 3 === 1) s = aiLoanOut(s, rng, aiDue); // clubes cedem jovens sem espaço
     if ((Math.floor(day / TICK_EVERY)) % 4 === 1) s = aiSwapTick(s, rng, aiDue);
   }
   if ((s.freeAgents ?? []).length && (Math.floor(day / TICK_EVERY)) % 2 === 0) s = aiSignFreeAgents(s, rng, 1, aiDue);
   s = agentTick(s, rng, dueOf(2));
+  s = aiRenewTick(s, dueOf(3));                                         // renovações com antecedência
+  if (Math.floor(day / TICK_EVERY) % 2 === 1) s = userContractTick(s);  // avisos dos seus contratos
   return s;
 }
 

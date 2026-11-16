@@ -1,4 +1,5 @@
 import { clamp, hashString, type Rng } from './rng';
+import { growYoung, PEAK_AGE, rollPotential } from './potential';
 import { managed } from './lookup';
 import { repairLineup, rosterOk } from './roster';
 import { DIVISION_INCOME, inflate, priceIndex, SEASON_INCOME_FACTOR } from './economy';
@@ -9,9 +10,10 @@ import { longInjured, needLabel, RETIRING_AGE, squadNeeds, type Need } from './a
 import { baseWage, payrollOf } from './finance';
 import { aiTrade, installmentPlan } from './aitrade';
 import { goalStatus } from './aigoals';
+import { homeLeague } from './homeleague';
 import { finishLoans } from './loandeals';
 import { aiBalanceSquads, squadLimits } from './aisquad';
-import { aiLoanWindow, aiPromoteYouth, developYouth, ensureAiYouth, loanedIds, returnAiLoans } from './aiyouth';
+import { aiLoanOut, aiLoanWindow, aiPromoteYouth, developYouth, ensureAiYouth, loanedIds, returnAiLoans } from './aiyouth';
 import { aiRenewals, aiSignFreeAgents, agedFreeAgents, newContract, WAGE_LIMIT } from './aicontracts';
 import { forgetClub, marketValue, saleReasons, stance, type Stance } from './aisales';
 import type { GameState, NewsItem, Player, Position, RetiredPlayer, TeamState } from './types';
@@ -41,7 +43,8 @@ function shuffle<T>(a: T[], rng: Rng): T[] {
 }
 
 /** Evolução anual de um jogador: +1 ano e o overall muda conforme a idade (jovens evoluem, veteranos caem). */
-export function developPlayer(p: Player, rng: Rng): Player {
+export function developPlayer(p: Player, rng: Rng, apps?: number, infra = 0.5): Player {
+  if (p.age < PEAK_AGE) return growYoung(p, rng, apps, infra); // até os 25 anos: caminho gradual até o potencial
   const age = p.age + 1;
   const d = age <= 21 ? 1 + Math.floor(rng() * 4) : age <= 24 ? Math.floor(rng() * 4) : age <= 28 ? Math.floor(rng() * 3) - 1 : age <= 31 ? -Math.floor(rng() * 3) : -(1 + Math.floor(rng() * 4));
   return { ...p, age, strength: clamp(p.strength + d, 25, 97) };
@@ -70,7 +73,10 @@ export function retireUser(players: Player[], rng: Rng): { left: Player[]; retir
 }
 
 /** Categorias de base da IA: completa o elenco com garotos de 17 a 19 anos, em torno de 14 pontos abaixo do time titular. */
-function youthIntake(team: TeamState, season: number, rng: Rng): Player[] {
+/** Estrutura de formação do clube (0 a 1): reputação e divisão, sem precisar montar o perfil inteiro. */
+export const infraOf = (g: GameState, clubId: string) => clamp(0.2 + 0.14 * (g.clubs[clubId]?.reputation ?? 2) + (divisionIndexOf(g, clubId) === 0 ? 0.15 : divisionIndexOf(g, clubId) === 1 ? 0.05 : 0), 0, 1);
+
+function youthIntake(team: TeamState, season: number, rng: Rng, infra = 0.5, nat?: string): Player[] {
   const players = [...team.players];
   const used = new Set(players.map((p) => p.name));
   const base = avgXI(team) - 14;
@@ -78,7 +84,9 @@ function youthIntake(team: TeamState, season: number, rng: Rng): Player[] {
   let n = 0;
   while (players.length < SQUAD_TARGET) {
     const pos = [...POSITIONS].sort((a, b) => need(b) - need(a))[0];
-    players.push({ id: `${team.clubId}-y${season}-${n++}`, name: randomName(rng, used), pos, spot: pickSpot(players, pos), age: 17 + Math.floor(rng() * 3), strength: clamp(Math.round(base + (rng() - 0.5) * 8), 25, 90) });
+    const strength = clamp(Math.round(base + (rng() - 0.5) * 8), 25, 90);
+    const pot = Math.max(rollPotential(rng, infra, avgXI(team)).pot, strength + 1 + Math.round(rng() * 6));
+    players.push({ id: `${team.clubId}-y${season}-${n++}`, name: randomName(rng, used), pos, spot: pickSpot(players, pos), age: 17 + Math.floor(rng() * 3), strength, pot: Math.min(95, pot), formedAt: team.clubId, formedSeason: season, ...(nat ? { nat } : {}) });
   }
   return players;
 }
@@ -296,13 +304,15 @@ export interface OffseasonInput {
 
 /** Virada de temporada: evolução dos jogadores, investimento dos promovidos, crises dos rebaixados e janela grande da IA. */
 export function offseason(g: GameState, rng: Rng, input: OffseasonInput): { state: GameState; promotion: NonNullable<import('./types').SeasonSummary['promotion']> } {
-  g = finishLoans(returnAiLoans(g)); // emprestados voltam ao dono (com o contrato de origem) antes da evolução
+  g = finishLoans(returnAiLoans(g));
+  const natOf = homeLeague(g).countryId; // emprestados voltam ao dono (com o contrato de origem) antes da evolução
   // 1) todos envelhecem/evoluem; a IA ainda aposenta veteranos e renova com garotos da base
   const teams: GameState['teams'] = {};
   const retiredNow: RetiredPlayer[] = [];
   for (const [id, t] of Object.entries(g.teams)) {
-    let players = t.players.map((p) => developPlayer(p, rng));
-    if (!managed(g, id)) { const r = retire(players, rng); players = r.left; retiredNow.push(...r.retired.map((p) => ({ name: p.name, age: p.age, pos: p.pos, strength: p.strength, clubId: id, season: g.season - 1 }))); players = youthIntake({ ...t, players }, g.season, rng); }
+    const infra = infraOf(g, id);
+    let players = t.players.map((p) => developPlayer(p, rng, g.apps?.[p.id], infra));
+    if (!managed(g, id)) { const r = retire(players, rng); players = r.left; retiredNow.push(...r.retired.map((p) => ({ name: p.name, age: p.age, pos: p.pos, strength: p.strength, clubId: id, season: g.season - 1 }))); players = youthIntake({ ...t, players }, g.season, rng, infra, natOf); }
     else { const r = retireUser(players, rng); players = r.left; retiredNow.push(...r.retired.map((p) => ({ name: p.name, age: p.age, pos: p.pos, strength: p.strength, clubId: id, season: g.season - 1 }))); }
     teams[id] = { ...t, players, lineup: managed(g, id) ? repairLineup({ ...t, players }).lineup : autoLineup(players, t.formation) };
   }
@@ -356,7 +366,8 @@ export function offseason(g: GameState, rng: Rng, input: OffseasonInput): { stat
   if (strongIds.length) s = aiWindow(s, rng, 8, strongIds);
   s = aiWindow(s, rng, 3);
   s = aiSignFreeAgents(s, rng, 2);
-  s = aiLoanWindow(s, rng, 1); // jovens sem espaço vão jogar em outros clubes
+  s = aiLoanWindow(s, rng, 1); // clubes que precisam de posição buscam empréstimos
+  s = aiLoanOut(s, rng, Object.keys(s.teams)); // clubes cedem os jovens que não têm espaço
   s = aiBalanceSquads(s, rng); // excesso numa posição: vende ou libera (ninguém é apagado)
   s = aiSignFreeAgents(s, rng, 1); // quem precisa de posição pode pegar os recém-liberados
 

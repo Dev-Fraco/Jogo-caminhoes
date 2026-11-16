@@ -6,6 +6,7 @@ import { hashString } from './rng';
 import { autoLineup } from './squad';
 import { isInjured, roundsLeft } from './injuries';
 import { divisionIndexOf, MIN_BY_POS, playerValue } from './transfers';
+import { potentialOf } from './potential';
 import type { GameState, Player } from './types';
 
 /* =====================================================================
@@ -16,7 +17,7 @@ import type { GameState, Player } from './types';
    ===================================================================== */
 
 export type SaleReason = 'lesao-longa' | 'sem-espaco' | 'salario-alto' | 'quer-sair' | 'fim-contrato' | 'fora-dos-planos' | 'financas' | 'veterano';
-export type RefusalReason = 'fundamental' | 'sem-reposicao' | 'titular-sem-substituto' | 'nao-quer-descer' | 'limite-de-titulares';
+export type RefusalReason = 'promessa' | 'fundamental' | 'sem-reposicao' | 'titular-sem-substituto' | 'nao-quer-descer' | 'limite-de-titulares';
 export type Role = 'craque' | 'titular' | 'reserva' | 'excedente';
 
 export interface Stance {
@@ -107,6 +108,8 @@ export function stance(g: GameState, clubId: string, p: Player, buyerId?: string
     if (bdi > sdi && !desperate) return base('nao-quer-descer'); // titular não vai para divisão inferior
     if (startersSold >= MAX_STARTER_SALES[prof.tier] + (desperate ? 1 : 0)) return base('limite-de-titulares');
   }
+  // grande promessa: o clube quer desenvolvê-la e nem sempre vende (clubes pequenos guardam ainda mais as suas revelações)
+  if (r.role !== 'craque' && p.age <= 21 && potentialOf(p) >= (ctx.xi.get(clubId) ?? avgXI(g.teams[clubId])) + 6 && !desperate && prof.sellPressure < 0.6 && hashString(`${p.id}:${g.season}:guarda`) % 100 < (prof.tier === 'pequeno' ? 55 : prof.tier === 'medio' ? 40 : 30)) return base('promessa');
   // preço pedido: craque custa caro, titular um pouco acima, reserva no valor, excedente com desconto
   let ask = r.role === 'craque' ? 1.6 : r.role === 'titular' ? 1.25 : r.role === 'excedente' ? 0.8 : 0.95;
   // quanto mais substituto à altura, mais barato deixar ir; sem substituto, mais caro
@@ -124,7 +127,12 @@ export function stance(g: GameState, clubId: string, p: Player, buyerId?: string
 }
 
 /** Valor de mercado do jogador no clube que o vende (R$). */
-export const marketValue = (g: GameState, clubId: string, p: Player) => inflate(g, playerValue(p, divisionIndexOf(g, clubId)));
+export const marketValue = (g: GameState, clubId: string, p: Player) => {
+  const base = inflate(g, playerValue(p, divisionIndexOf(g, clubId)));
+  // jovem com potencial vale mais do que o overall de hoje (até +50% para os maiores potenciais)
+  const prem = p.age <= 23 ? 1 + Math.min(0.5, Math.max(0, potentialOf(p) - p.strength) / 70) : 1;
+  return Math.round(base * prem / 10_000) * 10_000 || base;
+};
 
 /** Resposta a uma proposta concreta: aceita se o valor chega ao preço pedido e o clube não tem motivo para recusar. */
 export function evaluateOffer(g: GameState, clubId: string, p: Player, fee: number, buyerId?: string, ctx?: ProfileCtx, startersSold = 0): { accept: boolean; stance: Stance; ask: number } {

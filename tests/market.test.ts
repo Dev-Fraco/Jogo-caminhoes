@@ -57,7 +57,7 @@ describe('negociação', () => {
     const r = negotiate(g, 'santos', p.id, prop);
     expect(r.deal).toBe(true);
     const me = r.state.teams.palmeiras.players.find((x) => x.id === p.id)!;
-    expect(me.contract).toEqual({ wage: prop.wage, until: g.season + prop.years - 1 });
+    expect(me.contract).toMatchObject({ wage: prop.wage, until: g.season + prop.years - 1, from: g.season });
     expect(wageOf(r.state, 'palmeiras', me)).toBe(prop.wage);
     expect(r.state.teams.santos.players.some((x) => x.id === p.id)).toBe(false);
     expect(r.state.budgets.palmeiras).toBe(g.budgets.palmeiras - prop.fee);

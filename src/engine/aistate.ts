@@ -3,6 +3,8 @@ import { ensureAiContracts } from './aicontracts';
 import { freezeGoals } from './aigoals';
 import { ensureAiYouth } from './aiyouth';
 import { seasonEndDay } from './aitrade';
+import { homeLeague } from './homeleague';
+import { ensurePotentials } from './potential';
 import { calOf } from './calendar';
 import { windowInfo } from './windows';
 import { makeRng } from './rng';
@@ -21,6 +23,26 @@ export function ensureAiState(g: GameState): GameState {
   s = s.aiYouth ? s : ensureAiYouth(s, makeRng(s.seed * 67 + s.season * 11 + 3));
   s = freezeGoals(s);
   s = ensureMarketState(s);
+  s = ensureYouthLoanState(s);
+  return s;
+}
+
+/**
+ * Empréstimos, base e contratos em carreiras antigas: dá potencial a quem tem até 25 anos, registra o clube formador dos garotos da base,
+ * completa os empréstimos em andamento (overall de partida) e inicia a contagem de partidas. Não muda overall, contrato, elenco nem caixa. Idempotente.
+ */
+export function ensureYouthLoanState(g: GameState): GameState {
+  let s = ensurePotentials(g);
+  if (s.aiYouth) {
+    let changed = false;
+    const youth: NonNullable<GameState['aiYouth']> = {};
+    for (const [id, list] of Object.entries(s.aiYouth)) youth[id] = list.map((p) => (p.formedAt ? p : ((changed = true), { ...p, formedAt: id, formedSeason: s.season, nat: p.nat ?? homeLeague(s).countryId })));
+    if (changed) s = { ...s, aiYouth: youth };
+  }
+  if (s.loanDeals?.some((l) => !l.closed && l.startStrength === undefined)) {
+    s = { ...s, loanDeals: s.loanDeals.map((l) => (l.startStrength === undefined && !l.closed ? { ...l, startStrength: s.teams[l.hostId]?.players.find((p) => p.id === l.playerId)?.strength } : l)) };
+  }
+  if (!s.apps) s = { ...s, apps: {} };
   return s;
 }
 

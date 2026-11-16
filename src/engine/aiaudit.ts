@@ -25,5 +25,22 @@ export function auditUniverse(g: GameState): string[] {
     if (holders.has(coachId)) problems.push(`treinador ${coachId} em dois clubes`); else holders.set(coachId, cid);
   }
   for (const l of g.aiLoans ?? []) if (!g.teams[l.hostId]?.players.some((p) => p.id === l.playerId)) problems.push(`empréstimo sem jogador no clube que recebeu: ${l.playerId}`);
+  // empréstimos: cada um tem o jogador no clube que o recebeu, em uma única lista, e nenhum jogador está em dois empréstimos
+  const seen = new Set<string>();
+  for (const l of g.loanDeals ?? []) {
+    if (l.closed) continue;
+    if (seen.has(l.playerId)) problems.push(`jogador em dois empréstimos: ${l.playerId}`); seen.add(l.playerId);
+    if (!g.teams[l.hostId]?.players.some((p) => p.id === l.playerId)) problems.push(`empréstimo sem jogador no destino: ${l.playerId}`);
+    if (g.teams[l.originId]?.players.some((p) => p.id === l.playerId)) problems.push(`emprestado ainda no elenco de origem: ${l.playerId}`);
+    if (!(l.untilDay > l.fromDay)) problems.push(`empréstimo com datas inválidas: ${l.dealId}`);
+    const lists = (g.loans.some((x) => x.playerId === l.playerId) ? 1 : 0) + ((g.loansIn ?? []).some((x) => x.playerId === l.playerId) ? 1 : 0) + ((g.aiLoans ?? []).some((x) => x.playerId === l.playerId) ? 1 : 0);
+    if (lists !== 1) problems.push(`empréstimo fora das listas de devolução (ou em duas): ${l.playerId}`);
+  }
+  // contratos válidos
+  for (const [cid, t] of Object.entries(g.teams)) for (const p of t.players) {
+    if (p.contract && (!(p.contract.wage > 0) || !Number.isFinite(p.contract.until))) problems.push(`contrato inválido: ${p.id} em ${cid}`);
+    if (p.contract && p.contract.until < g.season - 1) problems.push(`contrato vencido há tempo: ${p.id} em ${cid}`);
+  }
+  for (const p of g.freeAgents ?? []) if (p.contract) problems.push(`jogador livre com contrato: ${p.id}`);
   return problems;
 }

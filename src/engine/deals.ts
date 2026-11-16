@@ -42,6 +42,18 @@ export function lockedPlayers(g: GameState, exceptDealId?: string): Set<string> 
 }
 const loanedNow = (g: GameState, pid: string) => g.loans.some((l) => l.playerId === pid) || (g.loansIn ?? []).some((l) => l.playerId === pid) || (g.aiLoans ?? []).some((l) => l.playerId === pid);
 
+/** Erro nas condições do empréstimo (datas, valores, divisão salarial), ou undefined se estão válidas. */
+export function loanTermsError(t: DealTerms, day: number): string | undefined {
+  const l = t.loan;
+  if (!l) return 'O empréstimo precisa de condições (data de encerramento e divisão salarial).';
+  if (!Number.isFinite(l.untilDay) || l.untilDay <= day) return 'A data de encerramento do empréstimo é inválida (precisa ser depois de hoje).';
+  if (l.originWagePct < 0 || l.originWagePct > 1) return 'A divisão salarial precisa estar entre 0% e 100%.';
+  if (l.buyOption !== undefined && !(l.buyOption > 0)) return 'A opção de compra precisa ter um valor definido.';
+  if (l.buyObligation !== undefined && (!(l.buyObligation > 0) || !(l.obligationGames !== undefined && l.obligationGames >= 1))) return 'A obrigação de compra precisa de valor e do número de jogos que a ativa.';
+  if (l.buyOption !== undefined && l.buyObligation !== undefined) return 'Escolha opção OU obrigação de compra, não as duas.';
+  return undefined;
+}
+
 export interface OpenParams { kind: DealKind; playerId: string; buyerId: string; terms: Partial<DealTerms> & { fee: number }; reason?: string }
 export type OpenResult = { state: GameState; deal?: Deal; error?: string };
 
@@ -61,6 +73,7 @@ export function openDeal(g: GameState, p: OpenParams): OpenResult {
   if (loanedNow(g, p.playerId)) return { state: g, error: 'Jogador emprestado não pode ser negociado.' };
   const t: DealTerms = { ...p.terms, fee: Math.max(0, Math.round(p.terms.fee)) };
   if (!installmentsOk(t)) return { state: g, error: 'As parcelas não somam o valor negociado.' };
+  if (p.kind === 'emprestimo') { const e = loanTermsError(t, today(g)); if (e) return { state: g, error: e }; }
   for (const id of t.swapPlayerIds ?? []) {
     const sl = locate(g, id);
     if (!sl || sl.clubId !== p.buyerId) return { state: g, error: 'Um jogador da troca não pertence ao clube comprador.' };
@@ -154,6 +167,7 @@ export function executeDeal(g: GameState, dealId: string, opts: { force?: boolea
   const teams = { ...g.teams };
   const years = t.years ?? defaultContract(g, d.buyerId, l.player).years;
   const loan = d.kind === 'emprestimo' ? t.loan! : undefined;
+  if (loan) { const e = loanTermsError(t, day); if (e) return fail(e); }
   const origContract = l.player.contract;
   const fullWage = origContract?.wage ?? (d.sellerId ? baseWage(g, d.sellerId, l.player) : wageNow);
   const moved: Player = loan
@@ -176,7 +190,7 @@ export function executeDeal(g: GameState, dealId: string, opts: { force?: boolea
   if (d.sellerId && d.kind !== 'emprestimo' && t.clauses?.length) s = { ...s, clauses: [...(s.clauses ?? []), ...clausesFor(s, d.id, d.playerId, d.sellerId, d.buyerId, t)] };
   // empréstimo: registro com as condições e compatibilidade com as listas existentes
   if (loan && d.sellerId) {
-    s = { ...s, loanDeals: [...(s.loanDeals ?? []), { dealId: d.id, playerId: d.playerId, originId: d.sellerId, hostId: d.buyerId, season: s.season, fromDay: day, untilDay: loan.untilDay, fullWage, originWagePct: loan.originWagePct, fee: t.fee, buyOption: loan.buyOption, buyObligation: loan.buyObligation, obligationGames: loan.obligationGames, apps: 0, origContract }] };
+    s = { ...s, loanDeals: [...(s.loanDeals ?? []), { dealId: d.id, playerId: d.playerId, originId: d.sellerId, hostId: d.buyerId, season: s.season, fromDay: day, untilDay: loan.untilDay, fullWage, originWagePct: loan.originWagePct, fee: t.fee, reason: d.reason, startStrength: l.player.strength, buyOption: loan.buyOption, buyObligation: loan.buyObligation, obligationGames: loan.obligationGames, apps: 0, origContract }] };
     if (userIs(g, d.sellerId)) s = { ...s, loans: [...s.loans, { playerId: d.playerId, hostClubId: d.buyerId, season: s.season }] };
     else if (userIs(g, d.buyerId)) s = { ...s, loansIn: [...(s.loansIn ?? []), { playerId: d.playerId, ownerClubId: d.sellerId, season: s.season }] };
     else s = { ...s, aiLoans: [...(s.aiLoans ?? []), { playerId: d.playerId, ownerId: d.sellerId, hostId: d.buyerId, season: s.season }] };

@@ -1,12 +1,17 @@
 import { avgXI, clubProfile, profileCtx } from './aiprofile';
-import { AI_MAX_SQUAD, clubActivity, SELLER_POOL } from './ai';
+import { AI_MAX_SQUAD, clubActivity, infraOf, SELLER_POOL } from './ai';
+import { calOf, toDay } from './calendar';
+import { hashString } from './rng';
+import { potentialOf } from './potential';
+import { homeLeague } from './homeleague';
+import { growYoung, rollPotential, startStrength } from './potential';
 import { aiTrade, seasonEndDay } from './aitrade';
 import { needLabel } from './aineeds';
 import { longInjured, squadNeeds } from './aineeds';
 import { marketValue } from './aisales';
 import { baseWage } from './finance';
 import { managed } from './lookup';
-import { clamp, type Rng } from './rng';
+import { type Rng } from './rng';
 import { rosterOk } from './roster';
 import { autoLineup, pickSpot, randomName, spotOf } from './squad';
 import { divisionIndexOf, MIN_BY_POS } from './transfers';
@@ -38,12 +43,13 @@ export const loanedIds = (g: GameState): Set<string> => new Set([...g.loans.map(
 function newProspect(g: GameState, clubId: string, rng: Rng, used: Set<string>, n: number): Prospect {
   const t = g.teams[clubId];
   const level = avgXI(t);
+  const infra = infraOf(g, clubId);
   const short = [...POSITIONS].sort((a, b) => (SHAPE[b] - t.players.filter((p) => p.pos === b).length) - (SHAPE[a] - t.players.filter((p) => p.pos === a).length));
   const pos = rng() < 0.5 ? short[0] : POSITIONS[Math.floor(rng() * 4)];
-  const pot = clamp(Math.round(level + (rng() - 0.35) * 22), 40, 92);
+  const { pot } = rollPotential(rng, infra, level);
   const age = 16 + Math.floor(rng() * 2);
-  const strength = clamp(Math.round(pot - 14 - rng() * 14), 25, 80);
-  return { id: `${clubId}-b${g.season}-${n}-${Math.floor(rng() * 1e9).toString(36)}`, name: randomName(rng, used), pos, spot: pickSpot(t.players, pos), age, strength, pot };
+  const strength = startStrength(pot, age, rng);
+  return { id: `${clubId}-b${g.season}-${n}-${Math.floor(rng() * 1e9).toString(36)}`, name: randomName(rng, used), pos, spot: pickSpot(t.players, pos), age, strength, pot, formedAt: clubId, formedSeason: g.season, nat: homeLeague(g).countryId };
 }
 
 /** Completa a base de cada clube da IA até BASE_SIZE garotos. */
@@ -66,7 +72,8 @@ export function developYouth(g: GameState, rng: Rng): GameState {
   const youth: Record<string, Prospect[]> = {};
   for (const [id, list] of Object.entries(g.aiYouth ?? {})) {
     if (!g.teams[id]) continue;
-    youth[id] = list.map((p) => ({ ...p, age: p.age + 1, strength: clamp(p.strength + Math.min(Math.max(0, p.pot - p.strength), 3 + Math.floor(rng() * 5)), 25, 95) }));
+    const infra = infraOf(g, id);
+    youth[id] = list.map((p) => ({ ...growYoung(p, rng, undefined, infra), pot: p.pot }));
   }
   return ensureAiYouth({ ...g, aiYouth: youth }, rng);
 }
@@ -99,7 +106,7 @@ export function aiPromoteYouth(g: GameState, rng: Rng, perClub = 2): GameState {
       const talent = pr.pot >= level + 2 && pr.strength >= level - 14;
       const overdue = pr.age >= MAX_PROSPECT_AGE && pr.pot >= level - 8;
       if (!ready && !talent && !overdue) continue;
-      const { pot: _pot, ...p } = pr;
+      const { ...p } = pr; // o jogador leva o potencial, o clube formador e a nacionalidade para o time principal
       const joined: Player = { ...p, spot: pickSpot(t.players, p.pos), contract: newContract(s, id, p as Player, 0.6) };
       s = swap(s, id, [...t.players, joined]);
       base = base.filter((x) => x.id !== pr.id);
@@ -196,4 +203,95 @@ export function returnAiLoans(g: GameState, onlyClub?: string): GameState {
     if (notable < 3 && xi.has(p.id) && p.strength >= 55) { notable++; s = news(s, `🔙 ${p.name} volta de empréstimo ao ${s.clubs[l.ownerId].name} e já entra entre os titulares.`); }
   }
   return { ...s, aiLoans: keep };
+}
+
+/**
+ * Depois de cada rodada: conta as partidas como titular (minutos jogados) de todos os jogadores. Alimenta a evolução, os bônus e o acompanhamento
+ * dos empréstimos. Só gera notícia quando o fato é real: estreia de um jovem revelado na base e quando ele se firma como titular.
+ */
+export function trackApps(g: GameState, started: Set<string>): GameState {
+  if (!started.size) return g;
+  const apps = { ...(g.apps ?? {}) };
+  let s = g;
+  let said = 0;
+  for (const id of started) {
+    const before = apps[id] ?? 0;
+    apps[id] = before + 1;
+    if ((before === 0 || before === 4) && said < 2) {
+      const l = locateIn(g, id);
+      if (!l?.p.formedAt || l.p.age > 21 || (l.p.pot ?? 0) < 72) continue;
+      said++;
+      const club = g.clubs[l.clubId]?.name ?? 'o clube';
+      const origin = g.clubs[l.p.formedAt]?.name ?? 'o clube formador';
+      s = news(s, before === 0 ? `🌟 ${l.p.name} (${l.p.age} anos, revelado pelo ${origin}) faz a estreia como titular pelo ${club}.` : `⭐ ${l.p.name} (${l.p.age} anos, overall ${l.p.strength}) se firma como titular do ${club}.`);
+    }
+  }
+  return { ...s, apps };
+}
+const locateIn = (g: GameState, pid: string) => { for (const [clubId, t] of Object.entries(g.teams)) { const p = t.players.find((x) => x.id === pid); if (p) return { clubId, p }; } return undefined; };
+
+/** Jogadores à frente de `p` na mesma posição (mais fortes). */
+const aheadOf = (players: Player[], p: Player) => players.filter((q) => q.pos === p.pos && q.id !== p.id && q.strength > p.strength).length;
+const SLOTS_BY_POS: Record<Position, number> = { GK: 1, DEF: 4, MID: 3, ATT: 3 };
+
+/**
+ * Clubes (a vez deles) identificam os jovens que precisam jogar: até 23 anos, bons o bastante para evoluir, sem lugar (vários à frente na posição) e fora
+ * do time titular. Procuram um clube que precise da posição, onde o jovem teria chance de jogar e que pague o salário (o clube de origem ajuda quando o outro
+ * é pequeno ou está apertado). O acordo pode ter taxa, opção de compra (promessas) ou obrigação de compra (jogadores mais maduros). Cada empréstimo tem justificativa.
+ */
+export function aiLoanOut(g: GameState, rng: Rng, due: string[]): GameState {
+  let s = g;
+  const ctx = profileCtx(s);
+  const loaned = loanedIds(s);
+  const day = calOf(s).day;
+  const hostsAll = aiIds(s);
+  let made = 0;
+  for (const originId of shuffle(due.filter((id) => !managed(s, id)), rng)) {
+    if (made >= 3 || (s.aiLoans ?? []).length >= MAX_AI_LOANS) break;
+    const team = s.teams[originId];
+    const level = ctx.xi.get(originId) ?? avgXI(team);
+    const xi = new Set(autoLineup(team.players, team.formation));
+    const cands = team.players.filter((p) => p.age <= 23 && !xi.has(p.id) && !loaned.has(p.id) && !longInjured(s, p.id) && (p.contract?.until ?? s.season) >= s.season && !(s.aiMoves?.[p.id] && s.aiMoves[p.id].season >= s.season))
+      .map((p) => ({ p, ahead: aheadOf(team.players, p), pot: potentialOf(p) }))
+      .filter((x) => x.ahead >= SLOTS_BY_POS[x.p.pos] + 1 && (x.pot >= level - 4 || x.p.strength >= level - 8)       // vale a pena desenvolver
+        && team.players.filter((q) => q.pos === x.p.pos).length > MIN_BY_POS[x.p.pos] + 1)
+      .sort((a, b) => b.pot - a.pot);
+    const c = cands[0];
+    if (!c) continue;
+    const p = c.p;
+    const mv = marketValue(s, originId, p);
+    const odi = divisionIndexOf(s, originId);
+    let best: { hostId: string; score: number } | null = null;
+    for (const hostId of (hostsAll.length > SELLER_POOL ? shuffle(hostsAll, rng).slice(0, SELLER_POOL) : hostsAll)) {
+      if (hostId === originId || divisionIndexOf(s, hostId) < odi) continue;                 // empréstimo para divisão igual ou inferior à do dono
+      const host = s.teams[hostId];
+      if (host.players.length >= AI_MAX_SQUAD) continue;
+      const hp = clubProfile(s, hostId, ctx);
+      const needs = squadNeeds(s, hostId, hp, { divisionLevel: ctx.divAvg.get(divisionIndexOf(s, hostId)) });
+      const need = needs.find((n) => n.pos === p.pos && (!n.spot || n.spot === spotOf(p)));
+      if (!need) continue;
+      const hxi = new Set(autoLineup(host.players, host.formation));
+      const weak = Math.min(...host.players.filter((q) => q.pos === p.pos && hxi.has(q.id)).map((q) => q.strength));
+      if (Number.isFinite(weak) && p.strength < weak - 2) continue;                          // lá ele também não jogaria
+      const share = hp.financial === 'crise' || hp.financial === 'apertado' || hp.tier === 'pequeno' ? 0.5 : 0;
+      const hostWage = baseWage(s, hostId, p) * (1 - share);
+      if (hostWage > hp.revenue * WAGE_LIMIT[hp.tier] - host.players.reduce((a, q) => a + (q.contract?.wage ?? baseWage(s, hostId, q)), 0)) continue;
+      const gain = (Number.isFinite(weak) ? p.strength - weak : 3) + need.priority / 20 + (divisionIndexOf(s, hostId) - odi) * 0.5;
+      if (!best || gain > best.score) best = { hostId, score: gain };
+    }
+    if (!best) continue;
+    const hp = clubProfile(s, best.hostId, ctx);
+    const originPays = hp.financial === 'crise' || hp.financial === 'apertado' ? 1 : hp.tier === 'pequeno' ? 0.5 : 0;
+    const feeAsk = hp.financial === 'rico' ? Math.round(mv * 0.03 / 10_000) * 10_000 : 0;
+    const promising = c.pot >= level + 2 && p.age <= 21;
+    const loan = {
+      untilDay: hashString(`${p.id}:${day}:fim`) % 100 < 35 && day < toDay(s.season, 6, 30) ? toDay(s.season, 6, 30) : seasonEndDay(s),
+      originWagePct: originPays, fee: feeAsk,
+      ...(promising ? { buyOption: Math.round(mv * 1.3 / 10_000) * 10_000 } : p.age >= 21 && p.strength >= level - 3 && hashString(`${p.id}:obr`) % 100 < 30 ? { buyObligation: Math.round(mv * 1.1 / 10_000) * 10_000, obligationGames: 15 } : {}),
+    };
+    const why = `cedido: sem espaço (${c.ahead} jogadores à frente de ${p.pos === 'GK' ? 'goleiros' : p.pos === 'DEF' ? 'defensores' : p.pos === 'MID' ? 'meias' : 'atacantes'}), ${p.age} anos, overall ${p.strength}, potencial ${c.pot}`;
+    const tr = aiTrade(s, { kind: 'emprestimo', playerId: p.id, buyerId: best.hostId, fee: feeAsk, loan, reason: why });
+    if (tr.ok) { s = tr.state; loaned.add(p.id); made++; }
+  }
+  return s;
 }

@@ -31,7 +31,7 @@ describe('base dos clubes da IA', () => {
     const out = aiPromoteYouth(g, makeRng(1));
     expect(out.teams[club].players.some((p) => p.id === 'pr1')).toBe(true);
     expect(out.aiYouth![club].some((p) => p.id === 'pr1')).toBe(false);
-    expect((out.teams[club].players.find((p) => p.id === 'pr1') as unknown as Prospect).pot).toBeUndefined();
+    expect(out.teams[club].players.find((p) => p.id === 'pr1')!.pot).toBe(80); // leva o potencial para o time principal
     expect(out.teams[club].players.find((p) => p.id === 'pr1')!.contract).toBeTruthy();
   });
 

@@ -8,7 +8,10 @@ import { hashString } from './rng';
 import { notifyPhone } from './phone';
 import { afterSigning } from './fairplay';
 import { transferBlock } from './windows';
-import type { GameState, LoanDeal, NewsItem, Player, Transfer } from './types';
+import { repairLineup } from './roster';
+import { autoLineup } from './squad';
+import { noteMove } from './dealeval';
+import type { GameState, LoanDeal, LoanRecord, NewsItem, Player, Transfer } from './types';
 
 /* =====================================================================
    Ciclo de vida dos empréstimos negociados: opção de compra (quem recebeu decide), obrigação de compra (cumprida por partidas) e devolução
@@ -67,51 +70,119 @@ export function exerciseBuyOption(g: GameState, playerId: string): PurchaseResul
   if (!loan.buyOption) return { state: g, ok: false, reason: 'O empréstimo não tem opção de compra.' };
   const closed = transferBlock(g, 'comum');
   if (closed) return { state: g, ok: false, reason: closed };
-  return completeLoanPurchase(g, loan, loan.buyOption, 'opção');
+  const r = completeLoanPurchase(g, loan, loan.buyOption, 'opção');
+  return r.ok ? { ...r, state: logLoan(r.state, loan, 'comprado-opcao', `Opção de compra exercida por ${fmt(loan.buyOption)}.`) } : r;
+}
+
+/** Decide e executa a compra de um empréstimo que acabou (obrigação cumprida ou opção exercida pela IA). Devolve o estado e se houve compra. */
+function settleOne(g: GameState, loan: LoanDeal): { state: GameState; bought: boolean } {
+  let s = g;
+  if (loan.buyObligation && loan.obligationGames !== undefined && loan.apps >= loan.obligationGames) {
+    const r = completeLoanPurchase(s, loan, loan.buyObligation, 'obrigação');
+    if (r.ok) return { state: logLoan(r.state, loan, 'comprado-obrigacao', `Obrigação de compra cumprida (${loan.apps} jogos): ${fmt(loan.buyObligation)}.`), bought: true };
+  }
+  if (loan.buyOption && !userIs(s, loan.hostId)) {
+    const l = locate(s, loan.playerId);
+    if (l && l.clubId === loan.hostId) {
+      const host = s.teams[loan.hostId];
+      const important = l.player.strength >= avgXI(host) - 2 && loan.apps >= 8;       // joga e rende no clube
+      const room = host.players.length < AI_MAX_SQUAD + 2;
+      const want = important && room && marketValue(s, loan.hostId, l.player) * 1.4 >= loan.buyOption && clubProfile(s, loan.hostId).financial !== 'crise' && hashString(`${loan.dealId}:opcao`) % 100 < 70;
+      if (want) { const r = completeLoanPurchase(s, loan, loan.buyOption, 'opção'); if (r.ok) return { state: logLoan(r.state, loan, 'comprado-opcao', `Opção de compra exercida por ${fmt(loan.buyOption)}.`), bought: true }; }
+    }
+  }
+  return { state: s, bought: false };
+}
+
+/** Registra o empréstimo no histórico (os encerrados ficam guardados). */
+function logLoan(g: GameState, loan: LoanDeal, outcome: LoanRecord['outcome'], note: string): GameState {
+  const p = locate(g, loan.playerId)?.player;
+  const rec: LoanRecord = { dealId: loan.dealId, playerId: loan.playerId, playerName: p?.name ?? loan.playerId, originId: loan.originId, hostId: loan.hostId, season: loan.season, fromDay: loan.fromDay, endDay: calOf(g).day, apps: loan.apps, strengthFrom: loan.startStrength ?? p?.strength ?? 0, strengthTo: p?.strength ?? 0, outcome, reason: loan.reason, note };
+  return { ...g, loanLog: [rec, ...(g.loanLog ?? [])].slice(0, 300) };
+}
+
+/** Acompanhamento do jogador emprestado: jogos, evolução do overall e lesões (gols e assistências não são registrados pelo jogo). */
+export function loanReport(g: GameState, loan: LoanDeal) {
+  const p = locate(g, loan.playerId)?.player;
+  const evolution = p ? p.strength - (loan.startStrength ?? p.strength) : 0;
+  const injured = !!g.injuries?.[loan.playerId];
+  const positive = loan.apps >= 10 || evolution >= 2;
+  return { player: p, apps: loan.apps, evolution, injured, positive, status: loan.apps >= 10 ? 'titular' : loan.apps >= 3 ? 'utilizado' : 'pouco aproveitado' };
 }
 
 /**
- * Antes da devolução, na virada de temporada: a obrigação de compra se cumpre (partidas combinadas) e os clubes da IA decidem
- * exercer (ou não) a opção, conforme a importância do jogador e o caixa. Quem não for comprado volta ao dono.
+ * Devolve o jogador ao clube de origem: sai do elenco que o recebeu, volta com o contrato original, as listas e o registro são encerrados e o histórico
+ * guarda o resultado. O clube de origem (IA) reavalia: bom empréstimo reintegra; sem evolução e sem espaço, o jogador vai para a lista de venda.
  */
+function returnLoan(g: GameState, loan: LoanDeal): GameState {
+  const l = locate(g, loan.playerId);
+  const origin = g.teams[loan.originId];
+  let s = g;
+  const rep = loanReport(g, loan);
+  if (l && l.clubId === loan.hostId && origin) {
+    const host = g.teams[loan.hostId];
+    const back: Player = l.player.contract !== undefined || loan.origContract ? { ...l.player, contract: loan.origContract } : l.player;
+    if (!loan.origContract) delete (back as { contract?: unknown }).contract;
+    const hostLeft = host.players.filter((p) => p.id !== loan.playerId);
+    const originPlayers = [...origin.players, back];
+    s = { ...s, teams: { ...s.teams,
+      [loan.hostId]: userIs(g, loan.hostId) ? repairLineup({ ...host, players: hostLeft }) : { ...host, players: hostLeft, lineup: autoLineup(hostLeft, host.formation) },
+      [loan.originId]: userIs(g, loan.originId) ? repairLineup({ ...origin, players: originPlayers }) : { ...origin, players: originPlayers, lineup: autoLineup(originPlayers, origin.formation) } } };
+    noteMove(loan.playerId, loan.originId);
+  } else if (l && l.clubId === loan.originId && origin) { // já voltou pela devolução antiga (lista): só falta restaurar o contrato de origem
+    const fixed = origin.players.map((p) => { if (p.id !== loan.playerId) return p; if (loan.origContract) return { ...p, contract: loan.origContract }; const { contract: _c, ...rest } = p; return rest; });
+    s = { ...s, teams: { ...s.teams, [loan.originId]: { ...origin, players: fixed } } };
+  }
+  s = dropLoanLists(s, loan.playerId);
+  s = { ...s, loanDeals: (s.loanDeals ?? []).map((x) => (x.dealId === loan.dealId ? { ...x, closed: true } : x)) };
+  s = logLoan(s, loan, 'devolvido', `${rep.status}: ${loan.apps} jogos como titular, overall ${(loan.startStrength ?? 0)} → ${rep.player?.strength ?? '?'}${rep.injured ? ', lesionado' : ''}.`);
+  // reavaliação do clube de origem (IA)
+  if (!userIs(g, loan.originId) && rep.player) {
+    const p = rep.player;
+    const level = avgXI(s.teams[loan.originId]);
+    if (!rep.positive && p.age >= 23 && p.strength < level - 4 && !s.listed?.[p.id]) s = { ...s, listed: { ...(s.listed ?? {}), [p.id]: { clubId: loan.originId, day: calOf(s).day, reason: 'sem evolução no empréstimo' } } };
+  }
+  if (userIs(g, loan.originId) || userIs(g, loan.hostId)) s = notifyPhone(news(s, `🔙 Fim do empréstimo: ${rep.player?.name ?? 'jogador'} volta ao ${g.clubs[loan.originId]?.name} (${loan.apps} jogos, overall ${loan.startStrength ?? '?'} → ${rep.player?.strength ?? '?'}).`), 'noticias', `Fim do empréstimo de ${rep.player?.name ?? 'jogador'}.`);
+  else if (rep.player && rep.positive && rep.evolution >= 4) s = news(s, `📈 ${rep.player.name} evoluiu ${rep.evolution} pontos de overall emprestado ao ${g.clubs[loan.hostId]?.name} e volta ao ${g.clubs[loan.originId]?.name}.`);
+  return s;
+}
+
+/**
+ * Todo dia: os empréstimos que passaram da data de encerramento terminam sozinhos. Antes de devolver, a obrigação de compra (cumprida pelas partidas) e a
+ * opção (exercida pela IA, quando faz sentido) são resolvidas. Um empréstimo só termina aqui: ninguém o interrompe antes do prazo combinado.
+ */
+export function endLoans(g: GameState): GameState {
+  const day = calOf(g).day;
+  const due = (g.loanDeals ?? []).filter((l) => !l.closed && l.untilDay < day);
+  if (!due.length) return g;
+  let s = g;
+  for (const l0 of due) {
+    const loan = (s.loanDeals ?? []).find((x) => x.dealId === l0.dealId);
+    if (!loan || loan.closed) continue;               // não reprocessa empréstimo já encerrado
+    const r = settleOne(s, loan);
+    s = r.bought ? r.state : returnLoan(r.state, loan);
+  }
+  return s;
+}
+
+/** Virada de temporada (reserva): resolve compras pendentes dos empréstimos que ainda estiverem ativos. */
 export function settleLoanPurchases(g: GameState): GameState {
   let s = g;
   for (const loan of activeLoanDeals(g)) {
     const cur = (s.loanDeals ?? []).find((x) => x.dealId === loan.dealId);
     if (!cur || cur.closed) continue;
-    if (cur.buyObligation && cur.obligationGames !== undefined && cur.apps >= cur.obligationGames) {
-      const r = completeLoanPurchase(s, cur, cur.buyObligation, 'obrigação');
-      if (r.ok) { s = r.state; continue; }
-    }
-    if (cur.buyOption && !userIs(s, cur.hostId)) {
-      const l = locate(s, cur.playerId);
-      if (!l || l.clubId !== cur.hostId) continue;
-      const host = s.teams[cur.hostId];
-      const level = avgXI(host);
-      const important = l.player.strength >= level - 2 && cur.apps >= 8;       // joga e rende no clube
-      const room = host.players.length < AI_MAX_SQUAD + 2;
-      const want = important && room && marketValue(s, cur.hostId, l.player) * 1.4 >= cur.buyOption && clubProfile(s, cur.hostId).financial !== 'crise' && hashString(`${cur.dealId}:opcao`) % 100 < 70;
-      if (want) { const r = completeLoanPurchase(s, cur, cur.buyOption, 'opção'); if (r.ok) s = r.state; }
-    }
+    const r = settleOne(s, cur);
+    if (r.bought) s = r.state;
   }
   return s;
 }
 
-/** Depois da devolução física: o jogador volta ao contrato do clube de origem e o empréstimo é encerrado no registro. */
+/** Depois da devolução física (reserva, na virada): os empréstimos que sobraram voltam ao contrato de origem e fecham; os encerrados ficam no histórico. */
 export function finishLoans(g: GameState): GameState {
   const list = g.loanDeals;
   if (!list?.some((l) => !l.closed)) return list && list.length > 60 ? { ...g, loanDeals: list.slice(-60) } : g;
   let s = g;
-  const teams = { ...g.teams };
-  const out = list.map((l) => {
-    if (l.closed) return l;
-    const origin = teams[l.originId];
-    if (origin?.players.some((p) => p.id === l.playerId)) {
-      teams[l.originId] = { ...origin, players: origin.players.map((p) => (p.id === l.playerId ? { ...p, contract: l.origContract } : p)) };
-      if (!l.origContract) teams[l.originId].players = teams[l.originId].players.map((p) => { if (p.id !== l.playerId) return p; const { contract: _c, ...rest } = p; return rest; });
-    }
-    if (userIs(g, l.originId) || userIs(g, l.hostId)) s = news(s, `🔙 Fim do empréstimo: ${locate({ ...g, teams }, l.playerId)?.player.name ?? 'jogador'} volta ao ${g.clubs[l.originId]?.name}.`);
-    return { ...l, closed: true };
-  });
-  return { ...s, teams, loanDeals: out.filter((l) => !l.closed).concat(out.filter((l) => l.closed).slice(-60)) };
+  for (const l of list.filter((x) => !x.closed)) s = returnLoan(s, l);
+  const rest = s.loanDeals ?? [];
+  return { ...s, loanDeals: rest.filter((l) => !l.closed).concat(rest.filter((l) => l.closed).slice(-60)) };
 }
