@@ -6,7 +6,8 @@ import { isSeasonOver, newCareer, playNext, skipSeasons, startNextSeason, userDi
 import { pendingEvent } from '../engine/events';
 import { balanceOf } from '../engine/bank';
 import { clubOf, teamOf } from '../engine/lookup';
-import { loadGame, saveGame } from '../engine/save';
+import { loadGame } from '../engine/save';
+import { useAutosave } from './useAutosave';
 import type { GameState, MatchResult } from '../engine/types';
 import { START_MONEY, BUDGET_FACTOR, CHALLENGE_DIFFICULTY, CHALLENGE_REPUTATION, START_SEASON, type ChallengeId, type NewGameState } from '../newgame/state';
 import { formatBudget } from '../newgame/format';
@@ -70,7 +71,7 @@ export function App() {
   const [last, setLast] = useState<MatchResult[]>([]);
   const [sheet, setSheet] = useState<MatchResult[] | null>(null); // resultados de todos os jogos, ao fim de cada partida
 
-  useEffect(() => { if (game) saveGame(game); }, [game]);
+  const autosave = useAutosave(game); // salva nos momentos certos e avisa falhas/recuperações
   // salão de campeões: guarda os campeões de cada temporada encerrada
   useEffect(() => { if (game) recordHall(game); }, [game?.history.length]); // eslint-disable-line react-hooks/exhaustive-deps
   // sem clube: some Elenco, Transferências, Finanças e Escalação
@@ -120,13 +121,13 @@ export function App() {
   // Telas internas: a foto de fundo fica fixa atrás do conteúdo
   const bg = <div className="app-bg" aria-hidden="true"><Backdrop /></div>;
 
-  if (screen === 'carregar-jogo') return <LoadGame onBack={toMenu} onLoaded={() => { setGame(loadGame()); setLast([]); setTab('home'); setScreen('game'); }} />;
+  if (screen === 'carregar-jogo') return <LoadGame onBack={toMenu} onLoaded={() => { setGame(loadGame()); autosave.checkNotice(); setLast([]); setTab('home'); setScreen('game'); }} />;
   if (screen === 'mods') return <Mods onBack={toMenu} />;
   if (screen === 'creditos') return <Credits onBack={toMenu} />;
   if (screen === 'hall') return <HallScreen onBack={toMenu} />;
   if (screen === 'sair') return <ExitScreen onBack={toMenu} />;
 
-  if (screen === 'opcoes') return <>{bg}<Options onBack={toMenu} onRestored={() => setGame(loadGame())} /></>;
+  if (screen === 'opcoes') return <>{bg}<Options onBack={toMenu} onRestored={() => { setGame(loadGame()); autosave.checkNotice(); }} /></>;
 
   if (screen !== 'game' || !game) {
     const opt = MENU_OPTIONS.find((o) => o.id === screen)!;
@@ -183,6 +184,12 @@ export function App() {
             <button className="ghost" onClick={toMenu} disabled={!!live}>☰ Menu</button>
           </div>
         </header>
+        {(autosave.failure || autosave.notice) && (
+          <div className={`save-bar ${autosave.failure ? 'bad' : ''}`} role={autosave.failure ? 'alert' : 'status'}>
+            <span>{autosave.failure ?? autosave.notice}</span>
+            {autosave.failure ? <button className="mini" onClick={autosave.retry}>Tentar de novo</button> : <button className="mini" onClick={autosave.dismiss}>OK</button>}
+          </div>
+        )}
         <main>
           {live && liveResult && (
             <LiveMatch key={`${game.season}-${game.round}-${ev?.kind ?? 'l'}`} home={clubOf(game, liveResult.homeId)} away={clubOf(game, liveResult.awayId)} result={liveResult}

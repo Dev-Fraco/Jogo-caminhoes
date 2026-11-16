@@ -331,3 +331,8 @@ select option { background: #0a1c66; color: var(--ink); }
 .ts-pos button.on { border-color: #ffd23f; background: rgba(120, 90, 10, .5); }
 .ts-pos button b { color: #5ee08a; margin-right: 3px; }
 .ts-bench { margin-top: 6px; padding: 8px; border-radius: 10px; border: 1px dashed #4a6aa8; } .ts-bench small { display: block; margin-bottom: 4px; color: #cfe0ff; }
+
+/* aviso de salvamento */
+.save-bar { display: flex; align-items: center; gap: 10px; margin: 8px 12px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--good); background: rgba(61, 220, 132, .12); font-size: 14px; line-height: 1.35; }
+.save-bar.bad { border-color: var(--bad); background: rgba(255, 122, 107, .14); }
+.save-bar span { flex: 1; }
