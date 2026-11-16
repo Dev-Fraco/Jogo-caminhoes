@@ -399,6 +399,8 @@ export interface GameState {
   mode: string;
   userClubId: string;
   seed: number;
+  /** Sorte da partida em andamento: sorteada ao apertar "Iniciar partida" e gravada no save (fechar e reabrir repete a MESMA partida; some quando o jogo é confirmado). */
+  luck?: number;
   season: number;
   round: number; // próxima rodada a jogar (1-based); > totalRounds = temporada acabou
   totalRounds: number;

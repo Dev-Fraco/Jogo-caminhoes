@@ -6,7 +6,7 @@ import { isSeasonOver, newCareer, playNext, startNextSeason, userDivision } from
 import { pendingEvent } from '../engine/events';
 import { balanceOf } from '../engine/bank';
 import { clubOf, teamOf } from '../engine/lookup';
-import { loadGame } from '../engine/save';
+import { loadGame, saveGame } from '../engine/save';
 import { useAutosave } from './useAutosave';
 import type { GameState, MatchResult } from '../engine/types';
 import { START_MONEY, BUDGET_FACTOR, CHALLENGE_DIFFICULTY, CHALLENGE_REPUTATION, START_SEASON, type ChallengeId, type NewGameState } from '../newgame/state';
@@ -158,7 +158,7 @@ export function App() {
     if (!game.unemployed && ownsPhone(game) && urgentMessages(game).length > 0 && gateAt !== absRound(game)) { setGateAt(absRound(game)); setPhoneGate(true); return; }
     doPlay();
   };
-  const doPlay = () => { const r = playNext(game); const mine = r.results.some((x) => x.homeId === game.userClubId || x.awayId === game.userClubId); if (game.unemployed || !mine) { setLast(r.results); setGame(r.state); if (!game.unemployed && r.results.length) setSheet(r.results); } else { setTactics([]); setLive(r); } }; // sem clube (ou sem jogo seu nesta rodada, como na Série D eliminada): nada para assistir
+  const doPlay = () => { const g0 = game.luck ? game : { ...game, luck: 1 + Math.floor(Math.random() * 2147483000) }; if (g0 !== game) { setGame(g0); saveGame(g0, { urgent: true }); } const r = playNext(g0); const mine = r.results.some((x) => x.homeId === game.userClubId || x.awayId === game.userClubId); if (game.unemployed || !mine) { setLast(r.results); setGame(r.state); if (!game.unemployed && r.results.length) setSheet(r.results); } else { setTactics([]); setLive(r); } }; // sem clube (ou sem jogo seu nesta rodada, como na Série D eliminada): nada para assistir
   /** Refaz a partida do mesmo ponto com a nova mudança: o que já passou fica igual e o resto muda conforme a mexida. */
   const applyTactic = (t: Tactic) => { const list = [...tactics, t]; setTactics(list); setLive(playNext(game, list)); };
   const finishMatch = () => { setTactics([]); if (live) { setLast(live.results); setGame(live.state); setSheet(live.results); } setLive(null); };

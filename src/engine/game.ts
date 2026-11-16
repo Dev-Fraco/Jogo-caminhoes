@@ -202,6 +202,14 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
 
 /** Próximo jogo do seu clube: a fase da copa (se for a data) ou a rodada do campeonato. */
 export function playNext(g: GameState, tactics?: Tactic[]) {
+  const orig = g;
+  // sem "sorte" gravada a partida é a de sempre; com ela, a semente muda só nesta simulação (e volta ao normal no resultado)
+  if (g.luck) g = { ...g, seed: (g.seed + g.luck) % 2147483647 };
+  const out = playNextSeeded(g, tactics);
+  return orig.luck ? { ...out, state: { ...out.state, seed: orig.seed, luck: undefined } } : out;
+}
+
+function playNextSeeded(g: GameState, tactics?: Tactic[]) {
   g = healUserLineup(g); // titular lesionado dá lugar a um reserva da mesma função
   const r = withInjured(injuredSet(g), () => withTactics(g.userClubId, g.unemployed ? undefined : tactics, () => playNextRaw(g))); // mudanças táticas feitas na partida ao vivo
   const my = g.unemployed ? undefined : r.results.find((x) => x.homeId === g.userClubId || x.awayId === g.userClubId);
