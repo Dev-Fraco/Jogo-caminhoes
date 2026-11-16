@@ -77,6 +77,9 @@ export function retireUser(players: Player[], rng: Rng): { left: Player[]; retir
 /** Estrutura de formação do clube (0 a 1): reputação e divisão, sem precisar montar o perfil inteiro. */
 export const infraOf = (g: GameState, clubId: string) => clamp(0.2 + 0.14 * (g.clubs[clubId]?.reputation ?? 2) + (divisionIndexOf(g, clubId) === 0 ? 0.15 : divisionIndexOf(g, clubId) === 1 ? 0.05 : 0), 0, 1);
 
+/** Idade média do elenco abaixo da qual a reposição inclui atletas adultos (a faixa desejada da IA começa em 23). */
+const AGE_REFILL_BELOW = 25;
+
 function youthIntake(team: TeamState, season: number, rng: Rng, infra = 0.5, nat?: string): Player[] {
   const players = [...team.players];
   const used = new Set(players.map((p) => p.name));
@@ -86,8 +89,12 @@ function youthIntake(team: TeamState, season: number, rng: Rng, infra = 0.5, nat
   while (players.length < SQUAD_TARGET) {
     const pos = [...POSITIONS].sort((a, b) => need(b) - need(a))[0];
     const strength = clamp(Math.round(base + (rng() - 0.5) * 8), 25, 90);
-    const pot = Math.max(rollPotential(rng, infra, avgXI(team)).pot, strength + 1 + Math.round(rng() * 6));
-    players.push({ id: `${team.clubId}-y${season}-${n++}`, name: randomName(rng, used), pos, spot: pickSpot(players, pos), age: 17 + Math.floor(rng() * 3), strength, pot: Math.min(95, pot), formedAt: team.clubId, formedSeason: season, ...(nat ? { nat } : {}) });
+    // elenco já jovem demais (idade média abaixo da faixa desejada): a reposição vem em parte com atletas adultos, não só garotos da base
+    const meanAge = players.reduce((a, x) => a + x.age, 0) / Math.max(1, players.length);
+    const adult = meanAge < AGE_REFILL_BELOW && rng() < 0.7;
+    const age = adult ? 22 + Math.floor(rng() * 8) : 17 + Math.floor(rng() * 3);
+    const pot = adult ? strength + Math.round(rng() * 2) : Math.max(rollPotential(rng, infra, avgXI(team)).pot, strength + 1 + Math.round(rng() * 6));
+    players.push({ id: `${team.clubId}-y${season}-${n++}`, name: randomName(rng, used), pos, spot: pickSpot(players, pos), age, strength: adult ? clamp(strength + 3, 25, 90) : strength, pot: Math.min(95, pot), ...(adult ? {} : { formedAt: team.clubId, formedSeason: season }), ...(nat ? { nat } : {}) });
   }
   return players;
 }

@@ -143,17 +143,19 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
   }
   const hits: InjuryHit[] = [];
   const factor = moraleFactor(g.morale.team); // humor da equipe mexe um pouco na força do seu time
+  const goalLog: { clubId: string; name: string; divisionId: string }[] = [];
   const results: MatchResult[] = fixturesOfRound(g, g.round).map((f) => {
     const mods = { home: f.homeId === g.userClubId ? factor : 1, away: f.awayId === g.userClubId ? factor : 1 };
     const out = simulateMatch(teams[f.homeId], teams[f.awayId], rng, mods, { home: g.clubs[f.homeId].name, away: g.clubs[f.awayId].name });
     if (out.injured) hits.push(...out.injured);
+    for (const e of out.events) if (e.type === 'goal' && e.player && e.side !== 'none') goalLog.push({ clubId: e.side === 'home' ? f.homeId : f.awayId, name: e.player, divisionId: f.divisionId });
     const mine = f.homeId === g.userClubId || f.awayId === g.userClubId;
     // jogo eliminatório empatado: pênaltis
     const sk = f.ko && out.homeGoals === out.awayGoals ? shootoutKicks(rng, teamRatings(teams[f.homeId]).gk, teamRatings(teams[f.awayId]).gk, penaltyTakers(teams[f.homeId]), penaltyTakers(teams[f.awayId])) : undefined;
     const pens = sk?.score;
     return { divisionId: f.divisionId, round: f.round, homeId: f.homeId, awayId: f.awayId, homeGoals: out.homeGoals, awayGoals: out.awayGoals, ...(pens ? { pens } : {}), ...(sk && mine ? { penKicks: { home: sk.home, away: sk.away } } : {}), events: mine ? out.events : [] };
   });
-  let state: GameState = advanceKnockout({ ...g, teams, round: g.round + 1, results: [...g.results, ...results], load: updateLoad(g, played) });
+  let state: GameState = advanceKnockout({ ...g, teams, round: g.round + 1, results: [...g.results, ...results], load: updateLoad(g, played), scorers: addScorers(g, goalLog) });
   state = pruneInjuries(applyInjuries(state, hits, g.round)); // lesões da rodada (valem a partir da próxima) e limpeza das vencidas
   // titulares da rodada: contam para bônus por jogos e para a obrigação de compra dos emprestados
   const started = new Set<string>();
@@ -265,12 +267,33 @@ export function seasonOutcome(g: GameState): SeasonOutcome {
   return { moves, userDivisionId: g.divisions[i].id, userPosition: m.table.findIndex((r) => r.clubId === g.userClubId) + 1, movement, nextDivisionId: g.divisions[next]?.id ?? 'fora' }; // 'fora' = volta para o estadual (caiu da Série D)
 }
 
+/** Soma os gols da rodada (de todos os clubes) na artilharia da temporada. */
+function addScorers(g: GameState, log: { clubId: string; name: string; divisionId: string }[]): GameState['scorers'] {
+  if (!log.length) return g.scorers;
+  const sc = { ...(g.scorers ?? {}) };
+  for (const e of log) {
+    const p = g.teams[e.clubId]?.players.find((x) => x.name === e.name);
+    const id = `${p?.id ?? `${e.clubId}:${e.name}`}@${e.divisionId}`; // quem muda de divisão no meio do ano tem uma linha em cada
+    const cur = sc[id];
+    sc[id] = { name: e.name, clubId: e.clubId, divisionId: e.divisionId, g: (cur?.g ?? 0) + 1 };
+  }
+  return sc;
+}
+
+/** Os 10 maiores artilheiros de cada divisão. */
+export function topScorersOf(g: GameState): NonNullable<SeasonSummary['topScorers']> {
+  const by = new Map<string, [string, string, number][]>();
+  for (const s of Object.values(g.scorers ?? {})) { const l = by.get(s.divisionId) ?? []; l.push([s.name, s.clubId, s.g]); by.set(s.divisionId, l); }
+  return [...by.entries()].map(([divisionId, rows]) => ({ divisionId, rows: rows.sort((a, b) => b[2] - a[2] || a[0].localeCompare(b[0])).slice(0, 10) }));
+}
+
 /** Resumo da temporada que acabou de terminar (campeões, classificações, copas). */
 export function seasonSummary(g: GameState, out: SeasonOutcome = seasonOutcome(g)): SeasonSummary {
   const moves = out.moves;
   return {
     season: g.season, estadualChampions: g.estadual?.done ? estadualChampions(g) : undefined, tables: moves.map((m) => ({ id: m.divisionId, rows: m.table.map((r) => [r.clubId, r.points, r.played, r.gd] as [string, number, number, number]) })), cupChampionId: g.cup?.championId, libChampionId: g.lib?.championId, sulaChampionId: g.sula?.championId, uclChampionId: g.ucl?.championId, mundialChampionId: g.mundial?.championId, userDivisionId: out.userDivisionId, userPosition: out.userPosition,
     divisions: moves.map((m) => ({ id: m.divisionId, championId: m.table[0].clubId, promoted: m.promoted, relegated: m.relegated })),
+    topScorers: topScorersOf(g),
   };
 }
 
@@ -334,6 +357,7 @@ function startNextSeasonCore(g: GameState, calNew: ReturnType<typeof newSeasonCa
   const inflation = nextInflation(g, makeRng(g.seed * 37 + g.season * 5 + 1)); // a inflação do ano que começa
   let next: GameState = { ...back, titles, inflation, news: [{ season: g.season + 1, round: 1, text: `📈 Inflação de ${(inflation.rate * 100).toFixed(1).replace('.', ',')}%: preços, salários e receitas sobem.`, tone: 'info' as const }, ...back.news].slice(0, 80), season: g.season + 1, round: 1, totalRounds, divisions, fixtures, results: [], budgets, offers: [], history: [...g.history, summary] };
   next = clauseSeasonEnd(next, [...moves.map((m) => m.table[0].clubId), ...(g.cup?.championId ? [g.cup.championId] : []), ...(['lib', 'sula', 'ucl'] as const).flatMap((k) => (g[k]?.championId ? [g[k]!.championId!] : []))]); // bônus por títulos e desempenho
+  next = { ...next, scorers: undefined }; // artilharia nova a cada temporada (a antiga fica no resumo)
   next = aiCoachSeasonEnd(g, next, makeRng(g.seed * 59 + g.season * 19 + 3)); // treinadores da IA: mérito, demissões e trocas
   next = rolloverInjuries(next, g.season, g.totalRounds); // lesões longas atravessam a virada
   for (const id of quals) next = adoptClub(next, id); // clubes de estadual que sobem ganham elenco, caixa e ficha
