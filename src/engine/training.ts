@@ -37,11 +37,13 @@ export const ATTR_KIND: Record<Position, readonly Specialty[]> = {
 /** Proporção de estrelas entre os jovens novos (~8%) e potencial mínimo para ser estrela. */
 export const STAR_RATE = 0.08;
 export const STAR_POTENTIAL = 85;
+/** Teto do potencial (o overall máximo do jogo é 95). */
+export const STAR_MAX = 95;
 export const isStar = (p: Pick<Prospect, 'potential'>): boolean => p.potential >= STAR_POTENTIAL;
 
 /** Potencial de um jovem novo. Talentos excepcionais (85+) são raros (~8%); a academia melhora só um pouco o restante. */
 export function rollPotential(rng: Rng, academyLevel: number): number {
-  if (rng() < STAR_RATE) return STAR_POTENTIAL + Math.floor(rng() * (97 - STAR_POTENTIAL + 1));
+  if (rng() < STAR_RATE) return STAR_POTENTIAL + Math.floor(Math.pow(rng(), 1.6) * (STAR_MAX - STAR_POTENTIAL + 1)); // 85 a 95, com poucos acima de 90
   return Math.min(STAR_POTENTIAL - 1, Math.round(48 + 34 * Math.pow(rng(), 0.85) + potentialBonus(academyLevel)));
 }
 
@@ -58,6 +60,8 @@ export const dedicationLabel = (d: number): string => (d >= 1.1 ? 'Alta' : d >= 
 /** A academia tem 20 níveis; 100% de desenvolvimento = nível 20 (regra dos treinadores de 10 estrelas). */
 export const ACADEMY_MAX_LEVEL = MAX_ACADEMY_LEVEL;
 export { academyPercent } from './academy';
+/** Velocidade máxima do treino (todos os fatores juntos): impede evolução exagerada mesmo com tudo no máximo. */
+export const MAX_TRAIN_SPEED = 1.7;
 export const academyFactor = (level: number): number => academySpeed(level);
 export const potentialFactor = (pot: number): number => 0.8 + 0.4 * clamp((pot - 40) / 57, 0, 1);
 /** Perto do potencial a evolução desacelera; no potencial para de vez. */
@@ -128,7 +132,7 @@ export function pointsPerYear(p: Prospect, y: YouthState, benchmark = false): nu
   const coachF = benchmark ? ratingFactor(expectedRating(y.level)) : coachFactorFor(categoryCoach(y, age), p, y);
   const focus = benchmark ? undefined : p.focus;
   const mult = academyFactor(y.level) * facilityTrainingFactor(y, focus) * coachF * potentialFactor(p.potential) * dedicationWith(dedicationOf(p.player.id), y) * focusAgeFactor(focus, age) * gapFactor(p.player.strength, p.potential, y.level) * (1 + personalityBoost(p)); // personalidade: pouco (±8%)
-  return basePointsAt(age) * clamp(mult, 0, 2.2);
+  return basePointsAt(age) * clamp(mult, 0, MAX_TRAIN_SPEED);
 }
 
 /** Atributos guardados do jovem (ou os derivados do overall, em saves antigos). */

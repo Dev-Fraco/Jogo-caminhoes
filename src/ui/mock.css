@@ -218,3 +218,4 @@
 .ym-form { display: grid; gap: 6px; padding: 8px; border-radius: 8px; background: rgba(255,255,255,.06); } .ym-form label, .ym-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; }
 .ym-form input, .ym-form select, .ym-row select { font: inherit; background: #1a1b20; color: #fff; border: 1px solid rgba(255,255,255,.25); border-radius: 8px; padding: 7px; min-width: 0; max-width: 60%; }
 .ym-warn { outline: 1px solid rgba(255,176,160,.55); }
+.ym-tabs.wrap { overflow: visible; } .ym-tabs.wrap .fm-sub { flex-wrap: wrap; min-width: 0; }

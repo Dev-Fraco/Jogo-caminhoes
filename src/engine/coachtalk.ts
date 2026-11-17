@@ -2,6 +2,7 @@ import { categoryDef, canPromoteAge, homeCategory, needsDecision, type CategoryI
 import { COACH_TRAITS, ratioOf, specLabel, starsOf, STAR_LABEL, vacancies, type YouthCoach } from './coaches';
 import { academyPercent, expectedRating, isStar, pointsPerYear } from './training';
 import type { GameState } from './types';
+import { tablesOf } from './ycomp';
 import { youthOf, type Prospect } from './youth';
 
 /* =====================================================================
@@ -31,6 +32,19 @@ function proBenchmark(g: GameState): number {
   return s.length ? s[Math.min(17, s.length - 1)] : 0;
 }
 
+/** Onde o seu clube está nas competições de base desta categoria (para o relatório do treinador). */
+export function competitionLines(g: GameState, cat: CategoryId): string[] {
+  const out: string[] = [];
+  for (const c of g.ycomps ?? []) {
+    if (c.cat !== cat || !c.clubs.includes(g.userClubId)) continue;
+    const t = tablesOf(g, c).find((x) => x.rows.some((r) => r.clubId === g.userClubId));
+    const i = t ? t.rows.findIndex((r) => r.clubId === g.userClubId) : -1;
+    const name = c.name.replace(`${categoryDef(cat).label} · `, '');
+    out.push(c.champion ? `${name}: ${c.champion === g.userClubId ? 'fomos campeões' : c.runnerUp === g.userClubId ? 'vice-campeões' : 'competição encerrada'}.` : i >= 0 && t!.rows[i].played > 0 ? `${name}: estamos em ${i + 1}º lugar${c.groups ? ' no grupo' : ''} (${t!.rows[i].points} pontos em ${t!.rows[i].played} jogos).` : `${name}: ainda sem jogos.`);
+  }
+  return out.slice(0, 3);
+}
+
 export function buildReport(g: GameState, cat: CategoryId): CoachReport {
   const y = youthOf(g);
   const coach = y.coaches?.[cat];
@@ -51,7 +65,7 @@ export function buildReport(g: GameState, cat: CategoryId): CoachReport {
     else if (l.star && l.age >= 17 && l.ovr >= bench - 12) promotions.push({ player: l, reason: `talento excepcional (potencial ${l.pot}); vale ganhar rodagem no profissional` });
   }
   const ratio = coach ? ratioOf(coach) : 0;
-  const highlights: string[] = [];
+  const highlights: string[] = [...competitionLines(g, cat)];
   if (topGainers[0]) highlights.push(`${topGainers[0].name} (${topGainers[0].age} anos) foi quem mais evoluiu: +${f1(topGainers[0].gain)} de overall na temporada.`);
   const stars = lines.filter((l) => l.star);
   if (stars.length) highlights.push(`${stars.length === 1 ? 'Temos uma estrela' : `Temos ${stars.length} estrelas`}: ${stars.map((s) => `${s.name} (potencial ${s.pot})`).join(', ')}.`);

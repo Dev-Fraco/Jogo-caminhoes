@@ -47,10 +47,10 @@ const POS_BAG: Position[] = ['GK', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'AT
 
 /* ----------------------------- olheiros ----------------------------- */
 
-export const scoutWage = (g: GameState, quality: number): number => Math.round(inflate(g, 10_000 * Math.pow(1.35, quality - 1)) / 1000) * 1000;
+export const scoutWage = (g: GameState, quality: number): number => Math.round(inflate(g, 20_000 * Math.pow(1.35, quality - 1)) / 1000) * 1000;
 export const scoutFee = (s: Pick<Scout, 'wage'>): number => Math.round((s.wage * 0.3) / 1000) * 1000;
 /** Custo de cada descoberta do olheiro (viagens e relatórios). */
-export const missionCost = (g: GameState, region: RegionId): number => Math.round((inflate(g, 6_000) * regionOf(region).cost) / 500) * 500;
+export const missionCost = (g: GameState, region: RegionId): number => Math.round((inflate(g, 15_000) * regionOf(region).cost) / 500) * 500;
 /** Rodadas entre uma descoberta e outra: olheiro melhor encontra mais rápido. */
 export const findInterval = (quality: number, region: RegionId): number => clamp(Math.round(14 - quality + regionOf(region).wait), 3, 18);
 
@@ -113,7 +113,7 @@ const neutralQ = (level: number) => ({ level: Math.min(12, level), fac: { centro
 
 /** Potencial de um descoberto. Estrela (85+) é rara: de 1,2% a 6% conforme a estrutura e a qualidade de quem observa. */
 export function rollCandidatePotential(rng: Rng, bonus: number, starRate: number): number {
-  if (rng() < starRate) return 85 + Math.floor(rng() * 13);
+  if (rng() < starRate) return 85 + Math.floor(Math.pow(rng(), 1.6) * 11);
   return Math.min(84, Math.round(46 + 36 * Math.pow(rng(), 0.9) + bonus));
 }
 /** Margem de erro do relatório: a qualidade de quem observou define o quanto o potencial é conhecido. */
@@ -160,7 +160,7 @@ export function scoutTick(g: GameState): GameState {
 
 /* ----------------------------- peneiras ----------------------------- */
 
-export const tryoutCost = (g: GameState, size: TryoutSize, region: RegionId): number => Math.round((inflate(g, 30_000) * (TRYOUT_SIZES[size] / 28) * regionOf(region).cost) / 1000) * 1000;
+export const tryoutCost = (g: GameState, size: TryoutSize, region: RegionId): number => Math.round((inflate(g, 75_000) * (TRYOUT_SIZES[size] / 28) * regionOf(region).cost) / 1000) * 1000;
 export const roundsSince = (g: GameState, last?: { season: number; round: number }): number => (last ? (g.season - last.season) * g.totalRounds + (g.round - last.round) : 999);
 export const tryoutReady = (g: GameState): number => Math.max(0, TRYOUT_COOLDOWN - roundsSince(g, g.youth?.lastTryout));
 const bestScoutIn = (y: YouthState, region: RegionId): number => Math.max(0, ...(y.scouts ?? []).filter((s) => s.region === region).map((s) => s.quality));

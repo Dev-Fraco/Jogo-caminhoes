@@ -2,6 +2,7 @@ import { avgXI, clubProfile, profileCtx } from './aiprofile';
 import { CATEGORIES, homeCategory } from './categories';
 import { coachWage, COACH_SPECS, specLabel, starsOf, type CoachSpecId } from './coaches';
 import { ratingFactor } from './training';
+import { derivedPlayer } from './yroster';
 import { academyCostAt, facilityCostAt, FACILITIES, MAX_ACADEMY_LEVEL, MAX_FACILITY_LEVEL } from './academy';
 import { baseIncome } from './finance';
 import { priceIndex } from './economy';
@@ -81,7 +82,7 @@ export function ensureAiAcademies(g: GameState): GameState {
   const out = { ...(g.aiAcademy ?? {}) };
   let changed = !g.aiAcademy;
   for (const id of aiIds(g)) {
-    if (out[id]?.length === 6) continue;
+    if ((out[id]?.length ?? 0) >= 6) continue;
     const infra = infraOf(g, id);
     const level = clamp(Math.round(infra * 13) + (hashString(`${id}:ac:${g.seed}`) % 5) - 2, 0, 18);
     out[id] = [level, ...FACILITIES.map((f) => clamp(Math.round(1 + infra * 9) + (hashString(`${id}:${f.id}:${g.seed}`) % 3) - 1, 1, 16))];
@@ -94,7 +95,15 @@ export const aiInfra = (g: GameState, id: string): number => { const a = g.aiAca
 /** Bônus das instalações do clube rival sobre a evolução dos jovens. */
 export const aiFacilityBoost = (g: GameState, id: string): number => { const a = g.aiAcademy?.[id]; return a ? 1 + 0.006 * ((a.slice(1).reduce((t, v) => t + v, 0) / 5) - 1) : 1; };
 
-/** Virada de temporada: cada clube avalia a necessidade e investe SE tiver caixa (sobra uma reserva de 5 obras); no máximo uma melhoria da academia e uma de instalação por ano. */
+/** Parte da receita anual que um clube da IA separa para a formação (limitada pelo caixa: só sai dinheiro que existe). */
+export const AI_ACADEMY_SHARE = 0.08;
+/** Os clubes da IA constroem pela tabela ORIGINAL (o triplo vale para os investimentos do usuário): sem isso, com a receita deles, ninguém sairia do lugar. */
+export const AI_COST_FACTOR = 1 / 3;
+/**
+ * Virada de temporada: cada clube separa parte da receita num fundo da formação (o dinheiro sai do caixa dele, e só se houver folga) e,
+ * quando o fundo paga a próxima obra pela tabela ORIGINAL (1/3 da do usuário), sobe a academia ou a instalação mais atrasada.
+ * No máximo uma obra da academia e uma de instalação por ano. Clubes maiores têm receita maior e avançam mais; os pequenos avançam devagar.
+ */
 export function aiAcademyYear(g0: GameState, rng: Rng): GameState {
   const g = ensureAiAcademies(g0);
   const academy = { ...(g.aiAcademy ?? {}) };
@@ -106,19 +115,53 @@ export function aiAcademyYear(g0: GameState, rng: Rng): GameState {
     const rep = g.clubs[id].reputation, inc = incomeOf(g, id);
     const target = clamp(3 + rep * 3 + (divisionIndexOf(g, id) === 0 ? 1 : 0), 4, 19);   // clubes de maior reputação querem estrutura maior
     const next = [...rec];
-    let cash = budgets[id] ?? 0;
-    const cost = academyCostAt(inc, rec[0]);
-    if (rec[0] < Math.min(target, MAX_ACADEMY_LEVEL) && cash - cost >= cost * 5 && rng() < 0.55) {
-      cash -= cost; next[0] = rec[0] + 1; log.push({ season: g.season, clubId: id, text: `Academia: nível ${rec[0]} → ${next[0]}`, cost });
+    let cash = budgets[id] ?? 0, fund = rec[6] ?? 0;
+    const put = Math.round(Math.min(inc * AI_ACADEMY_SHARE, cash * 0.15) * (0.7 + rng() * 0.6));   // varia de ano para ano
+    if (put > 0 && cash >= put * 10) { cash -= put; fund += put; }                                  // só separa se sobrar caixa de reserva
+    const cost = Math.round(academyCostAt(inc, rec[0]) * AI_COST_FACTOR);
+    if (rec[0] < Math.min(target, MAX_ACADEMY_LEVEL) && fund >= cost) {
+      fund -= cost; next[0] = rec[0] + 1; log.push({ season: g.season, clubId: id, text: `Academia: nível ${rec[0]} → ${next[0]}`, cost });
     }
     const lowest = FACILITIES.map((f, i) => ({ f, i: i + 1, l: rec[i + 1] })).sort((a, b) => a.l - b.l)[0];
-    const fc = facilityCostAt(inc, lowest.f.id, lowest.l);
-    if (lowest.l < Math.min(MAX_FACILITY_LEVEL, 1 + Math.round(next[0] * 0.8)) && cash - fc >= fc * 5 && rng() < 0.45) {
-      cash -= fc; next[lowest.i] = lowest.l + 1; log.push({ season: g.season, clubId: id, text: `${lowest.f.label}: nível ${lowest.l} → ${next[lowest.i]}`, cost: fc });
+    const fc = Math.round(facilityCostAt(inc, lowest.f.id, lowest.l) * AI_COST_FACTOR);
+    if (lowest.l < Math.min(MAX_FACILITY_LEVEL, 1 + Math.round(next[0] * 0.8)) && fund >= fc) {
+      fund -= fc; next[lowest.i] = lowest.l + 1; log.push({ season: g.season, clubId: id, text: `${lowest.f.label}: nível ${lowest.l} → ${next[lowest.i]}`, cost: fc });
     }
-    if (cash !== (budgets[id] ?? 0)) { budgets[id] = cash; academy[id] = next; }
+    next[6] = Math.round(fund);
+    budgets[id] = cash; academy[id] = next;
   }
   return { ...g, aiAcademy: academy, budgets, aiAcademyLog: log.slice(-60) };
+}
+
+/** Virada de temporada: clubes da IA promovem ao profissional o jovem da base (18 a 21 anos) que já tem nível de elenco ou potencial claro.
+ *  O jogador sai do registro da base (um lugar só) e vira jogador do time principal com a mesma identidade. No máximo um por clube por ano. */
+export function aiPromoteDerived(g: GameState, rng: Rng): GameState {
+  let s = g;
+  const mv = { ...(g.ymoves ?? {}) };
+  let notable = 0;
+  for (const id of shuffle(aiIds(g), rng)) {
+    const t = s.teams[id];
+    if (!t || t.players.length >= AI_MAX_SQUAD || rng() > 0.1) continue;      // poucos por ano: a base reforça o time, não o infla
+    const level = avgXI(t);
+    const xi = new Set(autoLineup(t.players, t.formation));
+    let best: { pl: Player; why: 'pronto' | 'talento' } | undefined;
+    for (let age = 18; age <= 21; age++) for (let j = 0; j < 9; j++) {
+      const pid = `${id}~${s.season - age}~${j}`;
+      if (mv[pid]) continue;
+      const pl = derivedPlayer({ ...s, ymoves: mv }, pid, 0);
+      if (!pl) continue;
+      const weak = Math.min(...t.players.filter((p) => p.pos === pl.pos && xi.has(p.id)).map((p) => p.strength));
+      const ready = Number.isFinite(weak) && pl.strength >= weak - 2;
+      const talent = (pl.pot ?? 0) >= level + 10 && pl.strength >= level - 8;
+      if ((ready || talent) && (!best || pl.strength > best.pl.strength)) best = { pl, why: ready ? 'pronto' : 'talento' };
+    }
+    if (!best) continue;
+    const joined: Player = { ...best.pl, spot: pickSpot(t.players, best.pl.pos), formedAt: id, formedSeason: s.season - (best.pl.age - 12), contract: newContract(s, id, best.pl, 0.6) };
+    s = swap(s, id, [...t.players, joined]);
+    mv[best.pl.id] = { club: '__pro__', from: id, kind: 'venda', season: s.season };
+    if (notable < 4 && (s.clubs[id]?.reputation ?? 1) >= 3) { notable++; s = news(s, `🌱 ${s.clubs[id].name} promove ${best.pl.name}, ${best.pl.age} anos, ao time principal.`, 'info'); }
+  }
+  return { ...s, ymoves: mv };
 }
 
 /* ----------------------------- treinadores da base dos clubes da IA (Etapa 3) ----------------------------- */

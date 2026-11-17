@@ -6,7 +6,8 @@ import { ensureCoaches, evaluateCoaches, marketTick, midSeasonCheck, payCoaches,
 import { attributesOf, CATEGORIES } from './categories';
 import { newContract, payWages, personalityOf, SAT_START, satTick } from './ycontract';
 import { refreshScoutMarket, payScouts, scoutTick } from './yscout';
-import { aiScoutingYear, aiYouthMarket, refreshListings, returnLoans, ymarketTick } from './ymarket';
+import { aiPromoteDerived } from './aiyouth';
+import { aiScoutingYear, aiYouthMarket, endMove, refreshListings, returnLoans, ymarketTick } from './ymarket';
 import { makeRng, type Rng } from './rng';
 import { pickSpot, randomName } from './squad';
 import { MAX_SQUAD } from './transfers';
@@ -153,6 +154,7 @@ export function youthSeason(g: GameState): GameState {
   // contratos vencidos: o jovem deixa o clube (você foi avisado ao longo da temporada); quem tem contrato válido segue
   const gone = s.youth!.prospects.filter((p) => !p.loanFrom && p.player.contract && p.player.contract.until < s.season);
   if (gone.length) s = news(s, `📄 Contratos vencidos na base: ${gone.map((p) => p.player.name).join(', ')} deixaram o clube.`, 'bad');
+  for (const p of gone) if (g.ymoves?.[p.player.id] || s.ymoves?.[p.player.id]) s = endMove(s, p.player.id); // saiu do clube: o registro de empréstimo/transferência também acaba
   const y = { ...s.youth!, offers: [], prospects: s.youth!.prospects.filter((p) => !gone.includes(p)).map((p) => ({ ...p, base: p.exact })) }; // (a folha paga já foi registrada no histórico)
   const moved: string[] = [], decide: string[] = [];
   const grown = y.prospects.map((p) => {
@@ -167,7 +169,7 @@ export function youthSeason(g: GameState): GameState {
   if (decide.length) s = news(s, `🌱 Aguardando decisão do clube (21 anos): ${decide.join(', ')}. Escolha entre profissional, empréstimo ou dispensa.`, 'info');
   if (moved.length) s = news(s, `🌱 ${moved.length} jovem(ns) mudaram de categoria na base.`);
   s = { ...s, youth: refreshMarket(s, intake(s, { ...y, prospects: grown }, rng), 'full') }; // novo ano: o mercado de treinadores se renova
-  s = aiYouthMarket(aiScoutingYear(s, rng), rng);                  // clubes da IA: olheiros, peneiras, compras e empréstimos de jovens
+  s = aiPromoteDerived(aiYouthMarket(aiScoutingYear(s, rng), rng), rng);                  // clubes da IA: olheiros, peneiras, compras e empréstimos de jovens
   s = { ...s, youth: refreshListings(s, refreshScoutMarket(s, s.youth!)) };
   return news(s, '🌱 Nova safra da base: novos jovens chegaram às categorias de base.', 'good');
 }

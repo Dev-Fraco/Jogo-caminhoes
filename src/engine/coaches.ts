@@ -40,7 +40,7 @@ export const starsOf = (rating: number): number => clamp(Math.round(rating), 1, 
 export const starText = (n: number): string => '★'.repeat(n) + '☆'.repeat(10 - n);
 export const MAX_STARS = 10;
 
-export interface CoachEval { season: number; ratio: number; delta: number; met: boolean }
+export interface CoachEval { season: number; ratio: number; delta: number; met: boolean; /** nota do desempenho nas competições da base (0 a 1), quando houve */ cmp?: number }
 export interface CoachSeason { gained: number; expected: number; warned?: boolean }
 export interface YouthCoach {
   id: string; name: string; age: number; /** anos de experiência */ exp: number;
@@ -237,12 +237,16 @@ export function evaluateCoaches(g: GameState, y: YouthState): { g: GameState; y:
     const exp = (c.season?.expected ?? 0) / Math.max(1, players.length);
     let talent = 0;
     for (const p of players) if (p.potential >= 80) talent += (p.exact - (p.base ?? p.exact)) >= exp * 1.1 ? 0.1 : -0.1;
-    const delta = c.season && c.season.expected > 0.05 ? ratingDelta(ratio, talent, c.rating) : 0;
+    // desempenho do seu clube nas competições da categoria na temporada que acabou (Etapa 5): bons resultados ajudam, maus pesam (até ±0,2)
+    const cmpList = (s.yhist ?? []).filter((h) => h.season === g.season - 1 && h.cat === cat && h.r !== undefined).map((h) => h.r!);
+    const cmp = cmpList.length ? cmpList.reduce((t, x) => t + x, 0) / cmpList.length : undefined;
+    const cmpDelta = cmp === undefined ? 0 : clamp((cmp - 0.5) * 0.5, -0.2, 0.2);
+    const delta = clamp((c.season && c.season.expected > 0.05 ? ratingDelta(ratio, talent, c.rating) : 0) + cmpDelta, -0.8, 0.8);
     const rating = clamp(Math.round((c.rating + delta) * 100) / 100, 1, 10);
     const met = ratio >= 0.95;
     const bad = delta <= -0.2 || ratio < 0.85 ? (c.bad ?? 0) + 1 : 0;
     const before = starsOf(c.rating), after = starsOf(rating);
-    let nc: YouthCoach = { ...c, rating, bad, evals: [...(c.evals ?? []), { season: g.season, ratio: Math.round(ratio * 100) / 100, delta: Math.round(delta * 100) / 100, met }].slice(-EVAL_KEEP), season: { gained: 0, expected: 0 } };
+    let nc: YouthCoach = { ...c, rating, bad, evals: [...(c.evals ?? []), { season: g.season, ratio: Math.round(ratio * 100) / 100, delta: Math.round(delta * 100) / 100, met, ...(cmp !== undefined ? { cmp: Math.round(cmp * 100) / 100 } : {}) }].slice(-EVAL_KEEP), season: { gained: 0, expected: 0 } };
     nc = note(nc, g.season, `Temporada ${g.season}: rendeu ${Math.round(ratio * 100)}% do esperado — objetivo ${met ? 'cumprido' : 'não cumprido'}${after !== before ? `; avaliação ${after > before ? 'subiu' : 'caiu'} para ${after}★` : ''}.`);
     if (after !== before) s = news(s, `🧑‍🏫 ${c.name} (${categoryDef(cat).label}) ${after > before ? 'melhorou' : 'perdeu'} a avaliação: ${before}★ → ${after}★.`, after > before ? 'good' : 'bad');
     coaches[cat] = nc;

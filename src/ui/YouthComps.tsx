@@ -24,7 +24,7 @@ export function YouthComps({ game }: { game: GameState }) {
 
   return (
     <>
-      <SubTabs items={CATEGORIES.map((c) => ({ label: c.label, on: cat === c.id, onClick: () => { setCat(c.id); setSel(null); } }))} />
+      <div className="ym-tabs"><SubTabs items={CATEGORIES.map((c) => ({ label: c.label, on: cat === c.id, onClick: () => { setCat(c.id); setSel(null); } }))} /></div>
       {comp ? <CompDetail game={game} c={comp} onBack={() => setSel(null)} /> : (
         <>
           <section className="card mk-card yc-head">
@@ -112,7 +112,7 @@ function CompDetail({ game, c, onBack }: { game: GameState; c: YComp; onBack: ()
         <small>{SRC_LABEL[c.src]} · {c.clubs.length} clubes · {isFinished(c) ? 'encerrada' : `etapa ${Math.min(c.done + 1, steps.length)} de ${steps.length}`}</small>
         {!enrolledMine(c, game.userClubId) && <p className="yc-no">Seu clube não está inscrito nesta competição (falta de atletas elegíveis).</p>}
       </section>
-      <SubTabs items={tabs.map(([id, label]) => ({ label, on: tab === id, onClick: () => setTab(id) }))} />
+      <div className="ym-tabs"><SubTabs items={tabs.map(([id, label]) => ({ label, on: tab === id, onClick: () => setTab(id) }))} /></div>
 
       {tab === 'resumo' && (
         <section className="mk-sec">

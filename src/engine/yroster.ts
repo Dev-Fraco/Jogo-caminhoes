@@ -2,7 +2,7 @@ import { categoryDef, categoriesOf, homeCategory, type CategoryId, CATEGORIES } 
 import { facilityTrainingFactor, START_FACILITIES, academySpeed, dedicationWith, type FacilityLevels } from './academy';
 import { clamp, hashString, makeRng } from './rng';
 import { autoLineup, randomName, pickSpot } from './squad';
-import { basePointsAt, dedicationOf, gapFactor, potentialFactor, ratingFactor, rollPotential, categoryCoach } from './training';
+import { basePointsAt, MAX_TRAIN_SPEED, dedicationOf, gapFactor, potentialFactor, ratingFactor, rollPotential, categoryCoach } from './training';
 import { youthOf, type Prospect } from './youth';
 import type { YMove } from './ymarket';
 import type { GameState, Player, Position, TeamState } from './types';
@@ -44,7 +44,7 @@ export const youthName = (id: string): string => randomName(makeRng(hashString(`
 /** Pontos de overall que o atleta ganha em um ano de idade `age`, com a MESMA conta do treino do seu clube (training.ts). */
 function yearGain(id: string, pot: number, ovr: number, age: number, q: YQuality): number {
   const mult = academySpeed(q.level) * facilityTrainingFactor({ fac: q.fac }, undefined) * (q.coach ? ratingFactor(q.coach) : 0.7) * potentialFactor(pot) * dedicationWith(dedicationOf(id), { fac: q.fac }) * gapFactor(ovr, pot, q.level);
-  return basePointsAt(age) * clamp(mult, 0, 2.2);
+  return basePointsAt(age) * clamp(mult, 0, MAX_TRAIN_SPEED);
 }
 
 /** Overall de um atleta da IA na idade e no ponto da temporada (`frac` de 0 a 1). Nunca passa do potencial; o potencial NÃO é força atual. */
@@ -93,7 +93,8 @@ export function rosterOf(g: GameState, clubId: string, cat: CategoryId, frac: nu
     const y = youthOf(g);
     return y.prospects.filter((p) => !p.loanedTo && p.player.age >= def.minAge && p.player.age <= def.maxAge).map((p) => p.player);
   }
-  const key = `${clubId}|${cat}|${g.season}|${bucket(frac)}|${g.aiAcademy?.[clubId]?.[0] ?? '-'}|${g.aiYouthCoaches?.[clubId]?.[CATEGORIES.findIndex((c) => c.id === cat)]?.[0] ?? '-'}|${g.aiScouting?.[clubId]?.[0] ?? '-'}|${movesSig(g)}`;
+  const q = qualityOf(g, clubId, cat);                                // tudo o que muda o elenco entra na chave do cache
+  const key = `${clubId}|${cat}|${g.season}|${bucket(frac)}|${q.level}|${q.coach}|${q.scout}|${q.fac.centro},${q.fac.fisica},${q.fac.medico},${q.fac.alojamento},${q.fac.campos}|${movesSig(g)}`;
   const hit = CACHE.get(key);
   if (hit) return hit;
   const out: Player[] = [];

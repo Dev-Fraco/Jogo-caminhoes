@@ -55,6 +55,8 @@ export interface YHist {
   scorer?: { name: string; club: string; goals: number }; best?: { name: string; club: string }; gk?: { name: string; club: string }; rev?: { name: string; club: string };
   top?: { name: string; club: string; goals: number }[];
   mine?: string;
+  /** Desempenho do seu clube (0 a 1): campeão 1, vice 0,85, senão pela posição na tabela. Alimenta a avaliação do treinador. */
+  r?: number;
 }
 export const YHIST_KEEP = 12;
 const POS_CODE: Record<string, number> = { GK: 0, DEF: 1, MID: 2, ATT: 3 };
@@ -403,12 +405,22 @@ export function youthSeasonEnd(g: GameState): GameState {
 
 const playerLine = (g: GameState, c: YComp, id?: string): { name: string; club: string } | undefined => (id ? { name: nameOfPlayer(id, c), club: clubOf(g, clubOfPlayer(c, id, g.userClubId))?.name ?? '' } : undefined);
 
+/** Desempenho do seu clube na competição (0 a 1). */
+function perfOf(g: GameState, c: YComp): number {
+  if (c.champion === g.userClubId) return 1;
+  if (c.runnerUp === g.userClubId) return 0.85;
+  const t = tablesOf(g, c).find((x) => x.rows.some((r) => r.clubId === g.userClubId));
+  if (!t) return 0.5;
+  const i = t.rows.findIndex((r) => r.clubId === g.userClubId);
+  return Math.round((0.1 + 0.8 * clamp(1 - i / Math.max(1, t.rows.length - 1), 0, 1)) * 100) / 100;
+}
+
 export function historyOf(g: GameState, c: YComp): YHist {
   const top = Object.entries(c.st).filter(([, v]) => v[0] > 0).sort((a, b) => b[1][0] - a[1][0] || b[1][1] - a[1][1] || a[0].localeCompare(b[0])).slice(0, 3).map(([id, v]) => ({ name: nameOfPlayer(id, c), club: clubOf(g, clubOfPlayer(c, id, g.userClubId))?.name ?? '', goals: v[0] }));
   const sc = c.aw?.scorer ? playerLine(g, c, c.aw.scorer) : undefined;
   const mePos = c.absent.includes(g.userClubId) ? 'não inscrito' : c.champion === g.userClubId ? 'campeão' : c.runnerUp === g.userClubId ? 'vice-campeão' : (() => { const t = tablesOf(g, c).find((x) => x.rows.some((r) => r.clubId === g.userClubId)); const i = t ? t.rows.findIndex((r) => r.clubId === g.userClubId) : -1; return i >= 0 ? `${i + 1}º colocado${c.groups ? ' no grupo' : ''}` : ''; })();
   return { season: c.season, cat: c.cat, src: c.src, name: c.name, champion: c.champion ? clubOf(g, c.champion)?.name : undefined, runnerUp: c.runnerUp ? clubOf(g, c.runnerUp)?.name : undefined, final: c.finalText,
-    ...(sc ? { scorer: { ...sc, goals: c.st[c.aw!.scorer!][0] } } : {}), ...(playerLine(g, c, c.aw?.best) ? { best: playerLine(g, c, c.aw?.best)! } : {}), ...(playerLine(g, c, c.aw?.gk) ? { gk: playerLine(g, c, c.aw?.gk)! } : {}), ...(playerLine(g, c, c.aw?.rev) ? { rev: playerLine(g, c, c.aw?.rev)! } : {}), top, mine: mePos };
+    ...(enrolledMine(c, g.userClubId) ? { r: perfOf(g, c) } : {}), ...(sc ? { scorer: { ...sc, goals: c.st[c.aw!.scorer!][0] } } : {}), ...(playerLine(g, c, c.aw?.best) ? { best: playerLine(g, c, c.aw?.best)! } : {}), ...(playerLine(g, c, c.aw?.gk) ? { gk: playerLine(g, c, c.aw?.gk)! } : {}), ...(playerLine(g, c, c.aw?.rev) ? { rev: playerLine(g, c, c.aw?.rev)! } : {}), top, mine: mePos };
 }
 
 /** Começo de temporada: cria as competições novas (a base do usuário e os rivais já estão no estado novo). */

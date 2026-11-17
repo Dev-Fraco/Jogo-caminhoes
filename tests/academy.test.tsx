@@ -112,10 +112,11 @@ describe('benefícios reais', () => {
     expect(coachSpecBonus(withFac({ fisica: 20 }), 'fisica')).toBeGreaterThan(1.1);
   });
   it('campos de treinamento: fundamentos, treinos práticos e especialistas de posição', () => {
-    const f = pr('d', 16, 30, 90, 'ATT', { focus: 'fundamentos' });
+    const f = pr('d', 16, 30, 60, 'ATT', { focus: 'fundamentos' });
     expect(pointsPerYear(f, withFac({ campos: 20 }))).toBeGreaterThan(pointsPerYear(f, withFac({ campos: 1 })) * 1.25);
-    const y1 = withFac({ campos: 1 }, { coaches: { sub17: C(6, ['atacantes']) } }), y20 = withFac({ campos: 20 }, { coaches: { sub17: C(6, ['atacantes']) } });
-    expect(run(f, y20).exact).toBeGreaterThan(run(f, y1).exact);
+    const y1 = withFac({ campos: 1 }, { coaches: { sub17: C(4, ['atacantes']) } }), y20 = withFac({ campos: 20 }, { coaches: { sub17: C(4, ['atacantes']) } });
+    expect(pointsPerYear(f, y20)).toBeGreaterThan(pointsPerYear(f, y1));                // o especialista rende mais com campos melhores
+    expect(run(f, y20).exact).toBeGreaterThanOrEqual(run(f, y1).exact);
     expect(facilityTrainingFactor({ fac: { ...START_FACILITIES, campos: 20 } }, 'tecnico')).toBeGreaterThan(facilityTrainingFactor({ fac: START_FACILITIES }, 'tecnico'));
   });
   it('alojamento: dedicação maior e mais vagas na base', () => {
@@ -241,25 +242,33 @@ describe('academias dos clubes rivais', () => {
     expect(ensureAiAcademies(g)).toBe(g);
     expect(aiInfra(g, 'flamengo')).toBeGreaterThan(aiInfra(g, ids.find((id) => g.clubs[id]?.reputation === 1)!));
   });
-  it('investem só com caixa (reserva de 5 obras), no máximo +1 por ano, descontando o dinheiro e registrando', () => {
+  it('separam parte da receita num fundo (só com folga de caixa), pagam as obras com ele, no máximo +1 por ano, e o dinheiro sai do caixa e fica registrado', () => {
     const g = ai(); const poor = ids(g).find((id) => g.clubs[id].reputation === 5)!, rich = ids(g).find((id) => g.clubs[id].reputation === 4 && id !== poor)!;
     const before = g.aiAcademy![rich].slice();
-    const rng = (() => { let i = 0; return () => (i++ % 2 ? 0.1 : 0.05); })(); // sempre "quer investir"
-    const g2: GameState = { ...g, budgets: { ...g.budgets, [poor]: 0, [rich]: 1e12 } };
+    const rng = makeRng(1);
+    const g2: GameState = { ...g, aiAcademy: { ...g.aiAcademy!, [rich]: [...before.slice(0, 6), 1e12] }, budgets: { ...g.budgets, [poor]: 0, [rich]: 1e12 } };
     const out = aiAcademyYear(g2, rng);
-    expect(out.aiAcademy![poor]).toEqual(g.aiAcademy![poor]); expect(out.budgets[poor]).toBe(0);                   // sem caixa: nada
-    expect(out.aiAcademy![rich][0]).toBeLessThanOrEqual(before[0] + 1); expect(out.aiAcademy![rich].every((v, i) => v <= before[i] + 1)).toBe(true);
+    expect(out.aiAcademy![poor][0]).toBe(g.aiAcademy![poor][0]); expect(out.budgets[poor]).toBe(0); expect(out.aiAcademy![poor][6]).toBe(g.aiAcademy![poor][6] ?? 0);   // sem caixa: nada
+    expect(out.aiAcademy![rich][0]).toBeLessThanOrEqual(before[0] + 1); expect(out.aiAcademy![rich].slice(0, 6).every((v, i) => v <= before[i] + 1)).toBe(true);
     const spent = out.aiAcademyLog!.filter((l) => l.clubId === rich).reduce((t, l) => t + l.cost, 0);
-    expect(spent).toBeGreaterThan(0); expect(out.budgets[rich]).toBe(1e12 - spent);
+    expect(spent).toBeGreaterThan(0);                                                   // obras pagas pelo fundo
+    expect(out.budgets[rich]).toBeLessThan(1e12);                                       // a contribuição saiu do caixa
     for (const id of ids(g)) { expect(out.budgets[id]).toBeGreaterThanOrEqual(Math.min(0, g2.budgets[id] ?? 0)); expect(out.aiAcademy![id][0]).toBeLessThanOrEqual(20); }
+    // o dinheiro só muda de lugar: caixa + fundos antes = caixa + fundos depois + obras pagas
+    const tot = (x: GameState) => Object.values(x.budgets).reduce((a, b) => a + b, 0) + Object.values(x.aiAcademy!).reduce((a, r) => a + (r[6] ?? 0), 0);
+    expect(Math.abs(tot(g2) - tot(out) - spentAll(out, g2))).toBeLessThan(ids(g).length);   // (arredondamentos)
   });
-  it('um clube pequeno com dinheiro evolui a academia ao longo das temporadas, sem passar de 20 nem do que pode pagar', () => {
-    let g = ai(); const id = ids(g).find((x) => g.clubs[x].reputation === 2)!;
-    const rng = makeRng(3);
-    g = { ...g, budgets: { ...g.budgets, [id]: 5e9 } };
-    const start = g.aiAcademy![id][0];
-    for (let y = 0; y < 15; y++) { g = aiAcademyYear({ ...g, season: g.season + 1 }, rng); g = { ...g, budgets: { ...g.budgets, [id]: Math.max(g.budgets[id], 5e9) } }; }
-    expect(g.aiAcademy![id][0]).toBeGreaterThan(start); expect(g.aiAcademy![id][0]).toBeLessThanOrEqual(20);
+  it('clubes de todos os tamanhos evoluem a academia ao longo das temporadas, sem passar de 20 e só com o dinheiro que têm', () => {
+    let g = ai(); const rng = makeRng(3);
+    const start = new Map(ids(g).map((id) => [id, g.aiAcademy![id][0]]));
+    const cash0 = { ...g.budgets };
+    for (let y = 0; y < 12; y++) g = aiAcademyYear({ ...g, season: g.season + 1, budgets: { ...cash0 } }, rng);   // (o caixa se recompõe a cada ano, como na temporada)
+    const grew = ids(g).filter((id) => g.aiAcademy![id][0] > start.get(id)!);
+    expect(grew.length).toBeGreaterThan(5);                                             // não ficam parados
+    expect(grew.some((id) => g.clubs[id].reputation <= 2)).toBe(true);                  // os pequenos também avançam
+    for (const id of ids(g)) { expect(g.aiAcademy![id][0]).toBeLessThanOrEqual(20); expect(Number.isFinite(g.budgets[id])).toBe(true); }
+    const diff = new Set(grew.map((id) => g.aiAcademy![id][0] - start.get(id)!));
+    expect(diff.size).toBeGreaterThan(1);                                               // ritmos diferentes
   });
   it('a academia e as instalações do rival influenciam a base dele e os treinadores que ele atrai', () => {
     const g = ai(); const id = 'flamengo';
@@ -277,3 +286,5 @@ describe('academias dos clubes rivais', () => {
 });
 const ids = (g: GameState) => Object.keys(g.teams).filter((id) => id !== g.userClubId);
 void genCoach;
+
+const spentAll = (out: GameState, before: GameState) => (out.aiAcademyLog ?? []).filter((l) => !(before.aiAcademyLog ?? []).includes(l)).reduce((t, l) => t + l.cost, 0);

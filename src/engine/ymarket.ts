@@ -88,7 +88,8 @@ const dropOffersFor = (y: YouthState, id: string): YouthState => ({ ...y, offers
 function executeSale(g: GameState, p: Prospect, club: string, fee: number): YResult {
   const y = youthOf(g);
   if (p.loanFrom || p.loanedTo) return { ok: false, error: 'Jovem emprestado não pode ser vendido agora.' };
-  if ((g.budgets[club] ?? 0) < fee) return { ok: false, error: `${nameOfClub(g, club)} não tem mais caixa para essa compra.` };
+  const total0 = fee + formationComp(g, p, fee);
+  if ((g.budgets[club] ?? 0) < total0) return { ok: false, error: `${nameOfClub(g, club)} não tem mais caixa para essa compra.` };   // o clube comprador nunca fica no negativo
   if (g.ymoves?.[p.player.id] && g.ymoves[p.player.id].club !== g.userClubId) return { ok: false, error: 'Esse jogador já está registrado em outro clube.' };
   const comp = formationComp(g, p, fee);
   const total = fee + comp;

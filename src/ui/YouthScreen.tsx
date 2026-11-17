@@ -45,7 +45,7 @@ export function YouthScreen({ game, onChange }: { game: GameState; onChange: (g:
   return (
     <>
       <ScreenTitle icon="🌱" title="Categorias de base" />
-      <SubTabs items={[{ icon: '👦', label: 'Jovens', on: view === 'jovens', onClick: () => setView('jovens') }, { icon: '🧑‍🏫', label: 'Treinadores', on: view === 'treinadores', onClick: () => setView('treinadores') }, { icon: '🏫', label: 'Academia', on: view === 'academia', onClick: () => setView('academia') }, { icon: '🏆', label: 'Competições', on: view === 'competicoes', onClick: () => setView('competicoes') }, { icon: '🔁', label: 'Mercado', on: view === 'mercado', onClick: () => setView('mercado') }]} />
+      <div className="ym-tabs wrap"><SubTabs items={[{ icon: '👦', label: 'Jovens', on: view === 'jovens', onClick: () => setView('jovens') }, { icon: '🧑‍🏫', label: 'Treinadores', on: view === 'treinadores', onClick: () => setView('treinadores') }, { icon: '🏫', label: 'Academia', on: view === 'academia', onClick: () => setView('academia') }, { icon: '🏆', label: 'Competições', on: view === 'competicoes', onClick: () => setView('competicoes') }, { icon: '🔁', label: 'Mercado', on: view === 'mercado', onClick: () => setView('mercado') }]} /></div>
       {view === 'treinadores' ? <CoachesScreen game={game} onChange={onChange} /> : view === 'academia' ? <AcademyScreen game={game} onChange={onChange} /> : view === 'competicoes' ? <YouthComps game={game} /> : view === 'mercado' ? <YouthMarket game={game} onChange={onChange} /> : <>
       <section className="card mk-card yt-hero2">
         <img className="yt-art" src="assets/ui/academy.jpg" alt="" />
@@ -102,7 +102,7 @@ function YouthCard({ game, y, p, open, decision, onOpen, onPromote, onRelease, o
           <small>{p.focus ? `Foco definido pelo treinador: ${SPECIALTIES.find((sp) => sp.id === p.focus)!.label}. ${SPECIALTIES.find((sp) => sp.id === p.focus)!.hint}` : 'Sem treinador na categoria: treino equilibrado e mais lento.'}</small>
           <ul>{attrsOf(p).map((v, i) => <li key={i} className={p.focus && ATTR_KIND[p.player.pos][i] === p.focus ? 'on' : ''}><span>{ATTRIBUTES[p.player.pos][i]}</span><b>{v}</b></li>)}</ul>
           <small>Dedicação: <b>{dedicationLabel(dedicationOf(p.player.id))}</b> · Treinador: {categoryCoach(y, age)?.name ?? '—'} · Foco: {specialtyLabel(p.focus)}</small>
-          <small>Contrato: {p.player.contract ? `${Math.round(p.player.contract.wage / 1000)} mil/ano até ${p.player.contract.until}` : '—'} · humor {Math.round(p.sat ?? 70)}/100{p.loanedTo ? ` · emprestado ao ${p.loanedTo.club}` : p.loanFrom ? ' · por empréstimo' : ''}</small>
+          <small>Contrato: {p.player.contract ? `${Math.round(p.player.contract.wage / 1000)} mil/ano até ${p.player.contract.until}` : '—'} · humor {Math.round(p.sat ?? 70)}/100{p.loanedTo ? ` · emprestado ao ${game.clubs[p.loanedTo.club]?.name ?? p.loanedTo.club}` : p.loanFrom ? ' · por empréstimo' : ''}</small>
           <small>Na base desde {p.joined ?? '—'}{p.origin === 'anterior' ? ' (já estava antes das categorias)' : ''}.</small>
           {(p.history ?? []).slice(-4).map((h, i) => <small key={i}>{h.season}: {h.text}</small>)}
         </div>
