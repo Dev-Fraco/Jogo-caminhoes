@@ -2,6 +2,7 @@ import { ensureAiCoaches } from './aicoaches';
 import { ensureAiContracts } from './aicontracts';
 import { freezeGoals } from './aigoals';
 import { ensureAiYouth } from './aiyouth';
+import { ensureCategoryState } from './youth';
 import { ensureMarketState, ensureYouthLoanState } from './aistate';
 import { computeTable } from './table';
 import { compactScorers } from './scorers';
@@ -23,7 +24,7 @@ import type { GameState, Player } from './types';
 export { SAVE_SCHEMA };
 export const SCHEMA_NOTE: Record<number, string> = {
   1: 'versão original', 2: 'IA dos clubes (contratos, treinadores, base, objetivos)', 3: 'mercado avançado (propostas, janelas de transferência)',
-  4: 'potencial dos jovens, empréstimos e histórico de contratos', 5: 'IA sem congelar (idades, artilharia, treinadores com contrato)', 6: 'estado atual do jogo (overall do treinador e salário por divisão)',
+  4: 'potencial dos jovens, empréstimos e histórico de contratos', 5: 'IA sem congelar (idades, artilharia, treinadores com contrato)', 6: 'overall do treinador e salário por divisão', 7: 'estado atual do jogo (categorias de base: identidade e histórico dos jovens)',
 };
 
 /** Que geração de save é esta? Usa o registro (`schema`) quando existe; senão deduz pelos campos que cada geração introduziu. */
@@ -63,6 +64,7 @@ export const STEPS: MigrationStep[] = [
   { id: 'mercado', label: 'janelas de transferência e propostas (as propostas antigas viram negociações)', run: (g) => ensureMarketState(g) },
   { id: 'treinador', label: 'overall do treinador e faixa salarial da divisão', run: (g) => (g.coachOverall !== undefined && (g.payTier || g.unemployed) ? g : { ...g, coachOverall: g.coachOverall ?? startingOverall(g.difficulty), payTier: g.payTier ?? (g.unemployed ? undefined : { clubId: g.userClubId, tier: payTierOf(g, g.userClubId), season: g.season }) }) },
   { id: 'artilharia', label: 'artilharia da temporada (formato compacto)', run: (g) => compactScorers(g) },
+  { id: 'categorias-base', label: 'categorias de base (identidade e histórico dos jovens)', run: (g) => ensureCategoryState(g) },
   { id: 'jovens-emprestimos', label: 'potencial dos jovens, minutos jogados e empréstimos', run: (g) => ensureYouthLoanState(g) },
 ];
 

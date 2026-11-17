@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { brazilPyramid } from '../src/data/pyramid';
 import { isSeasonOver, newCareer, playNext, startNextSeason } from '../src/engine/game';
-import { academyCost, ensureYouth, MAX_LEVEL, MAX_PROSPECTS, promoteProspect, releaseProspect, stars, upgradeAcademy, youthOf, youthSeason, youthTick, RELEASE_AGE } from '../src/engine/youth';
+import { academyCost, ensureYouth, MAX_LEVEL, MAX_PROSPECTS, promoteProspect, releaseProspect, stars, upgradeAcademy, youthOf, youthSeason, youthTick } from '../src/engine/youth';
 import { MAX_SQUAD } from '../src/engine/transfers';
 import type { GameState } from '../src/engine/types';
 
@@ -9,13 +9,13 @@ const mk = (): GameState => newCareer({ saveName: 't', coach: { name: 'A B', nat
 const keep = (g: GameState): GameState => ({ ...g, morale: { ...g.morale, board: 60 } });
 
 describe('categorias de base', () => {
-  it('a primeira safra traz jovens de 15 a 17 anos, fracos agora e com potencial', () => {
+  it('a primeira safra traz jovens de 12 anos com overall 5 e potencial', () => {
     const g = ensureYouth(mk());
     const y = youthOf(g);
     expect(y.prospects.length).toBe(4);
     for (const p of y.prospects) {
-      expect(p.player.age).toBeGreaterThanOrEqual(15); expect(p.player.age).toBeLessThanOrEqual(17);
-      expect(p.player.strength).toBeLessThan(45);
+      expect(p.player.age).toBe(12);
+      expect(p.player.strength).toBe(5);
       expect(p.potential).toBeGreaterThanOrEqual(p.player.strength + 12);
       expect(stars(p.potential)).toBeGreaterThanOrEqual(1);
     }
@@ -30,6 +30,7 @@ describe('categorias de base', () => {
   });
   it('promover leva o jovem ao elenco com contrato; elenco cheio impede', () => {
     let g = ensureYouth(mk());
+    g = { ...g, youth: { ...youthOf(g), prospects: youthOf(g).prospects.map((p, i) => (i === 0 ? { ...p, player: { ...p.player, age: 16 } } : p)) } }; // só a partir dos 16 anos
     const id = youthOf(g).prospects[0].player.id;
     const r = promoteProspect(g, id);
     if (!r.ok) throw new Error(r.error);
@@ -65,15 +66,15 @@ describe('categorias de base', () => {
     expect(youthOf(next).prospects.length).toBeGreaterThan(4);
     expect(youthOf(next).prospects.length).toBeLessThanOrEqual(MAX_PROSPECTS);
   });
-  it('virada de temporada: envelhecem, crescem, os de 20 anos saem e chega safra nova', () => {
+  it('virada de temporada: envelhecem e crescem; aos 21 ninguém sai sozinho; chega safra nova', () => {
     let g = ensureYouth(mk());
-    g = { ...g, youth: { ...youthOf(g), prospects: youthOf(g).prospects.map((p, i) => (i === 0 ? { ...p, player: { ...p.player, age: RELEASE_AGE - 1 } } : p)) } };
+    g = { ...g, youth: { ...youthOf(g), prospects: youthOf(g).prospects.map((p, i) => (i === 0 ? { ...p, player: { ...p.player, age: 20 } } : p)) } };
     const oldIds = youthOf(g).prospects.map((p) => p.player.id);
     const n = youthSeason(g);
     const ids = youthOf(n).prospects.map((p) => p.player.id);
-    expect(ids).not.toContain(oldIds[0]); // o de 19 virou 20 e saiu
-    expect(ids).toEqual(expect.arrayContaining(oldIds.slice(1)));
-    expect(youthOf(n).prospects.length).toBeGreaterThan(oldIds.length - 1);
+    expect(ids).toEqual(expect.arrayContaining(oldIds)); // o de 20 virou 21 e continua, aguardando decisão
+    expect(youthOf(n).prospects.find((p) => p.player.id === oldIds[0])!.player.age).toBe(21);
+    expect(youthOf(n).prospects.length).toBeGreaterThan(oldIds.length);
     expect(n.news[0].text).toMatch(/Nova safra/);
     expect(youthOf(n).prospects.find((p) => p.player.id === oldIds[1])!.player.age).toBe(g.youth!.prospects[1].player.age + 1);
   });

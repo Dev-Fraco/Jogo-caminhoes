@@ -159,3 +159,11 @@
 .sq-card { position: relative; }
 .sq-hurtbar { margin: 8px 0; padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(255, 120, 120, .5); background: rgba(120, 20, 30, .45); font-size: 12.5px; color: #ffe0e0; }
 .home2-hurt { width: 100%; margin-bottom: 8px; padding: 10px 12px; border-radius: 12px; text-align: left; color: #ffe0e0; border-color: rgba(255, 120, 120, .5) !important; font-size: 12.5px; }
+/* Categorias de base */
+.yt-rule { margin: 8px 0 10px; }
+.yt-cats { color: #ffd23f !important; font-weight: 700; }
+.yt-open { background: none; border: 0; padding: 0; cursor: pointer; }
+.yt-det { width: 100%; display: grid; gap: 3px; text-align: left; padding: 6px; border-radius: 8px; background: rgba(255,255,255,.06); }
+.yt-det ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.yt-det li { display: flex; justify-content: space-between; gap: 6px; font-size: 10.5px; color: #cbc9c5; } .yt-det li b { color: #fff; }
+.yt-pro:disabled { background: rgba(255,255,255,.08) !important; color: #d8d6d2 !important; opacity: 1 !important; border: 1px dashed rgba(255,255,255,.25) !important; }

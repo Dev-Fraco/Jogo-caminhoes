@@ -11,7 +11,7 @@ export type MenuTarget = 'home' | 'lineup' | 'squad' | 'youth' | 'table' | 'scor
 interface Item { id: MenuTarget; icon: string; label: string; hint?: string; needsClub?: boolean }
 const SECTIONS: { title: string; items: Item[] }[] = [
   { title: 'Meu clube', items: [
-    { id: 'home', icon: '🏠', label: 'Início' }, { id: 'lineup', icon: '📋', label: 'Escalação', needsClub: true }, { id: 'squad', icon: '👕', label: 'Elenco', needsClub: true }, { id: 'youth', icon: '🌱', label: 'Categoria de base', needsClub: true },
+    { id: 'home', icon: '🏠', label: 'Início' }, { id: 'lineup', icon: '📋', label: 'Escalação', needsClub: true }, { id: 'squad', icon: '👕', label: 'Elenco', needsClub: true }, { id: 'youth', icon: '🌱', label: 'Categorias de base', needsClub: true },
   ] },
   { title: 'Competições', items: [
     { id: 'table', icon: '📊', label: 'Tabelas e jogos' }, { id: 'scorers', icon: '⚽', label: 'Artilharia' }, { id: 'hist', icon: '🏆', label: 'Campeões' }, { id: 'calendar', icon: '🗓️', label: 'Calendário', needsClub: true },

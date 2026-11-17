@@ -1,3 +1,4 @@
+import { ACADEMY_START_AGE, ACADEMY_START_OVERALL, canPromoteAge, homeCategory, categoryDef, MIN_PRO_AGE, needsDecision } from './categories';
 import { inflate, priceIndex } from './economy';
 import { baseIncome } from './finance';
 import { makeRng, type Rng } from './rng';
@@ -5,16 +6,26 @@ import { pickSpot, randomName } from './squad';
 import { divisionIndexOf, MAX_SQUAD } from './transfers';
 import type { GameState, NewsItem, Player, Position } from './types';
 
-/** Um jovem da base: o jogador (idade 15–19) e o quanto ele pode chegar a ser (potencial). `exact` guarda a força com casas decimais. */
-export interface Prospect { player: Player; potential: number; exact: number }
-export interface YouthState { level: number; prospects: Prospect[]; seq: number; lastIntake: number }
+/** Fato da vida do jovem na base (entrada, mudança de categoria, decisão pendente...). */
+export interface HistoryEntry { season: number; text: string }
+/** Um jovem da base: o jogador e o quanto ele pode chegar a ser (potencial). `exact` guarda a força com casas decimais.
+ *  Um registro só por atleta; as categorias (Sub-13 a Sub-21) são faixas de idade sobre esta lista (ver categories.ts).
+ *  `joined`, `origin` e `history` são a identidade/histórico próprios; ausentes em saves antigos (a migração completa). */
+export interface Prospect { player: Player; potential: number; exact: number; joined?: number; origin?: 'academia' | 'anterior'; history?: HistoryEntry[] }
+/** Ganchos reservados para as próximas etapas (treinamento, treinadores individuais, instalações, campeonatos de base, olheiros,
+ *  contratos, empréstimos). Nada disso existe ainda: o campo só garante um lugar no save, sem mexer no que já está salvo. */
+export interface YouthModules { training?: unknown; coaches?: unknown; facilities?: unknown; competitions?: unknown; scouting?: unknown; contracts?: unknown; loans?: unknown }
+export interface YouthState { level: number; prospects: Prospect[]; seq: number; lastIntake: number; /** versão do formato da base */ schema?: number; modules?: YouthModules }
+export const YOUTH_SCHEMA = 1;
 
 export const MAX_LEVEL = 5;
-export const MAX_PROSPECTS = 14;
-export const RELEASE_AGE = 20;
+/** Limite de jovens na base (as quatro categorias juntas). Quem aguarda decisão aos 21 anos nunca é cortado. */
+export const MAX_PROSPECTS = 60;
+const HISTORY_MAX = 24;
+const note = (p: Prospect, season: number, text: string): Prospect => ({ ...p, history: [...(p.history ?? []), { season, text }].slice(-HISTORY_MAX) });
 const POS_BAG: Position[] = ['GK', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'ATT', 'ATT'];
 
-export const youthOf = (g: GameState): YouthState => g.youth ?? { level: 0, prospects: [], seq: 1, lastIntake: -1 };
+export const youthOf = (g: GameState): YouthState => g.youth ?? { level: 0, prospects: [], seq: 1, lastIntake: -1, schema: YOUTH_SCHEMA };
 const news = (g: GameState, text: string, tone: NewsItem['tone'] = 'info'): GameState => ({ ...g, news: [{ season: g.season, round: g.round, text, tone }, ...g.news].slice(0, 80) });
 
 /** Estrelas de potencial (1–5). */
@@ -28,14 +39,25 @@ function intake(g: GameState, y: YouthState, rng: Rng): YouthState {
   let seq = y.seq;
   for (let i = 0; i < count; i++) {
     const pos = POS_BAG[Math.floor(rng() * POS_BAG.length)];
-    const age = 15 + Math.floor(rng() * 3);
-    const strength = Math.round(28 + y.level * 3 + rng() * 10);
+    const age = ACADEMY_START_AGE;
+    const strength = ACADEMY_START_OVERALL;
     const gem = rng() < 0.06 + y.level * 0.02;
     const potential = Math.min(97, Math.max(strength + 12, Math.round(55 + rng() * 28 + y.level * 4 + (gem ? 12 : 0))));
-    fresh.push({ player: { id: `${g.userClubId}-y${seq++}`, name: randomName(rng, used), pos, spot: pickSpot(fresh.map((x) => x.player), pos), age, strength }, potential, exact: strength });
+    fresh.push({ player: { id: `${g.userClubId}-y${seq++}`, name: randomName(rng, used), pos, spot: pickSpot(fresh.map((x) => x.player), pos), age, strength, pot: potential, formedAt: g.userClubId, formedSeason: g.season }, potential, exact: strength,
+      joined: g.season, origin: 'academia', history: [{ season: g.season, text: `Chegou à academia aos ${age} anos (overall ${strength}).` }] });
   }
-  const all = [...y.prospects, ...fresh].sort((a, b) => b.potential - a.potential).slice(0, MAX_PROSPECTS);
-  return { ...y, prospects: all, seq, lastIntake: g.season };
+  const pending = y.prospects.filter((p) => needsDecision(p.player.age)); // quem aguarda decisão do clube nunca é cortado
+  const rest = [...y.prospects.filter((p) => !needsDecision(p.player.age)), ...fresh].sort((a, b) => b.potential - a.potential).slice(0, MAX_PROSPECTS);
+  return { ...y, prospects: [...pending, ...rest], seq, lastIntake: g.season, schema: YOUTH_SCHEMA };
+}
+
+/** Saves antigos: completa os jovens já existentes com origem e histórico (idade, overall e potencial NÃO mudam) e registra a versão da base. Idempotente. */
+export function ensureCategoryState(g: GameState): GameState {
+  const y = g.youth;
+  if (!y) return g;
+  if (y.schema === YOUTH_SCHEMA && y.prospects.every((p) => p.origin && p.history)) return g;
+  const prospects = y.prospects.map((p) => (p.origin && p.history ? p : { ...p, origin: p.origin ?? ('anterior' as const), history: p.history ?? [{ season: g.season, text: 'Já estava na base quando o sistema de categorias foi ativado.' }] }));
+  return { ...g, youth: { ...y, prospects, schema: YOUTH_SCHEMA } };
 }
 
 /** Garante que a base tenha a primeira safra. */
@@ -65,14 +87,20 @@ export function youthSeason(g: GameState): GameState {
   let s = ensureYouth(g);
   const y = youthOf(s);
   const rng = makeRng(s.seed * 61 + s.season * 13 + 9);
+  const moved: string[] = [], decide: string[] = [];
   const grown = y.prospects.map((p) => {
     const exact = Math.min(p.potential, p.exact + (p.potential - p.exact) * (0.18 + y.level * 0.03) * (0.7 + rng() * 0.6) + 1);
-    return { ...p, exact, player: { ...p.player, age: p.player.age + 1, strength: Math.round(exact) } };
+    const age = p.player.age + 1;
+    let q: Prospect = { ...p, exact, player: { ...p.player, age, strength: Math.round(exact) } };
+    // a idade sobe só aqui, na virada de temporada; o histórico registra a passagem de categoria e a decisão dos 21 anos
+    if (needsDecision(age) && !needsDecision(p.player.age)) { q = note(q, s.season, `Completou ${age} anos: o clube decide entre profissional, empréstimo ou dispensa.`); decide.push(p.player.name); }
+    else if (!needsDecision(age) && homeCategory(age) !== homeCategory(p.player.age) && homeCategory(age)) { q = note(q, s.season, `Passou para o ${categoryDef(homeCategory(age)!).label} (${age} anos).`); moved.push(p.player.name); }
+    else if (age === MIN_PRO_AGE) q = note(q, s.season, 'Completou 16 anos: já pode ser promovido ao profissional.');
+    return q;
   });
-  const gone = grown.filter((p) => p.player.age >= RELEASE_AGE);
-  const keep = grown.filter((p) => p.player.age < RELEASE_AGE);
-  if (gone.length) s = news(s, `🌱 Saíram da base por idade: ${gone.map((p) => p.player.name).join(', ')}.`);
-  s = { ...s, youth: intake(s, { ...y, prospects: keep }, rng) };
+  if (decide.length) s = news(s, `🌱 Aguardando decisão do clube (21 anos): ${decide.join(', ')}. Escolha entre profissional, empréstimo ou dispensa.`, 'info');
+  if (moved.length) s = news(s, `🌱 ${moved.length} jovem(ns) mudaram de categoria na base.`);
+  s = { ...s, youth: intake(s, { ...y, prospects: grown }, rng) };
   return news(s, '🌱 Nova safra da base: novos jovens chegaram às categorias de base.', 'good');
 }
 
@@ -85,9 +113,10 @@ export function promoteProspect(g: GameState, id: string): YouthResult {
   const y = youthOf(g);
   const p = y.prospects.find((x) => x.player.id === id);
   if (!p) return { ok: false, error: 'Jovem não encontrado.' };
+  if (!canPromoteAge(p.player.age)) return { ok: false, error: `${p.player.name} tem ${p.player.age} anos: só a partir dos ${MIN_PRO_AGE} anos o jovem pode ser promovido ao profissional.` };
   const team = g.teams[g.userClubId];
   if (team.players.length >= MAX_SQUAD) return { ok: false, error: `Elenco cheio (${MAX_SQUAD}). Venda ou dispense alguém antes.` };
-  const player: Player = { ...p.player, strength: Math.round(p.exact), contract: { wage: youthWage(g, p), until: g.season + 3 } };
+  const player: Player = { ...p.player, strength: Math.round(p.exact), pot: p.potential, formedAt: p.player.formedAt ?? g.userClubId, formedSeason: p.player.formedSeason ?? p.joined ?? g.season, contract: { wage: youthWage(g, p), until: g.season + 3 } };
   const s: GameState = { ...g, teams: { ...g.teams, [g.userClubId]: { ...team, players: [...team.players, player] } }, youth: { ...y, prospects: y.prospects.filter((x) => x !== p) } };
   return { ok: true, state: news(s, `🌱 ${player.name} (${player.age} anos) subiu da base para o elenco principal.`, 'good') };
 }
