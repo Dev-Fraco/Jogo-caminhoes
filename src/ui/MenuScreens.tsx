@@ -176,7 +176,7 @@ export function Mods({ onBack }: { onBack: () => void }) {
     if (!r.ok) { setMsg({ text: r.error, err: true }); return; }
     try { await installPack(r.p); localStorage.setItem('vr-pack-name', r.p.pack.name); } catch { setMsg({ text: 'Não consegui guardar o pacote neste aparelho.', err: true }); return; }
     setBump((n) => n + 1); setText('');
-    setMsg({ text: `Pacote de elencos "${r.p.pack.name}" instalado: ${r.p.report.clubs} clubes, ${r.p.report.names} nomes de clube, ${r.p.report.players} jogadores e ${r.p.report.badges} escudos${r.p.report.warnings.length ? ` (${r.p.report.warnings.length} avisos na seção "Elencos e escudos")` : ''}. Comece uma nova carreira para ver.` });
+    setMsg({ text: `Pacote de elencos "${r.p.pack.name}" instalado: ${r.p.report.clubs} clubes, ${r.p.report.names} nomes de clube, ${r.p.report.players} jogadores e ${r.p.report.badges} escudos${r.p.report.warnings.length ? ` (${r.p.report.warnings.length} avisos na seção "Elencos e escudos")` : ''}.${r.p.report.missingBadges ? ` ATENÇÃO: ${r.p.report.missingBadges} escudos não vieram — o JSON só cita os nomes dos arquivos de imagem. Instale o ZIP (JSON + pasta de escudos) ou escolha o JSON junto com as imagens, tudo de uma vez.` : ''} Comece uma nova carreira para ver.` });
   };
   const add = (src: string) => {
     const r = parseMod(src);

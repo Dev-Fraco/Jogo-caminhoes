@@ -23,12 +23,12 @@ export interface PackSlot { name?: string; age?: number; overall?: number }
 export interface ClubInfoPatch { name?: string; shortName?: string; stadium?: string; city?: string; primaryColor?: string; secondaryColor?: string }
 export interface PackClub { id: string; badge?: string; players?: PackPlayer[]; names?: string[]; slots?: PackSlot[]; info?: ClubInfoPatch }
 export interface Pack { name: string; author?: string; version?: string; clubs: PackClub[]; /** nomes de competições (copas, ligas, divisões) */ competitions?: Record<string, string> }
-export interface PackReport { clubs: number; players: number; badges: number; names: number; warnings: string[] }
+export interface PackReport { clubs: number; players: number; badges: number; names: number; warnings: string[]; /** escudos citados pelo JSON cuja imagem não veio junto */ missingBadges?: number }
 export type PackResult = { ok: true; pack: Pack; report: PackReport } | { ok: false; error: string };
 
 const POS: Record<string, Position> = {
   GK: 'GK', GOL: 'GK', G: 'GK', GOLEIRO: 'GK',
-  DEF: 'DEF', D: 'DEF', ZAG: 'DEF', LD: 'DEF', LE: 'DEF', ZAGUEIRO: 'DEF', LATERAL: 'DEF',
+  DEF: 'DEF', D: 'DEF', ZAG: 'DEF', LD: 'DEF', LE: 'DEF', ZAGUEIRO: 'DEF', DEFENSOR: 'DEF', LATERAL: 'DEF',
   MID: 'MID', M: 'MID', MEI: 'MID', VOL: 'MID', MC: 'MID', MEIA: 'MID', VOLANTE: 'MID',
   ATT: 'ATT', A: 'ATT', ATA: 'ATT', CA: 'ATT', PE: 'ATT', PD: 'ATT', ATACANTE: 'ATT',
 };
@@ -42,6 +42,8 @@ export const normSpot = (s: unknown): Spot | undefined => (typeof s === 'string'
 export const normPos = (s: unknown): Position | undefined => (typeof s === 'string' ? POS[s.trim().toUpperCase()] : undefined);
 /** Primeiro campo existente entre vários nomes possíveis (o pacote pode vir em português ou inglês). */
 const pick = (o: Record<string, unknown> | undefined, ...keys: string[]): unknown => { if (!o) return undefined; for (const k of keys) if (o[k] !== undefined && o[k] !== null) return o[k]; return undefined; };
+/** Posição do jogador: "pos" (ou "posicao"); guias gerados trazem "_posicao" (Goleiro, Defensor, Meia, Atacante), que também vale. */
+const posOf = (o: Record<string, unknown> | undefined): unknown => pick(o, 'pos', 'posicao', 'posição', 'position', '_posicao');
 const IMG = /\.(png|jpe?g|webp)$/i;
 export const isImageName = (n: string) => IMG.test(n);
 export const baseName = (n: string) => n.split('/').pop()!.toLowerCase();
@@ -61,7 +63,7 @@ export function validatePack(text: string, badgeFiles: string[] = []): PackResul
   const warn = (t: string) => { if (warnings.length < 60) warnings.push(t); };
   const seen = new Set<string>();
   const clubs: PackClub[] = [];
-  let players = 0, badges = 0, names = 0;
+  let players = 0, badges = 0, names = 0, missingBadges = 0;
   for (const c0 of r.clubs as Record<string, unknown>[]) {
     const c = { id: pick(c0, 'id', 'clubId', 'clube_id', 'clubeId'), badge: pick(c0, 'badge', 'escudo', 'logo'), players: pick(c0, 'players', 'jogadores', 'elenco') } as Record<string, unknown>;
     const id = typeof c.id === 'string' ? c.id : '';
@@ -83,7 +85,7 @@ export function validatePack(text: string, badgeFiles: string[] = []): PackResul
     if (Object.keys(info).length) { club.info = info; names++; }
     if (typeof c.badge === 'string' && c.badge.trim()) {
       if (!IMG.test(c.badge)) warn(`${id}: escudo "${c.badge}" não é imagem PNG/JPG/WEBP.`);
-      else if (!files.has(baseName(c.badge))) warn(`${id}: o escudo "${c.badge}" não veio no ZIP.`);
+      else if (!files.has(baseName(c.badge))) { missingBadges++; warn(`${id}: o escudo "${c.badge}" não veio no ZIP.`); }
       else { club.badge = baseName(c.badge); badges++; }
     }
     if (Array.isArray(c.players) && c.players.length > 0 && c.players.every((x) => typeof x === 'string')) {
@@ -97,7 +99,7 @@ export function validatePack(text: string, badgeFiles: string[] = []): PackResul
       });
       const filled = names.filter(Boolean).length;
       if (filled > 0) { club.names = names; players += filled; }
-    } else if (Array.isArray(c.players) && c.players.length > 0 && (c.players as Record<string, unknown>[]).every((x) => x && typeof x === 'object' && pick(x, 'pos', 'posicao', 'posição', 'position') === undefined && normSpot(pick(x, 'spot', 'funcao', 'função')) === undefined)) {
+    } else if (Array.isArray(c.players) && c.players.length > 0 && (c.players as Record<string, unknown>[]).every((x) => x && typeof x === 'object' && posOf(x) === undefined && normSpot(pick(x, 'spot', 'funcao', 'função')) === undefined)) {
       // jogadores sem posição: valem pela ORDEM do elenco do jogo (3 goleiros, 8 defensores, 8 meias, 5 atacantes); a posição vem do jogo
       const seenN = new Set<string>();
       const slots: PackSlot[] = (c.players as Record<string, unknown>[]).slice(0, 40).map((p0) => {
@@ -112,7 +114,7 @@ export function validatePack(text: string, badgeFiles: string[] = []): PackResul
       const list: PackPlayer[] = [];
       const names = new Set<string>();
       for (const p0 of c.players as Record<string, unknown>[]) {
-        const p = { name: pick(p0, 'name', 'nome'), pos: pick(p0, 'pos', 'posicao', 'posição', 'position'), spot: pick(p0, 'spot', 'funcao', 'função'), age: pick(p0, 'age', 'idade'), overall: pick(p0, 'overall', 'ovr', 'forca', 'força', 'strength') } as Record<string, unknown>;
+        const p = { name: pick(p0, 'name', 'nome'), pos: posOf(p0), spot: pick(p0, 'spot', 'funcao', 'função'), age: pick(p0, 'age', 'idade'), overall: pick(p0, 'overall', 'ovr', 'forca', 'força', 'strength') } as Record<string, unknown>;
         const name = typeof p.name === 'string' ? p.name.trim() : '';
         const pos = normPos(p.pos);
         if (name.length < 2 || name.length > 40) { warn(`${id}: jogador sem nome válido (ignorado).`); continue; }
@@ -142,7 +144,7 @@ export function validatePack(text: string, badgeFiles: string[] = []): PackResul
     }
   }
   if (clubs.length === 0 && !competitions) return { ok: false, error: 'Nenhum clube válido no pacote. Use os ids do modelo gerado pelo jogo.' };
-  return { ok: true, pack: { name: r.name.trim().slice(0, 40), author: typeof r.author === 'string' ? r.author.slice(0, 40) : undefined, version: typeof r.version === 'string' ? r.version.slice(0, 12) : undefined, clubs, ...(competitions ? { competitions } : {}) }, report: { clubs: clubs.length, players, badges, names, warnings } };
+  return { ok: true, pack: { name: r.name.trim().slice(0, 40), author: typeof r.author === 'string' ? r.author.slice(0, 40) : undefined, version: typeof r.version === 'string' ? r.version.slice(0, 12) : undefined, clubs, ...(competitions ? { competitions } : {}) }, report: { clubs: clubs.length, players, badges, names, warnings, ...(missingBadges ? { missingBadges } : {}) } };
 }
 
 const hash = (s: string) => { let h = 7; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; };

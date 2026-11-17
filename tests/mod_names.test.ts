@@ -34,3 +34,27 @@ describe('nomes trocados por pacote/mod', () => {
     expect(new Set(A.map((c) => c.shortName)).size).toBe(A.length);
   });
 });
+
+describe('pacote de elencos com posição em "_posicao" e escudos por arquivo', () => {
+  const mk = (badge?: string) => JSON.stringify({ name: 'x', clubs: [{ id: A[0].id, name: 'Real Alfa', ...(badge ? { badge } : {}), players: [
+    { name: 'Goleiro Um', age: 30, overall: 80, _posicao: 'Goleiro' }, { name: 'Zagueiro Um', age: 25, overall: 70, _posicao: 'Defensor' },
+    { name: 'Meia Um', age: 22, overall: 65, _posicao: 'Meia' }, { name: 'Ata Um', age: 28, overall: 75, _posicao: 'Atacante' }] }] });
+  it('usa _posicao para montar o elenco por posição', () => {
+    const r = validatePack(mk());
+    if (!r.ok) throw new Error(r.error);
+    applyPack(r.pack);
+    const sq = A[0].squad;
+    expect(sq.find((p) => p.name === 'Goleiro Um')?.pos).toBe('GK');
+    expect(sq.find((p) => p.name === 'Zagueiro Um')?.pos).toBe('DEF');
+    expect(sq.find((p) => p.name === 'Ata Um')?.pos).toBe('ATT');
+    expect(sq.find((p) => p.name === 'Ata Um')?.strength).toBe(75);
+  });
+  it('avisa quando o JSON cita escudos que não vieram junto; com a imagem, conta o escudo', () => {
+    const sem = validatePack(mk('flarj.png'), []);
+    if (!sem.ok) throw new Error(sem.error);
+    expect(sem.report.missingBadges).toBe(1); expect(sem.report.badges).toBe(0);
+    const com = validatePack(mk('flarj.png'), ['escudos/FLARJ.png']);
+    if (!com.ok) throw new Error(com.error);
+    expect(com.report.badges).toBe(1); expect(com.report.missingBadges).toBeUndefined();
+  });
+});
