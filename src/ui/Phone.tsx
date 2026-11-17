@@ -16,6 +16,11 @@ import { RealtorApp } from './RealtorApp';
 import { CalcApp, QuickPanel } from './QuickPanel';
 import { ChipApp } from './ChipApp';
 import { NetFibraApp } from './NetFibraApp';
+import { APP_ICON, GameIcon } from './gameIcons';
+import type { PhoneApp } from '../engine/phone';
+
+/** Ícone do app: a imagem nova quando existe; senão o emoji. */
+const AppIco = ({ a }: { a: PhoneApp }) => (APP_ICON[a.id] ? <GameIcon name={APP_ICON[a.id]} /> : <>{a.icon}</>);
 import { AccountGate } from './AccountGate';
 import { HoldScan } from './AppKit';
 import { needsAccount, ACCOUNT_APPS } from '../engine/accounts';
@@ -273,7 +278,7 @@ function HomeScreen({ game, onOpen }: { game: GameState; onOpen: (id: string) =>
       <div className="ph-grid">
         {apps.map((a) => (
           <button key={a.id} className="ph-app" onClick={() => onOpen(a.id)}>
-            <span className="ph-ico">{a.icon}{a.id === 'banco' && unread > 0 && <em>{unread}</em>}{a.id === 'mensagens' && pendingCount(game) > 0 && <em>{pendingCount(game)}</em>}</span>
+            <span className="ph-ico"><AppIco a={a} />{a.id === 'banco' && unread > 0 && <em>{unread}</em>}{a.id === 'mensagens' && pendingCount(game) > 0 && <em>{pendingCount(game)}</em>}</span>
             <small>{a.name}</small>
           </button>
         ))}
@@ -299,7 +304,7 @@ function Boot({ game, id, onDone }: { game: GameState; id: string; onDone: () =>
   }, []);
   return (
     <div className="ph-app-screen ph-boot" aria-busy="true">
-      <span className="ph-ico big">{app?.icon ?? '📱'}</span>
+      <span className="ph-ico big">{app ? <AppIco a={app} /> : '📱'}</span>
       <h2>{app?.name ?? 'Abrindo'}</h2>
       <div className="ph-prog" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}><i style={{ width: `${pct}%` }} /></div>
       <p className={net.speed === 'slow' ? 'bad' : ''}>{net.speed === 'slow' ? '⚠️ Conexão ruim… carregando devagar' : 'Carregando…'}</p>
@@ -313,7 +318,7 @@ function NoNet({ game, id, onPanel }: { game: GameState; id: string; onPanel: ()
   const app = appById(id);
   return (
     <div className="ph-app-screen ph-boot">
-      <span className="ph-ico big">{app?.icon ?? '📱'}</span>
+      <span className="ph-ico big">{app ? <AppIco a={app} /> : '📱'}</span>
       <h2>Sem conexão</h2>
       <p>{net.label}. {net.note}</p>
       <button className="ph-btn pri" onClick={onPanel}>Abrir painel rápido</button>
@@ -363,7 +368,7 @@ function Store({ game, onChange, onOpen, getGame, onPanel }: { game: GameState; 
           const job = jobs[a.id];
           return (
             <li key={a.id}>
-              <span className="ph-ico big">{a.icon}</span>
+              <span className="ph-ico big"><AppIco a={a} /></span>
               <div className="grow"><b>{a.name}</b><small>{a.category} · {a.size} · ⭐ {a.rating}</small><small>{a.blurb}</small></div>
               {job ? (
                 <div className="ph-job" role="status">
@@ -391,7 +396,7 @@ function SoonApp({ id }: { id: string }) {
   const a = appById(id);
   return (
     <div className="ph-app-screen center">
-      <span className="ph-ico big">{a?.icon ?? '❓'}</span>
+      <span className="ph-ico big">{a ? <AppIco a={a} /> : '❓'}</span>
       <h2>{a?.name ?? 'App'}</h2>
       <p>Este app chega na próxima atualização do jogo.</p>
     </div>

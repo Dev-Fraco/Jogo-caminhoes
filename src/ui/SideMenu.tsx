@@ -5,6 +5,7 @@ import { marketBadge } from './MarketDeals';
 import { pendingCount } from '../engine/inbox';
 import { unreadCount } from '../engine/phone';
 import { ownsPhone } from '../engine/phone';
+import { GameIcon, MENU_ICON } from './gameIcons';
 import { coachOverallInt } from '../engine/coachpay';
 
 export type MenuTarget = 'home' | 'lineup' | 'squad' | 'youth' | 'table' | 'scorers' | 'hist' | 'calendar' | 'transfers' | 'finance' | 'stadium' | 'profile' | 'shop' | 'phone' | 'exit';
@@ -53,7 +54,7 @@ export function SideMenu({ game, open, current, locked, onClose, onGo }: { game:
                 const b = badge(it.id);
                 return (
                   <button key={it.id} className={it.id === current ? 'sm-on' : ''} disabled={off && it.id !== 'exit'} aria-current={it.id === current ? 'page' : undefined} onClick={() => { onClose(); onGo(it.id); }}>
-                    <span className="sm-ic" aria-hidden="true">{it.icon}</span><span className="sm-lb">{it.label}</span>
+                    <span className="sm-ic" aria-hidden="true">{MENU_ICON[it.id] ? <GameIcon name={MENU_ICON[it.id]} /> : it.icon}</span><span className="sm-lb">{it.label}</span>
                     {b > 0 && <i className="sm-badge" aria-label={`${b} pendências`}>{b}</i>}
                   </button>
                 );

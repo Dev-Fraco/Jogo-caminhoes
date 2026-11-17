@@ -305,3 +305,5 @@
 .ph-btn.hold span { position: relative; }
 @keyframes hold-bar { to { width: 100%; } }
 @media (prefers-reduced-motion: reduce) { .hold.holding .ph-finger-ico { animation: none; } }
+.ph-ico:has(> img.gi) { background: none; box-shadow: 0 2px 8px rgba(0, 0, 0, .5); }
+.ph-ico > img.gi { width: 100%; height: 100%; display: block; border-radius: inherit; object-fit: contain; }
