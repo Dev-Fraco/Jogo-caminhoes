@@ -50,7 +50,7 @@ export function PenaltyShootout({ home, away, kicks, userSide, onDone }: { home:
       if (stage === 'prep') setStage('kick');
       else if (stage === 'kick') {
         setStage('result');
-        audio.sfx(cur.outcome === 'goal' ? 'goal' : 'error');
+        audio.kick(); if (cur.outcome === 'goal') audio.sfx('goal'); // chute (mudo sem o arquivo); pênalti perdido não usa o som de erro
       } else if (i + 1 >= steps.length) setDone(true);
       else { setI(i + 1); setStage('prep'); }
     }, ms);

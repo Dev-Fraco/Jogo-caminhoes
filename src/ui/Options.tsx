@@ -110,7 +110,11 @@ export function Options({ onBack, onRestored }: Props) {
         <Section title={tr('options.audio')}>
           <Slider id="opt-master" label={tr('options.audio.master')} value={draft.audio.master} disabled={muted} onChange={(v) => setAudio({ master: v })} />
           <Slider id="opt-music" label={tr('options.audio.music')} value={draft.audio.music} disabled={muted} onChange={(v) => setAudio({ music: v })} />
-          <Slider id="opt-sfx" label={tr('options.audio.sfx')} value={draft.audio.sfx} disabled={muted} onChange={(v) => setAudio({ sfx: v })} />
+          <div className="opt-row">
+            <label htmlFor="opt-sfxon">{tr('options.audio.sfxon')}</label>
+            <input id="opt-sfxon" type="checkbox" className="check" checked={draft.audio.sfxEnabled !== false} onChange={(e) => setAudio({ sfxEnabled: e.target.checked })} />
+          </div>
+          <Slider id="opt-sfx" label={tr('options.audio.sfx')} value={draft.audio.sfx} disabled={muted || draft.audio.sfxEnabled === false} onChange={(v) => setAudio({ sfx: v })} />
           <div className="opt-row">
             <label htmlFor="opt-mute">{tr('options.audio.mute')}</label>
             <input id="opt-mute" type="checkbox" className="check" checked={muted} onChange={(e) => setAudio({ muted: e.target.checked })} />
