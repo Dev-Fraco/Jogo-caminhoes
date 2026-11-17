@@ -28,6 +28,7 @@ import { inboxTick } from './inbox';
 import './shop';
 import { processDays } from './daily';
 import { youthSeason, youthTick } from './youth';
+import { youthSeasonEnd, youthStartSeason, youthSync } from './ycomp';
 import { fibraTick } from './netfibra';
 import { settleSalary } from './salary';
 import { afterMatch, calOf, newSeasonCalendar, nextMatchDay } from './calendar';
@@ -112,8 +113,8 @@ export function newCareer(input: CareerInput, seed = Date.now() % 2147483647): G
     clubs, budgets, transfers: [], morale: { ...MORALE_START }, transferList: [], loanList: [], offers: [], loans: [], news: [], divisions, teams, fixtures, results: [], history: [],
   };
   // a carreira já nasce completa (contratos, treinadores, base, objetivos): carregar o save depois não muda nada
-  if (!input.cup) return stampPayTier(ensureAiState(freezeGoals(createContinentals(career))));
-  return stampPayTier(ensureAiState(freezeGoals(createContinentals({ ...career, cup: createCup(career), estadual: createEstaduais(input.outside ? { id: input.outside.id, uf: input.outside.uf ?? 'SP' } : undefined) }))));
+  if (!input.cup) return youthStartSeason(stampPayTier(ensureAiState(freezeGoals(createContinentals(career)))));
+  return youthStartSeason(stampPayTier(ensureAiState(freezeGoals(createContinentals({ ...career, cup: createCup(career), estadual: createEstaduais(input.outside ? { id: input.outside.id, uf: input.outside.uf ?? 'SP' } : undefined) })))));
 }
 
 export const isSeasonOver = (g: GameState) => g.round > g.totalRounds && !g.mundial?.due;
@@ -220,7 +221,7 @@ function playNextSeeded(g: GameState, tactics?: Tactic[]) {
     r.state = { ...r.state, played: [...(g.played ?? []).filter((x) => x.season === g.season), entry].slice(-140) };
   }
   const st = afterMatch(g, r.state);
-  return { ...r, state: processDays(st, calOf(g).day, calOf(st).day) }; // mensalidades e vencimentos dos dias que passaram
+  return { ...r, state: youthSync(processDays(st, calOf(g).day, calOf(st).day)) }; // (as competições da base andam junto) mensalidades e vencimentos dos dias que passaram
 }
 function playNextRaw(g: GameState) {
   const ev = pendingEvent(g);
@@ -298,6 +299,7 @@ export function seasonSummary(g: GameState, out: SeasonOutcome = seasonOutcome(g
 /** Encerra a temporada: aplica acesso e rebaixamento, guarda o resumo e monta o calendário da próxima. */
 export function startNextSeason(g: GameState): GameState {
   if (!isSeasonOver(g)) return g;
+  g = youthSeasonEnd(g); // competições da base: termina o que faltar, paga prêmios e guarda a história
   // novembro, dezembro e janeiro passam antes da virada: salários e mensalidades continuam saindo (e a IA acerta o caixa depois)
   g = settleSalary(g); // rebaixado que não negociou pode levar um corte
   const calNew = newSeasonCalendar({ ...g, season: g.season + 1 });
@@ -377,7 +379,7 @@ function startNextSeasonCore(g: GameState, calNew: ReturnType<typeof newSeasonCa
   result = reputationDrift(result);                                          // reputação dos clubes: sobe devagar, só no fim da temporada
   const after = seasonEndOffers(reason ? fire(result, reason) : result, out.userPosition, promotedU);
   const started = after.unemployed ? after : postContractOffer(payTierNotice(after)); // início da temporada: aviso de nova divisão e proposta de contrato (uma vez por temporada)
-  return ensureAiState(prunePlayerMaps(started)); // clubes que entraram na pirâmide e o clube que você deixou ficam completos
+  return youthStartSeason(ensureAiState(prunePlayerMaps(started))); // (as competições da base da temporada nova) clubes que entraram na pirâmide e o clube que você deixou ficam completos
 }
 
 /** Aviso antes de virar a temporada: o treinador será demitido? (motivo ou null) */

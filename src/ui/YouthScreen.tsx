@@ -4,6 +4,7 @@ import { MAX_SQUAD } from '../engine/transfers';
 import { ensureYouth, promoteProspect, releaseProspect, stars, youthOf, youthWage, type Prospect } from '../engine/youth';
 import { academyPercent, MAX_ACADEMY_LEVEL, youthCapacity } from '../engine/academy';
 import { AcademyScreen } from './AcademyScreen';
+import { YouthComps } from './YouthComps';
 import { ATTRIBUTES, awaitingDecision, canPromoteAge, categoriesOf, categoryDef, CATEGORIES, DECISION_AGE, MIN_PRO_AGE, splitByCategory, type CategoryId } from '../engine/categories';
 import { ATTR_KIND, attrsOf, categoryCoach, dedicationLabel, dedicationOf, isStar, SPECIALTIES, specialtyLabel } from '../engine/training';
 import { starsOf } from '../engine/coaches';
@@ -24,7 +25,7 @@ export function YouthScreen({ game, onChange }: { game: GameState; onChange: (g:
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [cat, setCat] = useState<CategoryId>('sub13');
   const [open, setOpen] = useState<string | null>(null);
-  const [view, setView] = useState<'jovens' | 'treinadores' | 'academia'>('jovens');
+  const [view, setView] = useState<'jovens' | 'treinadores' | 'academia' | 'competicoes'>('jovens');
   useEffect(() => { if (!game.youth && !game.unemployed) onChange(ensureYouth(game)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const y = youthOf(game);
   const squad = game.teams[game.userClubId].players.length;
@@ -42,8 +43,8 @@ export function YouthScreen({ game, onChange }: { game: GameState; onChange: (g:
   return (
     <>
       <ScreenTitle icon="🌱" title="Categorias de base" />
-      <SubTabs items={[{ icon: '👦', label: 'Jovens', on: view === 'jovens', onClick: () => setView('jovens') }, { icon: '🧑‍🏫', label: 'Treinadores', on: view === 'treinadores', onClick: () => setView('treinadores') }, { icon: '🏫', label: 'Academia', on: view === 'academia', onClick: () => setView('academia') }]} />
-      {view === 'treinadores' ? <CoachesScreen game={game} onChange={onChange} /> : view === 'academia' ? <AcademyScreen game={game} onChange={onChange} /> : <>
+      <SubTabs items={[{ icon: '👦', label: 'Jovens', on: view === 'jovens', onClick: () => setView('jovens') }, { icon: '🧑‍🏫', label: 'Treinadores', on: view === 'treinadores', onClick: () => setView('treinadores') }, { icon: '🏫', label: 'Academia', on: view === 'academia', onClick: () => setView('academia') }, { icon: '🏆', label: 'Competições', on: view === 'competicoes', onClick: () => setView('competicoes') }]} />
+      {view === 'treinadores' ? <CoachesScreen game={game} onChange={onChange} /> : view === 'academia' ? <AcademyScreen game={game} onChange={onChange} /> : view === 'competicoes' ? <YouthComps game={game} /> : <>
       <section className="card mk-card yt-hero2">
         <img className="yt-art" src="assets/ui/academy.jpg" alt="" />
         <div className="yt-hero2-r">

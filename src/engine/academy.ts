@@ -34,8 +34,8 @@ export type FacilityLevels = Record<FacilityId, number>;
 export const START_FACILITIES: FacilityLevels = { centro: 1, fisica: 1, medico: 1, alojamento: 1, campos: 1 };
 
 /** Uma operação financeira da formação (obra ou despesa com treinadores). */
-export interface Invest { season: number; round: number; kind: 'academia' | FacilityId | 'treinador'; text: string; cost: number; from?: number; to?: number }
-export interface YouthFinance { /** total gasto em obras (academia e instalações) */ total: number; /** total gasto com treinadores (luvas, multas e folha) */ staff: number; log: Invest[] }
+export interface Invest { season: number; round: number; kind: 'academia' | FacilityId | 'treinador' | 'premio'; text: string; cost: number; from?: number; to?: number }
+export interface YouthFinance { /** total gasto em obras (academia e instalações) */ total: number; /** total gasto com treinadores (luvas, multas e folha) */ staff: number; /** total recebido em premiações das competições da base (Etapa 5) */ prizes?: number; log: Invest[] }
 export const LOG_KEEP = 120;
 
 export const facLevel = (y: Pick<YouthState, 'fac'>, f: FacilityId): number => clamp(y.fac?.[f] ?? 1, 1, MAX_FACILITY_LEVEL);
@@ -102,7 +102,8 @@ export const emptyFinance = (): YouthFinance => ({ total: 0, staff: 0, log: [] }
 /** Registra uma operação no histórico da formação (não mexe no caixa; quem chama desconta). */
 export function logSpend(y: YouthState, e: Invest): YouthState {
   const fin = y.fin ?? emptyFinance();
-  return { ...y, fin: { total: fin.total + (e.kind === 'treinador' ? 0 : e.cost), staff: fin.staff + (e.kind === 'treinador' ? e.cost : 0), log: [...fin.log, e].slice(-LOG_KEEP) } };
+  const obra = e.kind !== 'treinador' && e.kind !== 'premio';
+  return { ...y, fin: { total: fin.total + (obra ? e.cost : 0), staff: fin.staff + (e.kind === 'treinador' ? e.cost : 0), ...(e.kind === 'premio' || fin.prizes ? { prizes: (fin.prizes ?? 0) + (e.kind === 'premio' ? e.cost : 0) } : {}), log: [...fin.log, e].slice(-LOG_KEEP) } };
 }
 /** Desconta do caixa real do clube e registra, tudo junto. Sem saldo, não faz nada. */
 export function spend(g: GameState, y: YouthState, e: Invest): { ok: true; g: GameState } | { ok: false; error: string } {

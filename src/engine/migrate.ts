@@ -3,6 +3,7 @@ import { ensureAiContracts } from './aicontracts';
 import { freezeGoals } from './aigoals';
 import { ensureAiYouth, ensureAiYouthCoaches } from './aiyouth';
 import { ensureCategoryState } from './youth';
+import { createYouthComps, youthSync } from './ycomp';
 import { ensureMarketState, ensureYouthLoanState } from './aistate';
 import { computeTable } from './table';
 import { compactScorers } from './scorers';
@@ -24,7 +25,7 @@ import type { GameState, Player } from './types';
 export { SAVE_SCHEMA };
 export const SCHEMA_NOTE: Record<number, string> = {
   1: 'versão original', 2: 'IA dos clubes (contratos, treinadores, base, objetivos)', 3: 'mercado avançado (propostas, janelas de transferência)',
-  4: 'potencial dos jovens, empréstimos e histórico de contratos', 5: 'IA sem congelar (idades, artilharia, treinadores com contrato)', 6: 'overall do treinador e salário por divisão', 7: 'categorias de base (identidade e histórico dos jovens)', 8: 'treinadores das categorias de base', 9: 'estado atual do jogo (academia de 20 níveis, instalações e investimentos)',
+  4: 'potencial dos jovens, empréstimos e histórico de contratos', 5: 'IA sem congelar (idades, artilharia, treinadores com contrato)', 6: 'overall do treinador e salário por divisão', 7: 'categorias de base (identidade e histórico dos jovens)', 8: 'treinadores das categorias de base', 9: 'academia de 20 níveis, instalações e investimentos', 10: 'estado atual do jogo (competições das categorias de base)',
 };
 
 /** Que geração de save é esta? Usa o registro (`schema`) quando existe; senão deduz pelos campos que cada geração introduziu. */
@@ -66,6 +67,7 @@ export const STEPS: MigrationStep[] = [
   { id: 'artilharia', label: 'artilharia da temporada (formato compacto)', run: (g) => compactScorers(g) },
   { id: 'treinadores-base-ia', label: 'treinadores e academias das categorias de base dos clubes', run: (g) => (g.aiYouth ? ensureAiYouthCoaches(g) : g) },
   { id: 'categorias-base', label: 'categorias de base (identidade e histórico dos jovens)', run: (g) => ensureCategoryState(g) },
+  { id: 'competicoes-base', label: 'competições das categorias de base', run: (g) => (g.ycomps && g.ycompsClub === g.userClubId ? g : g.unemployed || g.observer ? g : youthSync(createYouthComps(g))) },
   { id: 'jovens-emprestimos', label: 'potencial dos jovens, minutos jogados e empréstimos', run: (g) => ensureYouthLoanState(g) },
 ];
 
