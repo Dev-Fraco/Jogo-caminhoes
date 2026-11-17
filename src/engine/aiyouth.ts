@@ -1,7 +1,10 @@
 import { avgXI, clubProfile, profileCtx } from './aiprofile';
+import { CATEGORIES, homeCategory } from './categories';
+import { coachWage, COACH_SPECS, specLabel, starsOf, type CoachSpecId } from './coaches';
+import { ratingFactor } from './training';
 import { AI_MAX_SQUAD, clubActivity, infraOf, SELLER_POOL } from './ai';
 import { calOf, toDay } from './calendar';
-import { hashString } from './rng';
+import { clamp, hashString, makeRng } from './rng';
 import { potentialOf } from './potential';
 import { homeLeague } from './homeleague';
 import { growYoung, rollPotential, startStrength } from './potential';
@@ -64,18 +67,78 @@ export function ensureAiYouth(g: GameState, rng: Rng): GameState {
     for (let i = cur.length; i < BASE_SIZE; i++) add.push(newProspect(g, id, rng, used, i + cur.length * 7));
     youth[id] = [...cur, ...add]; changed = true;
   }
-  return changed ? { ...g, aiYouth: youth } : g;
+  return ensureAiYouthCoaches(changed ? { ...g, aiYouth: youth } : g); // todo clube com base também tem os treinadores das categorias
+}
+
+/* ----------------------------- treinadores da base dos clubes da IA (Etapa 3) ----------------------------- */
+
+/** Cada clube da IA tem um treinador por categoria. Guardamos só [avaliação×10, máscara de especialidades, temporada da contratação]. */
+const maskOf = (specs: CoachSpecId[]) => specs.reduce((m, s) => m | (1 << COACH_SPECS.findIndex((x) => x.id === s)), 0);
+export const specsOfMask = (m: number): CoachSpecId[] => COACH_SPECS.filter((_, i) => m & (1 << i)).map((s) => s.id);
+/** Avaliação que a estrutura do clube costuma atrair (academia melhor = treinadores melhores). 10★ só com a academia em 100% (infra 1). */
+const aiTarget = (infra: number) => 2 + infra * 6;
+const aiRating = (infra: number, rng: Rng, around?: number) => Math.round(clamp((around ?? aiTarget(infra)) + (rng() - 0.5) * 3, 1, infra >= 1 ? 10 : 9.4) * 10);
+function newAiCoach(infra: number, rng: Rng, around?: number): [number, number, number] {
+  const n = rng() < 0.6 ? 1 : 2; const specs: CoachSpecId[] = [];
+  while (specs.length < n) { const s = COACH_SPECS[Math.floor(rng() * COACH_SPECS.length)].id; if (!specs.includes(s)) specs.push(s); }
+  return [aiRating(infra, rng, around), maskOf(specs), 0];
+}
+/** Completa os treinadores dos clubes da IA (idempotente). */
+export function ensureAiYouthCoaches(g: GameState): GameState {
+  const out = { ...(g.aiYouthCoaches ?? {}) };
+  let changed = !g.aiYouthCoaches;
+  for (const id of aiIds(g)) {
+    if (out[id]?.length === CATEGORIES.length) continue;
+    const rng = makeRng(hashString(`${id}:tc:${g.seed}`));
+    const infra = infraOf(g, id);
+    out[id] = CATEGORIES.map((_, i) => (out[id]?.[i] ?? ((): [number, number, number] => { const r = newAiCoach(infra, rng); r[2] = g.season; return r; })()));
+    changed = true;
+  }
+  return changed ? { ...g, aiYouthCoaches: out } : g;
+}
+/** Quanto o treinador da categoria do jovem acelera a evolução dele, em relação a um treinador mediano (5★). */
+export function aiCoachBoost(g: GameState, clubId: string, age: number, pos?: Position): number {
+  const cat = homeCategory(age) ?? 'sub21';
+  const rec = g.aiYouthCoaches?.[clubId]?.[CATEGORIES.findIndex((c) => c.id === cat)];
+  if (!rec) return 1;
+  let f = ratingFactor(rec[0] / 10) / ratingFactor(5);
+  const specs = specsOfMask(rec[1]);
+  const posSpec: Record<Position, CoachSpecId> = { GK: 'goleiros', DEF: 'defensores', MID: 'meias', ATT: 'atacantes' };
+  if (pos && specs.includes(posSpec[pos])) f *= 1.1;
+  return f;
+}
+/** Nome estável do treinador (não é guardado no save: sai do clube, da categoria e da temporada da contratação). */
+export function aiCoachName(clubId: string, idx: number, hired: number): string { return randomName(makeRng(hashString(`${clubId}:${idx}:${hired}:nome`)), new Set()); }
+export function aiCoachesOf(g: GameState, clubId: string): { cat: string; name: string; stars: number; specs: string[] }[] {
+  return (g.aiYouthCoaches?.[clubId] ?? []).map((r, i) => ({ cat: CATEGORIES[i].label, name: aiCoachName(clubId, i, r[2]), stars: starsOf(r[0] / 10), specs: specsOfMask(r[1]).map(specLabel) }));
+}
+/** Virada de temporada: a avaliação deles anda devagar rumo ao que o clube atrai; quem rende muito abaixo é trocado se o clube tem caixa. */
+export function aiCoachYear(g: GameState, rng: Rng): GameState {
+  const s = ensureAiYouthCoaches(g);
+  const out: Record<string, [number, number, number][]> = {};
+  for (const [id, recs] of Object.entries(s.aiYouthCoaches ?? {})) {
+    if (!s.teams[id]) continue;
+    const infra = infraOf(s, id), target = aiTarget(infra);
+    out[id] = recs.map((r) => {
+      const rating = r[0] / 10;
+      const next = clamp(rating + (target - rating) * 0.12 + (rng() - 0.5) * 0.5, 1, infra >= 1 ? 10 : 9.4);
+      if (next < target - 1.8 && (s.budgets[id] ?? 0) > coachWage(s, starsOf(target), 1) * 4) { const n = newAiCoach(infra, rng, target); n[2] = s.season; return n; } // troca por um do nível do clube
+      return [Math.round(next * 10), r[1], r[2]] as [number, number, number];
+    });
+  }
+  return { ...s, aiYouthCoaches: out };
 }
 
 /** Virada de temporada: a base cresce em direção ao potencial; quem passou da idade sem espaço sai; entram garotos novos. */
-export function developYouth(g: GameState, rng: Rng): GameState {
+export function developYouth(g0: GameState, rng: Rng): GameState {
+  const g = ensureAiYouthCoaches(g0);
   const youth: Record<string, Prospect[]> = {};
   for (const [id, list] of Object.entries(g.aiYouth ?? {})) {
     if (!g.teams[id]) continue;
     const infra = infraOf(g, id);
-    youth[id] = list.map((p) => ({ ...growYoung(p, rng, undefined, infra), pot: p.pot }));
+    youth[id] = list.map((p) => ({ ...growYoung(p, rng, undefined, infra, aiCoachBoost(g, id, p.age, p.pos)), pot: p.pot })); // o treinador da categoria acelera ou freia a evolução
   }
-  return ensureAiYouth({ ...g, aiYouth: youth }, rng);
+  return aiCoachYear(ensureAiYouth({ ...g, aiYouth: youth }, rng), rng);
 }
 
 /**

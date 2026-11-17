@@ -1,6 +1,7 @@
-import { ATTRIBUTES, attributesOf, homeCategory, type CategoryId } from './categories';
+import { ATTRIBUTES, attributesOf, homeCategory } from './categories';
 import { clamp, hashString, type Rng } from './rng';
 import type { Position } from './types';
+import type { CoachSpecId, YouthCoach } from './coaches';
 import type { Prospect, YouthState } from './youth';
 
 /* =====================================================================
@@ -52,8 +53,10 @@ export const basePointsAt = (age: number): number => (age <= 12 ? 3 : age >= 22 
 export const dedicationOf = (playerId: string): number => 0.7 + ((hashString(`${playerId}:dedicacao`) % 1000) / 1000) * 0.6;
 export const dedicationLabel = (d: number): string => (d >= 1.1 ? 'Alta' : d >= 0.85 ? 'Média' : 'Baixa');
 
+/** Níveis da academia (a Etapa 4 amplia). 100% de desenvolvimento = nível máximo. */
+export const ACADEMY_MAX_LEVEL = 5;
+export const academyPercent = (y: { level: number }): number => Math.round((clamp(y.level, 0, ACADEMY_MAX_LEVEL) / ACADEMY_MAX_LEVEL) * 100);
 export const academyFactor = (level: number): number => 0.9 + 0.05 * level;
-export const coachFactor = (quality: number): number => 0.9 + 0.06 * quality;
 export const potentialFactor = (pot: number): number => 0.8 + 0.4 * clamp((pot - 40) / 57, 0, 1);
 /** Perto do potencial a evolução desacelera; no potencial para de vez. */
 export const gapFactor = (ovr: number, pot: number): number => clamp((pot - ovr) / 10, 0, 1);
@@ -65,21 +68,63 @@ export function focusAgeFactor(focus: Specialty | undefined, age: number): numbe
   return 1;
 }
 
-/* ----------------------------- treinadores das categorias ----------------------------- */
+/* ----------------------------- treinadores das categorias (Etapa 3) ----------------------------- */
 
-export interface YouthCoach { name: string; /** 1 a 5 */ quality: number }
-export const coachOf = (y: YouthState, age: number): YouthCoach | undefined => { const c = homeCategory(age); return c ? y.coaches?.[c] : undefined; };
-export const coachQualityFor = (y: YouthState, age: number): number => coachOf(y, age)?.quality ?? 2;
-/** Qualidade de um treinador novo: depende da academia e de um traço estável da categoria. */
-export const rollCoachQuality = (seed: number, cat: CategoryId, academyLevel: number): number => clamp(1 + Math.round(academyLevel * 0.5) + (hashString(`${seed}:${cat}:treinador`) % 3), 1, 5);
+/** Treinador da categoria "de origem" do jovem (16 e 17 anos: Sub-17; 18 a 21: Sub-21). */
+export const categoryCoach = (y: YouthState, age: number): YouthCoach | undefined => { const c = homeCategory(age); return c ? y.coaches?.[c] : undefined; };
+/** Sem treinador na vaga (demitido e ainda não substituído) o treino rende bem menos. */
+export const NO_COACH_FACTOR = 0.7;
+/** Avaliação (1 a 10, com decimais) → velocidade: 1★ = 0,86 · 5★ = 1,02 · 10★ = 1,22. */
+export const ratingFactor = (rating: number): number => 0.82 + 0.04 * clamp(rating, 1, 10);
+/** Avaliação que a diretoria espera de um treinador conforme a academia (cumprir o objetivo = render isso ou mais). */
+export const expectedRating = (level: number): number => 3 + 0.8 * level;
+
+const POS_SPEC: Record<Position, CoachSpecId> = { GK: 'goleiros', DEF: 'defensores', MID: 'meias', ATT: 'atacantes' };
+const PREP_KIND: Record<'fisica' | 'tecnica' | 'tatica', Specialty> = { fisica: 'fisico', tecnica: 'tecnico', tatica: 'tatico' };
+const PREP_OF = (s: CoachSpecId): Specialty | undefined => (s === 'fisica' || s === 'tecnica' || s === 'tatica' ? PREP_KIND[s] : undefined);
+
+/** Média dos atributos de cada tipo de treino do jogador. */
+function kindMeans(p: Prospect): Record<Specialty, number> {
+  const kinds = ATTR_KIND[p.player.pos], a = attrsOf(p);
+  const out = {} as Record<Specialty, number>;
+  for (const s of SPECIALTIES) { const idx = kinds.map((k, i) => (k === s.id ? i : -1)).filter((i) => i >= 0); out[s.id] = idx.reduce((t, i) => t + a[i], 0) / Math.max(1, idx.length); }
+  return out;
+}
+
+/** O TREINADOR decide o foco de cada jovem: especialista na posição → fundamentos; com preparação (física/técnica/tática) → a dele
+ *  que mais falta ao jovem; generalista → o ponto mais fraco do jovem. Sem treinador: equilibrado. O usuário não escolhe. */
+export function assignFocus(p: Prospect, coach: YouthCoach | undefined): Specialty | undefined {
+  if (!coach) return undefined;
+  if (coach.specs.includes(POS_SPEC[p.player.pos])) return 'fundamentos';
+  const m = kindMeans(p);
+  const preps = coach.specs.map(PREP_OF).filter((x): x is Specialty => !!x);
+  const pool = preps.length ? preps : SPECIALTIES.map((x) => x.id);
+  return [...pool].sort((x, y) => m[x] - m[y])[0];
+}
+
+/** Quanto o treinador acelera (ou não) ESTE jovem: avaliação, característica profissional e especialidades que casam com ele. */
+export function coachFactorFor(coach: YouthCoach | undefined, p: Prospect): number {
+  if (!coach) return NO_COACH_FACTOR;
+  const age = p.player.age;
+  let f = ratingFactor(coach.rating);
+  if (coach.trait === 'paciente' && age <= 14) f *= 1.1;
+  else if (coach.trait === 'exigente' && age >= 16) f *= 1.07;
+  else if (coach.trait === 'revelador' && p.potential >= 75) f *= 1.08;
+  else if (coach.trait === 'metodico') f *= 1.03;
+  if (coach.specs.includes(POS_SPEC[p.player.pos])) f *= 1.15;          // especialista na posição do jovem
+  if (p.focus && coach.specs.some((x) => PREP_OF(x) === p.focus)) f *= 1.1; // o foco dele é uma preparação em que o treinador é especialista
+  return f;
+}
 
 /* ----------------------------- a barra de treino ----------------------------- */
 
-/** Pontos de overall por ano que ESTE jovem ganharia agora (já com todos os fatores). */
-export function pointsPerYear(p: Prospect, y: YouthState): number {
+/** Pontos de overall por ano que ESTE jovem ganharia agora (já com todos os fatores). `benchmark` troca o treinador real por um treinador
+ *  "esperado" (sem especialidade nem característica): é o ritmo que a diretoria espera, usado para avaliar o treinador. */
+export function pointsPerYear(p: Prospect, y: YouthState, benchmark = false): number {
   const age = p.player.age;
-  const mult = academyFactor(y.level) * coachFactor(coachQualityFor(y, age)) * potentialFactor(p.potential) * dedicationOf(p.player.id) * focusAgeFactor(p.focus, age) * gapFactor(p.player.strength, p.potential);
-  return basePointsAt(age) * clamp(mult, 0, 1.8);
+  const coachF = benchmark ? ratingFactor(expectedRating(y.level)) : coachFactorFor(categoryCoach(y, age), p);
+  const mult = academyFactor(y.level) * coachF * potentialFactor(p.potential) * dedicationOf(p.player.id) * focusAgeFactor(benchmark ? undefined : p.focus, age) * gapFactor(p.player.strength, p.potential);
+  return basePointsAt(age) * clamp(mult, 0, 2);
 }
 
 /** Atributos guardados do jovem (ou os derivados do overall, em saves antigos). */
@@ -101,7 +146,9 @@ export function distributeAttrs(attrs: readonly number[], pos: Position, focus: 
 }
 
 /** Um passo de treino (uma rodada). `ticks` = quantos passos tem a temporada. Nunca passa do potencial e nunca dá mais de +1 por passo. */
-export function trainTick(p: Prospect, y: YouthState, ticks: number): Prospect {
+export function trainTick(p0: Prospect, y: YouthState, ticks: number): Prospect {
+  const focus = assignFocus(p0, categoryCoach(y, p0.player.age)); // o treinador decide o foco
+  const p = p0.focus === focus ? p0 : { ...p0, focus };
   const ovr = p.player.strength;
   if (ovr >= p.potential) return p.train === 0 && p.exact === ovr ? p : { ...p, train: 0, exact: ovr };
   let train = (p.train ?? 0) + (pointsPerYear(p, y) / Math.max(1, ticks)) * 100;

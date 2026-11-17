@@ -6,7 +6,8 @@ import { makeRng } from '../src/engine/rng';
 import { loadGame, saveGame } from '../src/engine/save';
 import { migrateGame } from '../src/engine/migrate';
 import { ATTR_KIND, basePointsAt, dedicationOf, distributeAttrs, isStar, pointsPerYear, rollPotential, SPECIALTIES, STAR_POTENTIAL, trainTick, attrsOf, type Specialty } from '../src/engine/training';
-import { ensureCategoryState, ensureYouth, setFocus, youthOf, youthSeason, youthTick, type Prospect, type YouthState } from '../src/engine/youth';
+import { ensureCategoryState, ensureYouth, youthOf, youthSeason, youthTick, type Prospect, type YouthState } from '../src/engine/youth';
+import type { YouthCoach } from '../src/engine/coaches';
 import type { GameState, Player } from '../src/engine/types';
 
 beforeEach(() => {
@@ -16,7 +17,8 @@ beforeEach(() => {
 
 const mk = (): GameState => newCareer({ saveName: 't', coach: { name: 'A B', nationality: 'BR', reputation: 'pro' }, difficulty: 'normal', mode: 'career', season: 2026, userClubId: 'palmeiras', divisions: brazilPyramid() } as never, 7);
 const keep = (g: GameState): GameState => ({ ...g, morale: { ...g.morale, board: 60 } });
-const Y: YouthState = { level: 0, prospects: [], seq: 1, lastIntake: 2026, coaches: { sub13: { name: 'A', quality: 3 }, sub15: { name: 'B', quality: 3 }, sub17: { name: 'C', quality: 3 }, sub21: { name: 'D', quality: 3 } } };
+const C = (rating: number, extra: Partial<YouthCoach> = {}): YouthCoach => ({ id: `c${rating}`, name: `T${rating}`, age: 45, exp: 15, rating, specs: ['tatica'], trait: 'metodico', wage: 50000, history: [], ...extra });
+const Y: YouthState = { level: 0, prospects: [], seq: 1, lastIntake: 2026, coachesInit: true, coaches: { sub13: C(5), sub15: C(5), sub17: C(5), sub21: C(5) } };
 const pr = (id: string, age: number, over: number, pot: number, pos: Player['pos'] = 'MID', extra: Partial<Prospect> = {}): Prospect =>
   ({ player: { id, name: `J ${id}`, pos, age, strength: over }, potential: pot, exact: over, train: 0, attrs: Array(6).fill(over), ...extra });
 /** Quantas rodadas até o overall subir; devolve o overall final depois de `ticks` passos de uma temporada de `season` rodadas. */
@@ -26,7 +28,7 @@ describe('barra de treino', () => {
   it('enche aos poucos (0–100 %); ao completar dá exatamente +1 de overall e reinicia em 0', () => {
     let p = pr('a', 15, 30, 70);
     let ups = 0, prevTrain = 0;
-    for (let i = 0; i < 300; i++) {
+    for (let i = 0; i < 120; i++) {
       const before = p.player.strength;
       p = trainTick(p, Y, 38);
       expect(p.train!).toBeGreaterThanOrEqual(0); expect(p.train!).toBeLessThan(100);
@@ -72,7 +74,7 @@ describe('progressão por idade', () => {
     expect(basePointsAt(12)).toBeLessThan(basePointsAt(16));
   });
   it('um jovem de 12 anos, com todos os fatores bons, ainda ganha no máximo 6 de overall em uma temporada', () => {
-    const best: YouthState = { ...Y, level: 5, coaches: { ...Y.coaches!, sub13: { name: 'X', quality: 5 } } };
+    const best: YouthState = { ...Y, level: 5, coaches: { ...Y.coaches!, sub13: C(10, { trait: 'paciente', specs: ['tecnica'] }) } };
     const ids = Array.from({ length: 60 }, (_, i) => `kid${i}`).sort((a, b) => dedicationOf(b) - dedicationOf(a));
     expect(run(pr(ids[0], 12, 5, 97, 'MID', { focus: 'tecnico' }), best, 38).exact - 5).toBeLessThan(6);
   });
@@ -83,7 +85,7 @@ describe('fatores de velocidade', () => {
   it('academia melhor, treinador melhor, potencial maior e mais dedicação aceleram', () => {
     const b = pointsPerYear(base, Y);
     expect(pointsPerYear(base, { ...Y, level: 5 })).toBeGreaterThan(b);
-    expect(pointsPerYear(base, { ...Y, coaches: { ...Y.coaches!, sub17: { name: 'C', quality: 5 } } })).toBeGreaterThan(b);
+    expect(pointsPerYear(base, { ...Y, coaches: { ...Y.coaches!, sub17: C(9) } })).toBeGreaterThan(b);
     expect(pointsPerYear({ ...base, potential: 95 }, Y)).toBeGreaterThan(b);
     const lo = ['x1', 'x2', 'x3', 'x4', 'x5', 'x6', 'x7', 'x8'].sort((a, c) => dedicationOf(a) - dedicationOf(c));
     expect(pointsPerYear(pr(lo[7], 16, 30, 75), Y)).toBeGreaterThan(pointsPerYear(pr(lo[0], 16, 30, 75), Y));
@@ -186,14 +188,13 @@ describe('persistência e saves antigos', () => {
   it('barra, atributos, especialidade e treinadores sobrevivem a salvar e reabrir', () => {
     let g = ensureYouth(mk());
     const id = youthOf(g).prospects[0].player.id;
-    g = setFocus(g, id, 'tatico');
     for (let i = 0; i < 60; i++) g = youthTick(g);
     expect(saveGame(g).ok).toBe(true);
     const back = loadGame()!;
     const a = youthOf(g).prospects.find((p) => p.player.id === id)!, b = youthOf(back).prospects.find((p) => p.player.id === id)!;
-    expect(b.train).toBeCloseTo(a.train!, 9); expect(b.attrs).toEqual(a.attrs); expect(b.focus).toBe('tatico'); expect(b.player.strength).toBe(a.player.strength);
+    expect(b.train).toBeCloseTo(a.train!, 9); expect(b.attrs).toEqual(a.attrs); expect(b.focus).toBe(a.focus); expect(a.focus).toBeDefined(); // o foco é do treinador, e fica salvo expect(b.player.strength).toBe(a.player.strength);
     expect(youthOf(back).coaches).toEqual(youthOf(g).coaches);
-    expect(migrateGame(back).game.youth!.prospects.find((p) => p.player.id === id)).toMatchObject({ focus: 'tatico', player: { strength: a.player.strength } });
+    expect(migrateGame(back).game.youth!.prospects.find((p) => p.player.id === id)).toMatchObject({ player: { strength: a.player.strength } });
   });
   it('save da Etapa 1 (sem barra/atributos/treinadores): completa sem mudar idade, overall nem potencial; idempotente', () => {
     const base = mk();

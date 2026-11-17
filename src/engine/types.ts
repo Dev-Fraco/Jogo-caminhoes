@@ -419,6 +419,8 @@ export interface GameState {
   aiCoaches?: Record<string, AiCoach>;
   /** Categoria de base dos clubes da IA e empréstimos entre clubes da IA. */
   aiYouth?: Record<string, Prospect[]>;
+  /** Treinadores das categorias de base dos clubes da IA (4 por clube, na ordem Sub-13, Sub-15, Sub-17, Sub-21): [avaliação×10, máscara de especialidades, temporada da contratação]. */
+  aiYouthCoaches?: Record<string, [number, number, number][]>;
   aiLoans?: AiLoan[];
   /** Mercado avançado (todos opcionais; saves antigos abrem sem eles). */
   deals?: Deal[];

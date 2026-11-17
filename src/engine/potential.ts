@@ -65,12 +65,12 @@ export function startStrength(pot: number, age: number, rng: Rng): number {
  * Evolução anual de um jovem (até os 25 anos) em direção ao potencial. `apps` = partidas como titular na temporada (undefined = não se sabe),
  * `infra` = estrutura de formação do clube (0 a 1).
  */
-export function growYoung(p: Player, rng: Rng, apps?: number, infra = 0.5): Player {
+export function growYoung(p: Player, rng: Rng, apps?: number, infra = 0.5, boost = 1): Player {
   const age = p.age;
   const pot = potentialOf(p);
   const remaining = Math.max(0, pot - p.strength);
   const play = apps === undefined ? 1 : apps >= 15 ? 1.15 : apps >= 5 ? 1 : age >= 18 ? 0.75 : 0.9; // jogar acelera, ficar parado atrasa
-  const grow = Math.min(10, remaining * RATE(age) * devRateOf(p.id) * play * (0.9 + 0.2 * infra) + (rng() - 0.5) * 1.6); // no máximo +10 por ano: nunca explode
+  const grow = Math.min(10, remaining * RATE(age) * devRateOf(p.id) * play * (0.9 + 0.2 * infra) * boost + (rng() - 0.5) * 1.6); // no máximo +10 por ano: nunca explode
   const next = clamp(Math.round(p.strength + grow), 25, Math.max(p.strength, pot));
   return { ...p, age: age + 1, strength: next, pot };
 }

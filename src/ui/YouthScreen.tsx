@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { audio } from '../audio/audio';
 import { MAX_SQUAD } from '../engine/transfers';
-import { academyCost, ensureYouth, MAX_LEVEL, MAX_PROSPECTS, promoteProspect, releaseProspect, setFocus, stars, upgradeAcademy, youthOf, youthWage, type Prospect } from '../engine/youth';
+import { academyCost, ensureYouth, MAX_LEVEL, MAX_PROSPECTS, promoteProspect, releaseProspect, stars, upgradeAcademy, youthOf, youthWage, type Prospect } from '../engine/youth';
 import { ATTRIBUTES, awaitingDecision, canPromoteAge, categoriesOf, categoryDef, CATEGORIES, DECISION_AGE, MIN_PRO_AGE, splitByCategory, type CategoryId } from '../engine/categories';
-import { ATTR_KIND, attrsOf, coachOf, dedicationLabel, dedicationOf, isStar, SPECIALTIES, specialtyLabel, type Specialty } from '../engine/training';
+import { ATTR_KIND, attrsOf, categoryCoach, dedicationLabel, dedicationOf, isStar, SPECIALTIES, specialtyLabel } from '../engine/training';
+import { starsOf } from '../engine/coaches';
+import { CoachesScreen } from './CoachesScreen';
 import type { GameState, Position } from '../engine/types';
 import { formatBudget } from '../newgame/format';
 import { ovrClass, ScreenTitle, SubTabs } from './FmParts';
@@ -20,6 +22,7 @@ export function YouthScreen({ game, onChange }: { game: GameState; onChange: (g:
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [cat, setCat] = useState<CategoryId>('sub13');
   const [open, setOpen] = useState<string | null>(null);
+  const [view, setView] = useState<'jovens' | 'treinadores'>('jovens');
   useEffect(() => { if (!game.youth && !game.unemployed) onChange(ensureYouth(game)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const y = youthOf(game);
   const squad = game.teams[game.userClubId].players.length;
@@ -44,6 +47,8 @@ export function YouthScreen({ game, onChange }: { game: GameState; onChange: (g:
   return (
     <>
       <ScreenTitle icon="🌱" title="Categorias de base" />
+      <SubTabs items={[{ icon: '👦', label: 'Jovens', on: view === 'jovens', onClick: () => setView('jovens') }, { icon: '🧑‍🏫', label: 'Treinadores', on: view === 'treinadores', onClick: () => setView('treinadores') }]} />
+      {view === 'treinadores' ? <CoachesScreen game={game} onChange={onChange} /> : <>
       <section className="card mk-card yt-hero2">
         <img className="yt-art" src="assets/ui/academy.jpg" alt="" />
         <div className="yt-hero2-r">
@@ -60,10 +65,10 @@ export function YouthScreen({ game, onChange }: { game: GameState; onChange: (g:
         <h3><span className="yt-bar2" aria-hidden="true" />Jovens na base ({y.prospects.length}/{MAX_PROSPECTS})</h3>
         <SubTabs items={CATEGORIES.map((c) => ({ label: `${c.label} (${byCat[c.id].length})`, on: cat === c.id, onClick: () => setCat(c.id) }))} />
         <p className="hint yt-rule">{categoryDef(cat).label}: jogadores de {categoryDef(cat).minAge} a {categoryDef(cat).maxAge} anos · {byCat[cat].length} na categoria{cat === 'sub21' ? ' (inclui os de 16 e 17 anos, que também são Sub-17)' : cat === 'sub17' ? ' (os de 16 e 17 anos também podem jogar o Sub-21)' : ''}.</p>
-        {(() => { const c = y.coaches?.[cat]; return c ? <p className="hint yt-rule">🧑‍🏫 Treinador do {categoryDef(cat).label}: <b>{c.name}</b> <span className="stars">{star(c.quality)}</span> — treinador melhor acelera a barra de treino.</p> : null; })()}
+        {(() => { const c = y.coaches?.[cat]; return <p className="hint yt-rule">🧑‍🏫 Treinador do {categoryDef(cat).label}: {c ? <><b>{c.name}</b> <span className="stars">{starsOf(c.rating)}★</span></> : <b>vaga aberta</b>} — quem decide o treino é ele; veja a aba Treinadores.</p>; })()}
         {list.length === 0 && <p className="hint">Nenhum jovem no {categoryDef(cat).label} agora. {cat === 'sub13' ? 'A próxima safra chega no início da temporada.' : 'Os jovens sobem de categoria conforme a idade, a cada temporada.'}</p>}
         <ul className="yt-grid">
-          {list.map((p) => <YouthCard key={p.player.id} game={game} y={y} p={p} onFocus={(f) => onChange(setFocus(game, p.player.id, f))} open={open === p.player.id} onOpen={() => setOpen(open === p.player.id ? null : p.player.id)} onPromote={() => promote(p.player.id)} onRelease={() => onChange(releaseProspect(game, p.player.id))} />)}
+          {list.map((p) => <YouthCard key={p.player.id} game={game} y={y} p={p} open={open === p.player.id} onOpen={() => setOpen(open === p.player.id ? null : p.player.id)} onPromote={() => promote(p.player.id)} onRelease={() => onChange(releaseProspect(game, p.player.id))} />)}
         </ul>
       </section>
 
@@ -72,15 +77,16 @@ export function YouthScreen({ game, onChange }: { game: GameState; onChange: (g:
           <h3><span className="yt-bar2" aria-hidden="true" />Decisão do clube — {DECISION_AGE} anos ou mais ({decide.length})</h3>
           <p className="hint yt-rule">Esses jovens completaram {DECISION_AGE} anos e deixaram as categorias. Escolha: profissional, empréstimo ou dispensa.</p>
           <ul className="yt-grid">
-            {decide.map((p) => <YouthCard key={p.player.id} game={game} y={y} p={p} onFocus={(f) => onChange(setFocus(game, p.player.id, f))} decision open={open === p.player.id} onOpen={() => setOpen(open === p.player.id ? null : p.player.id)} onPromote={() => promote(p.player.id)} onRelease={() => onChange(releaseProspect(game, p.player.id))} />)}
+            {decide.map((p) => <YouthCard key={p.player.id} game={game} y={y} p={p} decision open={open === p.player.id} onOpen={() => setOpen(open === p.player.id ? null : p.player.id)} onPromote={() => promote(p.player.id)} onRelease={() => onChange(releaseProspect(game, p.player.id))} />)}
           </ul>
         </section>
       )}
+    </>}
     </>
   );
 }
 
-function YouthCard({ game, y, p, open, decision, onOpen, onPromote, onRelease, onFocus }: { game: GameState; y: ReturnType<typeof youthOf>; p: Prospect; onFocus: (f: Specialty | undefined) => void; open: boolean; decision?: boolean; onOpen: () => void; onPromote: () => void; onRelease: () => void }) {
+function YouthCard({ game, y, p, open, decision, onOpen, onPromote, onRelease }: { game: GameState; y: ReturnType<typeof youthOf>; p: Prospect; open: boolean; decision?: boolean; onOpen: () => void; onPromote: () => void; onRelease: () => void }) {
   const age = p.player.age;
   const cats = categoriesOf(age).map((c) => categoryDef(c).label).join(' · ');
   return (
@@ -95,15 +101,9 @@ function YouthCard({ game, y, p, open, decision, onOpen, onPromote, onRelease, o
       <small className="yt-trl">{p.player.strength >= p.potential ? 'No potencial máximo' : `Treino ${Math.floor(p.train ?? 0)}% → +1`}</small>
       {open && (
         <div className="yt-det">
-          <label className="yt-foc">Treino
-            <select value={p.focus ?? ''} onChange={(e) => onFocus((e.target.value || undefined) as Specialty | undefined)} aria-label={`Especialidade de treino de ${p.player.name}`}>
-              <option value="">Equilibrado</option>
-              {SPECIALTIES.map((sp) => <option key={sp.id} value={sp.id}>{sp.icon} {sp.label}</option>)}
-            </select>
-          </label>
-          <small>{p.focus ? SPECIALTIES.find((sp) => sp.id === p.focus)!.hint : 'Reparte o ganho igualmente entre os seis atributos.'}</small>
+          <small>{p.focus ? `Foco definido pelo treinador: ${SPECIALTIES.find((sp) => sp.id === p.focus)!.label}. ${SPECIALTIES.find((sp) => sp.id === p.focus)!.hint}` : 'Sem treinador na categoria: treino equilibrado e mais lento.'}</small>
           <ul>{attrsOf(p).map((v, i) => <li key={i} className={p.focus && ATTR_KIND[p.player.pos][i] === p.focus ? 'on' : ''}><span>{ATTRIBUTES[p.player.pos][i]}</span><b>{v}</b></li>)}</ul>
-          <small>Dedicação: <b>{dedicationLabel(dedicationOf(p.player.id))}</b> · Treinador: {coachOf(y, age)?.name ?? '—'} · Foco: {specialtyLabel(p.focus)}</small>
+          <small>Dedicação: <b>{dedicationLabel(dedicationOf(p.player.id))}</b> · Treinador: {categoryCoach(y, age)?.name ?? '—'} · Foco: {specialtyLabel(p.focus)}</small>
           <small>Na base desde {p.joined ?? '—'}{p.origin === 'anterior' ? ' (já estava antes das categorias)' : ''}.</small>
           {(p.history ?? []).slice(-4).map((h, i) => <small key={i}>{h.season}: {h.text}</small>)}
         </div>

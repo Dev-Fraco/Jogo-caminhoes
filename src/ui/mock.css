@@ -173,3 +173,28 @@
 .yt-foc { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 11px; color: #fff; }
 .yt-foc select { font: inherit; max-width: 60%; background: #1a1b20; color: #fff; border: 1px solid rgba(255,255,255,.25); border-radius: 6px; padding: 4px; }
 .yt-det li.on b { color: #ffd23f; }
+/* Treinadores da base */
+.tc-top p { margin: 0 0 8px; font-size: 12.5px; line-height: 1.4; }
+.tc-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.tc-card { display: grid; gap: 6px; padding: 10px !important; }
+.tc-card.locked { opacity: .75; }
+.tc-cat { font: italic 800 13px var(--font-head); color: #ffd23f; text-transform: uppercase; letter-spacing: .04em; }
+.tc-head { display: flex; align-items: center; gap: 10px; } .tc-head b { display: block; font: 800 14px var(--font-head); } .tc-head small { display: block; color: #cbc9c5; font-size: 11px; }
+.tc-head .face { border-radius: 10px; }
+.tc-stars b { font: 800 17px var(--font-head); color: #ffd23f; } .tc-stars i { font-style: normal; color: #cbc9c5; font-size: 11px; }
+.tc-stars span { color: #ffd23f; font-size: 11px; letter-spacing: -1px; } .tc-stars em { font-style: normal; color: rgba(255,255,255,.22); }
+.tc-specs { display: flex; flex-wrap: wrap; gap: 4px; }
+.tc-chip { font-style: normal; font-size: 10.5px; padding: 3px 7px; border-radius: 999px; border: 1px solid rgba(255,255,255,.22); }
+.tc-chip.tech { background: rgba(53,196,106,.16); border-color: rgba(53,196,106,.5); } .tc-chip.prep { background: rgba(80,150,255,.16); border-color: rgba(80,150,255,.5); }
+.tc-recent { color: #cbc9c5; font-size: 11px; } .tc-lock { color: #ffb0a0; font-weight: 700; }
+.tc-btns { display: flex; flex-wrap: wrap; gap: 6px; } .tc-btns .primary, .tc-btns .btn { flex: 1; min-width: 86px; padding: 9px 8px !important; font-size: 12px !important; }
+.tc-btns select { font: inherit; background: #1a1b20; color: #fff; border: 1px solid rgba(255,255,255,.25); border-radius: 8px; padding: 6px; }
+.tc-open, .tc-prof { display: grid; gap: 6px; padding: 12px; margin: 8px 0; } .tc-open small, .tc-prof small { font-size: 11.5px; color: #dcdad6; }
+.tc-hist { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 5px; } .tc-hist li { font-size: 12px; padding: 7px 9px; border-radius: 8px; background: rgba(255,255,255,.06); } .tc-hist b { color: #ffd23f; margin-right: 6px; }
+.tc-fire { width: 100%; margin-top: 8px; }
+.tc-chat { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 8px; }
+.tc-me { margin: 0 0 4px auto; padding: 7px 10px; border-radius: 12px 12px 2px 12px; background: #2a5bd7; color: #fff; font-size: 12.5px; width: fit-content; max-width: 88%; }
+.tc-coach { padding: 8px 10px; border-radius: 12px 12px 12px 2px; background: rgba(255,255,255,.09); max-width: 94%; } .tc-coach p { margin: 0 0 4px; font-size: 12.5px; line-height: 1.4; }
+.tc-topics { display: grid; gap: 6px; margin-bottom: 8px; } .tc-topics .btn { text-align: left; font-size: 12px; padding: 9px 10px; }
+.tc-form { display: flex; gap: 6px; } .tc-form input { flex: 1; min-width: 0; font: inherit; padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.25); background: #1a1b20; color: #fff; }
+.tc-block { margin: 8px 0; } .tc-block h4 { margin: 0 0 4px; font-size: 12px; color: #ffd23f; text-transform: uppercase; letter-spacing: .04em; } .tc-block ul { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.5; }

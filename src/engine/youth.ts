@@ -1,6 +1,7 @@
 import { ACADEMY_START_AGE, ACADEMY_START_OVERALL, canPromoteAge, homeCategory, categoryDef, MIN_PRO_AGE, needsDecision } from './categories';
 import { inflate, priceIndex } from './economy';
-import { rollCoachQuality, rollPotential, STAR_POTENTIAL, trainTick, type Specialty, type YouthCoach } from './training';
+import { ACADEMY_MAX_LEVEL, rollPotential, STAR_POTENTIAL, trainTick, type Specialty } from './training';
+import { ensureCoaches, evaluateCoaches, marketTick, midSeasonCheck, payCoaches, refreshMarket, trackSeason, upgradeLegacyCoaches, type CatLogEntry, type CoachMarket, type YouthCoach } from './coaches';
 import { attributesOf, CATEGORIES } from './categories';
 import { baseIncome } from './finance';
 import { makeRng, type Rng } from './rng';
@@ -19,17 +20,26 @@ export interface Prospect { player: Player; potential: number; exact: number;
   /** Os seis atributos (ordem de `ATTRIBUTES[pos]`), que acompanham o overall. */
   attrs?: number[];
   /** Especialidade de treino escolhida pelo usuário (sem escolha = equilibrado). */
+  /** Foco de treino: decidido pelo treinador da categoria (o usuário não escolhe). */
   focus?: Specialty;
+  /** Overall + barra no começo da temporada (mede quanto o jovem evoluiu no ano). */
+  base?: number;
   joined?: number; origin?: 'academia' | 'anterior'; history?: HistoryEntry[] }
 /** Ganchos reservados para as próximas etapas (treinamento, treinadores individuais, instalações, campeonatos de base, olheiros,
  *  contratos, empréstimos). Nada disso existe ainda: o campo só garante um lugar no save, sem mexer no que já está salvo. */
 export interface YouthModules { training?: unknown; coaches?: unknown; facilities?: unknown; competitions?: unknown; scouting?: unknown; contracts?: unknown; loans?: unknown }
 export interface YouthState { level: number; prospects: Prospect[]; seq: number; lastIntake: number; /** versão do formato da base */ schema?: number; modules?: YouthModules;
   /** Treinador de cada categoria (qualidade 1 a 5), criado automaticamente. */
-  coaches?: Partial<Record<import('./categories').CategoryId, YouthCoach>> }
-export const YOUTH_SCHEMA = 2;
+  coaches?: Partial<Record<import('./categories').CategoryId, YouthCoach>>;
+  /** Os quatro treinadores iniciais já foram criados (depois disso uma vaga só é preenchida contratando). */
+  coachesInit?: boolean;
+  /** Mercado de treinadores disponíveis (renovado de tempos em tempos). */
+  market?: CoachMarket;
+  /** Histórico de cada categoria, que continua mesmo quando o treinador muda. */
+  catLog?: Partial<Record<import('./categories').CategoryId, CatLogEntry[]>> }
+export const YOUTH_SCHEMA = 3;
 
-export const MAX_LEVEL = 5;
+export const MAX_LEVEL = ACADEMY_MAX_LEVEL;
 /** Limite de jovens na base (as quatro categorias juntas). Quem aguarda decisão aos 21 anos nunca é cortado. */
 export const MAX_PROSPECTS = 60;
 const HISTORY_MAX = 24;
@@ -53,7 +63,7 @@ function intake(g: GameState, y: YouthState, rng: Rng): YouthState {
     const age = ACADEMY_START_AGE;
     const strength = ACADEMY_START_OVERALL;
     const potential = rollPotential(rng, y.level); // ~8% estrelas (85+); o resto fica abaixo disso
-    fresh.push({ player: { id: `${g.userClubId}-y${seq++}`, name: randomName(rng, used), pos, spot: pickSpot(fresh.map((x) => x.player), pos), age, strength, pot: potential, formedAt: g.userClubId, formedSeason: g.season }, potential, exact: strength, train: 0,
+    fresh.push({ player: { id: `${g.userClubId}-y${seq++}`, name: randomName(rng, used), pos, spot: pickSpot(fresh.map((x) => x.player), pos), age, strength, pot: potential, formedAt: g.userClubId, formedSeason: g.season }, potential, exact: strength, train: 0, base: strength,
       joined: g.season, origin: 'academia', history: [{ season: g.season, text: `Chegou à academia aos ${age} anos (overall ${strength})${potential >= STAR_POTENTIAL ? ' — talento excepcional (estrela)' : ''}.` }] });
     const last = fresh[fresh.length - 1]; last.attrs = attributesOf(last.player).map((a) => a.value);
   }
@@ -67,59 +77,49 @@ function intake(g: GameState, y: YouthState, rng: Rng): YouthState {
 export function ensureCategoryState(g: GameState): GameState {
   const y = g.youth;
   if (!y) return g;
-  const done = y.schema === YOUTH_SCHEMA && CATEGORIES.every((c) => y.coaches?.[c.id]) && y.prospects.every((p) => p.origin && p.history && p.train !== undefined && p.attrs);
+  const done = y.schema === YOUTH_SCHEMA && y.coachesInit && y.market && CATEGORIES.every((c) => y.coaches?.[c.id] ? y.coaches[c.id]!.rating !== undefined : true) && y.prospects.every((p) => p.origin && p.history && p.train !== undefined && p.attrs && p.base !== undefined);
   if (done) return g;
   const prospects = y.prospects.map((p) => {
-    if (p.origin && p.history && p.train !== undefined && p.attrs) return p;
+    if (p.origin && p.history && p.train !== undefined && p.attrs && p.base !== undefined) return p;
     const train = p.train ?? Math.max(0, Math.min(99, Math.round((p.exact - p.player.strength) * 100)));
     return { ...p, origin: p.origin ?? ('anterior' as const), history: p.history ?? [{ season: g.season, text: 'Já estava na base quando o sistema de categorias foi ativado.' }], train,
-      attrs: p.attrs ?? attributesOf(p.player).map((a) => a.value), exact: Math.min(p.potential, p.player.strength + train / 100) };
+      attrs: p.attrs ?? attributesOf(p.player).map((a) => a.value), exact: Math.min(p.potential, p.player.strength + train / 100), base: p.base ?? Math.min(p.potential, p.player.strength + train / 100) };
   });
-  return { ...g, youth: ensureCoaches(g, { ...y, prospects, schema: YOUTH_SCHEMA }) };
+  const y2 = ensureCoaches(g, upgradeLegacyCoaches(g, { ...y, prospects, schema: YOUTH_SCHEMA }));
+  return { ...g, youth: y2.market ? y2 : refreshMarket(g, y2, 'full') };
 }
 
 /** Garante que a base tenha a primeira safra. */
 export function ensureYouth(g: GameState): GameState {
   if (g.youth || g.unemployed || g.observer) return g;
   const y0 = youthOf(g);
-  return { ...g, youth: ensureCoaches(g, intake(g, y0, makeRng(g.seed * 53 + g.season * 7 + 3))) };
-}
-
-/** Treinador de cada categoria: criado uma vez, com qualidade que depende da academia. Idempotente. */
-export function ensureCoaches(g: GameState, y: YouthState): YouthState {
-  if (CATEGORIES.every((c) => y.coaches?.[c.id])) return y;
-  const coaches = { ...(y.coaches ?? {}) };
-  const used = new Set<string>();
-  for (const c of CATEGORIES) {
-    if (coaches[c.id]) { used.add(coaches[c.id]!.name); continue; }
-    coaches[c.id] = { name: randomName(makeRng(g.seed * 71 + c.minAge * 13 + c.maxAge), used), quality: rollCoachQuality(g.seed, c.id, y.level) };
-    used.add(coaches[c.id]!.name);
-  }
-  return { ...y, coaches };
+  return { ...g, youth: refreshMarket(g, ensureCoaches(g, intake(g, y0, makeRng(g.seed * 53 + g.season * 7 + 3))), 'full') };
 }
 
 /** A cada rodada a barra de treino de cada jovem enche um pouco (veja training.ts). Roda sozinho durante a temporada, com ou sem a tela aberta. */
 export function youthTick(g: GameState): GameState {
   if (g.unemployed || g.observer) return g;
-  const s = ensureYouth(g);
-  const y = ensureCoaches(s, youthOf(s));
-  const ticks = Math.max(1, s.totalRounds);
-  return { ...s, youth: { ...y, prospects: y.prospects.map((p) => trainTick(p, y, ticks)) } };
-}
-
-/** Escolhe a especialidade de treino de um jovem (undefined = equilibrado). */
-export function setFocus(g: GameState, id: string, focus: Specialty | undefined): GameState {
-  const y = youthOf(g);
-  if (!y.prospects.some((p) => p.player.id === id)) return g;
-  return { ...g, youth: { ...y, prospects: y.prospects.map((p) => (p.player.id === id ? { ...p, focus } : p)) } };
+  const s0 = ensureYouth(g);
+  let y = marketTick(s0, ensureCoaches(s0, upgradeLegacyCoaches(s0, youthOf(s0))));
+  const ticks = Math.max(1, s0.totalRounds);
+  const before = y.prospects;
+  const prospects = before.map((p) => trainTick(p, y, ticks));
+  y = trackSeason({ ...y, prospects }, before, prospects, ticks); // conta o que cada treinador rendeu na temporada
+  let s: GameState = { ...s0, youth: y };
+  if (s.round === Math.floor(ticks / 2) + 1) { const m = midSeasonCheck(s, y); s = { ...m.g, youth: m.y }; }
+  return s;
 }
 
 /** Virada de temporada: todos ficam um ano mais velhos e crescem mais; quem chega aos 20 anos sai da base; entra uma safra nova. */
 export function youthSeason(g: GameState): GameState {
   if (g.unemployed || g.observer) return g;
   let s = ensureYouth(g);
-  const y = youthOf(s);
+  const y0 = youthOf(s);
   const rng = makeRng(s.seed * 61 + s.season * 13 + 9);
+  // os treinadores são avaliados ANTES de os jovens envelhecerem (com as categorias do ano que acabou); a folha deles é paga
+  const ev = evaluateCoaches(s, ensureCoaches(s, upgradeLegacyCoaches(s, y0)));
+  s = payCoaches(ev.g, ev.y);
+  const y = { ...ev.y, prospects: ev.y.prospects.map((p) => ({ ...p, base: p.exact })) };
   const moved: string[] = [], decide: string[] = [];
   const grown = y.prospects.map((p) => {
     const age = p.player.age + 1; // o overall NÃO muda na virada: ele só sobe pela barra de treino, rodada a rodada
@@ -132,7 +132,7 @@ export function youthSeason(g: GameState): GameState {
   });
   if (decide.length) s = news(s, `🌱 Aguardando decisão do clube (21 anos): ${decide.join(', ')}. Escolha entre profissional, empréstimo ou dispensa.`, 'info');
   if (moved.length) s = news(s, `🌱 ${moved.length} jovem(ns) mudaram de categoria na base.`);
-  s = { ...s, youth: intake(s, ensureCoaches(s, { ...y, prospects: grown }), rng) };
+  s = { ...s, youth: refreshMarket(s, intake(s, { ...y, prospects: grown }, rng), 'full') }; // novo ano: o mercado de treinadores se renova
   return news(s, '🌱 Nova safra da base: novos jovens chegaram às categorias de base.', 'good');
 }
 
