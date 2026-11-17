@@ -1,4 +1,5 @@
 import { autoLineup, spotFit, spotOf } from './squad';
+import { injuryDurationFactor } from './academy';
 import type { Rng } from './rng';
 import type { GameState, Injury, NewsItem, Player, TeamState } from './types';
 
@@ -102,7 +103,17 @@ export function applyInjuries(g: GameState, hits: InjuryHit[], atRound: number =
   if (!hits.length) return g;
   const injuries = { ...(g.injuries ?? {}) };
   let s = g;
-  for (const h of hits) {
+  for (const h0 of hits) {
+    let h = h0;
+    // Centro médico da base (Etapa 4): o seu clube se recupera mais rápido (leves: até −38%; graves: pouco, e nunca abaixo de 1 mês)
+    if (h0.clubId === g.userClubId && !g.unemployed && g.youth) {
+      const sev = h0.severity ?? ((h0.days ?? 0) >= 31 ? 'grave' : 'leve');
+      const f = injuryDurationFactor(g.youth, sev);
+      if (f < 1) {
+        if (h0.days) { const days = Math.max(sev === 'grave' ? 31 : 1, Math.round(h0.days * f)); h = { ...h0, days, rounds: Math.max(1, Math.ceil(days / DAYS_PER_ROUND)) }; }
+        else h = { ...h0, rounds: Math.max(1, Math.round(h0.rounds * f)) };
+      }
+    }
     const cur = injuries[h.playerId];
     if (cur && roundsLeft(g, h.playerId) >= h.rounds) continue; // já está fora por mais tempo
     injuries[h.playerId] = { season: g.season, untilRound: atRound + 1 + h.rounds, kind: h.kind, rounds: h.rounds, clubId: h.clubId, ...(h.days ? { days: h.days } : {}), ...(h.severity ? { severity: h.severity } : {}) };

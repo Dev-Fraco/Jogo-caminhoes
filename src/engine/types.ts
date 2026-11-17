@@ -421,6 +421,10 @@ export interface GameState {
   aiYouth?: Record<string, Prospect[]>;
   /** Treinadores das categorias de base dos clubes da IA (4 por clube, na ordem Sub-13, Sub-15, Sub-17, Sub-21): [avaliação×10, máscara de especialidades, temporada da contratação]. */
   aiYouthCoaches?: Record<string, [number, number, number][]>;
+  /** Academia dos clubes da IA: [nível da academia 0–20, centro de treinamento, academia física, centro médico, alojamento, campos] (instalações de 1 a 20). */
+  aiAcademy?: Record<string, number[]>;
+  /** Últimos investimentos das academias da IA (saem do caixa do clube). */
+  aiAcademyLog?: { season: number; clubId: string; text: string; cost: number }[];
   aiLoans?: AiLoan[];
   /** Mercado avançado (todos opcionais; saves antigos abrem sem eles). */
   deals?: Deal[];

@@ -1,6 +1,7 @@
 import { ATTRIBUTES, attributesOf, homeCategory } from './categories';
 import { clamp, hashString, type Rng } from './rng';
 import type { Position } from './types';
+import { academySpeed, coachSpecBonus, dedicationWith, facilityTrainingFactor, gapWindow, MAX_ACADEMY_LEVEL, potentialBonus } from './academy';
 import type { CoachSpecId, YouthCoach } from './coaches';
 import type { Prospect, YouthState } from './youth';
 
@@ -40,7 +41,7 @@ export const isStar = (p: Pick<Prospect, 'potential'>): boolean => p.potential >
 /** Potencial de um jovem novo. Talentos excepcionais (85+) são raros (~8%); a academia melhora só um pouco o restante. */
 export function rollPotential(rng: Rng, academyLevel: number): number {
   if (rng() < STAR_RATE) return STAR_POTENTIAL + Math.floor(rng() * (97 - STAR_POTENTIAL + 1));
-  return Math.min(STAR_POTENTIAL - 1, Math.round(48 + 34 * Math.pow(rng(), 0.85) + academyLevel * 1.5));
+  return Math.min(STAR_POTENTIAL - 1, Math.round(48 + 34 * Math.pow(rng(), 0.85) + potentialBonus(academyLevel)));
 }
 
 /* ----------------------------- fatores de velocidade ----------------------------- */
@@ -53,13 +54,13 @@ export const basePointsAt = (age: number): number => (age <= 12 ? 3 : age >= 22 
 export const dedicationOf = (playerId: string): number => 0.7 + ((hashString(`${playerId}:dedicacao`) % 1000) / 1000) * 0.6;
 export const dedicationLabel = (d: number): string => (d >= 1.1 ? 'Alta' : d >= 0.85 ? 'Média' : 'Baixa');
 
-/** Níveis da academia (a Etapa 4 amplia). 100% de desenvolvimento = nível máximo. */
-export const ACADEMY_MAX_LEVEL = 5;
-export const academyPercent = (y: { level: number }): number => Math.round((clamp(y.level, 0, ACADEMY_MAX_LEVEL) / ACADEMY_MAX_LEVEL) * 100);
-export const academyFactor = (level: number): number => 0.9 + 0.05 * level;
+/** A academia tem 20 níveis; 100% de desenvolvimento = nível 20 (regra dos treinadores de 10 estrelas). */
+export const ACADEMY_MAX_LEVEL = MAX_ACADEMY_LEVEL;
+export { academyPercent } from './academy';
+export const academyFactor = (level: number): number => academySpeed(level);
 export const potentialFactor = (pot: number): number => 0.8 + 0.4 * clamp((pot - 40) / 57, 0, 1);
 /** Perto do potencial a evolução desacelera; no potencial para de vez. */
-export const gapFactor = (ovr: number, pot: number): number => clamp((pot - ovr) / 10, 0, 1);
+export const gapFactor = (ovr: number, pot: number, level = 0): number => clamp((pot - ovr) / gapWindow(level), 0, 1);
 /** A especialidade rende mais ou menos conforme a idade (crianças não devem sobrecarregar o físico). */
 export function focusAgeFactor(focus: Specialty | undefined, age: number): number {
   if (focus === 'fisico') return age <= 13 ? 0.75 : age >= 16 ? 1.1 : 1;
@@ -77,7 +78,7 @@ export const NO_COACH_FACTOR = 0.7;
 /** Avaliação (1 a 10, com decimais) → velocidade: 1★ = 0,86 · 5★ = 1,02 · 10★ = 1,22. */
 export const ratingFactor = (rating: number): number => 0.82 + 0.04 * clamp(rating, 1, 10);
 /** Avaliação que a diretoria espera de um treinador conforme a academia (cumprir o objetivo = render isso ou mais). */
-export const expectedRating = (level: number): number => 3 + 0.8 * level;
+export const expectedRating = (level: number): number => 3 + 0.3 * level; // 3★ no nível 0 a 9★ no nível 20
 
 const POS_SPEC: Record<Position, CoachSpecId> = { GK: 'goleiros', DEF: 'defensores', MID: 'meias', ATT: 'atacantes' };
 const PREP_KIND: Record<'fisica' | 'tecnica' | 'tatica', Specialty> = { fisica: 'fisico', tecnica: 'tecnico', tatica: 'tatico' };
@@ -103,7 +104,7 @@ export function assignFocus(p: Prospect, coach: YouthCoach | undefined): Special
 }
 
 /** Quanto o treinador acelera (ou não) ESTE jovem: avaliação, característica profissional e especialidades que casam com ele. */
-export function coachFactorFor(coach: YouthCoach | undefined, p: Prospect): number {
+export function coachFactorFor(coach: YouthCoach | undefined, p: Prospect, y?: Pick<YouthState, 'fac'>): number {
   if (!coach) return NO_COACH_FACTOR;
   const age = p.player.age;
   let f = ratingFactor(coach.rating);
@@ -111,8 +112,9 @@ export function coachFactorFor(coach: YouthCoach | undefined, p: Prospect): numb
   else if (coach.trait === 'exigente' && age >= 16) f *= 1.07;
   else if (coach.trait === 'revelador' && p.potential >= 75) f *= 1.08;
   else if (coach.trait === 'metodico') f *= 1.03;
-  if (coach.specs.includes(POS_SPEC[p.player.pos])) f *= 1.15;          // especialista na posição do jovem
-  if (p.focus && coach.specs.some((x) => PREP_OF(x) === p.focus)) f *= 1.1; // o foco dele é uma preparação em que o treinador é especialista
+  if (coach.specs.includes(POS_SPEC[p.player.pos])) f *= 1.15 * (y ? coachSpecBonus(y, POS_SPEC[p.player.pos]) : 1); // especialista na posição do jovem (+ campos)
+  const prepSpec = p.focus ? coach.specs.find((x) => PREP_OF(x) === p.focus) : undefined;
+  if (prepSpec) f *= 1.1 * (y ? coachSpecBonus(y, prepSpec) : 1); // o foco dele é uma preparação em que o treinador é especialista (+ instalação)
   return f;
 }
 
@@ -122,9 +124,10 @@ export function coachFactorFor(coach: YouthCoach | undefined, p: Prospect): numb
  *  "esperado" (sem especialidade nem característica): é o ritmo que a diretoria espera, usado para avaliar o treinador. */
 export function pointsPerYear(p: Prospect, y: YouthState, benchmark = false): number {
   const age = p.player.age;
-  const coachF = benchmark ? ratingFactor(expectedRating(y.level)) : coachFactorFor(categoryCoach(y, age), p);
-  const mult = academyFactor(y.level) * coachF * potentialFactor(p.potential) * dedicationOf(p.player.id) * focusAgeFactor(benchmark ? undefined : p.focus, age) * gapFactor(p.player.strength, p.potential);
-  return basePointsAt(age) * clamp(mult, 0, 2);
+  const coachF = benchmark ? ratingFactor(expectedRating(y.level)) : coachFactorFor(categoryCoach(y, age), p, y);
+  const focus = benchmark ? undefined : p.focus;
+  const mult = academyFactor(y.level) * facilityTrainingFactor(y, focus) * coachF * potentialFactor(p.potential) * dedicationWith(dedicationOf(p.player.id), y) * focusAgeFactor(focus, age) * gapFactor(p.player.strength, p.potential, y.level);
+  return basePointsAt(age) * clamp(mult, 0, 2.2);
 }
 
 /** Atributos guardados do jovem (ou os derivados do overall, em saves antigos). */

@@ -73,10 +73,10 @@ describe('progressão por idade', () => {
     expect(gain(21)).toBeLessThan(gain(17));
     expect(basePointsAt(12)).toBeLessThan(basePointsAt(16));
   });
-  it('um jovem de 12 anos, com todos os fatores bons, ainda ganha no máximo 6 de overall em uma temporada', () => {
-    const best: YouthState = { ...Y, level: 5, coaches: { ...Y.coaches!, sub13: C(10, { trait: 'paciente', specs: ['tecnica'] }) } };
+  it('um jovem de 12 anos, com todos os fatores bons, ainda ganha menos de 7 de overall em uma temporada (mesmo com tudo no máximo)', () => {
+    const best: YouthState = { ...Y, level: 20, fac: { centro: 20, fisica: 20, medico: 20, alojamento: 20, campos: 20 }, coaches: { ...Y.coaches!, sub13: C(10, { trait: 'paciente', specs: ['tecnica'] }) } };
     const ids = Array.from({ length: 60 }, (_, i) => `kid${i}`).sort((a, b) => dedicationOf(b) - dedicationOf(a));
-    expect(run(pr(ids[0], 12, 5, 97, 'MID', { focus: 'tecnico' }), best, 38).exact - 5).toBeLessThan(6);
+    expect(run(pr(ids[0], 12, 5, 97, 'MID', { focus: 'tecnico' }), best, 38).exact - 5).toBeLessThan(7);
   });
 });
 
@@ -84,7 +84,7 @@ describe('fatores de velocidade', () => {
   const base = pr('g1', 16, 30, 75);
   it('academia melhor, treinador melhor, potencial maior e mais dedicação aceleram', () => {
     const b = pointsPerYear(base, Y);
-    expect(pointsPerYear(base, { ...Y, level: 5 })).toBeGreaterThan(b);
+    expect(pointsPerYear(base, { ...Y, level: 12 })).toBeGreaterThan(b);
     expect(pointsPerYear(base, { ...Y, coaches: { ...Y.coaches!, sub17: C(9) } })).toBeGreaterThan(b);
     expect(pointsPerYear({ ...base, potential: 95 }, Y)).toBeGreaterThan(b);
     const lo = ['x1', 'x2', 'x3', 'x4', 'x5', 'x6', 'x7', 'x8'].sort((a, c) => dedicationOf(a) - dedicationOf(c));

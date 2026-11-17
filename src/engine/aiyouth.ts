@@ -2,6 +2,9 @@ import { avgXI, clubProfile, profileCtx } from './aiprofile';
 import { CATEGORIES, homeCategory } from './categories';
 import { coachWage, COACH_SPECS, specLabel, starsOf, type CoachSpecId } from './coaches';
 import { ratingFactor } from './training';
+import { academyCostAt, facilityCostAt, FACILITIES, MAX_ACADEMY_LEVEL, MAX_FACILITY_LEVEL } from './academy';
+import { baseIncome } from './finance';
+import { priceIndex } from './economy';
 import { AI_MAX_SQUAD, clubActivity, infraOf, SELLER_POOL } from './ai';
 import { calOf, toDay } from './calendar';
 import { clamp, hashString, makeRng } from './rng';
@@ -46,7 +49,7 @@ export const loanedIds = (g: GameState): Set<string> => new Set([...g.loans.map(
 function newProspect(g: GameState, clubId: string, rng: Rng, used: Set<string>, n: number): Prospect {
   const t = g.teams[clubId];
   const level = avgXI(t);
-  const infra = infraOf(g, clubId);
+  const infra = aiInfra(g, clubId);
   const short = [...POSITIONS].sort((a, b) => (SHAPE[b] - t.players.filter((p) => p.pos === b).length) - (SHAPE[a] - t.players.filter((p) => p.pos === a).length));
   const pos = rng() < 0.5 ? short[0] : POSITIONS[Math.floor(rng() * 4)];
   const { pot } = rollPotential(rng, infra, level);
@@ -70,6 +73,54 @@ export function ensureAiYouth(g: GameState, rng: Rng): GameState {
   return ensureAiYouthCoaches(changed ? { ...g, aiYouth: youth } : g); // todo clube com base também tem os treinadores das categorias
 }
 
+/* ----------------------------- academias dos clubes da IA (Etapa 4) ----------------------------- */
+
+const incomeOf = (g: GameState, id: string) => baseIncome(divisionIndexOf(g, id), g.clubs[id]?.reputation ?? 2, priceIndex(g));
+/** Completa a academia de cada clube da IA (idempotente). Clubes grandes começam na frente; ninguém começa no nível máximo. */
+export function ensureAiAcademies(g: GameState): GameState {
+  const out = { ...(g.aiAcademy ?? {}) };
+  let changed = !g.aiAcademy;
+  for (const id of aiIds(g)) {
+    if (out[id]?.length === 6) continue;
+    const infra = infraOf(g, id);
+    const level = clamp(Math.round(infra * 13) + (hashString(`${id}:ac:${g.seed}`) % 5) - 2, 0, 18);
+    out[id] = [level, ...FACILITIES.map((f) => clamp(Math.round(1 + infra * 9) + (hashString(`${id}:${f.id}:${g.seed}`) % 3) - 1, 1, 16))];
+    changed = true;
+  }
+  return changed ? { ...g, aiAcademy: out } : g;
+}
+/** Estrutura de formação (0 a 1) a partir do nível da academia; 1 só no nível 20. */
+export const aiInfra = (g: GameState, id: string): number => { const a = g.aiAcademy?.[id]; return a ? clamp(0.15 + 0.85 * (a[0] / MAX_ACADEMY_LEVEL), 0, 1) : infraOf(g, id); };
+/** Bônus das instalações do clube rival sobre a evolução dos jovens. */
+export const aiFacilityBoost = (g: GameState, id: string): number => { const a = g.aiAcademy?.[id]; return a ? 1 + 0.006 * ((a.slice(1).reduce((t, v) => t + v, 0) / 5) - 1) : 1; };
+
+/** Virada de temporada: cada clube avalia a necessidade e investe SE tiver caixa (sobra uma reserva de 5 obras); no máximo uma melhoria da academia e uma de instalação por ano. */
+export function aiAcademyYear(g0: GameState, rng: Rng): GameState {
+  const g = ensureAiAcademies(g0);
+  const academy = { ...(g.aiAcademy ?? {}) };
+  const budgets = { ...g.budgets };
+  const log = [...(g.aiAcademyLog ?? [])];
+  for (const id of aiIds(g)) {
+    const rec = academy[id];
+    if (!rec || !g.clubs[id]) continue;
+    const rep = g.clubs[id].reputation, inc = incomeOf(g, id);
+    const target = clamp(3 + rep * 3 + (divisionIndexOf(g, id) === 0 ? 1 : 0), 4, 19);   // clubes de maior reputação querem estrutura maior
+    const next = [...rec];
+    let cash = budgets[id] ?? 0;
+    const cost = academyCostAt(inc, rec[0]);
+    if (rec[0] < Math.min(target, MAX_ACADEMY_LEVEL) && cash - cost >= cost * 5 && rng() < 0.55) {
+      cash -= cost; next[0] = rec[0] + 1; log.push({ season: g.season, clubId: id, text: `Academia: nível ${rec[0]} → ${next[0]}`, cost });
+    }
+    const lowest = FACILITIES.map((f, i) => ({ f, i: i + 1, l: rec[i + 1] })).sort((a, b) => a.l - b.l)[0];
+    const fc = facilityCostAt(inc, lowest.f.id, lowest.l);
+    if (lowest.l < Math.min(MAX_FACILITY_LEVEL, 1 + Math.round(next[0] * 0.8)) && cash - fc >= fc * 5 && rng() < 0.45) {
+      cash -= fc; next[lowest.i] = lowest.l + 1; log.push({ season: g.season, clubId: id, text: `${lowest.f.label}: nível ${lowest.l} → ${next[lowest.i]}`, cost: fc });
+    }
+    if (cash !== (budgets[id] ?? 0)) { budgets[id] = cash; academy[id] = next; }
+  }
+  return { ...g, aiAcademy: academy, budgets, aiAcademyLog: log.slice(-60) };
+}
+
 /* ----------------------------- treinadores da base dos clubes da IA (Etapa 3) ----------------------------- */
 
 /** Cada clube da IA tem um treinador por categoria. Guardamos só [avaliação×10, máscara de especialidades, temporada da contratação]. */
@@ -84,13 +135,14 @@ function newAiCoach(infra: number, rng: Rng, around?: number): [number, number, 
   return [aiRating(infra, rng, around), maskOf(specs), 0];
 }
 /** Completa os treinadores dos clubes da IA (idempotente). */
-export function ensureAiYouthCoaches(g: GameState): GameState {
+export function ensureAiYouthCoaches(g0: GameState): GameState {
+  const g = ensureAiAcademies(g0);
   const out = { ...(g.aiYouthCoaches ?? {}) };
-  let changed = !g.aiYouthCoaches;
+  let changed = !g.aiYouthCoaches || g !== g0;
   for (const id of aiIds(g)) {
     if (out[id]?.length === CATEGORIES.length) continue;
     const rng = makeRng(hashString(`${id}:tc:${g.seed}`));
-    const infra = infraOf(g, id);
+    const infra = aiInfra(g, id);
     out[id] = CATEGORIES.map((_, i) => (out[id]?.[i] ?? ((): [number, number, number] => { const r = newAiCoach(infra, rng); r[2] = g.season; return r; })()));
     changed = true;
   }
@@ -118,7 +170,7 @@ export function aiCoachYear(g: GameState, rng: Rng): GameState {
   const out: Record<string, [number, number, number][]> = {};
   for (const [id, recs] of Object.entries(s.aiYouthCoaches ?? {})) {
     if (!s.teams[id]) continue;
-    const infra = infraOf(s, id), target = aiTarget(infra);
+    const infra = aiInfra(s, id), target = aiTarget(infra);
     out[id] = recs.map((r) => {
       const rating = r[0] / 10;
       const next = clamp(rating + (target - rating) * 0.12 + (rng() - 0.5) * 0.5, 1, infra >= 1 ? 10 : 9.4);
@@ -135,10 +187,10 @@ export function developYouth(g0: GameState, rng: Rng): GameState {
   const youth: Record<string, Prospect[]> = {};
   for (const [id, list] of Object.entries(g.aiYouth ?? {})) {
     if (!g.teams[id]) continue;
-    const infra = infraOf(g, id);
-    youth[id] = list.map((p) => ({ ...growYoung(p, rng, undefined, infra, aiCoachBoost(g, id, p.age, p.pos)), pot: p.pot })); // o treinador da categoria acelera ou freia a evolução
+    const infra = aiInfra(g, id), fb = aiFacilityBoost(g, id);
+    youth[id] = list.map((p) => ({ ...growYoung(p, rng, undefined, infra, aiCoachBoost(g, id, p.age, p.pos) * fb), pot: p.pot })); // o treinador da categoria acelera ou freia a evolução
   }
-  return aiCoachYear(ensureAiYouth({ ...g, aiYouth: youth }, rng), rng);
+  return aiCoachYear(aiAcademyYear(ensureAiYouth({ ...g, aiYouth: youth }, rng), rng), rng);
 }
 
 /**

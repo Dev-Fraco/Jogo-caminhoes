@@ -2,6 +2,7 @@ import { CATEGORIES, categoryDef, homeCategory, type CategoryId } from './catego
 import { inflate } from './economy';
 import { clamp, hashString, makeRng, type Rng } from './rng';
 import { randomName } from './squad';
+import { logSpend, marketBias, spend } from './academy';
 import { ACADEMY_MAX_LEVEL, academyPercent, expectedRating, pointsPerYear } from './training';
 import type { GameState, NewsItem } from './types';
 import type { Prospect, YouthState } from './youth';
@@ -76,16 +77,19 @@ export const hireFee = (c: YouthCoach): number => Math.round((c.wage * 0.3) / 10
 export const severance = (c: YouthCoach): number => Math.round((c.wage * 0.25) / 1000) * 1000;
 
 const STAR_WEIGHTS = [6, 9, 12, 14, 16, 14, 12, 9, 6, 2]; // 1★ a 10★ (10★ é raro)
-function rollStars(rng: Rng): number {
-  const t = STAR_WEIGHTS.reduce((a, b) => a + b, 0); let r = rng() * t;
-  for (let i = 0; i < STAR_WEIGHTS.length; i++) { r -= STAR_WEIGHTS[i]; if (r < 0) return i + 1; }
+/** Academia melhor atrai treinadores melhores: os pesos das estrelas altas crescem com o nível (e os das baixas diminuem). */
+function rollStars(rng: Rng, level = 0): number {
+  const b = marketBias(level);
+  const w = STAR_WEIGHTS.map((x, i) => Math.max(0.2, x * (1 + b * (i + 1 - 5.5) * 0.28)) * (i === 9 && level >= ACADEMY_MAX_LEVEL ? 2 : 1));
+  const t = w.reduce((a, c) => a + c, 0); let r = rng() * t;
+  for (let i = 0; i < w.length; i++) { r -= w[i]; if (r < 0) return i + 1; }
   return 5;
 }
 const TRAIT_IDS = Object.keys(COACH_TRAITS) as CoachTrait[];
 
 /** Gera um treinador. `stars` fixo ou sorteado; especialidades (1 a 3) e característica sorteadas. */
-export function genCoach(g: GameState, rng: Rng, used: Set<string>, opts: { stars?: number; specs?: CoachSpecId[]; trait?: CoachTrait } = {}): YouthCoach {
-  const stars = opts.stars ?? rollStars(rng);
+export function genCoach(g: GameState, rng: Rng, used: Set<string>, opts: { stars?: number; specs?: CoachSpecId[]; trait?: CoachTrait; level?: number } = {}): YouthCoach {
+  const stars = opts.stars ?? rollStars(rng, opts.level ?? g.youth?.level ?? 0);
   const n = opts.specs?.length ?? (rng() < 0.55 ? 1 : rng() < 0.78 ? 2 : 3);
   const pool = COACH_SPECS.map((s) => s.id);
   const specs: CoachSpecId[] = opts.specs ? [...opts.specs] : [];
@@ -129,7 +133,7 @@ export function refreshMarket(g: GameState, y: YouthState, mode: 'full' | 'parti
   const keepList = mode === 'full' ? [] : (y.market?.list ?? []).filter((_, i) => i % 5 >= 2);
   const used = new Set([...employedIds(y), ...Object.values(y.coaches ?? {}).map((c) => c!.name), ...keepList.map((c) => c.name)]);
   const list = [...keepList];
-  while (list.length < MARKET_SIZE) list.push(genCoach(g, rng, used));
+  while (list.length < MARKET_SIZE) list.push(genCoach(g, rng, used, { level: y.level }));
   return { ...y, market: { key: mkey(g, `${mode}:${g.round}`), list: list.sort((a, b) => b.rating - a.rating) } };
 }
 /** Garante um mercado e o renova nas janelas (a cada 12 rodadas). */
@@ -156,7 +160,9 @@ export function hireCoach(g: GameState, cat: CategoryId, candidateId: string): C
   const hired: YouthCoach = { ...note(c, g.season, `Contratado para o ${categoryDef(cat).label}.`), hiredSeason: g.season, season: { gained: 0, expected: 0 } };
   let ny: YouthState = { ...y, coaches: { ...(y.coaches ?? {}), [cat]: hired }, market: { ...y.market!, list: y.market!.list.filter((x) => x.id !== c.id) } };
   ny = addLog(ny, cat, g.season, `${c.name} (${starsOf(c.rating)}★) assumiu o ${categoryDef(cat).label}.`);
-  const s: GameState = { ...g, youth: ny, budgets: { ...g.budgets, [g.userClubId]: g.budgets[g.userClubId] - fee } };
+  const paid = spend(g, ny, { season: g.season, round: g.round, kind: 'treinador', text: `Luvas de ${c.name} (${categoryDef(cat).label})`, cost: fee });
+  if (!paid.ok) return paid;
+  const s: GameState = paid.g;
   return { ok: true, state: news(s, `🧑‍🏫 ${c.name} (${starsOf(c.rating)}★) é o novo treinador do ${categoryDef(cat).label}.`, 'good') };
 }
 
@@ -170,7 +176,9 @@ export function dismissCoach(g: GameState, cat: CategoryId, why: 'demissao' | 's
   const coaches = { ...(y.coaches ?? {}) }; delete coaches[cat];
   let ny: YouthState = { ...y, coaches };
   ny = addLog(ny, cat, g.season, why === 'demissao' ? `${c.name} foi demitido do ${categoryDef(cat).label}.` : `${c.name} deixou o ${categoryDef(cat).label}.`);
-  const s: GameState = { ...g, youth: ny, budgets: { ...g.budgets, [g.userClubId]: g.budgets[g.userClubId] - cost } };
+  const paid = spend(g, ny, { season: g.season, round: g.round, kind: 'treinador', text: why === 'demissao' ? `Multa pela demissão de ${c.name}` : `Saída de ${c.name} (sem multa)`, cost });
+  if (!paid.ok) return paid;
+  const s: GameState = paid.g;
   return { ok: true, state: news(s, why === 'demissao' ? `🧑‍🏫 ${c.name} foi demitido do ${categoryDef(cat).label}. A vaga está aberta: escolha outro treinador no mercado.` : `🧑‍🏫 ${c.name} pediu demissão do ${categoryDef(cat).label} por falta de resultados. Contrate outro treinador.`, why === 'demissao' ? 'info' : 'bad') };
 }
 
@@ -250,8 +258,8 @@ export function evaluateCoaches(g: GameState, y: YouthState): { g: GameState; y:
 /** Folha anual dos treinadores: paga na virada de temporada. */
 export function payCoaches(g: GameState, y: YouthState): GameState {
   const total = Object.values(y.coaches ?? {}).reduce((t, c) => t + (c?.wage ?? 0), 0);
-  if (total <= 0) return g;
-  const s: GameState = { ...g, budgets: { ...g.budgets, [g.userClubId]: g.budgets[g.userClubId] - total } };
+  if (total <= 0) return { ...g, youth: y };
+  const s: GameState = { ...g, budgets: { ...g.budgets, [g.userClubId]: g.budgets[g.userClubId] - total }, youth: logSpend(y, { season: g.season, round: g.round, kind: 'treinador', text: `Folha anual dos treinadores da base (${Object.keys(y.coaches ?? {}).length})`, cost: total }) };
   return news(s, `🧑‍🏫 Folha dos treinadores da base paga: R$ ${(total / 1000).toLocaleString('pt-BR')} mil.`);
 }
 

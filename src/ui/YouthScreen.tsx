@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { audio } from '../audio/audio';
 import { MAX_SQUAD } from '../engine/transfers';
-import { academyCost, ensureYouth, MAX_LEVEL, MAX_PROSPECTS, promoteProspect, releaseProspect, stars, upgradeAcademy, youthOf, youthWage, type Prospect } from '../engine/youth';
+import { ensureYouth, promoteProspect, releaseProspect, stars, youthOf, youthWage, type Prospect } from '../engine/youth';
+import { academyPercent, MAX_ACADEMY_LEVEL, youthCapacity } from '../engine/academy';
+import { AcademyScreen } from './AcademyScreen';
 import { ATTRIBUTES, awaitingDecision, canPromoteAge, categoriesOf, categoryDef, CATEGORIES, DECISION_AGE, MIN_PRO_AGE, splitByCategory, type CategoryId } from '../engine/categories';
 import { ATTR_KIND, attrsOf, categoryCoach, dedicationLabel, dedicationOf, isStar, SPECIALTIES, specialtyLabel } from '../engine/training';
 import { starsOf } from '../engine/coaches';
@@ -22,11 +24,10 @@ export function YouthScreen({ game, onChange }: { game: GameState; onChange: (g:
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [cat, setCat] = useState<CategoryId>('sub13');
   const [open, setOpen] = useState<string | null>(null);
-  const [view, setView] = useState<'jovens' | 'treinadores'>('jovens');
+  const [view, setView] = useState<'jovens' | 'treinadores' | 'academia'>('jovens');
   useEffect(() => { if (!game.youth && !game.unemployed) onChange(ensureYouth(game)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const y = youthOf(game);
   const squad = game.teams[game.userClubId].players.length;
-  const cost = academyCost(game);
   const POS_ORDER: Position[] = ['GK', 'DEF', 'MID', 'ATT'];
   const byCat = splitByCategory(y.prospects);
   const sortList = (l: Prospect[]) => [...l].sort((a, b) => POS_ORDER.indexOf(a.player.pos) - POS_ORDER.indexOf(b.player.pos) || b.potential - a.potential);
@@ -38,31 +39,25 @@ export function YouthScreen({ game, onChange }: { game: GameState; onChange: (g:
     if (!r.ok) { setMsg({ text: r.error, ok: false }); audio.sfx('error'); return; }
     onChange(r.state); audio.sfx('cash'); setMsg({ text: 'Jovem promovido ao elenco principal!', ok: true });
   };
-  const upgrade = () => {
-    const r = upgradeAcademy(game);
-    if (!r.ok) { setMsg({ text: r.error, ok: false }); audio.sfx('error'); return; }
-    onChange(r.state); audio.sfx('cash'); setMsg({ text: 'Academia melhorada!', ok: true });
-  };
-
   return (
     <>
       <ScreenTitle icon="🌱" title="Categorias de base" />
-      <SubTabs items={[{ icon: '👦', label: 'Jovens', on: view === 'jovens', onClick: () => setView('jovens') }, { icon: '🧑‍🏫', label: 'Treinadores', on: view === 'treinadores', onClick: () => setView('treinadores') }]} />
-      {view === 'treinadores' ? <CoachesScreen game={game} onChange={onChange} /> : <>
+      <SubTabs items={[{ icon: '👦', label: 'Jovens', on: view === 'jovens', onClick: () => setView('jovens') }, { icon: '🧑‍🏫', label: 'Treinadores', on: view === 'treinadores', onClick: () => setView('treinadores') }, { icon: '🏫', label: 'Academia', on: view === 'academia', onClick: () => setView('academia') }]} />
+      {view === 'treinadores' ? <CoachesScreen game={game} onChange={onChange} /> : view === 'academia' ? <AcademyScreen game={game} onChange={onChange} /> : <>
       <section className="card mk-card yt-hero2">
         <img className="yt-art" src="assets/ui/academy.jpg" alt="" />
         <div className="yt-hero2-r">
-          <div className="yt-lv"><b>Academia</b><span>Nível {y.level} / {MAX_LEVEL}</span></div>
-          <div className="cp-bar" role="progressbar" aria-valuenow={y.level} aria-valuemin={0} aria-valuemax={MAX_LEVEL}><i style={{ width: `${(y.level / MAX_LEVEL) * 100}%` }} /></div>
-          <p>Academia melhor = safras maiores (4 + nível jovens) e barra de treino mais rápida (cada 100% = +1 de overall). Toda temporada chega uma safra nova de jovens de 12 anos. Promoção ao profissional só a partir dos 16; aos 21 o clube decide.</p>
+          <div className="yt-lv"><b>Academia</b><span>Nível {y.level} / {MAX_ACADEMY_LEVEL}</span></div>
+          <div className="cp-bar" role="progressbar" aria-valuenow={academyPercent(y)} aria-valuemin={0} aria-valuemax={100}><i style={{ width: `${academyPercent(y)}%` }} /></div>
+          <p>Academia de {MAX_ACADEMY_LEVEL} níveis: safras maiores, treino mais rápido e treinadores melhores. Toda temporada chega uma safra de jovens de 12 anos. Promoção ao profissional só a partir dos 16; aos 21 o clube decide.</p>
         </div>
-        <button className="primary mk-big" disabled={y.level >= MAX_LEVEL} onClick={upgrade}>{y.level >= MAX_LEVEL ? 'Nível máximo' : `⏫ Melhorar a academia · ${formatBudget(cost)}`}</button>
+        <button className="primary mk-big" onClick={() => setView('academia')}>🏫 Gerenciar academia e instalações</button>
         <div className="yt-info"><span>🏦 Caixa: <b>{formatBudget(game.budgets[game.userClubId])}</b></span><span>👥 Elenco principal: <b>{squad}/{MAX_SQUAD}</b></span></div>
         {msg && <p className={`shop-msg ${msg.ok ? 'ok' : 'bad'}`} role="status">{msg.text}</p>}
       </section>
 
       <section className="mk-sec">
-        <h3><span className="yt-bar2" aria-hidden="true" />Jovens na base ({y.prospects.length}/{MAX_PROSPECTS})</h3>
+        <h3><span className="yt-bar2" aria-hidden="true" />Jovens na base ({y.prospects.length}/{youthCapacity(y)})</h3>
         <SubTabs items={CATEGORIES.map((c) => ({ label: `${c.label} (${byCat[c.id].length})`, on: cat === c.id, onClick: () => setCat(c.id) }))} />
         <p className="hint yt-rule">{categoryDef(cat).label}: jogadores de {categoryDef(cat).minAge} a {categoryDef(cat).maxAge} anos · {byCat[cat].length} na categoria{cat === 'sub21' ? ' (inclui os de 16 e 17 anos, que também são Sub-17)' : cat === 'sub17' ? ' (os de 16 e 17 anos também podem jogar o Sub-21)' : ''}.</p>
         {(() => { const c = y.coaches?.[cat]; return <p className="hint yt-rule">🧑‍🏫 Treinador do {categoryDef(cat).label}: {c ? <><b>{c.name}</b> <span className="stars">{starsOf(c.rating)}★</span></> : <b>vaga aberta</b>} — quem decide o treino é ele; veja a aba Treinadores.</p>; })()}

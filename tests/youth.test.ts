@@ -59,7 +59,7 @@ describe('categorias de base', () => {
     expect(academyCost(g)).toBeGreaterThan(cost);
     expect(upgradeAcademy({ ...g, budgets: { ...g.budgets, palmeiras: 0 } })).toMatchObject({ ok: false });
     let m = { ...g, budgets: { ...g.budgets, palmeiras: 1e12 } };
-    for (let i = 0; i < 8; i++) { const x = upgradeAcademy(m); if (x.ok) m = x.state; }
+    for (let i = 0; i < 25; i++) { const x = upgradeAcademy(m); if (x.ok) m = x.state; }
     expect(youthOf(m).level).toBe(MAX_LEVEL);
     expect(upgradeAcademy(m)).toMatchObject({ ok: false });
     const next = youthSeason(m);

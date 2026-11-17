@@ -1,12 +1,12 @@
 import { ACADEMY_START_AGE, ACADEMY_START_OVERALL, canPromoteAge, homeCategory, categoryDef, MIN_PRO_AGE, needsDecision } from './categories';
-import { inflate, priceIndex } from './economy';
+import { inflate } from './economy';
+import { academyCost, intakeCount, START_FACILITIES, upgradeAcademy, youthCapacity, type FacilityLevels, type YouthFinance } from './academy';
 import { ACADEMY_MAX_LEVEL, rollPotential, STAR_POTENTIAL, trainTick, type Specialty } from './training';
 import { ensureCoaches, evaluateCoaches, marketTick, midSeasonCheck, payCoaches, refreshMarket, trackSeason, upgradeLegacyCoaches, type CatLogEntry, type CoachMarket, type YouthCoach } from './coaches';
 import { attributesOf, CATEGORIES } from './categories';
-import { baseIncome } from './finance';
 import { makeRng, type Rng } from './rng';
 import { pickSpot, randomName } from './squad';
-import { divisionIndexOf, MAX_SQUAD } from './transfers';
+import { MAX_SQUAD } from './transfers';
 import type { GameState, NewsItem, Player, Position } from './types';
 
 /** Fato da vida do jovem na base (entrada, mudança de categoria, decisão pendente...). */
@@ -31,22 +31,26 @@ export interface YouthModules { training?: unknown; coaches?: unknown; facilitie
 export interface YouthState { level: number; prospects: Prospect[]; seq: number; lastIntake: number; /** versão do formato da base */ schema?: number; modules?: YouthModules;
   /** Treinador de cada categoria (qualidade 1 a 5), criado automaticamente. */
   coaches?: Partial<Record<import('./categories').CategoryId, YouthCoach>>;
+  /** Níveis das cinco instalações (1 a 20). */
+  fac?: FacilityLevels;
+  /** Histórico e totais dos investimentos da formação. */
+  fin?: YouthFinance;
   /** Os quatro treinadores iniciais já foram criados (depois disso uma vaga só é preenchida contratando). */
   coachesInit?: boolean;
   /** Mercado de treinadores disponíveis (renovado de tempos em tempos). */
   market?: CoachMarket;
   /** Histórico de cada categoria, que continua mesmo quando o treinador muda. */
   catLog?: Partial<Record<import('./categories').CategoryId, CatLogEntry[]>> }
-export const YOUTH_SCHEMA = 3;
+export const YOUTH_SCHEMA = 4;
 
 export const MAX_LEVEL = ACADEMY_MAX_LEVEL;
 /** Limite de jovens na base (as quatro categorias juntas). Quem aguarda decisão aos 21 anos nunca é cortado. */
-export const MAX_PROSPECTS = 60;
+export const MAX_PROSPECTS = 60; // base; o alojamento acrescenta vagas (youthCapacity)
 const HISTORY_MAX = 24;
 const note = (p: Prospect, season: number, text: string): Prospect => ({ ...p, history: [...(p.history ?? []), { season, text }].slice(-HISTORY_MAX) });
 const POS_BAG: Position[] = ['GK', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'ATT', 'ATT'];
 
-export const youthOf = (g: GameState): YouthState => g.youth ?? { level: 0, prospects: [], seq: 1, lastIntake: -1, schema: YOUTH_SCHEMA };
+export const youthOf = (g: GameState): YouthState => g.youth ?? { level: 0, prospects: [], seq: 1, lastIntake: -1, schema: YOUTH_SCHEMA, fac: { ...START_FACILITIES }, fin: { total: 0, staff: 0, log: [] } };
 const news = (g: GameState, text: string, tone: NewsItem['tone'] = 'info'): GameState => ({ ...g, news: [{ season: g.season, round: g.round, text, tone }, ...g.news].slice(0, 80) });
 
 /** Estrelas de potencial (1–5). */
@@ -55,7 +59,7 @@ export const stars = (potential: number) => Math.max(1, Math.min(5, Math.round((
 /** Nova safra: mais jovens e melhores conforme o nível da academia. */
 function intake(g: GameState, y: YouthState, rng: Rng): YouthState {
   const used = new Set([...g.teams[g.userClubId].players.map((p) => p.name), ...y.prospects.map((p) => p.player.name)]);
-  const count = 4 + y.level;
+  const count = intakeCount(y.level); // academia melhor = safra maior
   const fresh: Prospect[] = [];
   let seq = y.seq;
   for (let i = 0; i < count; i++) {
@@ -68,7 +72,7 @@ function intake(g: GameState, y: YouthState, rng: Rng): YouthState {
     const last = fresh[fresh.length - 1]; last.attrs = attributesOf(last.player).map((a) => a.value);
   }
   const pending = y.prospects.filter((p) => needsDecision(p.player.age)); // quem aguarda decisão do clube nunca é cortado
-  const rest = [...y.prospects.filter((p) => !needsDecision(p.player.age)), ...fresh].sort((a, b) => b.potential - a.potential).slice(0, MAX_PROSPECTS);
+  const rest = [...y.prospects.filter((p) => !needsDecision(p.player.age)), ...fresh].sort((a, b) => b.potential - a.potential).slice(0, youthCapacity(y));
   return { ...y, prospects: [...pending, ...rest], seq, lastIntake: g.season, schema: YOUTH_SCHEMA };
 }
 
@@ -77,7 +81,7 @@ function intake(g: GameState, y: YouthState, rng: Rng): YouthState {
 export function ensureCategoryState(g: GameState): GameState {
   const y = g.youth;
   if (!y) return g;
-  const done = y.schema === YOUTH_SCHEMA && y.coachesInit && y.market && CATEGORIES.every((c) => y.coaches?.[c.id] ? y.coaches[c.id]!.rating !== undefined : true) && y.prospects.every((p) => p.origin && p.history && p.train !== undefined && p.attrs && p.base !== undefined);
+  const done = y.schema === YOUTH_SCHEMA && !!y.fac && !!y.fin && y.coachesInit && y.market && CATEGORIES.every((c) => y.coaches?.[c.id] ? y.coaches[c.id]!.rating !== undefined : true) && y.prospects.every((p) => p.origin && p.history && p.train !== undefined && p.attrs && p.base !== undefined);
   if (done) return g;
   const prospects = y.prospects.map((p) => {
     if (p.origin && p.history && p.train !== undefined && p.attrs && p.base !== undefined) return p;
@@ -85,7 +89,7 @@ export function ensureCategoryState(g: GameState): GameState {
     return { ...p, origin: p.origin ?? ('anterior' as const), history: p.history ?? [{ season: g.season, text: 'Já estava na base quando o sistema de categorias foi ativado.' }], train,
       attrs: p.attrs ?? attributesOf(p.player).map((a) => a.value), exact: Math.min(p.potential, p.player.strength + train / 100), base: p.base ?? Math.min(p.potential, p.player.strength + train / 100) };
   });
-  const y2 = ensureCoaches(g, upgradeLegacyCoaches(g, { ...y, prospects, schema: YOUTH_SCHEMA }));
+  const y2 = ensureCoaches(g, upgradeLegacyCoaches(g, { ...y, prospects, schema: YOUTH_SCHEMA, fac: y.fac ?? { ...START_FACILITIES }, fin: y.fin ?? { total: 0, staff: 0, log: [] } }));
   return { ...g, youth: y2.market ? y2 : refreshMarket(g, y2, 'full') };
 }
 
@@ -119,7 +123,7 @@ export function youthSeason(g: GameState): GameState {
   // os treinadores são avaliados ANTES de os jovens envelhecerem (com as categorias do ano que acabou); a folha deles é paga
   const ev = evaluateCoaches(s, ensureCoaches(s, upgradeLegacyCoaches(s, y0)));
   s = payCoaches(ev.g, ev.y);
-  const y = { ...ev.y, prospects: ev.y.prospects.map((p) => ({ ...p, base: p.exact })) };
+  const y = { ...s.youth!, prospects: s.youth!.prospects.map((p) => ({ ...p, base: p.exact })) }; // (a folha paga já foi registrada no histórico)
   const moved: string[] = [], decide: string[] = [];
   const grown = y.prospects.map((p) => {
     const age = p.player.age + 1; // o overall NÃO muda na virada: ele só sobe pela barra de treino, rodada a rodada
@@ -159,13 +163,5 @@ export function releaseProspect(g: GameState, id: string): GameState {
   return { ...g, youth: { ...y, prospects: y.prospects.filter((x) => x.player.id !== id) } };
 }
 
-export const academyCost = (g: GameState) => Math.round((0.08 * baseIncome(divisionIndexOf(g, g.userClubId), g.clubs[g.userClubId].reputation, priceIndex(g)) * (youthOf(g).level + 1)) / 10_000) * 10_000;
-
-export function upgradeAcademy(g: GameState): YouthResult {
-  const y = youthOf(g);
-  if (y.level >= MAX_LEVEL) return { ok: false, error: 'A academia já está no nível máximo.' };
-  const cost = academyCost(g);
-  if ((g.budgets[g.userClubId] ?? 0) < cost) return { ok: false, error: 'O clube não tem caixa para a obra.' };
-  const s: GameState = { ...g, budgets: { ...g.budgets, [g.userClubId]: g.budgets[g.userClubId] - cost }, youth: { ...y, level: y.level + 1 } };
-  return { ok: true, state: news(s, `🌱 Academia da base melhorada (nível ${y.level + 1}): mais jovens, melhores e crescendo mais rápido.`, 'good') };
-}
+/** Custo e melhoria da academia (20 níveis, custo triplo da tabela original) e das instalações: veja academy.ts. */
+export { academyCost, upgradeAcademy };

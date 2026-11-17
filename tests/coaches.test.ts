@@ -82,11 +82,11 @@ describe('treinadores de 10 estrelas × academia 100%', () => {
     const d = dismissCoach(s, 'sub21'); if (!d.ok) throw new Error(d.error);
     return { g: d.state, id: c.id };
   };
-  it('com a academia abaixo de 100% a contratação é bloqueada, em todos os níveis de 0 a 4', () => {
-    for (let level = 0; level < 5; level++) {
+  it('com a academia abaixo de 100% a contratação é bloqueada, em todos os níveis de 0 a 19', () => {
+    for (let level = 0; level < 20; level++) {
       const base = mk(); const { g, id } = ten(base);
       const s = { ...g, youth: { ...youthOf(g), level } };
-      expect(academyPercent(youthOf(s))).toBe(level * 20);
+      expect(academyPercent(youthOf(s))).toBe(level * 5);
       const r = hireCoach(s, 'sub21', id);
       expect(r.ok, `nível ${level}`).toBe(false);
       if (!r.ok) expect(r.error).toMatch(/100%/);
@@ -95,7 +95,7 @@ describe('treinadores de 10 estrelas × academia 100%', () => {
   });
   it('com a academia em 100% o treinador de 10 estrelas pode ser contratado', () => {
     const { g, id } = ten(mk());
-    const s = { ...g, youth: { ...youthOf(g), level: 5 } };
+    const s = { ...g, youth: { ...youthOf(g), level: 20 } };
     expect(academyPercent(youthOf(s))).toBe(100);
     const r = hireCoach(s, 'sub21', id);
     if (!r.ok) throw new Error(r.error);
