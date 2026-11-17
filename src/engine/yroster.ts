@@ -1,9 +1,10 @@
-import { categoryDef, categoriesOf, type CategoryId, CATEGORIES } from './categories';
+import { categoryDef, categoriesOf, homeCategory, type CategoryId, CATEGORIES } from './categories';
 import { facilityTrainingFactor, START_FACILITIES, academySpeed, dedicationWith, type FacilityLevels } from './academy';
 import { clamp, hashString, makeRng } from './rng';
 import { autoLineup, randomName, pickSpot } from './squad';
 import { basePointsAt, dedicationOf, gapFactor, potentialFactor, ratingFactor, rollPotential, categoryCoach } from './training';
 import { youthOf, type Prospect } from './youth';
+import type { YMove } from './ymarket';
 import type { GameState, Player, Position, TeamState } from './types';
 
 /* =====================================================================
@@ -19,13 +20,13 @@ export const MIN_ROSTER = 11;            // atletas elegíveis para inscrever o 
 export const COHORT_SIZE = 9;            // atletas de cada turma (idade) nos clubes da IA
 const SLOT_POS: Position[] = ['GK', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'ATT', 'ATT'];
 
-export interface YQuality { level: number; fac: FacilityLevels; coach: number }
+export interface YQuality { level: number; fac: FacilityLevels; coach: number; /** qualidade dos olheiros/peneiras do clube (0 a 10): melhora o potencial de quem ele descobre */ scout: number }
 
 /** Estrutura de formação de um clube (academia, instalações e treinador da categoria): a real do seu clube, a da IA, ou uma estimada pela reputação. */
 export function qualityOf(g: GameState, clubId: string, cat: CategoryId): YQuality {
   if (clubId === g.userClubId && g.youth) {
     const y = g.youth;
-    return { level: y.level, fac: { ...START_FACILITIES, ...(y.fac ?? {}) }, coach: y.coaches?.[cat]?.rating ?? 0 };
+    return { level: y.level, fac: { ...START_FACILITIES, ...(y.fac ?? {}) }, coach: y.coaches?.[cat]?.rating ?? 0, scout: 0 };
   }
   const rep = g.clubs[clubId]?.reputation ?? g.foreign?.clubs[clubId]?.reputation ?? 1;
   const ac = g.aiAcademy?.[clubId];
@@ -33,7 +34,8 @@ export function qualityOf(g: GameState, clubId: string, cat: CategoryId): YQuali
   const co = g.aiYouthCoaches?.[clubId]?.[idx];
   const level = ac ? ac[0] : clamp(Math.round(rep * 2.6), 0, 18);
   const fac: FacilityLevels = ac ? { centro: ac[1], fisica: ac[2], medico: ac[3], alojamento: ac[4], campos: ac[5] } : { centro: 1 + rep, fisica: 1 + rep, medico: 1 + rep, alojamento: 1 + rep, campos: 1 + rep };
-  return { level, fac, coach: co ? co[0] / 10 : clamp(2 + rep * 1.1, 1, 9) };
+  const sc = g.aiScouting?.[clubId];
+  return { level, fac, coach: co ? co[0] / 10 : clamp(2 + rep * 1.1, 1, 9), scout: sc ? sc[0] + (sc[1] === g.season ? 1 : 0) : 0 };
 }
 
 /** Nome estável de um atleta da IA (sai só do id). */
@@ -54,27 +56,60 @@ export function aiOverall(id: string, pot: number, age: number, frac: number, q:
 
 const CACHE = new Map<string, Player[]>();
 const bucket = (frac: number) => Math.round(clamp(frac, 0, 1) * 20);
+const SIG = new WeakMap<object, string>();
+/** Assinatura de quem mudou de clube (para o cache de elencos). */
+const movesSig = (g: GameState): string => { if (!g.ymoves) return '-'; let v = SIG.get(g.ymoves); if (!v) { v = String(hashString(Object.entries(g.ymoves).map(([k, m]) => `${k}>${m.club}`).join('|'))); SIG.set(g.ymoves, v); } return v; };
 
-/** Todos os atletas do clube elegíveis (pela idade) à categoria: os reais do seu clube ou a base derivada da IA. */
+/** Id de um jovem da base de um clube da IA: clube~ano de nascimento~vaga. */
+export const parseDerived = (id: string): { club: string; born: number; j: number } | undefined => { const m = /^(.+)~(\d+)~(\d)$/.exec(id); return m ? { club: m[1], born: Number(m[2]), j: Number(m[3]) } : undefined; };
+/** Potencial de um jovem da IA (do id; a estrutura do clube melhora o sorteio). */
+const derivedPot = (id: string, q: YQuality): number => rollPotential(makeRng(hashString(`${id}:pot`)), q.level + q.scout * 0.6);
+
+/** O jogador da base da IA a partir do id (idade da temporada atual); `undefined` se já passou da idade da base. */
+export function derivedPlayer(g: GameState, id: string, frac: number): Player | undefined {
+  const d = parseDerived(id);
+  if (!d) return undefined;
+  const age = g.season - d.born;
+  if (age < 12 || age > 21) return undefined;
+  const q = qualityOf(g, d.club, homeCategory(age) ?? 'sub21');
+  const pot = derivedPot(id, q);
+  return { id, name: youthName(id), pos: SLOT_POS[d.j], age, strength: aiOverall(id, pot, age, frac, q), pot };
+}
+
+/** Jogador que veio do SEU clube e agora está em outro (foto do momento da saída, seguindo a mesma evolução). */
+function fromSnap(g: GameState, id: string, m: YMove, frac: number): Player | undefined {
+  if (!m.snap) return undefined;
+  const [name, pos, age0, strength0, pot, season0] = m.snap;
+  const age = age0 + (g.season - season0);
+  if (age > 21) return undefined;
+  const q = qualityOf(g, m.club, homeCategory(age) ?? 'sub21');
+  return { id, name, pos, age, strength: Math.max(strength0, Math.min(pot, aiOverall(id, pot, age, frac, q))), pot };
+}
+
+/** Todos os atletas do clube elegíveis (pela idade) à categoria: os reais do seu clube ou a base derivada da IA (menos quem saiu, mais quem chegou). */
 export function rosterOf(g: GameState, clubId: string, cat: CategoryId, frac: number): Player[] {
   const def = categoryDef(cat);
   if (clubId === g.userClubId && !g.unemployed && !g.observer) {
     const y = youthOf(g);
-    return y.prospects.filter((p) => p.player.age >= def.minAge && p.player.age <= def.maxAge).map((p) => p.player);
+    return y.prospects.filter((p) => !p.loanedTo && p.player.age >= def.minAge && p.player.age <= def.maxAge).map((p) => p.player);
   }
-  const key = `${clubId}|${cat}|${g.season}|${bucket(frac)}|${g.aiAcademy?.[clubId]?.[0] ?? '-'}|${g.aiYouthCoaches?.[clubId]?.[CATEGORIES.findIndex((c) => c.id === cat)]?.[0] ?? '-'}`;
+  const key = `${clubId}|${cat}|${g.season}|${bucket(frac)}|${g.aiAcademy?.[clubId]?.[0] ?? '-'}|${g.aiYouthCoaches?.[clubId]?.[CATEGORIES.findIndex((c) => c.id === cat)]?.[0] ?? '-'}|${g.aiScouting?.[clubId]?.[0] ?? '-'}|${movesSig(g)}`;
   const hit = CACHE.get(key);
   if (hit) return hit;
-  const q = qualityOf(g, clubId, cat);
   const out: Player[] = [];
   for (let age = def.minAge; age <= def.maxAge; age++) {
     const born = g.season - age;
     for (let j = 0; j < COHORT_SIZE; j++) {
       const id = `${clubId}~${born}~${j}`;
-      const pos = SLOT_POS[j];
-      const pot = rollPotential(makeRng(hashString(`${id}:pot`)), q.level);
-      out.push({ id, name: youthName(id), pos, age, strength: aiOverall(id, pot, age, frac, q), pot });
+      if (g.ymoves?.[id]) continue;                                   // saiu (vendido ou emprestado)
+      const pl = derivedPlayer(g, id, frac);
+      if (pl) out.push(pl);
     }
+  }
+  for (const [id, m] of Object.entries(g.ymoves ?? {})) {            // chegou (comprado ou emprestado)
+    if (m.club !== clubId) continue;
+    const pl = m.snap ? fromSnap(g, id, m, frac) : derivedPlayer(g, id, frac);
+    if (pl && pl.age >= def.minAge && pl.age <= def.maxAge) out.push(pl);
   }
   for (const p of out) p.spot = pickSpot(out.filter((x) => x !== p && x.spot), p.pos);
   if (CACHE.size > 6000) CACHE.clear();

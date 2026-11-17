@@ -181,13 +181,15 @@ const seasonFrac = (g: GameState) => clamp((g.round - 1) / Math.max(1, g.totalRo
 const clubIdxOf = (c: YComp) => new Map(c.clubs.map((id, i) => [id, i]));
 const koWinnerOf = (c: YComp, x: YMatch): string => (x[3] !== x[4] ? (x[3] > x[4] ? c.clubs[x[1]] : c.clubs[x[2]]) : x[5] > x[6] ? c.clubs[x[1]] : c.clubs[x[2]]);
 const nameOfPlayer = (id: string, c: YComp): string => c.nm[id] ?? youthName(id);
-export const clubOfPlayer = (_c: Pick<YComp, 'clubs'>, id: string, userClub: string): string => (id.includes('~') ? id.split('~')[0] : userClub);
+/** Clube pelo qual o jogador atuou por último na competição (acompanha as transferências); sem jogos, pelo id. */
+export const clubOfPlayer = (c: Pick<YComp, 'clubs'> & { st?: Record<string, YStat> }, id: string, userClub: string): string => { const i = c.st?.[id]?.[9]; return i !== undefined && c.clubs[i] ? c.clubs[i] : id.includes('~') ? id.split('~')[0] : userClub; };
 
-function bump(c: YComp, p: Player, f: { g?: number; a?: number; j?: number; m?: number; y?: number; r?: number; gc?: number }, mine: boolean): void {
-  const cur = c.st[p.id] ? [...c.st[p.id]] : [0, 0, 0, 0, 0, 0, 0, POS_CODE[p.pos], p.age]; // cópia: o estado anterior não muda
+function bump(c: YComp, p: Player, f: { g?: number; a?: number; j?: number; m?: number; y?: number; r?: number; gc?: number }, clubId: string): void {
+  const cur = c.st[p.id] ? [...c.st[p.id]] : [0, 0, 0, 0, 0, 0, 0, POS_CODE[p.pos], p.age, 0]; // cópia: o estado anterior não muda
+  cur[9] = Math.max(0, c.clubs.indexOf(clubId));
   cur[0] += f.g ?? 0; cur[1] += f.a ?? 0; cur[2] += f.j ?? 0; cur[3] += f.m ?? 0; cur[4] += f.y ?? 0; cur[5] += f.r ?? 0; cur[6] += f.gc ?? 0;
   c.st[p.id] = cur;
-  if (mine) c.nm[p.id] = p.name;
+  if (p.name !== youthName(p.id)) c.nm[p.id] = p.name; // nomes que não saem do id (jovens seus e de quem saiu do seu clube)
 }
 
 interface MatchOut { hg: number; ag: number; ph: number; pa: number; wo: number }
@@ -201,28 +203,27 @@ function playOne(g: GameState, c: YComp, homeId: string, awayId: string, rng: Rn
   const out = simulateMatch(ht, at, rng, mods, { home: clubOf(g, homeId)?.name ?? homeId, away: clubOf(g, awayId)?.name ?? awayId });
   const lineH = ht.lineup.map((id) => ht.players.find((p) => p.id === id)!), lineA = at.lineup.map((id) => at.players.find((p) => p.id === id)!);
   const mins = new Map<string, number>([...lineH, ...lineA].map((p) => [p.id, 90]));
-  const mineH = homeId === g.userClubId, mineA = awayId === g.userClubId;
   const byName = (list: Player[], name?: string) => list.find((p) => p.name === name);
   const squadOf = (side: 'home' | 'away') => (side === 'home' ? ht : at).players;
   const subs = new Map<string, Player>(); // reservas que entraram (lesão em campo): contam jogo e alguns minutos
   const gkOf = (list: Player[]) => list.find((p) => p.pos === 'GK') ?? list[0];
   const goalsAgainst = new Map<string, number>();
-  const tally = (list: Player[], mine: boolean, e: (typeof out.events)[number], opp: Player[]) => {
+  const tally = (list: Player[], cid: string, e: (typeof out.events)[number], opp: Player[]) => {
     const p = byName(list, e.player) ?? byName(squadOf(e.side as 'home' | 'away'), e.player);
     if (p && !mins.has(p.id)) { mins.set(p.id, 30); subs.set(p.id, p); }
     if (e.type === 'goal' && p) {
-      bump(c, p, { g: 1 }, mine);
+      bump(c, p, { g: 1 }, cid);
       const m = /\((?:cruzamento|assistência) de ([^)]+)\)/.exec(e.text);
       const helper = m ? byName(list, m[1]) ?? byName(squadOf(e.side as 'home' | 'away'), m[1]) : undefined;
       if (helper && !mins.has(helper.id)) { mins.set(helper.id, 30); subs.set(helper.id, helper); }
-      if (helper) bump(c, helper, { a: 1 }, mine);
+      if (helper) bump(c, helper, { a: 1 }, cid);
       const gk = gkOf(opp); goalsAgainst.set(gk.id, (goalsAgainst.get(gk.id) ?? 0) + 1);
-    } else if (e.type === 'yellow' && p) bump(c, p, { y: 1 }, mine);
-    else if (e.type === 'red' && p) { bump(c, p, { r: 1 }, mine); mins.set(p.id, Math.min(mins.get(p.id) ?? 90, e.minute)); }
+    } else if (e.type === 'yellow' && p) bump(c, p, { y: 1 }, cid);
+    else if (e.type === 'red' && p) { bump(c, p, { r: 1 }, cid); mins.set(p.id, Math.min(mins.get(p.id) ?? 90, e.minute)); }
   };
-  for (const e of out.events) { if (e.side === 'home') tally(lineH, mineH, e, lineA); else if (e.side === 'away') tally(lineA, mineA, e, lineH); }
-  for (const p of [...lineH, ...[...subs.values()].filter((x) => ht.players.includes(x))]) bump(c, p, { j: 1, m: mins.get(p.id) ?? 90, gc: goalsAgainst.get(p.id) ?? 0 }, mineH);
-  for (const p of [...lineA, ...[...subs.values()].filter((x) => at.players.includes(x))]) bump(c, p, { j: 1, m: mins.get(p.id) ?? 90, gc: goalsAgainst.get(p.id) ?? 0 }, mineA);
+  for (const e of out.events) { if (e.side === 'home') tally(lineH, homeId, e, lineA); else if (e.side === 'away') tally(lineA, awayId, e, lineH); }
+  for (const p of [...lineH, ...[...subs.values()].filter((x) => ht.players.includes(x))]) bump(c, p, { j: 1, m: mins.get(p.id) ?? 90, gc: goalsAgainst.get(p.id) ?? 0 }, homeId);
+  for (const p of [...lineA, ...[...subs.values()].filter((x) => at.players.includes(x))]) bump(c, p, { j: 1, m: mins.get(p.id) ?? 90, gc: goalsAgainst.get(p.id) ?? 0 }, awayId);
   ht.lineup.forEach((id) => busy.add(id)); at.lineup.forEach((id) => busy.add(id));
   let ph = 0, pa = 0;
   if (ko && out.homeGoals === out.awayGoals) { const homeWins = rng() < 0.5; const w = 4 + Math.floor(rng() * 2), l = 2 + Math.floor(rng() * 2); ph = homeWins ? w : l; pa = homeWins ? l : w; }

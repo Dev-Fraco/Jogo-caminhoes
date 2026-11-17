@@ -1,6 +1,7 @@
 import { ATTRIBUTES, attributesOf, homeCategory } from './categories';
 import { clamp, hashString, type Rng } from './rng';
 import type { Position } from './types';
+import { personalityBoost } from './ycontract';
 import { academySpeed, coachSpecBonus, dedicationWith, facilityTrainingFactor, gapWindow, MAX_ACADEMY_LEVEL, potentialBonus } from './academy';
 import type { CoachSpecId, YouthCoach } from './coaches';
 import type { Prospect, YouthState } from './youth';
@@ -126,7 +127,7 @@ export function pointsPerYear(p: Prospect, y: YouthState, benchmark = false): nu
   const age = p.player.age;
   const coachF = benchmark ? ratingFactor(expectedRating(y.level)) : coachFactorFor(categoryCoach(y, age), p, y);
   const focus = benchmark ? undefined : p.focus;
-  const mult = academyFactor(y.level) * facilityTrainingFactor(y, focus) * coachF * potentialFactor(p.potential) * dedicationWith(dedicationOf(p.player.id), y) * focusAgeFactor(focus, age) * gapFactor(p.player.strength, p.potential, y.level);
+  const mult = academyFactor(y.level) * facilityTrainingFactor(y, focus) * coachF * potentialFactor(p.potential) * dedicationWith(dedicationOf(p.player.id), y) * focusAgeFactor(focus, age) * gapFactor(p.player.strength, p.potential, y.level) * (1 + personalityBoost(p)); // personalidade: pouco (±8%)
   return basePointsAt(age) * clamp(mult, 0, 2.2);
 }
 

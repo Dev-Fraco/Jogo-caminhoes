@@ -37,7 +37,7 @@ describe('categorias de base', () => {
     const t = r.state.teams.palmeiras;
     const p = t.players.find((x) => x.id === id)!;
     expect(p.contract?.wage).toBeGreaterThan(10_000);
-    expect(p.contract!.until).toBe(g.season + 3);
+    expect(p.contract!.until).toBe(g.season + 2); // mantém o contrato de formação (3 anos desde a chegada)
     expect(youthOf(r.state).prospects.some((x) => x.player.id === id)).toBe(false);
     expect(promoteProspect(r.state, id).ok).toBe(false);
     const full = { ...g, teams: { ...g.teams, palmeiras: { ...g.teams.palmeiras, players: Array.from({ length: MAX_SQUAD }, (_, i) => ({ ...g.teams.palmeiras.players[0], id: `f${i}` })) } } };

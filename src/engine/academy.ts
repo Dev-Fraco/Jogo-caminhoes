@@ -34,8 +34,8 @@ export type FacilityLevels = Record<FacilityId, number>;
 export const START_FACILITIES: FacilityLevels = { centro: 1, fisica: 1, medico: 1, alojamento: 1, campos: 1 };
 
 /** Uma operação financeira da formação (obra ou despesa com treinadores). */
-export interface Invest { season: number; round: number; kind: 'academia' | FacilityId | 'treinador' | 'premio'; text: string; cost: number; from?: number; to?: number }
-export interface YouthFinance { /** total gasto em obras (academia e instalações) */ total: number; /** total gasto com treinadores (luvas, multas e folha) */ staff: number; /** total recebido em premiações das competições da base (Etapa 5) */ prizes?: number; log: Invest[] }
+export interface Invest { season: number; round: number; kind: 'academia' | FacilityId | 'treinador' | 'premio' | 'olheiro' | 'peneira' | 'salario' | 'contratacao' | 'renovacao' | 'multa' | 'compra' | 'venda' | 'emprestimo'; /** entrada de dinheiro (não é gasto) */ income?: boolean; text: string; cost: number; from?: number; to?: number }
+export interface YouthFinance { /** total gasto em obras (academia e instalações) */ total: number; /** total gasto com treinadores (luvas, multas e folha) */ staff: number; /** total recebido em premiações das competições da base (Etapa 5) */ prizes?: number; /** gastos e receitas por tipo (Etapa 6) */ by?: Record<string, number>; inc?: Record<string, number>; log: Invest[] }
 export const LOG_KEEP = 120;
 
 export const facLevel = (y: Pick<YouthState, 'fac'>, f: FacilityId): number => clamp(y.fac?.[f] ?? 1, 1, MAX_FACILITY_LEVEL);
@@ -102,14 +102,22 @@ export const emptyFinance = (): YouthFinance => ({ total: 0, staff: 0, log: [] }
 /** Registra uma operação no histórico da formação (não mexe no caixa; quem chama desconta). */
 export function logSpend(y: YouthState, e: Invest): YouthState {
   const fin = y.fin ?? emptyFinance();
-  const obra = e.kind !== 'treinador' && e.kind !== 'premio';
-  return { ...y, fin: { total: fin.total + (obra ? e.cost : 0), staff: fin.staff + (e.kind === 'treinador' ? e.cost : 0), ...(e.kind === 'premio' || fin.prizes ? { prizes: (fin.prizes ?? 0) + (e.kind === 'premio' ? e.cost : 0) } : {}), log: [...fin.log, e].slice(-LOG_KEEP) } };
+  const income = !!e.income || e.kind === 'premio';
+  const obra = e.kind === 'academia' || FACILITIES.some((f) => f.id === e.kind);
+  const by = { ...(fin.by ?? {}) }, inc = { ...(fin.inc ?? {}) };
+  if (income) inc[e.kind] = (inc[e.kind] ?? 0) + e.cost; else by[e.kind] = (by[e.kind] ?? 0) + e.cost;
+  return { ...y, fin: { total: fin.total + (obra ? e.cost : 0), staff: fin.staff + (e.kind === 'treinador' ? e.cost : 0), ...(e.kind === 'premio' || fin.prizes ? { prizes: (fin.prizes ?? 0) + (e.kind === 'premio' ? e.cost : 0) } : {}), by, inc, log: [...fin.log, e].slice(-LOG_KEEP) } };
 }
 /** Desconta do caixa real do clube e registra, tudo junto. Sem saldo, não faz nada. */
 export function spend(g: GameState, y: YouthState, e: Invest): { ok: true; g: GameState } | { ok: false; error: string } {
   if (e.cost < 0) return { ok: false, error: 'Valor inválido.' };
   if ((g.budgets[g.userClubId] ?? 0) < e.cost) return { ok: false, error: `O clube não tem caixa (${money(e.cost)} necessários, ${money(g.budgets[g.userClubId] ?? 0)} disponíveis).` };
   return { ok: true, g: { ...g, budgets: { ...g.budgets, [g.userClubId]: g.budgets[g.userClubId] - e.cost }, youth: logSpend(y, e) } };
+}
+
+/** Entra dinheiro no caixa real e no histórico (vendas, empréstimos, compensações). */
+export function receive(g: GameState, y: YouthState, e: Omit<Invest, 'income'>): GameState {
+  return { ...g, budgets: { ...g.budgets, [g.userClubId]: (g.budgets[g.userClubId] ?? 0) + e.cost }, youth: logSpend(y, { ...e, income: true }) };
 }
 
 export type AcademyResult = { ok: true; state: GameState } | { ok: false; error: string };

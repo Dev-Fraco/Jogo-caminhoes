@@ -198,7 +198,9 @@ describe('caixa real e histórico', () => {
     const n = youthSeason({ ...g, round: g.totalRounds + 1 });
     expect(youthOf(n).fin!.log.some((e) => /Folha/.test(e.text))).toBe(true);
     const wages = Object.values(youthOf(g).coaches!).reduce((t, c) => t + c!.wage, 0);
-    expect(g.budgets.palmeiras - n.budgets.palmeiras).toBe(wages);
+    const coachFolha = youthOf(n).fin!.log.filter((e) => /Folha anual dos treinadores/.test(e.text)).reduce((t, e) => t + e.cost, 0);
+    expect(coachFolha).toBe(wages);                                                  // a folha dos treinadores sai do caixa e é registrada
+    expect(g.budgets.palmeiras - n.budgets.palmeiras).toBeGreaterThanOrEqual(wages); // (a folha dos jovens também sai: Etapa 6)
   });
   it('o painel mostra nível, %, caixa, próximo custo, instalações, histórico e total investido', () => {
     let g = mk(); const r = upgradeAcademy(g); if (!r.ok) throw new Error(r.error); g = r.state;

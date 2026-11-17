@@ -25,7 +25,7 @@ import type { GameState, Player } from './types';
 export { SAVE_SCHEMA };
 export const SCHEMA_NOTE: Record<number, string> = {
   1: 'versão original', 2: 'IA dos clubes (contratos, treinadores, base, objetivos)', 3: 'mercado avançado (propostas, janelas de transferência)',
-  4: 'potencial dos jovens, empréstimos e histórico de contratos', 5: 'IA sem congelar (idades, artilharia, treinadores com contrato)', 6: 'overall do treinador e salário por divisão', 7: 'categorias de base (identidade e histórico dos jovens)', 8: 'treinadores das categorias de base', 9: 'academia de 20 níveis, instalações e investimentos', 10: 'estado atual do jogo (competições das categorias de base)',
+  4: 'potencial dos jovens, empréstimos e histórico de contratos', 5: 'IA sem congelar (idades, artilharia, treinadores com contrato)', 6: 'overall do treinador e salário por divisão', 7: 'categorias de base (identidade e histórico dos jovens)', 8: 'treinadores das categorias de base', 9: 'academia de 20 níveis, instalações e investimentos', 10: 'competições das categorias de base', 11: 'estado atual do jogo (olheiros, peneiras, contratos e mercado da base)',
 };
 
 /** Que geração de save é esta? Usa o registro (`schema`) quando existe; senão deduz pelos campos que cada geração introduziu. */

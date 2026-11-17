@@ -44,6 +44,8 @@ export interface Player {
   formedAt?: string; formedSeason?: number;
   /** Nacionalidade (código do país), nos jogadores revelados pelo jogo. */
   nat?: string;
+  /** Carrega a vida na base quando o jovem sobe ao profissional: atributos, personalidade, histórico e origem (Etapa 6). */
+  ybase?: { attrs?: number[]; pers?: { prof: number; ded: number; disc: number; amb: number; mot: number }; history?: { season: number; text: string }[]; origin?: string; joined?: number };
 }
 
 export interface Club {
@@ -423,6 +425,12 @@ export interface GameState {
   aiYouthCoaches?: Record<string, [number, number, number][]>;
   /** Academia dos clubes da IA: [nível da academia 0–20, centro de treinamento, academia física, centro médico, alojamento, campos] (instalações de 1 a 20). */
   aiAcademy?: Record<string, number[]>;
+  /** Quem está onde: jogadores da base que mudaram de clube ou estão emprestados (um registro por jogador: nunca em dois clubes). */
+  ymoves?: Record<string, import('./ymarket').YMove>;
+  /** Olheiros e peneiras dos clubes da IA: [qualidade do olheiro 0–10, última temporada com peneira]. */
+  aiScouting?: Record<string, number[]>;
+  /** Últimas negociações da base entre clubes da IA. */
+  yMarketLog?: { season: number; text: string; fee: number }[];
   /** Competições das categorias de base da temporada (Etapa 5), do clube `ycompsClub`. */
   ycomps?: import('./ycomp').YComp[];
   ycompsClub?: string;

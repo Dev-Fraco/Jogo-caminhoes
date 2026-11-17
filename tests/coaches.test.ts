@@ -247,7 +247,9 @@ describe('avaliação do treinador: sobe e desce aos poucos', () => {
     const wages = Object.values(youthOf(g).coaches!).reduce((t, c) => t + c!.wage, 0);
     const cash = g.budgets.palmeiras;
     const n = youthSeason(g);
-    expect(n.budgets.palmeiras).toBe(cash - wages);
+    const folha = youthOf(n).fin!.log.filter((e) => /Folha anual dos treinadores/.test(e.text)).reduce((t, e) => t + e.cost, 0);
+    expect(folha).toBe(wages);
+    expect(n.budgets.palmeiras).toBeLessThanOrEqual(cash - wages); // (a folha dos jovens da base também sai do caixa)
     expect(Object.values(youthOf(n).coaches!).every((c) => c!.evals && c!.evals.length === 1)).toBe(true);
   });
 });

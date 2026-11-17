@@ -213,3 +213,8 @@
 .yc-games li { display: grid; gap: 1px; padding: 6px 9px; border-radius: 8px; background: rgba(255,255,255,.05); font-size: 12px; } .yc-games li.mine { background: rgba(255,210,63,.14); outline: 1px solid rgba(255,210,63,.5); } .yc-games small { color: #cbc9c5; font-size: 10.5px; }
 .yc-round h4, .mk-sec h4 { margin: 10px 0 4px; font-size: 12px; color: #ffd23f; text-transform: uppercase; letter-spacing: .04em; }
 .btn.on { background: #ffd23f; color: #15171c; }
+/* Mercado da base */
+.ym-top { display: grid; gap: 6px; } .ym-tabs { overflow-x: auto; } .ym-tabs .fm-sub { flex-wrap: nowrap; min-width: max-content; }
+.ym-form { display: grid; gap: 6px; padding: 8px; border-radius: 8px; background: rgba(255,255,255,.06); } .ym-form label, .ym-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; }
+.ym-form input, .ym-form select, .ym-row select { font: inherit; background: #1a1b20; color: #fff; border: 1px solid rgba(255,255,255,.25); border-radius: 8px; padding: 7px; min-width: 0; max-width: 60%; }
+.ym-warn { outline: 1px solid rgba(255,176,160,.55); }
