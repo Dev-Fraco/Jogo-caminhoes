@@ -167,3 +167,9 @@
 .yt-det ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .yt-det li { display: flex; justify-content: space-between; gap: 6px; font-size: 10.5px; color: #cbc9c5; } .yt-det li b { color: #fff; }
 .yt-pro:disabled { background: rgba(255,255,255,.08) !important; color: #d8d6d2 !important; opacity: 1 !important; border: 1px dashed rgba(255,255,255,.25) !important; }
+.yt-star { color: #ffd23f !important; font-weight: 800; }
+.yt-train { height: 6px !important; } .yt-train i { background: linear-gradient(90deg, #35c46a, #ffd23f) !important; }
+.yt-trl { font-size: 10px !important; color: #cbc9c5; }
+.yt-foc { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 11px; color: #fff; }
+.yt-foc select { font: inherit; max-width: 60%; background: #1a1b20; color: #fff; border: 1px solid rgba(255,255,255,.25); border-radius: 6px; padding: 4px; }
+.yt-det li.on b { color: #ffd23f; }

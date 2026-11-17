@@ -26,7 +26,7 @@ describe('categorias de base', () => {
     let g = ensureYouth(mk());
     const before = youthOf(g).prospects.map((p) => p.exact);
     for (let i = 0; i < 20; i++) g = youthTick(g);
-    youthOf(g).prospects.forEach((p, i) => { expect(p.exact).toBeGreaterThan(before[i]); expect(p.exact).toBeLessThanOrEqual(p.potential); expect(p.player.strength).toBe(Math.round(p.exact)); });
+    youthOf(g).prospects.forEach((p, i) => { expect(p.exact).toBeGreaterThan(before[i]); expect(p.exact).toBeLessThanOrEqual(p.potential); expect(p.player.strength).toBe(Math.floor(p.exact)); }); // overall inteiro + barra de treino (fração)
   });
   it('promover leva o jovem ao elenco com contrato; elenco cheio impede', () => {
     let g = ensureYouth(mk());
