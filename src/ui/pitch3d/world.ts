@@ -19,7 +19,7 @@ const SX = L / PITCH_W, SY = W / PITCH_H;
 
 export interface V3 { x: number; y: number; z: number }
 export type Mode = 'carried' | 'free';
-export interface Ball { p: V3; v: V3; mode: Mode; carrier: number; spin: number; /** sem atrito até este instante (passe rasteiro) */ slideUntil: number; scored: Side | null; inNet: Side | null; /** já cruzou a linha de gol (valendo ou não): só a 1ª travessia decide se é gol */ crossed: boolean }
+export interface Ball { p: V3; v: V3; mode: Mode; carrier: number; spin: number; /** sem atrito até este instante (passe rasteiro) */ slideUntil: number; scored: Side | null; /** efeito de curva do chute (m/s², + para a esquerda de quem olha o gol) */ curve?: number; inNet: Side | null; /** já cruzou a linha de gol (valendo ou não): só a 1ª travessia decide se é gol */ crossed: boolean }
 export type AgentState = 'play' | 'dive' | 'celebrate' | 'down' | 'hold';
 export interface Agent {
   id: number; side: Side; idx: number; gk: boolean;
@@ -84,10 +84,14 @@ export function ballistic(from: V3, to: V3, T: number): V3 {
   return { x: (to.x - from.x) / T, y: (to.y - from.y) / T, z: (to.z - from.z + 0.5 * G * T * T) / T };
 }
 /** Chuta: a bola vira livre e sai com a velocidade que a leva ao ponto no tempo dado. `ground` = passe rasteiro (rola sem atrito até chegar). */
-export function kickTo(w: World, to: V3, T: number, ground = false) {
+export function kickTo(w: World, to: V3, T: number, ground = false, curveM = 0) {
   const b = w.ball;
-  const v = ground ? { x: (to.x - b.p.x) / T, y: (to.y - b.p.y) / T, z: 0 } : ballistic(b.p, to, T);
+  // chute com efeito: a bola sai desviada para o lado e a curva a traz de volta ao ponto (desvio máximo de `curveM` metros no meio do caminho)
+  const dx = to.x - b.p.x, dy = to.y - b.p.y, dl = Math.hypot(dx, dy) || 1, px = -dy / dl, py = dx / dl;
+  const aim = ground || !curveM ? to : { x: to.x - px * curveM, y: to.y - py * curveM, z: to.z };
+  const v = ground ? { x: (to.x - b.p.x) / T, y: (to.y - b.p.y) / T, z: 0 } : ballistic(b.p, aim, T);
   b.v = v; b.mode = 'free'; b.carrier = -1; b.slideUntil = ground ? w.t + T : 0;
+  b.curve = ground || !curveM ? 0 : (2 * curveM) / (T * T);
 }
 
 const inMouth = (y: number) => Math.abs(y - MID_Y) <= GOAL_W / 2;
@@ -129,17 +133,31 @@ function stepBall(w: World, dt: number) {
   const gx = p.x < L / 2 ? 0 : L, dir = gx === 0 ? -1 : 1; // gol mais próximo e o lado "para dentro" da rede
   v.z -= G * dt;
   const air = p.z > BALL_R + 0.02;
+  if (air && b.curve) { const hs = Math.hypot(v.x, v.y); if (hs > 1) { v.x += (-v.y / hs) * b.curve * dt; v.y += (v.x / hs) * b.curve * dt; } } // efeito de curva (Magnus): empurra para o lado da direção
   const drag = air ? 0.03 : (w.t < b.slideUntil ? 0 : 0.55);
   const k = Math.max(0, 1 - drag * dt);
   v.x *= k; v.y *= k;
   p.x += v.x * dt; p.y += v.y * dt; p.z += v.z * dt;
   if (p.z < BALL_R) { // chão: quique e rolamento
-    p.z = BALL_R;
+    p.z = BALL_R; if (b.curve && v.z < -0.8) b.curve = 0; // quicou: perde o efeito
     if (v.z < -0.8) { v.z = -v.z * 0.58; v.x *= 0.94; v.y *= 0.94; } else v.z = 0;
     if (w.t >= b.slideUntil) { const sp = Math.hypot(v.x, v.y); if (sp > 0) { const f = Math.max(0, sp - (1.6 + 0.25 * sp) * dt) / sp; v.x *= f; v.y *= f; } }
   }
   b.spin += (Math.hypot(v.x, v.y) * dt) / BALL_R;
 
+  // jogadores: a bola quica e desvia neles (só no jogo corrido; nas encenações dos lances ninguém atrapalha)
+  if (!w.script && b.mode === 'free') {
+    const tgt = (b as Ball & { target?: number }).target;
+    for (const a of w.agents) {
+      if (a.id === tgt || a.state === 'down') continue;
+      const dx = p.x - a.x, dy = p.y - a.y, d = Math.hypot(dx, dy), R = 0.5 + BALL_R;
+      if (d < R && p.z < 2.0 && d > 1e-6) {
+        const nx = dx / d, ny = dy / d, vn = v.x * nx + v.y * ny;
+        if (vn < 0) { v.x -= (1 + 0.35) * vn * nx; v.y -= (1 + 0.35) * vn * ny; v.x *= 0.8; v.y *= 0.8; b.curve = 0; }
+        p.x = a.x + nx * R; p.y = a.y + ny * R; // nunca fica dentro do jogador
+      }
+    }
+  }
   // traves e travessão (rebote com perda de energia)
   const bounce = (nx: number, ny: number, nz: number, e: number) => { const vn = v.x * nx + v.y * ny + v.z * nz; if (vn < 0) { v.x -= (1 + e) * vn * nx; v.y -= (1 + e) * vn * ny; v.z -= (1 + e) * vn * nz; } };
   for (const side of [-1, 1]) {
@@ -338,7 +356,7 @@ function stepScript(w: World, dt: number) {
         // o goleiro se joga: no gol ele chega tarde/errado; na defesa chega na bola
         if (sc.kind === 'save') keeper.ov = { x: gx - sgn * 0.8, y: sc.ty, speed: 9, until: w.t + 2 }; else keeper.ov = { x: gx - sgn * 0.8, y: MID_Y + (sc.ty > MID_Y ? 1 : -1) * 1.3, speed: 4.2, until: w.t + 2 };
         keeper.state = 'dive'; keeper.hopV = 4;
-        b.mode = 'carried'; kickTo(w, to, T);
+        b.mode = 'carried'; kickTo(w, to, T, false, d > 11 ? (hash(sc.shooter * 17 + Math.floor(sc.ty)) - 0.5) * 6 : 0);
         sc.data.T = T;
       }
     } else if (sc.phase === 1) {
@@ -355,7 +373,7 @@ function stepScript(w: World, dt: number) {
       } else if (sc.t - sc.data.shot > 2.2 && sc.kind === 'goal') { // o motor disse gol: se a física não colocou, assume a bola para dentro da rede
         sc.data.shot = -99; b.p = { x: gx + sgn * 1.2, y: sc.ty, z: 0.6 }; b.v = { x: sgn * 3, y: 0, z: 0 }; b.scored = sc.side;
       } else if (sc.kind === 'save') {
-        const T = sc.data.T, near = dist2(b.p.x, b.p.y, keeper.x, keeper.y) < 1.8 && b.p.z < 2.6;
+        const T = sc.data.T, near = (dist2(b.p.x, b.p.y, keeper.x, keeper.y) < 2.6 && b.p.z < 2.8) || (b.p.x - gx) * sgn > -0.6; // o goleiro segura a bola antes de ela cruzar a linha (defesa nunca vira gol)
         if ((sc.t - sc.data.shot >= T - 0.04 || near) && b.mode === 'free') { sc.phase = 2; sc.data.ce = sc.t; b.mode = 'carried'; b.carrier = keeper.id; keeper.state = 'play'; }
       } else if (sc.kind === 'miss' && sc.t - sc.data.shot > 1.8) { sc.phase = 2; sc.data.ce = sc.t; }
     } else if (sc.phase === 2) {
@@ -373,7 +391,7 @@ function stepScript(w: World, dt: number) {
         const att = a.side === sc.side, ix = a.idx;
         if (att && ix >= 7 || (!att && ix >= 1 && ix <= 5)) a.ov = { x: gx - sgn * (6 + (ix % 4) * 2.2), y: MID_Y + (((ix * 37) % 9) - 4) * 1.5, speed: 6, until: w.t + 3 };
       }
-      if (dist2(shooter.x, shooter.y, sc.data.cx, sc.ty) < 1.2 || sc.t > 1.6) { sc.phase = 1; sc.data.shot = sc.t; kickTo(w, { x: gx - sgn * 7.5, y: MID_Y + (hash(sc.shooter) - 0.5) * 6, z: 1.6 }, 1.25); }
+      if (dist2(shooter.x, shooter.y, sc.data.cx, sc.ty) < 1.2 || sc.t > 1.6) { sc.phase = 1; sc.data.shot = sc.t; kickTo(w, { x: gx - sgn * 7.5, y: MID_Y + (hash(sc.shooter) - 0.5) * 6, z: 1.6 }, 1.25, false, (hash(sc.shooter * 5) - 0.5) * 8); }
     } else if (sc.phase === 1 && sc.t - sc.data.shot > 1.6) endScript(w, false);
   } else if (sc.kind === 'foul' || sc.kind === 'injury') { if (sc.t > sc.dur) endScript(w, false); }
   if (sc.t > 9) endScript(w, sc.kind === 'goal'); // trava de segurança: nunca deixa uma encenação presa

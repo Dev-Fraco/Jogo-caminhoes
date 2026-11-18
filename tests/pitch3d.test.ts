@@ -36,7 +36,8 @@ describe('física da bola 3D', () => {
     expect(w2.ball.scored).toBeNull(); expect(w2.ball.v.x).toBeLessThan(13);      // perdeu força no travessão
   });
   it('bola que entra pelo meio do gol é contida pela rede: fica dentro, a rede balança e depois assenta', () => {
-    const w = fresh(); w.ball.p = { x: L - 10, y: MID_Y, z: 0.5 }; w.ball.mode = 'free'; w.ball.v = { x: 24, y: 0.5, z: 1.2 };
+    const w = fresh(); w.agents.forEach((a, i) => { a.x = 8 + i * 2; a.y = 3; }); // ninguém na frente do chute (o goleiro agora fica no gol certo)
+    w.ball.p = { x: L - 10, y: MID_Y, z: 0.5 }; w.ball.mode = 'free'; w.ball.v = { x: 24, y: 0.5, z: 1.2 };
     let peak = 0;
     run(w, 3, 1 / 60, () => { peak = Math.max(peak, ...w.nets[1].d.map(Math.abs)); });
     expect(w.ball.scored).toBe('home');
@@ -153,3 +154,25 @@ describe('câmera 3D', () => {
     expect(project(cam, { x: 52, y: -500, z: 0 })).toBeNull();   // atrás da câmera
   });
 });
+
+describe('bola: efeito de curva e colisão com jogadores', () => {
+  it('chute com efeito: sai desviado, a curva o traz ao ponto combinado e a trajetória é curva (não reta)', () => {
+    for (const curve of [-2, 2]) {
+      const w = fresh(); w.agents.forEach((a, i) => { a.x = 5 + i; a.y = 2; });
+      w.ball.p = { x: 60, y: 30, z: BALL_R }; const to = { x: 90, y: 38, z: 1 };
+      kickTo(w, to, 1.4, false, curve);
+      let maxDev = 0; const dx = to.x - 60, dy = to.y - 30, dl = Math.hypot(dx, dy);
+      for (let t = 0; t < 1.4; t += 1 / 120) { stepWorld(w, 1 / 120); const px = w.ball.p.x - 60, py = w.ball.p.y - 30; maxDev = Math.max(maxDev, Math.abs((px * dy - py * dx) / dl)); }
+      expect(Math.hypot(w.ball.p.x - to.x, w.ball.p.y - to.y)).toBeLessThan(0.8);   // chega ao ponto
+      expect(maxDev).toBeGreaterThan(Math.abs(curve) * 0.18);                       // e passou pelo lado no meio do caminho
+    }
+  });
+  it('a bola não atravessa jogadores: quica neles e nunca fica dentro', () => {
+    const w = fresh(); w.agents.forEach((a) => { a.x = 3; a.y = 3; });
+    const a = w.agents[5]; a.x = 50; a.y = 34; a.state = 'hold';
+    w.ball.p = { x: 40, y: 34, z: BALL_R }; w.ball.mode = 'free'; w.ball.v = { x: 18, y: 0, z: 0 }; w.ball.slideUntil = 99;
+    let minD = 99; run(w, 1.5, 1 / 60, () => { minD = Math.min(minD, Math.hypot(w.ball.p.x - a.x, w.ball.p.y - a.y)); });
+    expect(minD).toBeGreaterThanOrEqual(0.5); expect(w.ball.v.x).toBeLessThan(6);   // bateu e voltou/perdeu força
+  });
+});
+

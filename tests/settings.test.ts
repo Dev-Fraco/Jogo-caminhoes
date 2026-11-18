@@ -12,7 +12,7 @@ beforeEach(() => {
 
 describe('configurações', () => {
   it('padrões: PT-BR, autosave ligado, normal, 100/80/80, sem mudo', () => {
-    expect(DEFAULT_SETTINGS).toEqual({ language: 'pt-BR', autosave: true, simSpeed: 'normal', audio: { master: 100, music: 80, sfx: 80, muted: false } });
+    expect(DEFAULT_SETTINGS).toEqual({ language: 'pt-BR', autosave: true, simSpeed: 'normal', graphics: 'medium', audio: { master: 100, music: 80, sfx: 80, muted: false } });
     expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
   });
   it('persiste e recarrega', () => {

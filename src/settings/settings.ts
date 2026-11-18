@@ -1,10 +1,13 @@
 export type Language = 'pt-BR' | 'en' | 'es';
 export type SimSpeed = 'slow' | 'normal' | 'fast';
+/** Qualidade gráfica do campo 3D. */
+export type Graphics = 'low' | 'medium' | 'high';
 
 export interface Settings {
   language: Language;
   autosave: boolean;
   simSpeed: SimSpeed;
+  graphics?: Graphics;
   audio: { master: number; music: number; sfx: number; muted: boolean };
   // Novas seções (vídeo, controles, acessibilidade...) entram aqui como novos campos.
 }
@@ -13,6 +16,7 @@ export const DEFAULT_SETTINGS: Settings = {
   language: 'pt-BR',
   autosave: true,
   simSpeed: 'normal',
+  graphics: 'medium',
   audio: { master: 100, music: 80, sfx: 80, muted: false },
 };
 
@@ -34,6 +38,7 @@ export function sanitizeSettings(raw: unknown): Settings {
   return {
     language: LANGUAGES.some((l) => l.id === r.language) ? (r.language as Language) : d.language,
     autosave: typeof r.autosave === 'boolean' ? r.autosave : d.autosave,
+    graphics: r.graphics === 'low' || r.graphics === 'medium' || r.graphics === 'high' ? r.graphics : 'medium',
     simSpeed: r.simSpeed === 'slow' || r.simSpeed === 'normal' || r.simSpeed === 'fast' ? r.simSpeed : d.simSpeed,
     audio: {
       master: clampVol(a.master, d.audio.master),

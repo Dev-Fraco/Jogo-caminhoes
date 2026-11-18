@@ -207,6 +207,12 @@ export function drawScene(ctx: CanvasRenderingContext2D, w: World, width: number
   items.sort((p, q) => q.depth - p.depth);
   for (const it of items) it.draw();
   drawGoal(ctx, cam, w, 0, false); drawGoal(ctx, cam, w, L, false);
+  drawOverlay(ctx, w, width, height, cam);
+  void goalXOf;
+}
+
+/** Confete, cartão e letreiro de gol (por cima da cena, em 2D): usado também pelo campo em WebGL. */
+export function drawOverlay(ctx: CanvasRenderingContext2D, w: World, width: number, height: number, cam: Camera) {
   // confete
   for (const c of w.confetti) { const p = pr(cam, c.x, c.y, c.z); if (!p) continue; ctx.fillStyle = c.c; ctx.fillRect(p.x, p.y, Math.max(2, p.scale * 0.25), Math.max(3, p.scale * 0.4)); }
   // cartão
@@ -223,5 +229,4 @@ export function drawScene(ctx: CanvasRenderingContext2D, w: World, width: number
     if (w.banner.sub) { ctx.font = `800 ${Math.round(width * 0.042)}px system-ui, sans-serif`; ctx.lineWidth = Math.max(3, width * 0.008); ctx.strokeText(w.banner.sub, 0, width * 0.075); ctx.fillStyle = '#fff'; ctx.fillText(w.banner.sub, 0, width * 0.075); }
     ctx.restore();
   }
-  void goalXOf;
 }

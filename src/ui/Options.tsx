@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { t, type StringKey } from '../i18n/strings';
 import { createBackup, deleteBackup, listBackups, MAX_BACKUPS, restoreBackup, type Backup } from '../settings/backups';
-import { DEFAULT_SETTINGS, LANGUAGES, loadSettings, saveSettings, type Language, type Settings, type SimSpeed } from '../settings/settings';
+import { DEFAULT_SETTINGS, LANGUAGES, loadSettings, saveSettings, type Graphics, type Language, type Settings, type SimSpeed } from '../settings/settings';
 
 /** Bloco da tela. Novas seções (vídeo, controles, acessibilidade...) são só mais um <Section>. */
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -103,6 +103,12 @@ export function Options({ onBack, onRestored }: Props) {
             <label htmlFor="opt-speed">{tr('options.speed')}</label>
             <select id="opt-speed" value={draft.simSpeed} onChange={(e) => set({ simSpeed: e.target.value as SimSpeed })}>
               {SPEEDS.map((s) => <option key={s} value={s}>{tr(`options.speed.${s}` as StringKey)}</option>)}
+            </select>
+          </div>
+          <div className="opt-row">
+            <label htmlFor="opt-gfx">{tr('options.graphics')}<small>{tr('options.graphics.hint')}</small></label>
+            <select id="opt-gfx" value={draft.graphics ?? 'medium'} onChange={(e) => set({ graphics: e.target.value as Graphics })}>
+              {(['low', 'medium', 'high'] as const).map((q) => <option key={q} value={q}>{tr(`options.graphics.${q}` as StringKey)}</option>)}
             </select>
           </div>
         </Section>

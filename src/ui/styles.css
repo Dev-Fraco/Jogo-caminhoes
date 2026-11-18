@@ -357,3 +357,5 @@ select option { background: #35322e; color: var(--ink); }
 .ms-stats td, .ms-stats th { padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--line); }
 .ms-stats th[scope='row'] { color: var(--muted); font-weight: 600; }
 .ms-skip { justify-self: start; }
+.pitch3d canvas.p3-gl, .pitch3d canvas.p3-flat { position: absolute; inset: 0; }
+.pitch3d canvas.p3-flat { pointer-events: none; }
