@@ -9,7 +9,7 @@ import type { World } from '../world';
    ===================================================================== */
 
 export interface AthleteKit { primary: string; secondary: string; gk: string }
-export interface AthleteLook { home: AthleteKit; away: AthleteKit }
+export interface AthleteLook { home: AthleteKit; away: AthleteKit; /** árbitro principal e assistentes (uniformes próprios) */ officials?: [AthleteKit, AthleteKit, AthleteKit] }
 export type AQuality = 'low' | 'medium' | 'high';
 
 const hash = (n: number) => { let h = (n * 2654435761) >>> 0; h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; return (h >>> 8) / 0xffffff; };
@@ -47,7 +47,7 @@ export function createAthletes(scene: THREE.Scene, look: AthleteLook, numbers: n
   const own = <A extends { dispose(): void }>(o: A): A => { owned.push(o); return o; };
   const cyl = (rt: number, rb: number, h: number, y: number) => { const g = new THREE.CylinderGeometry(rt, rb, h, seg); g.translate(0, y, 0); return own(g); };
   const white = () => own(new THREE.MeshLambertMaterial({ color: 0xffffff }));
-  const N = 22;
+  const N = 25; // 22 jogadores + árbitro + 2 assistentes
 
   const geo: Record<PartName, THREE.BufferGeometry> = {
     torso: (() => { const g = cyl(0.205, 0.15, 0.54, 0.29); g.scale(0.66, 1, 1.3); return g; })(),     // ombros largos, cintura estreita, tórax menos fundo que largo
@@ -78,7 +78,7 @@ export function createAthletes(scene: THREE.Scene, look: AthleteLook, numbers: n
   const numGeo = own(new THREE.PlaneGeometry(0.26, 0.26));
   const numMats: THREE.MeshBasicMaterial[] = [];
   for (let i = 0; i < N; i++) {
-    const home = i < 11, gk = i % 11 === 0, kit = home ? look.home : look.away;
+    const off = i >= 22, home = i < 11, gk = !off && i % 11 === 0, kit = off ? (look.officials?.[i - 22] ?? look.home) : home ? look.home : look.away;
     const shirt = gk ? kit.gk : kit.primary, shorts = kit.secondary, sock = kit.primary;
     const g = () => new THREE.Group();
     const root = g(), body = g(), spine = g(), head = g();
@@ -89,7 +89,7 @@ export function createAthletes(scene: THREE.Scene, look: AthleteLook, numbers: n
       hip[s].position.set(0, -0.06, side * 0.095); body.add(hip[s]); knee[s].position.y = -0.43; hip[s].add(knee[s]); ank[s].position.y = -0.43; knee[s].add(ank[s]);
     });
     // número da camisa: nas costas e no peito
-    const mat = new THREE.MeshBasicMaterial({ map: numberTexture(numbers[i] ?? i + 1, shirt), transparent: true, depthWrite: false, side: THREE.DoubleSide }); numMats.push(mat);
+    const mat = new THREE.MeshBasicMaterial({ map: numberTexture(numbers[i] ?? i + 1, shirt), visible: !off, transparent: true, depthWrite: false, side: THREE.DoubleSide }); numMats.push(mat);
     const num = new THREE.Mesh(numGeo, mat); num.position.set(-0.14, 0.32, 0); num.rotation.y = -Math.PI / 2; spine.add(num);
     const front = new THREE.Mesh(numGeo, mat); front.scale.setScalar(0.5); front.position.set(0.14, 0.43, -0.07); front.rotation.y = Math.PI / 2; spine.add(front);
     root.scale.setScalar(SCALE); scene.add(root);
@@ -101,6 +101,14 @@ export function createAthletes(scene: THREE.Scene, look: AthleteLook, numbers: n
     for (let j = 0; j < 2; j++) { paint('shortL', i, j, shorts); paint('thigh', i, j, skin); paint('shin', i, j, gk ? shorts : sock); paint('boot', i, j, boot); paint('upperArm', i, j, shirt); paint('foreArm', i, j, gk ? shirt : skin); paint('hand', i, j, glove); }
   }
   for (const k of Object.keys(parts) as PartName[]) if (parts[k].mesh.instanceColor) parts[k].mesh.instanceColor!.needsUpdate = true;
+
+  // bandeira dos assistentes (xadrez vermelho e amarelo) e cartão do árbitro: presos à mão direita
+  const flagTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d')!; for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) { g.fillStyle = (x + y) % 2 ? '#e11d1d' : '#ffd400'; g.fillRect(x * 32, y * 32, 32, 32); } const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return own(t); })();
+  const flagMat = own(new THREE.MeshBasicMaterial({ map: flagTex, side: THREE.DoubleSide })), poleMat = own(new THREE.MeshLambertMaterial({ color: 0x222222 }));
+  const cardGeo = own(new THREE.PlaneGeometry(0.075, 0.11)), cardMats = { yellow: own(new THREE.MeshBasicMaterial({ color: 0xffd400, side: THREE.DoubleSide })), red: own(new THREE.MeshBasicMaterial({ color: 0xe11d1d, side: THREE.DoubleSide })) };
+  const poleGeo = own(new THREE.CylinderGeometry(0.012, 0.012, 0.5, 5)), flagGeo = own(new THREE.PlaneGeometry(0.32, 0.24));
+  for (const i of [23, 24]) { const hand = skels[i].el[1]; const pole = new THREE.Mesh(poleGeo, poleMat); pole.position.y = -0.27; hand.add(pole); const fl = new THREE.Mesh(flagGeo, flagMat); fl.position.set(0, -0.4, 0.16); hand.add(fl); }
+  const refCard = new THREE.Mesh(cardGeo, cardMats.yellow); refCard.position.set(0, -0.4, 0); refCard.visible = false; skels[22].el[1].add(refCard);
 
   const apply = (s: Skel, p: Pose) => {
     s.body.position.y = HIP_Y + p[J.rootY]; s.body.rotation.set(p[J.rootRoll], 0, -p[J.rootPitch]);
@@ -116,12 +124,14 @@ export function createAthletes(scene: THREE.Scene, look: AthleteLook, numbers: n
   return {
     update(w, dtIn) {
       const dt = dtIn >= 0 ? dtIn : lastT < 0 ? 0 : Math.max(0, Math.min(0.1, w.t - lastT)); lastT = w.t;
-      w.agents.forEach((a, i) => {
+      [...w.agents, ...w.refs].forEach((a, i) => {
         const s = skels[i];
         const view = { vx: a.vx, vy: a.vy, heading: a.heading, carrying: w.ball.mode === 'carried' && w.ball.carrier === a.id, gk: a.gk, down: a.state === 'down', celebrate: a.state === 'celebrate', act: a.act, t: w.t };
         const pose = stepAnim(s.state, view, dt);
         s.root.position.copy(T(a.x, a.y, 0)); s.root.rotation.y = a.heading; apply(s, pose);
+        s.root.scale.setScalar(a.off === 'gone' ? 0.0001 : SCALE); // quem foi expulso e já saiu do campo não aparece
       });
+      const showCard = !!w.card && w.card.until > w.t && w.refs[0]?.act?.kind === 'ref_card'; refCard.visible = showCard; if (showCard && w.card) refCard.material = cardMats[w.card.kind];
       for (const s of skels) s.root.updateMatrixWorld(true);
       const set = (k: PartName, getJoint: (s: Skel, j: number) => THREE.Object3D) => {
         const { mesh, perAthlete } = parts[k];

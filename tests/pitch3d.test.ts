@@ -127,7 +127,7 @@ describe('defesa, chute para fora, escanteio, falta, cartão e lesão', () => {
   it('escanteio, falta, cartão e lesão terminam sozinhos, sem travar o jogo', () => {
     for (const type of ['corner', 'foul', 'yellow', 'red', 'injury'] as const) {
       const w = fresh(); const e = ev(10, type, 'home'); syncFlow(w, playState([e], 9, 18), 18); triggerEvent(w, e, 5);
-      expect(w.script).not.toBeNull(); if (type === 'yellow') expect(w.card?.kind).toBe('yellow'); if (type === 'red') expect(w.card?.kind).toBe('red');
+      expect(w.script).not.toBeNull(); if (type === 'yellow' || type === 'red') { let seen = ''; for (let k = 0; k < 150 && w.script; k++) { stepWorld(w, 1 / 30); if (w.card) seen = w.card.kind; } expect(seen).toBe(type); } // o árbitro mostra o cartão durante a jogada
       let t = 0; for (; t < 12 && w.script; t += 1 / 30) stepWorld(w, 1 / 30);
       expect(w.script, type).toBeNull(); expect(w.agents.every((a) => a.state === 'play')).toBe(true);
     }

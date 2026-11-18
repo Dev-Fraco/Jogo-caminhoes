@@ -183,21 +183,33 @@ export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, m
       if (rng() < 0.2) { // ataque sem finalização: pode terminar em escanteio
         const taker = weighted(field(side), (p) => (p.pos === 'MID' ? 5 : p.pos === 'ATT' ? 2 : 0.5));
         push(minute, 'corner', side, `Escanteio para o ${club(side)}, cobrança de ${taker.name}.`, { player: taker.name, pid: taker.id });
+      } else if (hashString(`${minute}:${side}:${hg}:${ag}:ofs`) % 1000 < 230) { // ataque que morre em impedimento (só um rótulo para lances sem finalização: não muda o placar nem o sorteio)
+        const fw = field(side).filter((p) => p.pos === 'ATT'), pool = fw.length ? fw : field(side), who = pool[hashString(`${minute}:${side}:who`) % pool.length];
+        if (who) push(minute, 'offside', side, `Impedimento de ${who.name} (${club(side)}). A bandeira do assistente sobe.`, { player: who.name, pid: who.id });
       }
       continue;
     }
     const pGoal = clamp(0.2 * (atk.att / (dfn.def * 0.4 + dfn.gk * 0.6)) ** 0.8, 0.06, 0.45);
     const shooter = scorer(field(side).length ? field(side) : lineup(side));
+    // pênalti: parte das finalizações (4%) é registrada como cobrança de pênalti, com a falta na área antes; o resultado do lance é o mesmo que já foi sorteado
+    const isPen = shooter.pos !== 'DEF' && hashString(`${minute}:${shooter.id}:${hg}:${ag}:pen`) % 1000 < 30;
+    if (isPen) {
+      const defs = field(other), off = defs.length ? defs[hashString(`${minute}:${shooter.id}:off`) % defs.length] : undefined;
+      if (off) push(minute, 'foul', other, `Pênalti! ${off.name} (${club(other)}) derruba ${shooter.name} (${club(side)}) na área.`, { player: off.name, pid: off.id, victimId: shooter.id, pen: true });
+    }
     if (rng() < pGoal) {
       if (homeAttacks) hg++; else ag++;
-      const helper = rng() < 0.7 ? assister(field(side), shooter) : null;
-      push(minute, 'goal', side, `GOOOL! ${shooter.name} marca para o ${club(side)}${helper ? (WIDE.has(spotOf(helper)) ? ` (cruzamento de ${helper.name})` : ` (assistência de ${helper.name})`) : ''}. ${names.home} ${hg} x ${ag} ${names.away}.`, { player: shooter.name, pid: shooter.id, ...(helper ? { assistId: helper.id } : {}), how: ((helper && WIDE.has(spotOf(helper)) && (shooter.pos === 'DEF' || spotOf(shooter) === 'CA') ? 0.55 : shooter.pos === 'DEF' ? 0.4 : 0.06) > (hashString(`${shooter.id}:${minute}:${hg}:${ag}`) % 1000) / 1000 ? 'header' : 'foot') as 'header' | 'foot', score: [hg, ag] });
+      const drawn = rng() < 0.7 ? assister(field(side), shooter) : null; // (sempre sorteado: o gerador anda igual com ou sem pênalti)
+      const helper = isPen ? null : drawn;
+      if (isPen) push(minute, 'goal', side, `GOOOL! ${shooter.name} converte o pênalti para o ${club(side)}. ${names.home} ${hg} x ${ag} ${names.away}.`, { player: shooter.name, pid: shooter.id, how: 'foot', pen: true, score: [hg, ag] });
+      else push(minute, 'goal', side, `GOOOL! ${shooter.name} marca para o ${club(side)}${helper ? (WIDE.has(spotOf(helper)) ? ` (cruzamento de ${helper.name})` : ` (assistência de ${helper.name})`) : ''}. ${names.home} ${hg} x ${ag} ${names.away}.`, { player: shooter.name, pid: shooter.id, ...(helper ? { assistId: helper.id } : {}), how: ((helper && WIDE.has(spotOf(helper)) && (shooter.pos === 'DEF' || spotOf(shooter) === 'CA') ? 0.55 : shooter.pos === 'DEF' ? 0.4 : 0.06) > (hashString(`${shooter.id}:${minute}:${hg}:${ag}`) % 1000) / 1000 ? 'header' : 'foot') as 'header' | 'foot', score: [hg, ag] });
     } else {
       const gk = keeper(other);
       const r = rng();
-      if (r < 0.5) push(minute, 'save', side, `${shooter.name} (${club(side)}) finaliza e ${gk.name} defende.`, { player: shooter.name, pid: shooter.id, gkId: gk.id });
-      else if (r < 0.62) push(minute, 'miss', side, `${shooter.name} (${club(side)}) acerta a trave!`, { player: shooter.name, pid: shooter.id, how: 'post' });
-      else push(minute, 'miss', side, `${shooter.name} (${club(side)}) chuta para fora.`, { player: shooter.name, pid: shooter.id, how: 'wide' });
+      const pn = isPen ? { pen: true as const } : {}, verb = isPen ? 'bate o pênalti e ' : 'finaliza e ';
+      if (r < 0.5) push(minute, 'save', side, `${shooter.name} (${club(side)}) ${verb}${gk.name} defende.`, { player: shooter.name, pid: shooter.id, gkId: gk.id, ...pn });
+      else if (r < 0.62) push(minute, 'miss', side, `${shooter.name} (${club(side)}) ${isPen ? 'bate o pênalti e ' : ''}acerta a trave!`, { player: shooter.name, pid: shooter.id, how: 'post', ...pn });
+      else push(minute, 'miss', side, `${shooter.name} (${club(side)}) ${isPen ? 'bate o pênalti e ' : ''}chuta para fora.`, { player: shooter.name, pid: shooter.id, how: 'wide', ...pn });
     }
   }
   push(90, 'fulltime', 'none', `Fim de jogo! ${names.home} ${hg} x ${ag} ${names.away}.`, { score: [hg, ag] });

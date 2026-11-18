@@ -14,7 +14,7 @@ export type Speed = (typeof SPEEDS)[number];
 export const MS_PER_MINUTE_AT_1X = 500;
 export const INTRO_MS = 3600;
 
-const ICON: Record<MatchEvent['type'], string> = { kickoff: '⏱️', tactic: '🔄', injury: '🤕', goal: '⚽', yellow: '🟨', red: '🟥', foul: '🦵', save: '🧤', miss: '🎯', corner: '🚩', halftime: '⏸️', fulltime: '🏁' };
+const ICON: Record<MatchEvent['type'], string> = { kickoff: '⏱️', tactic: '🔄', injury: '🤕', goal: '⚽', yellow: '🟨', red: '🟥', foul: '🦵', save: '🧤', miss: '🎯', corner: '🚩', offside: '🏳️', halftime: '⏸️', fulltime: '🏁' };
 
 /** Placar [casa, fora] até o minuto indicado. */
 export function scoreAt(events: MatchEvent[], minute: number): [number, number] {

@@ -22,7 +22,7 @@ const hash = (n: number) => { let h = (n * 2654435761) >>> 0; h ^= h >>> 15; h =
 export interface PlayState { possession: Side | 'none'; push: number; ball: Pt; goalNow: Side | null; carrier: number }
 
 /** Lance que "dá a bola" a um lado: quem finaliza/cobra escanteio ataca; quem faz a falta perde a bola. */
-const owner = (e: MatchEvent): Side | 'none' => (e.side === 'none' ? 'none' : e.type === 'foul' || e.type === 'yellow' || e.type === 'red' ? (e.side === 'home' ? 'away' : 'home') : e.side);
+const owner = (e: MatchEvent): Side | 'none' => (e.side === 'none' ? 'none' : e.type === 'foul' || e.type === 'yellow' || e.type === 'red' || e.type === 'offside' ? (e.side === 'home' ? 'away' : 'home') : e.side);
 
 /**
  * Estado do jogo num instante (`tick` = meio minuto): de quem é a bola, o quanto o time "empurra" para frente e onde está a bola.

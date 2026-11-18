@@ -75,7 +75,7 @@ export interface TeamState {
 
 export interface MatchEvent {
   minute: number;
-  type: 'kickoff' | 'tactic' | 'injury' | 'goal' | 'yellow' | 'red' | 'foul' | 'save' | 'miss' | 'corner' | 'halftime' | 'fulltime';
+  type: 'kickoff' | 'tactic' | 'injury' | 'goal' | 'yellow' | 'red' | 'foul' | 'save' | 'miss' | 'corner' | 'offside' | 'halftime' | 'fulltime';
   side: 'home' | 'away' | 'none';
   text: string;
   /** Jogador principal do lance (autor do gol, da falta, do chute...). */
@@ -93,6 +93,8 @@ export interface MatchEvent {
   /** Início do jogo: os 11 de cada time e as formações. Mudança tática: a nova escalação e formação. */
   lineups?: { home: string[]; away: string[]; homeFormation: FormationId; awayFormation: FormationId };
   lineup?: string[]; formation?: FormationId;
+  /** Pênalti: a falta na área e a cobrança trazem esta marca. */
+  pen?: boolean;
 }
 
 export interface MatchResult {

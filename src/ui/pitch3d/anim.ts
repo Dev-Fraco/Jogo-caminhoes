@@ -7,7 +7,8 @@
 export type ActKind =
   | 'pass' | 'pass_first' | 'long_pass' | 'cross' | 'shot' | 'header' | 'control' | 'tackle' | 'duel' | 'jump' | 'aerial'
   | 'celebrate' | 'complain' | 'fall' | 'getup' | 'wall'
-  | 'gk_dive' | 'gk_catch' | 'gk_ready';
+  | 'gk_dive' | 'gk_catch' | 'gk_ready'
+  | 'throw' | 'ref_whistle' | 'ref_card' | 'ref_point' | 'ref_advantage' | 'flag_up' | 'flag_corner' | 'flag_horizontal';
 
 /** Duração de cada ação (segundos de jogo) e o instante do contato com a bola (0 a 1), para a bola sair junto com o pé/cabeça. */
 export const ACT: Record<ActKind, { dur: number; strike: number }> = {
@@ -16,6 +17,8 @@ export const ACT: Record<ActKind, { dur: number; strike: number }> = {
   tackle: { dur: 0.9, strike: 0.4 }, duel: { dur: 0.7, strike: 0.5 }, jump: { dur: 0.8, strike: 0.5 }, aerial: { dur: 0.9, strike: 0.5 },
   celebrate: { dur: 2.2, strike: 0 }, complain: { dur: 1.6, strike: 0 }, fall: { dur: 0.7, strike: 0 }, getup: { dur: 1.2, strike: 0 }, wall: { dur: 1.4, strike: 0.6 },
   gk_dive: { dur: 1.0, strike: 0.4 }, gk_catch: { dur: 0.6, strike: 0.3 }, gk_ready: { dur: 1.0, strike: 0 },
+  throw: { dur: 0.9, strike: 0.5 }, ref_whistle: { dur: 0.9, strike: 0 }, ref_card: { dur: 1.6, strike: 0 }, ref_point: { dur: 1.4, strike: 0 }, ref_advantage: { dur: 1.4, strike: 0 },
+  flag_up: { dur: 1.8, strike: 0 }, flag_corner: { dur: 1.6, strike: 0 }, flag_horizontal: { dur: 1.6, strike: 0 },
 };
 /** Atraso entre o início da ação e o contato com a bola (s). */
 export const strikeDelay = (k: ActKind) => ACT[k].dur * ACT[k].strike;
@@ -142,6 +145,17 @@ export function actionPose(kind: ActKind, t: number, dir: number): Pose {
       p[J.rootRoll] = d * 1.45 * flat; p[J.rootY] = 0.35 * Math.sin(clamp(t * 1.4, 0, 1) * Math.PI) - 0.2 * flat; p[J.lShP] = p[J.rShP] = 2.5 * up; armOut(0.25 * up);
       p[J.lKnee] = 0.5 * up; p[J.rKnee] = 0.2 * up; p[J.lHip] = 0.3 * up; p[J.rootPitch] = 0.15 * up; break;
     }
+    case 'throw': { // lateral: bola atrás da cabeça e para a frente
+      const back = smooth(t / 0.35), fwd = smooth((t - 0.4) / 0.2);
+      p[J.lShP] = p[J.rShP] = lerp(1.0, 3.1, back) * (1 - fwd) + 1.3 * fwd; p[J.lElb] = p[J.rElb] = 1.2 * (1 - fwd) + 0.2 * fwd; p[J.spinePitch] = -0.35 * back * (1 - fwd) + 0.35 * fwd; p[J.lKnee] = p[J.rKnee] = 0.2; break;
+    }
+    case 'ref_whistle': { const e = bump(t, 0, 0.25, 1); p[J.rShP] = 1.9 * e; p[J.rElb] = 2.3 * e; p[J.headPitch] = 0.1 * e; break; }
+    case 'ref_card': { const e = bump(t, 0, 0.2, 1); p[J.rShP] = 3.0 * e; p[J.rShA] = 0.12 * e; p[J.rElb] = 0.05 * e; p[J.spinePitch] = -0.08 * e; break; }
+    case 'ref_point': { const e = bump(t, 0, 0.2, 1); p[J.rShP] = 1.5 * e; p[J.rElb] = 0.05 * e; p[J.spineTwist] = -0.2 * e; break; }
+    case 'ref_advantage': { const e = bump(t, 0, 0.2, 1), sw = Math.sin(t * 9) * 0.12; p[J.lShP] = (1.2 + sw) * e; p[J.rShP] = (1.2 - sw) * e; p[J.lShA] = p[J.rShA] = 0.25 * e; p[J.lElb] = p[J.rElb] = 0.15 * e; break; }
+    case 'flag_up': { const e = bump(t, 0, 0.15, 1); p[J.rShP] = 3.0 * e; p[J.rShA] = 0.1 * e; p[J.rElb] = 0.05 * e; break; }
+    case 'flag_corner': { const e = bump(t, 0, 0.15, 1); p[J.rShP] = 0.75 * e; p[J.rShA] = 0.55 * e; p[J.rElb] = 0.05 * e; break; }
+    case 'flag_horizontal': { const e = bump(t, 0, 0.15, 1); p[J.rShP] = 1.5 * e; p[J.rElb] = 0.05 * e; break; }
     case 'gk_catch': { const e = bump(t, 0, 0.35, 1); p[J.lShP] = p[J.rShP] = 1.2 * e; p[J.lElb] = p[J.rElb] = 1.2 * e; p[J.rootPitch] = 0.2 * e; p[J.lKnee] = p[J.rKnee] = 0.4 * e; break; }
   }
   return p;

@@ -3,7 +3,7 @@ import type { Camera } from '../camera';
 import type { Look } from '../draw';
 import { BALL_R, GOAL_D, GOAL_H, GOAL_W, L, MID_Y, POST_R, W, type World } from '../world';
 import { APRON, makeBallTexture, makePitchTexture } from './textures';
-import { createAthletes, SHIRT_BY_SLOT } from './athletes';
+import { createAthletes, SHIRT_BY_SLOT, type AthleteKit as AthleteKitT } from './athletes';
 import { FORMATION_SLOTS, type FormationId } from '../../../engine/types';
 
 export type Quality = 'low' | 'medium' | 'high';
@@ -164,9 +164,14 @@ export function createPitchRenderer(canvas: HTMLCanvasElement, quality: Quality,
 
   /* ---- atletas: modelos low-poly com camisa numerada e animação por pose (athletes.ts / anim.ts) ---- */
   const slotNumbers = (f: FormationId): number[] => { const used = new Map<string, number>(); return FORMATION_SLOTS[f].map((sp) => { const k = used.get(sp) ?? 0; used.set(sp, k + 1); const list = SHIRT_BY_SLOT[sp] ?? [k + 2]; return list[Math.min(k, list.length - 1)]; }); };
-  const athletes = createAthletes(scene, look, [...slotNumbers(formations.home), ...slotNumbers(formations.away)], quality, q.shadow > 0);
+  const dist = (a: string, b: string) => { const x = new THREE.Color(a), y = new THREE.Color(b); return Math.hypot(x.r - y.r, x.g - y.g, x.b - y.b); };
+  const clash = (c: string) => Math.min(dist(c, look.home.primary), dist(c, look.away.primary), dist(c, look.home.gk), dist(c, look.away.gk));
+  const refColor = ['#1b1b1b', '#e8e100', '#00b36b', '#f2f2f2'].find((c) => clash(c) > 0.55) ?? '#1b1b1b'; // uniforme que não se confunde com nenhum dos times
+  const arColor = ['#ffb000', '#2b2b2b', '#ff5ba0'].find((c) => clash(c) > 0.5) ?? '#ffb000';
+  const officials: [AthleteKitT, AthleteKitT, AthleteKitT] = [{ primary: refColor, secondary: '#111111', gk: refColor }, { primary: arColor, secondary: '#111111', gk: arColor }, { primary: arColor, secondary: '#111111', gk: arColor }];
+  const athletes = createAthletes(scene, { ...look, officials }, [...slotNumbers(formations.home), ...slotNumbers(formations.away)], quality, q.shadow > 0);
   const blobs: THREE.Mesh[] = [];
-  for (let i = 0; i < 22; i++) { const blob = new THREE.Mesh(blobGeo, blobMat); blob.position.y = 0.02; blob.scale.set(0.8, 1, 0.8); scene.add(blob); blobs.push(blob); }
+  for (let i = 0; i < 25; i++) { const blob = new THREE.Mesh(blobGeo, blobMat); blob.position.y = 0.02; blob.scale.set(0.8, 1, 0.8); scene.add(blob); blobs.push(blob); }
   const ring = new THREE.Mesh(own(new THREE.RingGeometry(1.0, 1.15, 28)), own(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false })));
   ring.rotation.x = -Math.PI / 2; ring.position.y = 0.03; ring.visible = false; scene.add(ring);
 
@@ -186,7 +191,7 @@ export function createPitchRenderer(canvas: HTMLCanvasElement, quality: Quality,
       camera.setViewOffset(width, height, 0, -(cam.cy - height / 2), width, height); camera.updateProjectionMatrix();
       camera.position.copy(T(cam.px, cam.py, cam.pz)); camera.up.set(0, 1, 0); camera.lookAt(T(cam.px + cam.fx * 40, cam.py + cam.fy * 40, cam.pz + cam.fz * 40));
       // atletas
-      athletes.update(w, dt); w.agents.forEach((a, i) => { blobs[i].position.set(a.x, 0.02, -a.y); });
+      athletes.update(w, dt); [...w.agents, ...w.refs].forEach((a, i) => { blobs[i].position.set(a.x, 0.02, -a.y); blobs[i].visible = a.off !== 'gone'; });
       const carrier = lk.userSide && w.flow.carrier >= 0 ? w.agents[w.flow.carrier] : null;
       ring.visible = !!carrier && carrier.side === lk.userSide; if (carrier) ring.position.set(carrier.x, 0.03, -carrier.y);
       // bola: gira conforme a direção e a velocidade (rolando ou no ar)

@@ -21,7 +21,7 @@ const SX = L / PITCH_W, SY = W / PITCH_H;
 
 export interface V3 { x: number; y: number; z: number }
 export type Mode = 'carried' | 'free';
-export interface Ball { p: V3; v: V3; mode: Mode; carrier: number; spin: number; /** sem atrito até este instante (passe rasteiro) */ slideUntil: number; scored: Side | null; /** efeito de curva do chute (m/s², + para a esquerda de quem olha o gol) */ curve?: number; inNet: Side | null; /** já cruzou a linha de gol (valendo ou não): só a 1ª travessia decide se é gol */ crossed: boolean }
+export interface Ball { p: V3; v: V3; mode: Mode; carrier: number; spin: number; /** sem atrito até este instante (passe rasteiro) */ slideUntil: number; scored: Side | null; /** efeito de curva do chute (m/s², + para a esquerda de quem olha o gol) */ curve?: number; /** último time que tocou na bola (para lateral, tiro de meta e escanteio) */ lastSide?: Side; inNet: Side | null; /** já cruzou a linha de gol (valendo ou não): só a 1ª travessia decide se é gol */ crossed: boolean }
 export type AgentState = 'play' | 'dive' | 'celebrate' | 'down' | 'hold';
 export interface Agent {
   id: number; side: Side; idx: number; gk: boolean;
@@ -31,13 +31,17 @@ export interface Agent {
   ov?: { x: number; y: number; speed: number; until: number };
   /** ação em curso (chute, passe, carrinho...): é o que o desenhista anima */
   act?: Act;
+  /** árbitros: 'ref' (principal), 'ar1' e 'ar2' (assistentes) */
+  role?: 'ref' | 'ar1' | 'ar2';
+  /** expulso: 'walking' sai do campo, 'gone' já saiu (não joga mais) */
+  off?: 'walking' | 'gone';
 }
 export interface Net { w: number; h: number; d: number[]; dv: number[] }
 export interface Particle { x: number; y: number; z: number; vx: number; vy: number; vz: number; c: string; life: number }
 export interface Banner { text: string; sub: string; t0: number }
 export interface Card { agent: number; kind: 'yellow' | 'red'; until: number }
-export type ScriptKind = 'goal' | 'save' | 'miss' | 'corner' | 'foul' | 'injury';
-export interface Script { kind: ScriptKind; side: Side; t: number; phase: number; shooter: number; ty: number; tz: number; player?: string; data: Record<string, number>; dur: number }
+export type ScriptKind = 'goal' | 'save' | 'miss' | 'corner' | 'foul' | 'injury' | 'offside' | 'goalkick' | 'throw';
+export interface Script { kind: ScriptKind; side: Side; t: number; phase: number; shooter: number; ty: number; tz: number; player?: string; data: Record<string, number>; dur: number; /** falta perto do gol (ou pênalti): a cobrança É a finalização que o motor registrou logo em seguida */ then?: Script }
 export interface World {
   t: number; ball: Ball; agents: Agent[]; nets: [Net, Net]; script: Script | null; queue: Script[];
   banner: Banner | null; card: Card | null; confetti: Particle[]; camX: number;
@@ -50,7 +54,13 @@ export interface World {
   roster: { home: string[]; away: string[] };
   posOf?: (id: string) => Position | undefined;
   /** a bola sai no instante do contato do pé (e não no começo do movimento) */
-  kickQ: { at: number; to: V3; T: number; ground: boolean; curve: number; target?: number } | null;
+  /** equipe de arbitragem: árbitro principal e os dois assistentes (bandeirinhas) */
+  refs: Agent[];
+  /** lances do motor já encenados junto com outro (cartão da falta, cobrança de falta/pênalti) */
+  skip: Set<number>;
+  /** quantos apitos o árbitro deu (o áudio acompanha) */
+  whistles: number;
+  kickQ: { at: number; to: V3; T: number; ground: boolean; curve: number; target?: number; side?: Side } | null;
 }
 
 const hash = (n: number) => { let h = (n * 2654435761) >>> 0; h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; return (h >>> 8) / 0xffffff; };
@@ -71,8 +81,9 @@ export function createWorld(homeFormation: FormationId = '4-4-2', awayFormation:
   const w: World = {
     t: 0, ball: { p: { x: CENTER.x, y: CENTER.y, z: BALL_R }, v: { x: 0, y: 0, z: 0 }, mode: 'free', carrier: -1, spin: 0, slideUntil: 0, scored: null, inNet: null, crossed: false },
     agents, nets: [newNet(), newNet()], script: null, queue: [], banner: null, card: null, confetti: [], camX: CENTER.x,
-    flow: { st: playState([], 0, 0), tick: -1, carrier: -1, side: 'none' }, formations: { home: homeFormation, away: awayFormation }, goals: { home: 0, away: 0 }, flip: false, roster: { home: [], away: [] }, kickQ: null,
+    flow: { st: playState([], 0, 0), tick: -1, carrier: -1, side: 'none' }, formations: { home: homeFormation, away: awayFormation }, goals: { home: 0, away: 0 }, flip: false, roster: { home: [], away: [] }, kickQ: null, refs: [], skip: new Set<number>(), whistles: 0,
   };
+  for (const role of ['ref', 'ar1', 'ar2'] as const) w.refs.push({ id: 22 + w.refs.length, side: 'home', idx: 0, gk: false, x: role === 'ref' ? CENTER.x - 6 : role === 'ar1' ? L * 0.3 : L * 0.7, y: role === 'ref' ? MID_Y + 9 : role === 'ar1' ? -1.4 : W + 1.4, vx: 0, vy: 0, heading: 0, gait: 0, hop: 0, hopV: 0, tx: 0, ty: 0, state: 'play', role });
   placeFormation(w, playState([], 0, 0), 0);
   return w;
 }
@@ -80,7 +91,7 @@ export function createWorld(homeFormation: FormationId = '4-4-2', awayFormation:
 /** Coloca todos nos lugares da formação (sem correr): início, intervalo e saltos no tempo. */
 export function placeFormation(w: World, st: PlayState, tick: number) {
   const hp = positionsOf('home', w.formations.home, st, tick).map((p) => toWorld(p, w.flip)), ap = positionsOf('away', w.formations.away, st, tick).map((p) => toWorld(p, w.flip));
-  w.agents.forEach((a) => { const p = (a.side === 'home' ? hp : ap)[a.idx]; a.x = a.tx = p.x; a.y = a.ty = p.y; a.vx = a.vy = 0; a.state = 'play'; a.ov = undefined; a.hop = 0; a.hopV = 0; });
+  w.agents.forEach((a) => { if (a.off) return; const p = (a.side === 'home' ? hp : ap)[a.idx]; a.x = a.tx = p.x; a.y = a.ty = p.y; a.vx = a.vy = 0; a.state = 'play'; a.ov = undefined; a.hop = 0; a.hopV = 0; });
 }
 
 /** Pega a bola ao centro (saída de bola). */
@@ -95,6 +106,7 @@ export function ballistic(from: V3, to: V3, T: number): V3 {
 /** Chuta: a bola vira livre e sai com a velocidade que a leva ao ponto no tempo dado. `ground` = passe rasteiro (rola sem atrito até chegar). */
 export function kickTo(w: World, to: V3, T: number, ground = false, curveM = 0) {
   const b = w.ball;
+  const prevHolder = w.agents[b.carrier]; if (prevHolder) b.lastSide = prevHolder.side;
   // chute com efeito: a bola sai desviada para o lado e a curva a traz de volta ao ponto (desvio máximo de `curveM` metros no meio do caminho)
   const dx = to.x - b.p.x, dy = to.y - b.p.y, dl = Math.hypot(dx, dy) || 1, px = -dy / dl, py = dx / dl;
   const aim = ground || !curveM ? to : { x: to.x - px * curveM, y: to.y - py * curveM, z: to.z };
@@ -203,19 +215,23 @@ function stepBall(w: World, dt: number) {
 
 const RUN = 7.4, GK_RUN = 5.6, ACC = 11, WALK = 2.2;
 function stepAgent(w: World, a: Agent, dt: number) {
+  if (a.off === 'gone') { a.vx = a.vy = 0; return; }
   if (a.state === 'down') { a.vx *= 0.8; a.vy *= 0.8; return; }
   const ov = a.ov && a.ov.until > w.t ? a.ov : undefined;
   if (a.ov && !ov) a.ov = undefined;
   let tx = ov ? ov.x : a.tx, ty = ov ? ov.y : a.ty;
-  tx = clamp(tx, 0.5, L - 0.5); ty = clamp(ty, 0.5, W - 0.5);
+  const m = a.role || a.off ? 6 : -0.5; // árbitros e expulsos podem ir além das linhas
+  tx = clamp(tx, -m + 0.5, L + m - 0.5); ty = clamp(ty, -m + 0.5, W + m - 0.5);
   const dx = tx - a.x, dy = ty - a.y, d = Math.hypot(dx, dy);
-  const vmax = ov ? ov.speed : (a.gk ? GK_RUN : RUN);
+  const vmax = ov ? ov.speed : a.role ? 6.2 : (a.gk ? GK_RUN : RUN);
   const want = a.state === 'hold' ? 0 : Math.min(vmax, d * 2.6, d > 14 ? vmax : Math.max(WALK, d * 1.9)); // chega freando
   const wvx = d > 0.05 ? (dx / d) * want : 0, wvy = d > 0.05 ? (dy / d) * want : 0;
   let ax = wvx - a.vx, ay = wvy - a.vy; const am = Math.hypot(ax, ay), lim = ACC * dt;
   if (am > lim) { ax = (ax / am) * lim; ay = (ay / am) * lim; }
   a.vx += ax; a.vy += ay;
-  a.x = clamp(a.x + a.vx * dt, 0.3, L - 0.3); a.y = clamp(a.y + a.vy * dt, 0.3, W - 0.3);
+  const bm = a.role || a.off ? 6 : 0; // limites do campo (árbitros e expulsos andam por fora)
+  a.x = clamp(a.x + a.vx * dt, 0.3 - bm, L - 0.3 + bm); a.y = clamp(a.y + a.vy * dt, 0.3 - bm, W - 0.3 + bm);
+  if (a.off === 'walking' && (a.y < -1.2 || a.y > W + 1.2)) a.off = 'gone'; // saiu pela lateral
   const sp = Math.hypot(a.vx, a.vy);
   if (sp > 0.5 && a.state !== 'dive') { let dh = Math.atan2(a.vy, a.vx) - a.heading; while (dh > Math.PI) dh -= 2 * Math.PI; while (dh < -Math.PI) dh += 2 * Math.PI; a.heading += dh * Math.min(1, 9 * dt); }
   a.gait += sp * dt * 1.4;
@@ -228,11 +244,28 @@ function stepAgent(w: World, a: Agent, dt: number) {
 function separate(w: World) {
   const A = w.agents;
   for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) {
+    if (A[i].off === 'gone' || A[j].off === 'gone') continue;
     let dx = A[j].x - A[i].x, dy = A[j].y - A[i].y, d = Math.hypot(dx, dy); const min = 2.2;
     if (d < 1e-4) { dx = Math.cos(i * 2.4 + j); dy = Math.sin(i * 2.4 + j); d = 1; } // exatamente no mesmo ponto: separa por uma direção fixa
     if (d < min) { const push = Math.min((min - d) / 2, 0.025), nx = dx / d, ny = dy / d; A[i].x -= nx * push; A[i].y -= ny * push; A[j].x += nx * push; A[j].y += ny * push; }
   }
 }
+
+/* ------------------------------ arbitragem ------------------------------ */
+
+/** Quem apita é sempre o árbitro principal; os assistentes ficam nas laterais, cada um numa metade do campo. */
+function stepOfficials(w: World, dt: number) {
+  const b = w.ball.p, dirAttack = w.flow.st.possession === 'none' ? 0 : sgnOf(w.flow.st.possession as Side, w.flip);
+  const [ref, ar1, ar2] = w.refs;
+  if (!ref) return;
+  if (!ref.ov) { ref.tx = clamp(b.x - dirAttack * 7, 6, L - 6); ref.ty = clamp(b.y > MID_Y ? b.y - 10 : b.y + 10, 5, W - 5); } // na diagonal, atrás da jogada e do lado oposto
+  if (!ar1.ov) { ar1.tx = clamp(b.x, 2, L / 2 + 10); ar1.ty = -1.4; }
+  if (!ar2.ov) { ar2.tx = clamp(b.x, L / 2 - 10, L - 2); ar2.ty = W + 1.4; }
+  for (const r of w.refs) { stepAgent(w, r, dt); if (r.role !== 'ref') r.heading = Math.abs(r.vx) > 0.4 ? (r.vx > 0 ? 0 : Math.PI) : (r.y < MID_Y ? Math.PI / 2 : -Math.PI / 2); }
+}
+const whistle = (w: World) => { w.refs[0].act = { kind: 'ref_whistle', t0: w.t, dur: ACT.ref_whistle.dur, dir: 1 }; w.whistles++; };
+/** O assistente que cuida da metade do campo onde está a bola. */
+const arFor = (w: World, x: number) => (x < L / 2 ? w.refs[1] : w.refs[2]);
 
 /* ------------------------------ fluxo normal (sem lance) ------------------------------ */
 
@@ -241,7 +274,7 @@ const holderOf = (w: World, side: Side, idx: number) => w.agents[(side === 'home
 /** Inicia uma ação no atleta (o desenhista anima a partir de `act`). */
 export function startAct(w: World, a: Agent, kind: ActKind, dir = 1, dur?: number) { a.act = { kind, t0: w.t, dur: dur ?? ACT[kind].dur, dir }; }
 /** Agenda o chute para o instante do contato do pé com a bola. */
-function scheduleKick(w: World, delay: number, to: V3, T: number, ground: boolean, curve = 0, target?: number) { w.kickQ = { at: w.t + delay, to, T, ground, curve, target }; }
+function scheduleKick(w: World, delay: number, to: V3, T: number, ground: boolean, curve = 0, target?: number, side?: Side) { w.kickQ = { at: w.t + delay, to, T, ground, curve, target, side }; }
 
 /** Posição (0 a 10) de um jogador na formação do time, pelo id; -1 se não estiver em campo ou se a escalação não é conhecida. */
 export function slotOf(w: World, side: Side, pid?: string): number { return pid ? w.roster[side].indexOf(pid) : -1; }
@@ -252,10 +285,14 @@ export function slotsFrom(ids: string[], posOf: (id: string) => Position | undef
   return out.length === ids.length ? out : ids.slice();
 }
 /** Atualiza quem joga em cada posição conforme os lances até `upTo` (início, lesões com substituição, mudanças táticas, expulsões). */
-export function syncRoster(w: World, events: MatchEvent[], upTo: number) {
+export function syncRoster(w: World, events: MatchEvent[], upTo: number, markGone = false) {
   if (!w.posOf || !events.some((e) => e.type === 'kickoff' && e.lineups)) return;
-  const f = onField(events, upTo);
+  const f = onField(events, upTo, true); // expulsos continuam na posição (o time joga com um a menos), só deixam de aparecer
   w.roster = { home: slotsFrom(f.home, w.posOf), away: slotsFrom(f.away, w.posOf) };
+  if (markGone) { // salto no tempo: quem já foi expulso não está em campo
+    for (const a of w.agents) a.off = undefined;
+    for (let i = 0; i < upTo && i < events.length; i++) { const e = events[i]; if (e.type === 'red' && e.pid && e.side !== 'none') { const k = slotOf(w, e.side, e.pid); if (k >= 0) holderOf(w, e.side, k).off = 'gone'; } }
+  }
 }
 
 /** Atualiza para onde cada jogador corre e quem está com a bola, conforme o estado do jogo naquele instante. */
@@ -296,24 +333,89 @@ function receive(w: World) {
 
 const FORWARDS = [8, 9, 10, 7];
 /** Começa a encenação de um lance da narração. Gols interrompem tudo; os outros esperam o roteiro em curso. */
-export function triggerEvent(w: World, e: MatchEvent, ix: number) {
+export interface TriggerCtx {
+  /** o cartão que o motor registrou logo depois desta falta (1 amarelo, 2 vermelho) */
+  card?: 1 | 2;
+  /** a finalização que o motor registrou logo depois (cobrança de falta perto do gol ou pênalti) */
+  follow?: { e: MatchEvent; ix: number };
+  /** vantagem: o time que sofreu a falta ataca em seguida e o árbitro deixa o jogo seguir */
+  adv?: boolean;
+}
+/** Monta (e, se não for "dry", começa) a encenação de um lance da narração. Gols interrompem tudo; os outros esperam o roteiro em curso. */
+export function triggerEvent(w: World, e: MatchEvent, ix: number, ctx: TriggerCtx = {}, dry = false): Script | undefined {
   const side: Side = e.side === 'none' ? 'home' : e.side;
-  const att: Side = e.type === 'foul' || e.type === 'yellow' || e.type === 'red' || e.type === 'injury' ? side : side; // lado do time do lance
+  const att: Side = side; // lado do time do lance
   const real = slotOf(w, side, e.pid), sh = real > 0 ? real : FORWARDS[Math.floor(hash(ix * 5 + 1) * FORWARDS.length)]; // quem fez o lance é o jogador do motor (se a escalação é conhecida)
   const sc: Script = { kind: 'goal', side: att, t: 0, phase: 0, shooter: sh, ty: 0, tz: 0, player: e.player, data: {}, dur: 4 };
   const sgn = Math.sign(hash(ix * 13 + 7) - 0.5) || 1;
   if (e.type === 'goal') {
-    sc.data.header = e.how === 'header' ? 1 : 0;
+    sc.data.header = e.how === 'header' ? 1 : 0; sc.data.pen = e.pen ? 1 : 0;
     sc.kind = 'goal'; sc.ty = MID_Y + sgn * (2.9 + hash(ix * 3) * 0.55); sc.tz = 0.35 + hash(ix * 9 + 2) * 1.85;
-    if (w.script) { endScript(w, false); } w.queue = []; // gol corta qualquer outra encenação
-  } else if (e.type === 'save') { sc.kind = 'save'; sc.ty = MID_Y + sgn * (0.6 + hash(ix * 3) * 1.8); sc.tz = 0.3 + hash(ix * 9 + 2) * 1.2; sc.dur = 3.2; }
-  else if (e.type === 'miss') { sc.kind = 'miss'; const over = hash(ix * 3) > 0.5; sc.ty = over ? MID_Y + sgn * (GOAL_W / 2 - 1) : MID_Y + sgn * (GOAL_W / 2 + 1.5 + hash(ix) * 3); sc.tz = over ? GOAL_H + 0.7 + hash(ix * 9) * 2 : 0.5 + hash(ix * 9) * 1.4; sc.dur = 3; }
+    if (!dry) {
+      if (w.script?.kind === 'foul' && w.script.data.adv === 1) { w.queue = [sc]; return sc; } // vantagem: a falta é sinalizada e, em seguida, vem o lance do ataque
+      if (w.script) { endScript(w, false); } w.queue = []; // gol corta qualquer outra encenação
+    }
+  } else if (e.type === 'save') { sc.kind = 'save'; sc.data.pen = e.pen ? 1 : 0; sc.ty = MID_Y + sgn * (0.6 + hash(ix * 3) * 1.8); sc.tz = 0.3 + hash(ix * 9 + 2) * 1.2; sc.dur = 3.2; }
+  else if (e.type === 'miss') { sc.kind = 'miss'; sc.data.pen = e.pen ? 1 : 0; sc.data.post = e.how === 'post' ? 1 : 0; const over = hash(ix * 3) > 0.5; sc.ty = over ? MID_Y + sgn * (GOAL_W / 2 - 1) : MID_Y + sgn * (GOAL_W / 2 + 1.5 + hash(ix) * 3); sc.tz = over ? GOAL_H + 0.7 + hash(ix * 9) * 2 : 0.5 + hash(ix * 9) * 1.2; sc.dur = 3; }
   else if (e.type === 'corner') { sc.kind = 'corner'; sc.ty = sgn > 0 ? 0.4 : W - 0.4; sc.dur = 3.4; sc.data.taker = real > 0 ? real : 7; }
-  else if (e.type === 'foul' || e.type === 'yellow' || e.type === 'red') { sc.kind = 'foul'; sc.dur = 2.1; sc.data.card = e.type === 'yellow' ? 1 : e.type === 'red' ? 2 : 0; sc.shooter = real > 0 ? real : 1 + Math.floor(hash(ix * 7) * 10); const vs = slotOf(w, side === 'home' ? 'away' : 'home', e.victimId); sc.data.victim = vs > 0 ? vs : 1 + Math.floor(hash(ix * 9) * 10); }
+  else if (e.type === 'foul' || e.type === 'yellow' || e.type === 'red') {
+    sc.kind = 'foul'; sc.dur = 9; sc.data.card = ctx.card ?? (e.type === 'yellow' ? 1 : e.type === 'red' ? 2 : 0); sc.data.pen = e.pen ? 1 : 0; sc.data.adv = ctx.adv ? 1 : 0;
+    sc.shooter = real > 0 ? real : 1 + Math.floor(hash(ix * 7) * 10); const vs = slotOf(w, side === 'home' ? 'away' : 'home', e.victimId); sc.data.victim = vs > 0 ? vs : 1 + Math.floor(hash(ix * 9) * 10);
+    if (ctx.follow && !ctx.adv && !w.script && !dry) { // a cobrança é a própria finalização que o motor registrou: mesma jogada, mesmo resultado
+      const th = triggerEvent(w, ctx.follow.e, ctx.follow.ix, {}, true);
+      if (th && th.side !== side) { sc.then = th; w.skip.add(ctx.follow.ix); }
+    }
+  } else if (e.type === 'offside') { sc.kind = 'offside'; sc.dur = 9; sc.shooter = real > 0 ? real : 8; }
   else if (e.type === 'injury') { sc.kind = 'injury'; sc.dur = 2.6; sc.shooter = real > 0 ? real : 1 + Math.floor(hash(ix * 7) * 10); }
-  else return;
-  if (w.script && e.type !== 'goal') { if (w.queue.length < 3) w.queue.push(sc); return; }
+  else return undefined;
+  if (dry) return sc;
+  if (w.script && e.type !== 'goal') { if (w.queue.length < 3) w.queue.push(sc); return sc; }
   beginScript(w, sc);
+  return sc;
+}
+
+/** Todos param (ficam onde estão) até `secs` segundos: jogo interrompido. Expulsos seguem andando para fora. */
+function holdEveryone(w: World, secs: number) { for (const a of w.agents) if (a.off !== 'gone' && a.off !== 'walking') a.ov = { x: a.x, y: a.y, speed: 1, until: w.t + secs }; }
+
+/** Monta a cobrança: bola no lugar, cobrador atrás dela, barreira a 9,15 m (falta perto do gol), goleiro ajustado e os demais fora da área (pênalti) ou na entrada dela. */
+function setupRestart(w: World, sc: Script, fouled: Side, foulSpot: { x: number; y: number }, kind: 'direct' | 'indirect' | 'pen', kickerSlot: number) {
+  const defSide: Side = fouled === 'home' ? 'away' : 'home';
+  const gx = goalXOf(fouled, w.flip), sg = sgnOf(fouled, w.flip);
+  const spot = kind === 'pen' ? { x: gx - sg * 11, y: MID_Y } : foulSpot; // pênalti: da marca, a 11 m do gol
+  sc.data.rx = spot.x; sc.data.ry = spot.y;
+  const dGoal = Math.abs(gx - spot.x), until = w.t + 14;
+  const b = w.ball; b.mode = 'free'; b.v = { x: 0, y: 0, z: 0 }; b.p = { x: spot.x, y: spot.y, z: BALL_R }; b.carrier = -1; b.slideUntil = 0; b.lastSide = fouled;
+  const dir = Math.atan2(MID_Y - spot.y, gx - spot.x), cx = Math.cos(dir), cy = Math.sin(dir);
+  let kicker = holderOf(w, fouled, kickerSlot);
+  if (kicker.off === 'gone' || kicker.state === 'down' || kicker.gk) kicker = w.agents.filter((a) => a.side === fouled && a.idx > 0 && a.state !== 'down' && a.off !== 'gone').sort((p, q) => dist2(p.x, p.y, spot.x, spot.y) - dist2(q.x, q.y, spot.x, spot.y))[0] ?? kicker;
+  sc.data.kicker = kicker.idx;
+  kicker.ov = { x: spot.x - cx * (kind === 'pen' ? 4 : 3.2), y: spot.y - cy * (kind === 'pen' ? 4 : 3.2), speed: 4, until }; kicker.heading = dir;
+  const used = new Set<number>([kicker.id]);
+  // barreira
+  const wall: Agent[] = [];
+  if (kind !== 'pen' && dGoal < 32 && Math.abs(spot.y - MID_Y) < 26) {
+    const n = dGoal < 20 ? 5 : dGoal < 26 ? 4 : 3;
+    const cands = w.agents.filter((a) => a.side === defSide && a.idx > 0 && a.off !== 'gone' && a.state !== 'down').sort((p, q) => dist2(p.x, p.y, spot.x, spot.y) - dist2(q.x, q.y, spot.x, spot.y)).slice(0, n);
+    const wx = spot.x + cx * 9.15, wy = spot.y + cy * 9.15, px = -cy, py = cx;
+    cands.forEach((a, i) => { const o = (i - (cands.length - 1) / 2) * 0.82; a.ov = { x: wx + px * o, y: wy + py * o, speed: 6.5, until }; a.heading = dir + Math.PI; wall.push(a); used.add(a.id); });
+  }
+  sc.data.wallN = wall.length; wall.forEach((a, i) => { sc.data[`wall${i}`] = a.id; });
+  // goleiro: pênalti na linha; falta, no lado da trave que a barreira não cobre
+  const gkD = holderOf(w, defSide, 0);
+  if (gkD.off !== 'gone') gkD.ov = kind === 'pen' ? { x: gx - sg * 0.5, y: MID_Y, speed: 5, until } : { x: gx - sg * 1.0, y: MID_Y + clamp((spot.y - MID_Y) * 0.16, -2.4, 2.4), speed: 5.5, until };
+  used.add(gkD.id); used.add(holderOf(w, fouled, 0).id);
+  // os demais: no pênalti ficam fora da área e do arco; na falta, na entrada da área
+  let k = 0;
+  for (const a of w.agents) {
+    if (used.has(a.id) || a.off === 'gone' || a.off === 'walking') continue;
+    const att = a.side === fouled, i = k++;
+    const x = kind === 'pen' ? gx - sg * (21 + (i % 4) * 2) : att ? gx - sg * (13 + (i % 4) * 3) : gx - sg * (7 + (i % 3) * 3.5), y = clamp(MID_Y + (((i * 29) % 11) - 5) * 4.6, 6, W - 6);
+    a.ov = { x, y, speed: 6, until };
+  }
+  // árbitro perto da bola (de lado) ou, no pênalti, na linha da área
+  const ref = w.refs[0];
+  ref.ov = kind === 'pen' ? { x: gx - sg * 14, y: MID_Y + 13, speed: 6.5, until } : { x: spot.x - cx * 5 + (-cy) * 6, y: spot.y - cy * 5 + cx * 6, speed: 6.5, until };
+  return { kicker, wall };
 }
 
 function beginScript(w: World, sc: Script) {
@@ -347,16 +449,41 @@ function beginScript(w: World, sc: Script) {
     sc.data.cx = gx - sgn * 0.5;
     b.mode = 'free'; b.v = { x: 0, y: 0, z: 0 }; b.slideUntil = 0; b.p = { x: gx - sgn * 0.3, y: sc.ty, z: BALL_R }; b.carrier = -1;
   } else if (sc.kind === 'foul') {
-    const who = holderOf(w, sc.side, sc.shooter), victim = holderOf(w, sc.side === 'home' ? 'away' : 'home', sc.data.victim || 1);
-    for (const a of w.agents) { a.ov = { x: a.x, y: a.y, speed: 1, until: w.t + 1.4 }; }
-    const bp = w.flow.st.ball; const spot = toWorld(bp, w.flip);
-    // o lance: os dois se encontram na bola (a dividida) e o autor da falta derruba o outro
-    const face = Math.atan2(victim.y - who.y, victim.x - who.x);
-    who.x = spot.x - Math.cos(face) * 1.2; who.y = spot.y - Math.sin(face) * 1.2; victim.x = spot.x + Math.cos(face) * 0.6; victim.y = spot.y + Math.sin(face) * 0.6;
-    who.vx = who.vy = victim.vx = victim.vy = 0; who.heading = face; victim.heading = face + Math.PI; who.ov = { x: who.x, y: who.y, speed: 0.5, until: w.t + 2 }; victim.ov = { x: victim.x, y: victim.y, speed: 0.5, until: w.t + 2 };
-    startAct(w, who, 'tackle', 1);
-    b.mode = 'free'; b.v = { x: 0, y: 0, z: 0 }; b.p = { x: spot.x, y: spot.y, z: BALL_R }; b.carrier = -1;
-    if (sc.data.card) w.card = { agent: who.id, kind: sc.data.card === 2 ? 'red' : 'yellow', until: w.t + 1.6 };
+    const who = holderOf(w, sc.side, sc.shooter), other: Side = sc.side === 'home' ? 'away' : 'home', victim = holderOf(w, other, sc.data.victim || 1);
+    const adv = sc.data.adv === 1, pen = sc.data.pen === 1;
+    let spot = toWorld(w.flow.st.ball, w.flip);
+    if (pen) { const gx = goalXOf(other, w.flip), sg = sgnOf(other, w.flip); spot = { x: gx - sg * 13.5, y: MID_Y + (hash(sc.shooter * 3) - 0.5) * 8 }; } // pênalti: a falta é dentro da grande área
+    sc.data.px = spot.x; sc.data.py = spot.y;
+    if (adv) { // vantagem: ninguém para; o árbitro sinaliza com os braços
+      startAct(w, who, 'duel', 1);
+    } else {
+      holdEveryone(w, 9);
+      b.mode = 'free'; b.v = { x: 0, y: 0, z: 0 }; b.p = { x: spot.x, y: spot.y, z: BALL_R }; b.carrier = -1; b.slideUntil = 0;
+      // o lance: os dois se encontram na bola (a dividida) e o autor da falta derruba o outro
+      const face = Math.atan2(victim.y - who.y, victim.x - who.x);
+      who.x = spot.x - Math.cos(face) * 1.2; who.y = spot.y - Math.sin(face) * 1.2; victim.x = spot.x + Math.cos(face) * 0.6; victim.y = spot.y + Math.sin(face) * 0.6;
+      who.vx = who.vy = victim.vx = victim.vy = 0; who.heading = face; victim.heading = face + Math.PI;
+      startAct(w, who, 'tackle', 1);
+    }
+  } else if (sc.kind === 'offside') {
+    const who = holderOf(w, sc.side, sc.shooter), spot = toWorld(w.flow.st.ball, w.flip);
+    sc.data.px = spot.x; sc.data.py = spot.y;
+    holdEveryone(w, 9);
+    b.mode = 'free'; b.v = { x: 0, y: 0, z: 0 }; b.p = { x: spot.x, y: spot.y, z: BALL_R }; b.carrier = -1; b.slideUntil = 0;
+    void who;
+  } else if (sc.kind === 'goalkick') {
+    const defGoal = goalXOf(sc.side, w.flip), into = defGoal === 0 ? 1 : -1, def: Side = sc.side === 'home' ? 'away' : 'home';
+    const spot = { x: defGoal + into * 5, y: MID_Y + (hash(sc.shooter * 7) - 0.5) * 7 };
+    sc.data.px = spot.x; sc.data.py = spot.y; sc.data.into = into;
+    b.mode = 'free'; b.v = { x: 0, y: 0, z: 0 }; b.p = { x: spot.x, y: spot.y, z: BALL_R }; b.carrier = -1; b.slideUntil = 0; b.scored = null; b.inNet = null; b.crossed = false;
+    const gk = holderOf(w, def, 0); gk.ov = { x: spot.x - into * 2.4, y: spot.y, speed: 6, until: w.t + 4 };
+    const ar = arFor(w, spot.x); ar.ov = { x: clamp(spot.x, 3, L - 3), y: ar.y < MID_Y ? -1.4 : W + 1.4, speed: 6, until: w.t + 5 };
+  } else if (sc.kind === 'throw') {
+    const spot = { x: sc.data.px, y: sc.data.py };
+    b.mode = 'free'; b.v = { x: 0, y: 0, z: 0 }; b.p = { x: spot.x, y: spot.y, z: BALL_R }; b.carrier = -1; b.slideUntil = 0;
+    const taker = w.agents.filter((a) => a.side === sc.side && a.idx > 0 && a.off !== 'gone').sort((p, q) => dist2(p.x, p.y, spot.x, spot.y) - dist2(q.x, q.y, spot.x, spot.y))[0];
+    if (taker) { sc.shooter = taker.idx; taker.ov = { x: spot.x, y: spot.y < MID_Y ? spot.y - 0.6 : spot.y + 0.6, speed: 7, until: w.t + 4 }; }
+    const ar = arFor(w, spot.x); ar.ov = { x: clamp(spot.x, 3, L - 3), y: spot.y < MID_Y ? -1.4 : W + 1.4, speed: 7, until: w.t + 4 }; ar.act = { kind: 'flag_up', t0: w.t, dur: ACT.flag_up.dur, dir: 1 };
   } else if (sc.kind === 'injury') {
     holderOf(w, sc.side, sc.shooter).state = 'down';
   }
@@ -365,10 +492,11 @@ function beginScript(w: World, sc: Script) {
 function endScript(w: World, restart: boolean) {
   const sc = w.script;
   w.script = null;
-  for (const a of w.agents) { if (a.state === 'down') startAct(w, a, 'getup', 1); if (a.state !== 'play') a.state = 'play'; a.ov = undefined; }
+  for (const a of w.agents) { if (a.state === 'down') startAct(w, a, 'getup', 1); if (a.state !== 'play') a.state = 'play'; if (a.off !== 'walking') a.ov = undefined; } // o expulso segue saindo do campo
+  for (const r of w.refs) r.ov = undefined;
   if (sc && restart) {
     if (sc.kind === 'goal') { w.goals[sc.side]++; placeFormation(w, playState([], 0, 0), 0); ballToCenter(w); w.flow.carrier = -1; }
-    else if (sc.kind === 'miss') { ballToCenter(w); }
+    else if (sc.kind === 'miss') { w.queue.unshift({ kind: 'goalkick', side: sc.side, t: 0, phase: 0, shooter: sc.shooter, ty: 0, tz: 0, data: {}, dur: 3.4 }); } // bola para fora/na trave: tiro de meta
   }
   w.ball.scored = null; w.ball.inNet = null; w.ball.crossed = false;
   const next = w.queue.shift();
@@ -399,7 +527,7 @@ function stepScript(w: World, dt: number) {
         if (header) { b.p = { x: b.p.x, y: b.p.y, z: 2.0 }; }
         const to: V3 = { x: gx + sgn * 0.7, y: sc.ty, z: sc.tz };
         const d = Math.hypot(to.x - b.p.x, to.y - b.p.y);
-        const T = clamp(d / SHOT_V, 0.35, 1.1);
+        const T = sc.data.fk ? clamp(d / 16, 1.0, 1.6) : clamp(d / SHOT_V, 0.35, 1.1); // cobrança de falta: sobe mais para passar por cima da barreira
         // o goleiro se joga: no gol ele chega tarde/errado; na defesa chega na bola
         if (sc.kind === 'save') keeper.ov = { x: gx - sgn * 0.8, y: sc.ty, speed: 9, until: w.t + 2 }; else keeper.ov = { x: gx - sgn * 0.8, y: MID_Y + (sc.ty > MID_Y ? 1 : -1) * 1.3, speed: 4.2, until: w.t + 2 };
         keeper.state = 'dive'; keeper.hopV = 4;
@@ -449,12 +577,75 @@ function stepScript(w: World, dt: number) {
       const near = (side: Side, n: number) => w.agents.filter((a) => a.side === side && a.idx > 0).sort((p, q) => dist2(p.x, p.y, spot.x, spot.y) - dist2(q.x, q.y, spot.x, spot.y)).slice(0, n);
       near(sc.side, 2).forEach((a, i) => startAct(w, a, 'aerial', i ? -1 : 1)); near(sc.side === 'home' ? 'away' : 'home', 2).forEach((a, i) => startAct(w, a, 'aerial', i ? 1 : -1));
     } else if (sc.phase === 1 && sc.t - sc.data.shot > 1.6) endScript(w, false);
-  } else if (sc.kind === 'foul' || sc.kind === 'injury') {
-    if (sc.kind === 'foul') {
-      const victim = holderOf(w, sc.side === 'home' ? 'away' : 'home', sc.data.victim || 1), who = shooter;
-      if (!sc.data.hit && sc.t >= strikeDelay('tackle')) { sc.data.hit = 1; victim.state = 'down'; startAct(w, victim, 'fall', 1); }
-      if (!sc.data.rant && sc.t >= 1.1) { sc.data.rant = 1; if (sc.data.card) { startAct(w, who, 'complain', 1); w.agents.filter((a) => a.side === sc.side && a.id !== who.id && a.idx > 0).sort((p, q) => dist2(p.x, p.y, who.x, who.y) - dist2(q.x, q.y, who.x, who.y)).slice(0, 2).forEach((a) => startAct(w, a, 'complain', 1)); } }
-    } else if (!sc.data.fell) { sc.data.fell = 1; startAct(w, shooter, 'fall', 1); }
+  } else if (sc.kind === 'foul') {
+    const other: Side = sc.side === 'home' ? 'away' : 'home', victim = holderOf(w, other, sc.data.victim || 1), who = shooter, ref = w.refs[0];
+    const adv = sc.data.adv === 1, pen = sc.data.pen === 1, card = sc.data.card, px = sc.data.px, py = sc.data.py;
+    if (!sc.data.hit && sc.t >= strikeDelay('tackle')) { sc.data.hit = 1; if (!adv) { victim.state = 'down'; startAct(w, victim, 'fall', 1); } }
+    if (!sc.data.ref && sc.t >= 0.5) {
+      sc.data.ref = 1;
+      if (adv) startAct(w, ref, 'ref_advantage', 1); else { whistle(w); ref.ov = { x: px - 4, y: py + (py < MID_Y ? 5 : -5), speed: 6.5, until: w.t + 4 }; }
+    }
+    if (adv) { if (sc.t > 1.6) endScript(w, false); }
+    else {
+      if (pen && !sc.data.point && sc.t >= 1.0) { sc.data.point = 1; startAct(w, ref, 'ref_point', 1); } // marca do pênalti
+      if (card && !sc.data.cardShown && sc.t >= 1.2) { // o árbitro mostra o cartão
+        sc.data.cardShown = 1; w.card = { agent: who.id, kind: card === 2 ? 'red' : 'yellow', until: w.t + 1.8 }; startAct(w, ref, 'ref_card', 1); ref.heading = Math.atan2(who.y - ref.y, who.x - ref.x);
+      }
+      if (card && !sc.data.rant && sc.t >= 1.5) { sc.data.rant = 1; startAct(w, who, 'complain', 1); w.agents.filter((a) => a.side === sc.side && a.id !== who.id && a.idx > 0 && a.off !== 'gone').sort((p, q) => dist2(p.x, p.y, who.x, who.y) - dist2(q.x, q.y, who.x, who.y)).slice(0, 2).forEach((a) => startAct(w, a, 'complain', 1)); }
+      if (card === 2 && !sc.data.leave && sc.t >= 2.7) { sc.data.leave = 1; who.state = 'play'; who.off = 'walking'; who.ov = { x: clamp(who.x, 3, L - 3), y: who.y < MID_Y ? -4 : W + 4, speed: 3.4, until: w.t + 40 }; } // expulso: sai do campo
+      const setupAt = card ? 3.0 : 1.7;
+      if (!sc.data.setup && sc.t >= setupAt) {
+        sc.data.setup = 1; startAct(w, victim, 'getup', 1); victim.state = 'play';
+        const fouled = other, th = sc.then, kickerSlot = th ? th.shooter : 8;
+        setupRestart(w, sc, fouled, { x: px, y: py }, pen ? 'pen' : 'direct', kickerSlot);
+        const far = Math.max(0, ...Array.from({ length: sc.data.wallN || 0 }, (_, i) => { const m = w.agents[sc.data[`wall${i}`]]; return dist2(m.x, m.y, m.ov?.x ?? m.x, m.ov?.y ?? m.y); }));
+        sc.data.kickT = sc.t + clamp(far / 6.5 + 0.8, pen ? 2.2 : 2.0, 5.5); // a cobrança espera a barreira se formar
+      }
+      if (sc.data.setup && !sc.data.kicked && sc.t >= sc.data.kickT) {
+        sc.data.kicked = 1; whistle(w);
+        const kicker = holderOf(w, other, sc.data.kicker);
+        if (sc.then) { // a cobrança é a finalização do motor: segue como o roteiro de gol/defesa/chute para fora
+          const rx = sc.data.rx, ry = sc.data.ry, th = sc.then; th.shooter = kicker.idx; th.phase = 0.5; th.t = 0; th.data.sx = rx; th.data.sy = ry; th.data.fk = pen ? 0 : 1;
+          kicker.ov = { x: rx - Math.cos(kicker.heading) * 0.9, y: ry - Math.sin(kicker.heading) * 0.9, speed: 3, until: w.t + 2 };
+          startAct(w, kicker, 'shot', 1); th.data.kickAt = strikeDelay('shot');
+          for (let i = 0; i < (sc.data.wallN || 0); i++) startAct(w, w.agents[sc.data[`wall${i}`]], 'wall', 1);
+          w.ball.lastSide = other; w.script = th;
+        } else { // cobrança comum: toca para um companheiro e o jogo segue
+          const dir = Math.atan2(MID_Y - py, goalXOf(other, w.flip) - px);
+          const mate = w.agents.filter((a) => a.side === other && a.idx > 0 && a.id !== kicker.id && a.off !== 'gone').sort((p, q) => dist2(p.x, p.y, px + Math.cos(dir) * 14, py + Math.sin(dir) * 14) - dist2(q.x, q.y, px + Math.cos(dir) * 14, py + Math.sin(dir) * 14))[0];
+          if (mate) { const d = dist2(px, py, mate.x, mate.y), T = clamp(d / 15, 0.5, 1.5); startAct(w, kicker, d > 25 ? 'cross' : 'pass', 1); scheduleKick(w, strikeDelay(d > 25 ? 'cross' : 'pass'), { x: mate.x, y: mate.y, z: BALL_R }, T, d < 30, 0, mate.id, other); }
+          for (let i = 0; i < (sc.data.wallN || 0); i++) startAct(w, w.agents[sc.data[`wall${i}`]], 'wall', 1);
+        }
+      }
+      if (sc.data.kicked && !sc.then && sc.t - sc.data.kickT > 1.6) endScript(w, false);
+    }
+  } else if (sc.kind === 'offside') {
+    const ar = arFor(w, sc.data.px), ref = w.refs[0], other: Side = sc.side === 'home' ? 'away' : 'home', px = sc.data.px, py = sc.data.py;
+    if (!sc.data.flag && sc.t >= 0.1) { sc.data.flag = 1; ar.ov = { x: clamp(px, 3, L - 3), y: ar.y < MID_Y ? -1.4 : W + 1.4, speed: 7, until: w.t + 6 }; startAct(w, ar, 'flag_up', 1); }
+    if (!sc.data.whistle && sc.t >= 1.0) { sc.data.whistle = 1; whistle(w); ref.ov = { x: px - 6, y: py > MID_Y ? py - 8 : py + 8, speed: 6.5, until: w.t + 4 }; }
+    if (!sc.data.setup && sc.t >= 2.0) { sc.data.setup = 1; const kn = setupRestart(w, sc, other, { x: px, y: py }, 'indirect', 8); sc.data.kickT = sc.t + 1.8; void kn; }
+    if (sc.data.setup && !sc.data.kicked && sc.t >= sc.data.kickT) {
+      sc.data.kicked = 1; whistle(w);
+      const kicker = holderOf(w, other, sc.data.kicker), dir = Math.atan2(MID_Y - py, goalXOf(other, w.flip) - px);
+      const mate = w.agents.filter((a) => a.side === other && a.idx > 0 && a.id !== kicker.id && a.off !== 'gone').sort((p, q) => dist2(p.x, p.y, px + Math.cos(dir) * 12, py + Math.sin(dir) * 12) - dist2(q.x, q.y, px + Math.cos(dir) * 12, py + Math.sin(dir) * 12))[0];
+      if (mate) { const d = dist2(px, py, mate.x, mate.y), T = clamp(d / 15, 0.5, 1.5); startAct(w, kicker, 'pass', 1); scheduleKick(w, strikeDelay('pass'), { x: mate.x, y: mate.y, z: BALL_R }, T, d < 30, 0, mate.id, other); }
+    }
+    if (sc.data.kicked && sc.t - sc.data.kickT > 1.6) endScript(w, false);
+  } else if (sc.kind === 'goalkick') {
+    const def: Side = sc.side === 'home' ? 'away' : 'home', gk = holderOf(w, def, 0), into = sc.data.into, px = sc.data.px;
+    if (!sc.data.flag && sc.t >= 0.4) { sc.data.flag = 1; startAct(w, arFor(w, px), 'flag_horizontal', 1); }
+    if (!sc.data.kick && sc.t >= 1.6) { sc.data.kick = 1; gk.heading = into === 1 ? 0 : Math.PI; startAct(w, gk, 'long_pass', 1); scheduleKick(w, strikeDelay('long_pass'), { x: px + into * (30 + hash(sc.shooter * 11) * 12), y: 12 + hash(sc.shooter * 13) * 40, z: BALL_R }, 1.7, false, 0, undefined, def); }
+    if (sc.t > 3.4) endScript(w, false);
+  } else if (sc.kind === 'throw') {
+    const taker = holderOf(w, sc.side, sc.shooter), px = sc.data.px, py = sc.data.py;
+    if (!sc.data.act && sc.t >= 1.1) {
+      sc.data.act = 1; taker.heading = py < MID_Y ? Math.PI / 2 : -Math.PI / 2; startAct(w, taker, 'throw', 1);
+      const mate = w.agents.filter((a) => a.side === sc.side && a.idx > 0 && a.id !== taker.id && a.off !== 'gone').sort((p, q) => dist2(p.x, p.y, px, py) - dist2(q.x, q.y, px, py))[0];
+      if (mate) scheduleKick(w, strikeDelay('throw'), { x: mate.x, y: mate.y, z: BALL_R }, 0.9, false, 0, mate.id, sc.side);
+    }
+    if (sc.t > 2.8) endScript(w, false);
+  } else if (sc.kind === 'injury') {
+    if (!sc.data.fell) { sc.data.fell = 1; startAct(w, shooter, 'fall', 1); }
     if (sc.t > sc.dur) endScript(w, false);
   }
   if (sc.t > 9) endScript(w, sc.kind === 'goal'); // trava de segurança: nunca deixa uma encenação presa
@@ -469,9 +660,10 @@ export function stepWorld(w: World, dtTotal: number) {
     const dt = Math.min(SUB, left); left -= dt;
     w.t += dt;
     for (const a of w.agents) stepAgent(w, a, dt);
+    stepOfficials(w, dt);
     separate(w);
     for (let k = 0; k < 3; k++) stepBall(w, dt / 3); // passos finos: o chute não atravessa a trave
-    if (w.kickQ && w.t >= w.kickQ.at) { const k = w.kickQ; w.kickQ = null; kickTo(w, k.to, k.T, k.ground, k.curve); if (k.target !== undefined) (w.ball as Ball & { target?: number }).target = k.target; }
+    if (w.kickQ && w.t >= w.kickQ.at) { const k = w.kickQ; w.kickQ = null; kickTo(w, k.to, k.T, k.ground, k.curve); if (k.side) w.ball.lastSide = k.side; if (k.target !== undefined) (w.ball as Ball & { target?: number }).target = k.target; }
     receive(w);
     stepScript(w, dt);
     for (const n of w.nets) stepNet(n, dt);
@@ -486,6 +678,7 @@ export function stepWorld(w: World, dtTotal: number) {
 
 /** Quando o tempo pula (pular partida, pênaltis): encerra roteiros e põe todos no lugar. */
 export function snapWorld(w: World, st: PlayState, tick: number) {
+  w.skip.clear();
   w.script = null; w.queue = []; w.banner = null; w.card = null; w.confetti = []; w.kickQ = null; for (const a of w.agents) a.act = undefined;
   for (const n of w.nets) { n.d.fill(0); n.dv.fill(0); }
   placeFormation(w, st, tick); ballToCenter(w);
@@ -499,7 +692,7 @@ export interface Driver { idx: number; lastMinute: number; lastTick: number }
 export const createDriver = (): Driver => ({ idx: 0, lastMinute: 0, lastTick: -1 });
 /** A partir deste minuto (2º tempo) os times jogam com os lados trocados. */
 export const SECOND_HALF = 45.5;
-const SCRIPTED = new Set(['goal', 'save', 'miss', 'corner', 'foul', 'yellow', 'red', 'injury']);
+const SCRIPTED = new Set(['goal', 'save', 'miss', 'corner', 'foul', 'yellow', 'red', 'injury', 'offside']);
 
 /**
  * Acompanha o relógio: cada lance da narração que o minuto alcança vira uma encenação; a cada meio minuto o fluxo do jogo se
@@ -508,15 +701,30 @@ const SCRIPTED = new Set(['goal', 'save', 'miss', 'corner', 'foul', 'yellow', 'r
 export function drive(w: World, drv: Driver, events: MatchEvent[], minute: number) {
   const tick = Math.floor(minute * 2), mi = Math.floor(minute);
   const flip = minute >= SECOND_HALF;
-  if (flip !== w.flip) { w.flip = flip; snapWorld(w, playState(events, mi, tick), tick); drv.idx = events.filter((e) => e.minute <= minute).length; syncRoster(w, events, drv.idx); drv.lastTick = tick; drv.lastMinute = minute; return; } // intervalo: os times trocam de lado e todos voltam aos seus lugares
+  if (flip !== w.flip) { w.flip = flip; snapWorld(w, playState(events, mi, tick), tick); drv.idx = events.filter((e) => e.minute <= minute).length; syncRoster(w, events, drv.idx, true); drv.lastTick = tick; drv.lastMinute = minute; return; } // intervalo: os times trocam de lado e todos voltam aos seus lugares
   if (minute < drv.lastMinute - 0.01 || minute - drv.lastMinute > 6) {
     drv.idx = events.filter((e) => e.minute <= minute).length;
-    syncRoster(w, events, drv.idx);
+    syncRoster(w, events, drv.idx, true);
     snapWorld(w, playState(events, mi, tick), tick);
     drv.lastTick = tick; drv.lastMinute = minute;
     return;
   }
-  while (drv.idx < events.length && events[drv.idx].minute <= minute) { const e = events[drv.idx]; if (SCRIPTED.has(e.type)) triggerEvent(w, e, drv.idx); drv.idx++; if (e.type === 'kickoff' || e.type === 'injury' || e.type === 'tactic' || e.type === 'red') syncRoster(w, events, drv.idx); }
+  while (drv.idx < events.length && events[drv.idx].minute <= minute) {
+    const e = events[drv.idx];
+    if (w.skip.has(drv.idx)) { w.skip.delete(drv.idx); drv.idx++; continue; } // já encenado junto com outro lance (cartão da falta, cobrança)
+    if (SCRIPTED.has(e.type)) {
+      const ctx: TriggerCtx = {};
+      if (e.type === 'foul' && e.side !== 'none') { // a falta, o cartão que vem junto e a cobrança (a finalização que o motor registrou em seguida) formam uma jogada só
+        let j = drv.idx + 1; const c = events[j];
+        if (c && (c.type === 'yellow' || c.type === 'red') && c.pid === e.pid && c.minute === e.minute) { ctx.card = c.type === 'red' ? 2 : 1; w.skip.add(j); j++; }
+        const f = events[j], fouled: Side = e.side === 'home' ? 'away' : 'home';
+        if (f && f.minute === e.minute && f.side === fouled && (f.type === 'goal' || f.type === 'save' || f.type === 'miss')) { ctx.follow = { e: f, ix: j }; if (!e.pen && hash(drv.idx * 17 + 3) < 0.4) ctx.adv = true; } // vantagem: o time ofendido ataca e o árbitro deixa seguir
+      }
+      triggerEvent(w, e, drv.idx, ctx);
+    }
+    drv.idx++;
+    if (e.type === 'kickoff' || e.type === 'injury' || e.type === 'tactic') syncRoster(w, events, drv.idx);
+  }
   if (tick !== drv.lastTick) { syncFlow(w, playState(events, mi, tick), tick); drv.lastTick = tick; }
   drv.lastMinute = minute;
 }
