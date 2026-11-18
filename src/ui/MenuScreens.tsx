@@ -240,16 +240,17 @@ export function Credits({ onBack }: { onBack: () => void }) {
       <section>
         <h3>Equipe</h3>
         <div className="card cr-list">
-          <p><b>Ideia e direção do jogo</b><br />O criador do Vida Real FC</p>
-          <p><b>Programação, design e áudio</b><br />Desenvolvido com o Claude, da Anthropic</p>
-          <p><b>Música e efeitos sonoros</b><br />Sintetizados dentro do jogo (sem arquivos de terceiros)</p>
+          <p><b>Ideia e direção do jogo</b><br />Flexon Jr</p>
+          <p><b>Programação, design e áudio</b><br />Flexon Jr<br />Raul Freitas<br />Douglas Breno</p>
         </div>
       </section>
       <section>
         <h3>Avisos</h3>
         <div className="card cr-list">
-          <p>Os clubes, estádios, jogadores, elencos, valores e resultados do jogo são <b>fictícios</b>. Qualquer semelhança com clubes reais é coincidência.</p>
-          <p>Nomes e escudos reais só aparecem se <b>você</b> instalar um pacote (Mods da Comunidade). Os direitos de nomes e escudos pertencem aos seus donos.</p>
+          <p>Os clubes, estádios, jogadores, elencos, valores e resultados do jogo são <b>fictícios</b>. Qualquer semelhança com clubes, atletas ou competições reais é mera coincidência.</p>
+          <p>Nomes, escudos e dados reais <b>não fazem parte do jogo</b>. Eles só aparecem se <b>você</b> instalar um pacote da comunidade (Mods da Comunidade). Os direitos de nomes, escudos e marcas pertencem aos seus respectivos donos.</p>
+          <p><b>Sobre os mods:</b> o Vida Real FC <b>não se responsabiliza por nenhum mod</b> criado, publicado ou compartilhado dentro da comunidade. Os mods são feitos por terceiros: o jogo não os cria, não os revisa e não garante o seu conteúdo, funcionamento ou origem. Qualquer problema com um mod (direitos autorais, uso de nomes e imagens, conteúdo impróprio ou dados do jogo) é de responsabilidade do autor do mod e de quem o instala.</p>
+          <p>Instale apenas mods de fontes em que você confia. Instalar e usar um mod é uma escolha sua, por sua conta e risco.</p>
           <p>Comunidade: {COMMUNITY_LINK}</p>
         </div>
       </section>
