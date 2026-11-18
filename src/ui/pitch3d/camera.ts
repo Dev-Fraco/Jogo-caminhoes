@@ -8,7 +8,7 @@ const norm = (a: [number, number, number]): [number, number, number] => { const 
 const cross = (a: number[], b: number[]): [number, number, number] => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 
 /** `camX` = ponto do campo (no comprimento) para onde a câmera olha; `span` = quantos metros cabem na largura da tela no centro do campo. */
-export function makeCamera(width: number, height: number, camX: number, span = 44): Camera {
+export function makeCamera(width: number, height: number, camX: number, span = 38): Camera {
   const pos: [number, number, number] = [camX, -19, 17], target: [number, number, number] = [camX, 27, 0];
   const f = norm([target[0] - pos[0], target[1] - pos[1], target[2] - pos[2]]);
   const r = norm(cross(f, [0, 0, 1])), u = cross(r, f);

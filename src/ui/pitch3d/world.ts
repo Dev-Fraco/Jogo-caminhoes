@@ -1,4 +1,6 @@
-import type { FormationId, MatchEvent } from '../../engine/types';
+import type { FormationId, MatchEvent, Position } from '../../engine/types';
+import { onField } from '../../engine/plays';
+import { ACT, strikeDelay, type Act, type ActKind } from './anim';
 import { PITCH_H, PITCH_W, playState, positionsOf, type PlayState, type Pt, type Side } from '../pitch';
 
 /* =====================================================================
@@ -27,6 +29,8 @@ export interface Agent {
   tx: number; ty: number; state: AgentState;
   /** destino imposto por um roteiro (vale até `until`) e limite de velocidade */
   ov?: { x: number; y: number; speed: number; until: number };
+  /** ação em curso (chute, passe, carrinho...): é o que o desenhista anima */
+  act?: Act;
 }
 export interface Net { w: number; h: number; d: number[]; dv: number[] }
 export interface Particle { x: number; y: number; z: number; vx: number; vy: number; vz: number; c: string; life: number }
@@ -42,6 +46,11 @@ export interface World {
   goals: { home: number; away: number };
   /** segundo tempo: os times trocaram de lado (o mandante defende o gol da direita) */
   flip: boolean;
+  /** quem joga em cada posição do time (id do jogador), tirado da escalação do motor; vazio = só as posições */
+  roster: { home: string[]; away: string[] };
+  posOf?: (id: string) => Position | undefined;
+  /** a bola sai no instante do contato do pé (e não no começo do movimento) */
+  kickQ: { at: number; to: V3; T: number; ground: boolean; curve: number; target?: number } | null;
 }
 
 const hash = (n: number) => { let h = (n * 2654435761) >>> 0; h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; return (h >>> 8) / 0xffffff; };
@@ -62,7 +71,7 @@ export function createWorld(homeFormation: FormationId = '4-4-2', awayFormation:
   const w: World = {
     t: 0, ball: { p: { x: CENTER.x, y: CENTER.y, z: BALL_R }, v: { x: 0, y: 0, z: 0 }, mode: 'free', carrier: -1, spin: 0, slideUntil: 0, scored: null, inNet: null, crossed: false },
     agents, nets: [newNet(), newNet()], script: null, queue: [], banner: null, card: null, confetti: [], camX: CENTER.x,
-    flow: { st: playState([], 0, 0), tick: -1, carrier: -1, side: 'none' }, formations: { home: homeFormation, away: awayFormation }, goals: { home: 0, away: 0 }, flip: false,
+    flow: { st: playState([], 0, 0), tick: -1, carrier: -1, side: 'none' }, formations: { home: homeFormation, away: awayFormation }, goals: { home: 0, away: 0 }, flip: false, roster: { home: [], away: [] }, kickQ: null,
   };
   placeFormation(w, playState([], 0, 0), 0);
   return w;
@@ -208,7 +217,7 @@ function stepAgent(w: World, a: Agent, dt: number) {
   a.vx += ax; a.vy += ay;
   a.x = clamp(a.x + a.vx * dt, 0.3, L - 0.3); a.y = clamp(a.y + a.vy * dt, 0.3, W - 0.3);
   const sp = Math.hypot(a.vx, a.vy);
-  if (sp > 0.5) { let dh = Math.atan2(a.vy, a.vx) - a.heading; while (dh > Math.PI) dh -= 2 * Math.PI; while (dh < -Math.PI) dh += 2 * Math.PI; a.heading += dh * Math.min(1, 9 * dt); }
+  if (sp > 0.5 && a.state !== 'dive') { let dh = Math.atan2(a.vy, a.vx) - a.heading; while (dh > Math.PI) dh -= 2 * Math.PI; while (dh < -Math.PI) dh += 2 * Math.PI; a.heading += dh * Math.min(1, 9 * dt); }
   a.gait += sp * dt * 1.4;
   // pulinho (corrida e comemoração)
   a.hopV -= 22 * dt; a.hop += a.hopV * dt;
@@ -229,6 +238,26 @@ function separate(w: World) {
 
 const holderOf = (w: World, side: Side, idx: number) => w.agents[(side === 'home' ? 0 : 11) + idx];
 
+/** Inicia uma ação no atleta (o desenhista anima a partir de `act`). */
+export function startAct(w: World, a: Agent, kind: ActKind, dir = 1, dur?: number) { a.act = { kind, t0: w.t, dur: dur ?? ACT[kind].dur, dir }; }
+/** Agenda o chute para o instante do contato do pé com a bola. */
+function scheduleKick(w: World, delay: number, to: V3, T: number, ground: boolean, curve = 0, target?: number) { w.kickQ = { at: w.t + delay, to, T, ground, curve, target }; }
+
+/** Posição (0 a 10) de um jogador na formação do time, pelo id; -1 se não estiver em campo ou se a escalação não é conhecida. */
+export function slotOf(w: World, side: Side, pid?: string): number { return pid ? w.roster[side].indexOf(pid) : -1; }
+/** Escalação (ids) -> posições da formação: goleiro, defensores, meias e atacantes, na ordem em que o time se desenha. */
+export function slotsFrom(ids: string[], posOf: (id: string) => Position | undefined): string[] {
+  const out: string[] = [];
+  for (const pos of ['GK', 'DEF', 'MID', 'ATT'] as Position[]) for (const id of ids) if (posOf(id) === pos) out.push(id);
+  return out.length === ids.length ? out : ids.slice();
+}
+/** Atualiza quem joga em cada posição conforme os lances até `upTo` (início, lesões com substituição, mudanças táticas, expulsões). */
+export function syncRoster(w: World, events: MatchEvent[], upTo: number) {
+  if (!w.posOf || !events.some((e) => e.type === 'kickoff' && e.lineups)) return;
+  const f = onField(events, upTo);
+  w.roster = { home: slotsFrom(f.home, w.posOf), away: slotsFrom(f.away, w.posOf) };
+}
+
 /** Atualiza para onde cada jogador corre e quem está com a bola, conforme o estado do jogo naquele instante. */
 export function syncFlow(w: World, st: PlayState, tick: number) {
   const prev = w.flow;
@@ -245,9 +274,11 @@ export function syncFlow(w: World, st: PlayState, tick: number) {
     if (d > 3 && d < 60) {
       const T = clamp(d / 17, 0.35, 1.5);
       const lead = { x: to.x + to.vx * T * 0.6, y: to.y + to.vy * T * 0.6, z: BALL_R };
-      b.mode = 'free';
-      kickTo(w, lead, T, d < 38);
-      w.flow.carrier = to.id; (b as Ball & { target?: number }).target = to.id;
+      const passer = w.agents[b.carrier];
+      const kind: ActKind = d > 34 ? 'long_pass' : T < 0.6 ? 'pass_first' : 'pass';
+      if (passer && !w.kickQ) { startAct(w, passer, kind, hash(passer.id * 5 + Math.floor(w.t)) > 0.3 ? 1 : -1); scheduleKick(w, strikeDelay(kind), lead, T, d < 38, d > 22 ? (hash(passer.id + Math.floor(w.t * 3)) - 0.5) * 3 : 0, to.id); }
+      else if (!passer) { b.mode = 'free'; kickTo(w, lead, T, d < 38); (b as Ball & { target?: number }).target = to.id; }
+      w.flow.carrier = to.id;
     } else { b.mode = 'carried'; b.carrier = to.id; }
   }
 }
@@ -257,7 +288,7 @@ function receive(w: World) {
   const b = w.ball as Ball & { target?: number };
   if (b.mode !== 'free' || w.script || b.target === undefined) return;
   const a = w.agents[b.target];
-  if (a && dist2(b.p.x, b.p.y, a.x, a.y) < 1.4 && b.p.z < 1.2) { b.mode = 'carried'; b.carrier = a.id; b.target = undefined; }
+  if (a && dist2(b.p.x, b.p.y, a.x, a.y) < 1.4 && b.p.z < 1.2) { b.mode = 'carried'; b.carrier = a.id; b.target = undefined; if (!a.act || a.act.t0 + a.act.dur < w.t) startAct(w, a, 'control', 1); }
   else if (Math.hypot(b.v.x, b.v.y) < 0.4 && b.p.z <= BALL_R + 0.01 && a) { /* parou antes: o jogador vai buscar */ a.tx = b.p.x; a.ty = b.p.y; if (dist2(b.p.x, b.p.y, a.x, a.y) < 2.2) { b.mode = 'carried'; b.carrier = a.id; b.target = undefined; } }
 }
 
@@ -268,17 +299,18 @@ const FORWARDS = [8, 9, 10, 7];
 export function triggerEvent(w: World, e: MatchEvent, ix: number) {
   const side: Side = e.side === 'none' ? 'home' : e.side;
   const att: Side = e.type === 'foul' || e.type === 'yellow' || e.type === 'red' || e.type === 'injury' ? side : side; // lado do time do lance
-  const sh = FORWARDS[Math.floor(hash(ix * 5 + 1) * FORWARDS.length)];
+  const real = slotOf(w, side, e.pid), sh = real > 0 ? real : FORWARDS[Math.floor(hash(ix * 5 + 1) * FORWARDS.length)]; // quem fez o lance é o jogador do motor (se a escalação é conhecida)
   const sc: Script = { kind: 'goal', side: att, t: 0, phase: 0, shooter: sh, ty: 0, tz: 0, player: e.player, data: {}, dur: 4 };
   const sgn = Math.sign(hash(ix * 13 + 7) - 0.5) || 1;
   if (e.type === 'goal') {
+    sc.data.header = e.how === 'header' ? 1 : 0;
     sc.kind = 'goal'; sc.ty = MID_Y + sgn * (2.9 + hash(ix * 3) * 0.55); sc.tz = 0.35 + hash(ix * 9 + 2) * 1.85;
     if (w.script) { endScript(w, false); } w.queue = []; // gol corta qualquer outra encenação
   } else if (e.type === 'save') { sc.kind = 'save'; sc.ty = MID_Y + sgn * (0.6 + hash(ix * 3) * 1.8); sc.tz = 0.3 + hash(ix * 9 + 2) * 1.2; sc.dur = 3.2; }
   else if (e.type === 'miss') { sc.kind = 'miss'; const over = hash(ix * 3) > 0.5; sc.ty = over ? MID_Y + sgn * (GOAL_W / 2 - 1) : MID_Y + sgn * (GOAL_W / 2 + 1.5 + hash(ix) * 3); sc.tz = over ? GOAL_H + 0.7 + hash(ix * 9) * 2 : 0.5 + hash(ix * 9) * 1.4; sc.dur = 3; }
-  else if (e.type === 'corner') { sc.kind = 'corner'; sc.ty = sgn > 0 ? 0.4 : W - 0.4; sc.dur = 3.4; }
-  else if (e.type === 'foul' || e.type === 'yellow' || e.type === 'red') { sc.kind = 'foul'; sc.dur = 1.5; sc.data.card = e.type === 'yellow' ? 1 : e.type === 'red' ? 2 : 0; sc.shooter = 1 + Math.floor(hash(ix * 7) * 10); }
-  else if (e.type === 'injury') { sc.kind = 'injury'; sc.dur = 2.6; sc.shooter = 1 + Math.floor(hash(ix * 7) * 10); }
+  else if (e.type === 'corner') { sc.kind = 'corner'; sc.ty = sgn > 0 ? 0.4 : W - 0.4; sc.dur = 3.4; sc.data.taker = real > 0 ? real : 7; }
+  else if (e.type === 'foul' || e.type === 'yellow' || e.type === 'red') { sc.kind = 'foul'; sc.dur = 2.1; sc.data.card = e.type === 'yellow' ? 1 : e.type === 'red' ? 2 : 0; sc.shooter = real > 0 ? real : 1 + Math.floor(hash(ix * 7) * 10); const vs = slotOf(w, side === 'home' ? 'away' : 'home', e.victimId); sc.data.victim = vs > 0 ? vs : 1 + Math.floor(hash(ix * 9) * 10); }
+  else if (e.type === 'injury') { sc.kind = 'injury'; sc.dur = 2.6; sc.shooter = real > 0 ? real : 1 + Math.floor(hash(ix * 7) * 10); }
   else return;
   if (w.script && e.type !== 'goal') { if (w.queue.length < 3) w.queue.push(sc); return; }
   beginScript(w, sc);
@@ -309,15 +341,20 @@ function beginScript(w: World, sc: Script) {
     }
   } else if (sc.kind === 'corner') {
     const gx = goalXOf(sc.side, w.flip), sgn = sgnOf(sc.side, w.flip);
-    const taker = holderOf(w, sc.side, 7);
+    const taker = holderOf(w, sc.side, sc.data.taker || 7);
     taker.ov = { x: gx - sgn * 0.8, y: sc.ty, speed: 8, until: w.t + 2.5 };
-    sc.shooter = 7;
+    sc.shooter = sc.data.taker || 7;
     sc.data.cx = gx - sgn * 0.5;
     b.mode = 'free'; b.v = { x: 0, y: 0, z: 0 }; b.slideUntil = 0; b.p = { x: gx - sgn * 0.3, y: sc.ty, z: BALL_R }; b.carrier = -1;
   } else if (sc.kind === 'foul') {
-    const who = holderOf(w, sc.side, sc.shooter);
+    const who = holderOf(w, sc.side, sc.shooter), victim = holderOf(w, sc.side === 'home' ? 'away' : 'home', sc.data.victim || 1);
     for (const a of w.agents) { a.ov = { x: a.x, y: a.y, speed: 1, until: w.t + 1.4 }; }
     const bp = w.flow.st.ball; const spot = toWorld(bp, w.flip);
+    // o lance: os dois se encontram na bola (a dividida) e o autor da falta derruba o outro
+    const face = Math.atan2(victim.y - who.y, victim.x - who.x);
+    who.x = spot.x - Math.cos(face) * 1.2; who.y = spot.y - Math.sin(face) * 1.2; victim.x = spot.x + Math.cos(face) * 0.6; victim.y = spot.y + Math.sin(face) * 0.6;
+    who.vx = who.vy = victim.vx = victim.vy = 0; who.heading = face; victim.heading = face + Math.PI; who.ov = { x: who.x, y: who.y, speed: 0.5, until: w.t + 2 }; victim.ov = { x: victim.x, y: victim.y, speed: 0.5, until: w.t + 2 };
+    startAct(w, who, 'tackle', 1);
     b.mode = 'free'; b.v = { x: 0, y: 0, z: 0 }; b.p = { x: spot.x, y: spot.y, z: BALL_R }; b.carrier = -1;
     if (sc.data.card) w.card = { agent: who.id, kind: sc.data.card === 2 ? 'red' : 'yellow', until: w.t + 1.6 };
   } else if (sc.kind === 'injury') {
@@ -328,7 +365,7 @@ function beginScript(w: World, sc: Script) {
 function endScript(w: World, restart: boolean) {
   const sc = w.script;
   w.script = null;
-  for (const a of w.agents) { if (a.state !== 'play') a.state = 'play'; a.ov = undefined; }
+  for (const a of w.agents) { if (a.state === 'down') startAct(w, a, 'getup', 1); if (a.state !== 'play') a.state = 'play'; a.ov = undefined; }
   if (sc && restart) {
     if (sc.kind === 'goal') { w.goals[sc.side]++; placeFormation(w, playState([], 0, 0), 0); ballToCenter(w); w.flow.carrier = -1; }
     else if (sc.kind === 'miss') { ballToCenter(w); }
@@ -348,15 +385,27 @@ function stepScript(w: World, dt: number) {
   if (sc.kind === 'goal' || sc.kind === 'save' || sc.kind === 'miss') {
     if (sc.phase === 0) {
       const arrived = dist2(shooter.x, shooter.y, sc.data.sx, sc.data.sy) < 1.2;
-      if (arrived || sc.t > 2.2) {
+      if (arrived || sc.t > 2.2) { // chegou ao ponto do chute: começa o movimento; a bola sai no contato do pé (ou da cabeça)
+        const header = sc.kind === 'goal' && sc.data.header === 1;
+        sc.phase = 0.5; shooter.ov = { x: shooter.x, y: shooter.y, speed: 1.2, until: w.t + 1 };
+        shooter.heading = Math.atan2(MID_Y - shooter.y, gx - shooter.x);
+        startAct(w, shooter, header ? 'header' : 'shot', hash(sc.shooter + 3) > 0.3 ? 1 : -1);
+        sc.data.kickAt = sc.t + strikeDelay(header ? 'header' : 'shot');
+      }
+    } else if (sc.phase === 0.5) {
+      if (sc.t >= sc.data.kickAt) {
         sc.phase = 1; sc.data.shot = sc.t;
+        const header = sc.kind === 'goal' && sc.data.header === 1;
+        if (header) { b.p = { x: b.p.x, y: b.p.y, z: 2.0 }; }
         const to: V3 = { x: gx + sgn * 0.7, y: sc.ty, z: sc.tz };
         const d = Math.hypot(to.x - b.p.x, to.y - b.p.y);
         const T = clamp(d / SHOT_V, 0.35, 1.1);
         // o goleiro se joga: no gol ele chega tarde/errado; na defesa chega na bola
         if (sc.kind === 'save') keeper.ov = { x: gx - sgn * 0.8, y: sc.ty, speed: 9, until: w.t + 2 }; else keeper.ov = { x: gx - sgn * 0.8, y: MID_Y + (sc.ty > MID_Y ? 1 : -1) * 1.3, speed: 4.2, until: w.t + 2 };
         keeper.state = 'dive'; keeper.hopV = 4;
-        b.mode = 'carried'; kickTo(w, to, T, false, d > 11 ? (hash(sc.shooter * 17 + Math.floor(sc.ty)) - 0.5) * 6 : 0);
+        keeper.heading = Math.atan2(b.p.y - keeper.y, b.p.x - keeper.x);
+        startAct(w, keeper, 'gk_dive', Math.sign(-(sc.ty - keeper.y) * Math.cos(keeper.heading)) || 1);
+        b.mode = 'carried'; kickTo(w, to, T, false, d > 11 && !header ? (hash(sc.shooter * 17 + Math.floor(sc.ty)) - 0.5) * 6 : 0);
         sc.data.T = T;
       }
     } else if (sc.phase === 1) {
@@ -374,11 +423,11 @@ function stepScript(w: World, dt: number) {
         sc.data.shot = -99; b.p = { x: gx + sgn * 1.2, y: sc.ty, z: 0.6 }; b.v = { x: sgn * 3, y: 0, z: 0 }; b.scored = sc.side;
       } else if (sc.kind === 'save') {
         const T = sc.data.T, near = (dist2(b.p.x, b.p.y, keeper.x, keeper.y) < 2.6 && b.p.z < 2.8) || (b.p.x - gx) * sgn > -0.6; // o goleiro segura a bola antes de ela cruzar a linha (defesa nunca vira gol)
-        if ((sc.t - sc.data.shot >= T - 0.04 || near) && b.mode === 'free') { sc.phase = 2; sc.data.ce = sc.t; b.mode = 'carried'; b.carrier = keeper.id; keeper.state = 'play'; }
+        if ((sc.t - sc.data.shot >= T - 0.04 || near) && b.mode === 'free') { sc.phase = 2; sc.data.ce = sc.t; b.mode = 'carried'; b.carrier = keeper.id; keeper.state = 'play'; startAct(w, keeper, 'gk_catch', 1); }
       } else if (sc.kind === 'miss' && sc.t - sc.data.shot > 1.8) { sc.phase = 2; sc.data.ce = sc.t; }
     } else if (sc.phase === 2) {
       const el = sc.t - sc.data.ce;
-      if (sc.kind === 'save' && el > 0.7 && b.mode === 'carried') { const to = { x: gx - sgn * 34, y: 10 + hash(sc.shooter * 9) * 46, z: BALL_R }; kickTo(w, to, 1.6); sc.phase = 3; }
+      if (sc.kind === 'save' && el > 0.7 && b.mode === 'carried') { const to = { x: gx - sgn * 34, y: 10 + hash(sc.shooter * 9) * 46, z: BALL_R }; startAct(w, keeper, 'long_pass', 1); scheduleKick(w, strikeDelay('long_pass'), to, 1.6, false); sc.phase = 3; }
       else if (sc.kind === 'goal' && el > 3.8) endScript(w, true);
       else if (sc.kind === 'miss' && el > 0.4) endScript(w, true);
       else if (sc.kind === 'save' && el > 2) endScript(w, false);
@@ -391,9 +440,23 @@ function stepScript(w: World, dt: number) {
         const att = a.side === sc.side, ix = a.idx;
         if (att && ix >= 7 || (!att && ix >= 1 && ix <= 5)) a.ov = { x: gx - sgn * (6 + (ix % 4) * 2.2), y: MID_Y + (((ix * 37) % 9) - 4) * 1.5, speed: 6, until: w.t + 3 };
       }
-      if (dist2(shooter.x, shooter.y, sc.data.cx, sc.ty) < 1.2 || sc.t > 1.6) { sc.phase = 1; sc.data.shot = sc.t; kickTo(w, { x: gx - sgn * 7.5, y: MID_Y + (hash(sc.shooter) - 0.5) * 6, z: 1.6 }, 1.25, false, (hash(sc.shooter * 5) - 0.5) * 8); }
+      if (dist2(shooter.x, shooter.y, sc.data.cx, sc.ty) < 1.2 || sc.t > 1.6) { sc.phase = 0.5; shooter.heading = Math.atan2(MID_Y - shooter.y, gx - sgn * 7.5 - shooter.x); startAct(w, shooter, 'cross', sgn > 0 ? 1 : -1); sc.data.kickAt = sc.t + strikeDelay('cross'); }
+    } else if (sc.phase === 0.5) {
+      if (sc.t >= sc.data.kickAt) { sc.phase = 1; sc.data.shot = sc.t; kickTo(w, { x: gx - sgn * 7.5, y: MID_Y + (hash(sc.shooter) - 0.5) * 6, z: 1.6 }, 1.25, false, (hash(sc.shooter * 5) - 0.5) * 8); }
+    } else if (sc.phase === 1 && !sc.data.air && sc.t - sc.data.shot > 0.85) { // a bola chega na área: disputa de bola no alto
+      sc.data.air = 1;
+      const spot = { x: gx - sgn * 7.5, y: MID_Y };
+      const near = (side: Side, n: number) => w.agents.filter((a) => a.side === side && a.idx > 0).sort((p, q) => dist2(p.x, p.y, spot.x, spot.y) - dist2(q.x, q.y, spot.x, spot.y)).slice(0, n);
+      near(sc.side, 2).forEach((a, i) => startAct(w, a, 'aerial', i ? -1 : 1)); near(sc.side === 'home' ? 'away' : 'home', 2).forEach((a, i) => startAct(w, a, 'aerial', i ? 1 : -1));
     } else if (sc.phase === 1 && sc.t - sc.data.shot > 1.6) endScript(w, false);
-  } else if (sc.kind === 'foul' || sc.kind === 'injury') { if (sc.t > sc.dur) endScript(w, false); }
+  } else if (sc.kind === 'foul' || sc.kind === 'injury') {
+    if (sc.kind === 'foul') {
+      const victim = holderOf(w, sc.side === 'home' ? 'away' : 'home', sc.data.victim || 1), who = shooter;
+      if (!sc.data.hit && sc.t >= strikeDelay('tackle')) { sc.data.hit = 1; victim.state = 'down'; startAct(w, victim, 'fall', 1); }
+      if (!sc.data.rant && sc.t >= 1.1) { sc.data.rant = 1; if (sc.data.card) { startAct(w, who, 'complain', 1); w.agents.filter((a) => a.side === sc.side && a.id !== who.id && a.idx > 0).sort((p, q) => dist2(p.x, p.y, who.x, who.y) - dist2(q.x, q.y, who.x, who.y)).slice(0, 2).forEach((a) => startAct(w, a, 'complain', 1)); } }
+    } else if (!sc.data.fell) { sc.data.fell = 1; startAct(w, shooter, 'fall', 1); }
+    if (sc.t > sc.dur) endScript(w, false);
+  }
   if (sc.t > 9) endScript(w, sc.kind === 'goal'); // trava de segurança: nunca deixa uma encenação presa
 }
 
@@ -408,6 +471,7 @@ export function stepWorld(w: World, dtTotal: number) {
     for (const a of w.agents) stepAgent(w, a, dt);
     separate(w);
     for (let k = 0; k < 3; k++) stepBall(w, dt / 3); // passos finos: o chute não atravessa a trave
+    if (w.kickQ && w.t >= w.kickQ.at) { const k = w.kickQ; w.kickQ = null; kickTo(w, k.to, k.T, k.ground, k.curve); if (k.target !== undefined) (w.ball as Ball & { target?: number }).target = k.target; }
     receive(w);
     stepScript(w, dt);
     for (const n of w.nets) stepNet(n, dt);
@@ -422,7 +486,7 @@ export function stepWorld(w: World, dtTotal: number) {
 
 /** Quando o tempo pula (pular partida, pênaltis): encerra roteiros e põe todos no lugar. */
 export function snapWorld(w: World, st: PlayState, tick: number) {
-  w.script = null; w.queue = []; w.banner = null; w.card = null; w.confetti = [];
+  w.script = null; w.queue = []; w.banner = null; w.card = null; w.confetti = []; w.kickQ = null; for (const a of w.agents) a.act = undefined;
   for (const n of w.nets) { n.d.fill(0); n.dv.fill(0); }
   placeFormation(w, st, tick); ballToCenter(w);
   w.flow = { st, tick, carrier: -1, side: 'none' };
@@ -444,14 +508,15 @@ const SCRIPTED = new Set(['goal', 'save', 'miss', 'corner', 'foul', 'yellow', 'r
 export function drive(w: World, drv: Driver, events: MatchEvent[], minute: number) {
   const tick = Math.floor(minute * 2), mi = Math.floor(minute);
   const flip = minute >= SECOND_HALF;
-  if (flip !== w.flip) { w.flip = flip; snapWorld(w, playState(events, mi, tick), tick); drv.idx = events.filter((e) => e.minute <= minute).length; drv.lastTick = tick; drv.lastMinute = minute; return; } // intervalo: os times trocam de lado e todos voltam aos seus lugares
+  if (flip !== w.flip) { w.flip = flip; snapWorld(w, playState(events, mi, tick), tick); drv.idx = events.filter((e) => e.minute <= minute).length; syncRoster(w, events, drv.idx); drv.lastTick = tick; drv.lastMinute = minute; return; } // intervalo: os times trocam de lado e todos voltam aos seus lugares
   if (minute < drv.lastMinute - 0.01 || minute - drv.lastMinute > 6) {
     drv.idx = events.filter((e) => e.minute <= minute).length;
+    syncRoster(w, events, drv.idx);
     snapWorld(w, playState(events, mi, tick), tick);
     drv.lastTick = tick; drv.lastMinute = minute;
     return;
   }
-  while (drv.idx < events.length && events[drv.idx].minute <= minute) { const e = events[drv.idx]; if (SCRIPTED.has(e.type)) triggerEvent(w, e, drv.idx); drv.idx++; }
+  while (drv.idx < events.length && events[drv.idx].minute <= minute) { const e = events[drv.idx]; if (SCRIPTED.has(e.type)) triggerEvent(w, e, drv.idx); drv.idx++; if (e.type === 'kickoff' || e.type === 'injury' || e.type === 'tactic' || e.type === 'red') syncRoster(w, events, drv.idx); }
   if (tick !== drv.lastTick) { syncFlow(w, playState(events, mi, tick), tick); drv.lastTick = tick; }
   drv.lastMinute = minute;
 }

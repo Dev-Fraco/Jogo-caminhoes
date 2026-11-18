@@ -6,6 +6,7 @@ import { isSeasonOver, newCareer, playNext, startNextSeason, userDivision } from
 import { pendingEvent } from '../engine/events';
 import { balanceOf } from '../engine/bank';
 import { clubOf, teamOf } from '../engine/lookup';
+import { playerMap } from '../engine/plays';
 import { loadGame, saveGame } from '../engine/save';
 import { useAutosave } from './useAutosave';
 import type { GameState, MatchResult } from '../engine/types';
@@ -202,7 +203,7 @@ export function App() {
           {live && liveResult && !mode && <MatchChoice home={clubOf(game, liveResult.homeId)} away={clubOf(game, liveResult.awayId)} divisionName={liveLabel} stadium={clubOf(game, liveResult.homeId).stadium} onChoose={setMode} />}
           {live && liveResult && mode === 'sim' && <MatchSim home={clubOf(game, liveResult.homeId)} away={clubOf(game, liveResult.awayId)} result={liveResult} userSide={liveResult.homeId === game.userClubId ? 'home' : 'away'} onFinish={finishMatch} />}
           {live && liveResult && mode === 'watch' && (
-            <LiveMatch key={`${game.season}-${game.round}-${ev?.kind ?? 'l'}`} home={clubOf(game, liveResult.homeId)} away={clubOf(game, liveResult.awayId)} result={liveResult}
+            <LiveMatch players={playerMap(teamOf(game, liveResult.homeId), teamOf(game, liveResult.awayId))} key={`${game.season}-${game.round}-${ev?.kind ?? 'l'}`} home={clubOf(game, liveResult.homeId)} away={clubOf(game, liveResult.awayId)} result={liveResult}
               homeFormation={liveFormation('home')} awayFormation={liveFormation('away')} userTeam={liveUserTeam} unavailable={injuredSet(game)} tacticsUsed={tactics.length} onTactic={applyTactic} userSide={liveResult.homeId === game.userClubId ? 'home' : 'away'} divisionName={liveLabel} stadium={clubOf(game, liveResult.homeId).stadium} onFinish={finishMatch} />
           )}
           {!live && game.unemployed && tab === 'home' && <Unemployed game={game} over={isSeasonOver(game)} onChange={setGame} onPlay={play} onAdvance={() => runAdvance(false)} onAdvanceToMatch={() => runAdvance(true)} onNextSeason={nextSeason} onSeeTables={() => { setTableView('rounds'); setTab('table'); }} />}

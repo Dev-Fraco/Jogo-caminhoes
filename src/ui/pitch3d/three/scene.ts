@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 import type { Camera } from '../camera';
 import type { Look } from '../draw';
-import { BALL_R, GOAL_D, GOAL_H, GOAL_W, L, MID_Y, POST_R, W, type Agent, type World } from '../world';
+import { BALL_R, GOAL_D, GOAL_H, GOAL_W, L, MID_Y, POST_R, W, type World } from '../world';
 import { APRON, makeBallTexture, makePitchTexture } from './textures';
+import { createAthletes, SHIRT_BY_SLOT } from './athletes';
+import { FORMATION_SLOTS, type FormationId } from '../../../engine/types';
 
 export type Quality = 'low' | 'medium' | 'high';
 export interface PitchRenderer { render(w: World, look: Look, width: number, height: number, cam: Camera): void; dispose(): void }
@@ -10,7 +12,6 @@ export interface PitchRenderer { render(w: World, look: Look, width: number, hei
 /** Mundo (x ao longo, y largura, z para cima) -> three.js (X, Y para cima, Z). */
 const T = (x: number, y: number, z: number) => new THREE.Vector3(x, z, -y);
 const hash = (n: number) => { let h = (n * 2654435761) >>> 0; h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; return (h >>> 8) / 0xffffff; };
-const SCALE = 1.5; // os atletas aparecem um pouco maiores que o real para ler bem na tela do celular
 
 const QUALITY = {
   low: { pr: 1, shadow: 0, tufts: 0, crowd: 0, aa: false },
@@ -19,7 +20,7 @@ const QUALITY = {
 } as const;
 
 /** Tenta criar o campo em WebGL; devolve null se o aparelho não suporta (aí o jogo usa o campo em 2D). */
-export function createPitchRenderer(canvas: HTMLCanvasElement, quality: Quality, look: Look): PitchRenderer | null {
+export function createPitchRenderer(canvas: HTMLCanvasElement, quality: Quality, look: Look, formations: { home: FormationId; away: FormationId } = { home: '4-4-2', away: '4-4-2' }): PitchRenderer | null {
   const q = QUALITY[quality];
   let renderer: THREE.WebGLRenderer;
   try { renderer = new THREE.WebGLRenderer({ canvas, antialias: q.aa, alpha: false, powerPreference: 'high-performance' }); } catch { return null; }
@@ -161,39 +162,15 @@ export function createPitchRenderer(canvas: HTMLCanvasElement, quality: Quality,
   const blobMat = own(new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false }));
   const ballBlob = new THREE.Mesh(blobGeo, blobMat); ballBlob.position.y = 0.02; scene.add(ballBlob);
 
-  /* ---- atletas (provisório: bonecos simples, na próxima etapa viram modelos low-poly) ---- */
-  const bodyGeo = own(new THREE.CylinderGeometry(0.27, 0.23, 0.78, 8)), headGeo = own(new THREE.SphereGeometry(0.15, 10, 8));
-  const legGeo = own(new THREE.CylinderGeometry(0.09, 0.075, 0.86, 6)); legGeo.translate(0, -0.43, 0);
-  const skin = own(new THREE.MeshLambertMaterial({ color: 0xd9a878 }));
-  const matFor = (hex: string) => own(new THREE.MeshLambertMaterial({ color: new THREE.Color(hex) }));
-  const kitMat = { home: matFor(look.home.primary), away: matFor(look.away.primary), hg: matFor(look.home.gk), ag: matFor(look.away.gk), hs: matFor(look.home.secondary), as: matFor(look.away.secondary) };
-  interface Rig { root: THREE.Group; legL: THREE.Mesh; legR: THREE.Mesh; blob: THREE.Mesh }
-  const rigs: Rig[] = [];
-  for (let i = 0; i < 22; i++) {
-    const home = i < 11, gk = i % 11 === 0;
-    const root = new THREE.Group();
-    const body = new THREE.Mesh(bodyGeo, gk ? (home ? kitMat.hg : kitMat.ag) : (home ? kitMat.home : kitMat.away)); body.position.y = 1.2; body.castShadow = q.shadow > 0;
-    const head = new THREE.Mesh(headGeo, skin); head.position.y = 1.78; head.castShadow = q.shadow > 0;
-    const legMat = home ? kitMat.hs : kitMat.as;
-    const legL = new THREE.Mesh(legGeo, legMat), legR = new THREE.Mesh(legGeo, legMat); legL.position.set(0, 0.86, 0.12); legR.position.set(0, 0.86, -0.12); legL.castShadow = legR.castShadow = q.shadow > 0;
-    root.add(body, head, legL, legR); root.scale.setScalar(SCALE); scene.add(root);
-    const blob = new THREE.Mesh(blobGeo, blobMat); blob.position.y = 0.02; blob.scale.set(0.7 * SCALE, 1, 0.7 * SCALE); scene.add(blob);
-    rigs.push({ root, legL, legR, blob });
-  }
+  /* ---- atletas: modelos low-poly com camisa numerada e animação por pose (athletes.ts / anim.ts) ---- */
+  const slotNumbers = (f: FormationId): number[] => { const used = new Map<string, number>(); return FORMATION_SLOTS[f].map((sp) => { const k = used.get(sp) ?? 0; used.set(sp, k + 1); const list = SHIRT_BY_SLOT[sp] ?? [k + 2]; return list[Math.min(k, list.length - 1)]; }); };
+  const athletes = createAthletes(scene, look, [...slotNumbers(formations.home), ...slotNumbers(formations.away)], quality, q.shadow > 0);
+  const blobs: THREE.Mesh[] = [];
+  for (let i = 0; i < 22; i++) { const blob = new THREE.Mesh(blobGeo, blobMat); blob.position.y = 0.02; blob.scale.set(0.8, 1, 0.8); scene.add(blob); blobs.push(blob); }
   const ring = new THREE.Mesh(own(new THREE.RingGeometry(1.0, 1.15, 28)), own(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false })));
   ring.rotation.x = -Math.PI / 2; ring.position.y = 0.03; ring.visible = false; scene.add(ring);
 
   let lastT = -1;
-  const place = (a: Agent, r: Rig, w: World) => {
-    const sp = Math.hypot(a.vx, a.vy), down = a.state === 'down';
-    r.root.position.copy(T(a.x, a.y, a.hop));
-    r.root.rotation.y = a.heading; r.root.rotation.z = down ? Math.PI / 2 * 0.95 : Math.min(0.28, sp * 0.03) * 0 ;
-    const sw = Math.sin(a.gait * Math.PI * 2) * Math.min(0.9, sp * 0.14);
-    r.legL.rotation.z = sw; r.legR.rotation.z = -sw;
-    r.root.rotation.x = a.state === 'dive' ? 0.9 : 0;
-    r.blob.position.set(a.x, 0.02, -a.y); r.blob.visible = true; void w;
-  };
-
   const resize = (width: number, height: number) => {
     const pr = Math.min(window.devicePixelRatio || 1, q.pr);
     renderer.setPixelRatio(pr); renderer.setSize(width, height, false);
@@ -209,7 +186,7 @@ export function createPitchRenderer(canvas: HTMLCanvasElement, quality: Quality,
       camera.setViewOffset(width, height, 0, -(cam.cy - height / 2), width, height); camera.updateProjectionMatrix();
       camera.position.copy(T(cam.px, cam.py, cam.pz)); camera.up.set(0, 1, 0); camera.lookAt(T(cam.px + cam.fx * 40, cam.py + cam.fy * 40, cam.pz + cam.fz * 40));
       // atletas
-      w.agents.forEach((a, i) => place(a, rigs[i], w));
+      athletes.update(w, dt); w.agents.forEach((a, i) => { blobs[i].position.set(a.x, 0.02, -a.y); });
       const carrier = lk.userSide && w.flow.carrier >= 0 ? w.agents[w.flow.carrier] : null;
       ring.visible = !!carrier && carrier.side === lk.userSide; if (carrier) ring.position.set(carrier.x, 0.03, -carrier.y);
       // bola: gira conforme a direção e a velocidade (rolando ou no ar)
@@ -240,7 +217,7 @@ export function createPitchRenderer(canvas: HTMLCanvasElement, quality: Quality,
       renderer.render(scene, camera);
     },
     dispose() {
-      for (const d of disposables) d.dispose();
+      athletes.dispose(); for (const d of disposables) d.dispose();
       scene.traverse((o) => { const m = o as THREE.Mesh; if (m.geometry) m.geometry.dispose(); });
       renderer.dispose(); renderer.forceContextLoss();
     },

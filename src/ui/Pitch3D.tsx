@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { resolveBadge } from '../data/playerpack';
-import type { ClubInfo, FormationId, MatchEvent } from '../engine/types';
+import type { ClubInfo, FormationId, MatchEvent, Player } from '../engine/types';
 import { PitchSim } from './PitchSim';
 import { kitColors } from './pitch';
 import { drawOverlay, drawScene, gkColor, type Kit, type Look } from './pitch3d/draw';
@@ -20,8 +20,10 @@ const loadBadge = (club: ClubInfo): HTMLImageElement | null => {
  * Campo em 3D (câmera de transmissão): os 22 jogadores são botões de futebol com o escudo e as cores do uniforme, que correm pelo campo,
  * e a bola obedece à física (gravidade, quique, trave, travessão e rede). O motor decide a partida; aqui se encenam os lances da narração.
  */
-export function Pitch3D({ home, away, homeFormation, awayFormation, events, minute, speed, userSide, paused = false }: {
+export function Pitch3D({ home, away, homeFormation, awayFormation, events, minute, speed, userSide, paused = false, players }: {
   home: ClubInfo; away: ClubInfo; homeFormation: FormationId; awayFormation: FormationId; events: MatchEvent[]; minute: number; speed: number; userSide: 'home' | 'away'; paused?: boolean;
+  /** jogadores dos dois times (por id): com eles os lances são feitos pelos jogadores que o motor escolheu */
+  players?: Map<string, Player>;
 }) {
   const reduce = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const ref = useRef<HTMLCanvasElement>(null);       // campo em WebGL (three.js)
@@ -34,6 +36,7 @@ export function Pitch3D({ home, away, homeFormation, awayFormation, events, minu
     const gl = ref.current, canvas = flat.current; if (!gl || !canvas || reduce || !supported) return;
     const ctx = canvas.getContext('2d'); if (!ctx) return;
     const world = createWorld(homeFormation, awayFormation), drv = createDriver();
+    if (players) world.posOf = (id) => players.get(id)?.pos;
     if ((import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV) (window as unknown as { __pitch3d?: unknown }).__pitch3d = { world, drv }; // só em desenvolvimento: permite inspecionar o campo
     const [hc, ac] = kitColors(home, away);
     const kit = (c: ClubInfo, primary: string): Kit => ({ primary, secondary: c.secondaryColor, gk: gkColor(primary), short: c.shortName, badge: loadBadge(c) });
@@ -43,7 +46,7 @@ export function Pitch3D({ home, away, homeFormation, awayFormation, events, minu
     let raf = 0, last = performance.now(), alive = true;
     import('./pitch3d/three/scene').then((m) => { // o three.js só é baixado quando existe uma partida para mostrar
       if (!alive) return;
-      try { renderer = m.createPitchRenderer(gl, loadSettings().graphics ?? 'medium', look); } catch { renderer = null; }
+      try { renderer = m.createPitchRenderer(gl, loadSettings().graphics ?? 'medium', look, { home: homeFormation, away: awayFormation }); } catch { renderer = null; }
       gl.style.display = renderer ? 'block' : 'none';
     }).catch(() => { renderer = null; });
     const frame = (now: number) => {

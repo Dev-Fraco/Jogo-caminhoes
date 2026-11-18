@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ClubInfo, FormationId, MatchEvent, MatchResult, TeamState } from '../engine/types';
+import type { ClubInfo, FormationId, MatchEvent, MatchResult, Player, TeamState } from '../engine/types';
 import { TacticsSheet } from './TacticsSheet';
 import type { Tactic } from '../engine/match';
 import { Pitch3D } from './Pitch3D';
@@ -30,10 +30,12 @@ interface Props {
   homeFormation?: FormationId; awayFormation?: FormationId;
   /** Seu time (com as mudanças já feitas) e como aplicar uma nova mudança tática. */
   userTeam?: TeamState; unavailable?: Set<string>; tacticsUsed?: number; onTactic?: (t: Tactic) => void;
+  /** Jogadores dos dois times (por id), para os lances serem feitos por quem o motor escolheu. */
+  players?: Map<string, Player>;
 }
 
 /** Partida ao vivo: animação de entrada, relógio de 0 a 90 minutos, placar e narração dos lances com o nome dos jogadores. */
-export function LiveMatch({ home, away, result, userSide, divisionName, stadium, onFinish, homeFormation = '4-4-2', awayFormation = '4-4-2', userTeam, unavailable, tacticsUsed = 0, onTactic }: Props) {
+export function LiveMatch({ home, away, result, userSide, divisionName, stadium, onFinish, homeFormation = '4-4-2', awayFormation = '4-4-2', userTeam, unavailable, tacticsUsed = 0, onTactic, players }: Props) {
   const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const [phase, setPhase] = useState<'intro' | 'play' | 'pens' | 'done'>(reduce ? 'play' : 'intro');
   const [speed, setSpeed] = useState<Speed>(1);
@@ -121,7 +123,7 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
       </div>
 
       {tactics && userTeam && onTactic && <TacticsSheet team={userTeam} unavailable={unavailable} minute={Math.floor(minute)} score={[hg, ag]} side={userSide} used={tacticsUsed} onClose={() => { setTactics(false); setPaused(false); }} onApply={(t) => { onTactic(t); setTactics(false); setPaused(false); }} />}
-      {phase !== 'pens' && <Pitch3D paused={paused} home={home} away={away} homeFormation={homeFormation} awayFormation={awayFormation} events={result.events} minute={phase === 'play' ? minute : 90} speed={speed} userSide={userSide} />}
+      {phase !== 'pens' && <Pitch3D players={players} paused={paused} home={home} away={away} homeFormation={homeFormation} awayFormation={awayFormation} events={result.events} minute={phase === 'play' ? minute : 90} speed={speed} userSide={userSide} />}
 
       {phase === 'pens' && result.penKicks ? (
         <PenaltyShootout home={home} away={away} kicks={result.penKicks} userSide={userSide} onDone={() => setPhase('done')} />
