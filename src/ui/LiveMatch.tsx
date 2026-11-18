@@ -65,30 +65,18 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
     return () => cancelAnimationFrame(raf);
   }, [phase, paused]);
 
-  // som: apito inicial, do intervalo e final; torcida só enquanto a bola rola; tudo para ao sair da partida
+  // som: apito inicial/final e festa a cada gol
   const goalsSeen = useRef(0);
-  const evSeen = useRef(0);
-  const halfWhistled = useRef(false);
-  useEffect(() => { if (phase === 'play' || phase === 'done') audio.sfx('whistle'); }, [phase]);
-  useEffect(() => { audio.crowd(phase === 'play' || phase === 'pens'); }, [phase]);
-  useEffect(() => { audio.duck(true); return () => { audio.stopMatch(); audio.duck(false); }; }, []);
-  useEffect(() => { if (phase === 'play' && minute >= 45 && !halfWhistled.current) { halfWhistled.current = true; audio.sfx('whistle'); } }, [phase, minute]);
+  useEffect(() => { if (phase === 'play') audio.sfx('whistle'); if (phase === 'done') audio.sfx('whistle'); }, [phase]);
+  // torcida durante a partida; a música baixa
+  useEffect(() => { audio.duck(true); audio.crowd(true); return () => { audio.crowd(false); audio.duck(false); }; }, []);
   const shown = useMemo(() => result.events.filter((e) => e.minute <= Math.floor(minute)), [result.events, minute]);
   const [hg, ag] = scoreAt(result.events, Math.floor(minute));
   const goalCount = shown.filter((e) => e.type === 'goal').length;
   useEffect(() => {
-    if (goalCount > goalsSeen.current) {
-      const last = shown.filter((e) => e.type === 'goal').pop();
-      if (last && last.side !== userSide) audio.sfx('concede');   // gol sofrido: sem festa
-      else audio.celebrate(!!last && last.minute >= 80);          // gol seu: festa da torcida (decisivo nos minutos finais)
-    }
+    if (goalCount > goalsSeen.current) { const last = shown.filter((e) => e.type === 'goal').pop(); audio.sfx(last && last.side !== userSide ? 'concede' : 'goal'); } // gol seu: festa; gol sofrido: vaia
     goalsSeen.current = goalCount;
   }, [goalCount]); // eslint-disable-line react-hooks/exhaustive-deps
-  // chute: um som a cada lance de finalização novo (mudo enquanto o arquivo do chute não existir)
-  useEffect(() => {
-    if (phase === 'play') for (const e of shown.slice(evSeen.current)) if (e.type === 'save' || e.type === 'miss' || e.type === 'goal') audio.kick();
-    evSeen.current = shown.length;
-  }, [shown.length]); // eslint-disable-line react-hooks/exhaustive-deps
   // cantos da torcida (ligados por padrão; o botão 🎺 desliga)
   const [chants, setChants] = useState(() => { try { return localStorage.getItem('vr-chants') !== '0'; } catch { return true; } });
   useEffect(() => { audio.chants(chants && phase === 'play' && !paused); return () => audio.chants(false); }, [chants, phase, paused]);

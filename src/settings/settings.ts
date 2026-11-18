@@ -5,7 +5,7 @@ export interface Settings {
   language: Language;
   autosave: boolean;
   simSpeed: SimSpeed;
-  audio: { master: number; music: number; sfx: number; muted: boolean; /** efeitos sonoros (arquivos) ligados */ sfxEnabled?: boolean };
+  audio: { master: number; music: number; sfx: number; muted: boolean };
   // Novas seções (vídeo, controles, acessibilidade...) entram aqui como novos campos.
 }
 
@@ -13,7 +13,7 @@ export const DEFAULT_SETTINGS: Settings = {
   language: 'pt-BR',
   autosave: true,
   simSpeed: 'normal',
-  audio: { master: 100, music: 80, sfx: 80, muted: false, sfxEnabled: true },
+  audio: { master: 100, music: 80, sfx: 80, muted: false },
 };
 
 export const LANGUAGES: { id: Language; label: string }[] = [
@@ -40,7 +40,6 @@ export function sanitizeSettings(raw: unknown): Settings {
       music: clampVol(a.music, d.audio.music),
       sfx: clampVol(a.sfx, d.audio.sfx),
       muted: typeof a.muted === 'boolean' ? a.muted : d.audio.muted,
-      sfxEnabled: typeof a.sfxEnabled === 'boolean' ? a.sfxEnabled : true,
     },
   };
 }
