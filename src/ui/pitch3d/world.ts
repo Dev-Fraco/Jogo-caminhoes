@@ -1,5 +1,6 @@
 import type { FormationId, MatchEvent, Position } from '../../engine/types';
 import { onField } from '../../engine/plays';
+import type { Cue, WhistleKind } from '../../audio/cues';
 import { ACT, strikeDelay, type Act, type ActKind } from './anim';
 import type { VarCamId } from './camera';
 import { PITCH_H, PITCH_W, playState, positionsOf, type PlayState, type Pt, type Side } from '../pitch';
@@ -63,7 +64,7 @@ export interface VarState {
   line?: { def: number; att: number };
   /** quem a câmera acompanha na repetição: a bola ou um jogador (id do agente) */
   focus: 'ball' | number;
-  camX: number; jumped: boolean; skip: boolean;
+  camX: number; jumped: boolean; skip: boolean; reacted?: boolean;
   onDone: () => void;
 }
 
@@ -85,6 +86,8 @@ export interface World {
   skip: Set<number>;
   /** quantos apitos o árbitro deu (o áudio acompanha) */
   whistles: number;
+  /** sons a tocar (chute, trave, rede, apito, torcida): quem desenha/ouve esvazia a fila a cada quadro */
+  cues: Cue[];
   /** gravação dos últimos segundos e revisão do VAR em andamento (o jogo fica parado enquanto houver revisão) */
   rec: Frame[]; recAcc: number; var: VarState | null; view?: World;
   kickQ: { at: number; to: V3; T: number; ground: boolean; curve: number; target?: number; side?: Side } | null;
@@ -108,7 +111,7 @@ export function createWorld(homeFormation: FormationId = '4-4-2', awayFormation:
   const w: World = {
     t: 0, ball: { p: { x: CENTER.x, y: CENTER.y, z: BALL_R }, v: { x: 0, y: 0, z: 0 }, mode: 'free', carrier: -1, spin: 0, slideUntil: 0, scored: null, inNet: null, crossed: false },
     agents, nets: [newNet(), newNet()], script: null, queue: [], banner: null, card: null, confetti: [], camX: CENTER.x,
-    flow: { st: playState([], 0, 0), tick: -1, carrier: -1, side: 'none' }, formations: { home: homeFormation, away: awayFormation }, goals: { home: 0, away: 0 }, flip: false, roster: { home: [], away: [] }, kickQ: null, refs: [], skip: new Set<number>(), whistles: 0, rec: [], recAcc: 0, var: null,
+    flow: { st: playState([], 0, 0), tick: -1, carrier: -1, side: 'none' }, formations: { home: homeFormation, away: awayFormation }, goals: { home: 0, away: 0 }, flip: false, roster: { home: [], away: [] }, kickQ: null, refs: [], skip: new Set<number>(), whistles: 0, cues: [], rec: [], recAcc: 0, var: null,
   };
   for (const role of ['ref', 'ar1', 'ar2'] as const) w.refs.push({ id: 22 + w.refs.length, side: 'home', idx: 0, gk: false, x: role === 'ref' ? CENTER.x - 6 : role === 'ar1' ? L * 0.3 : L * 0.7, y: role === 'ref' ? MID_Y + 9 : role === 'ar1' ? -1.4 : W + 1.4, vx: 0, vy: 0, heading: 0, gait: 0, hop: 0, hopV: 0, tx: 0, ty: 0, state: 'play', role });
   placeFormation(w, playState([], 0, 0), 0);
@@ -134,11 +137,13 @@ export function ballistic(from: V3, to: V3, T: number): V3 {
 export function kickTo(w: World, to: V3, T: number, ground = false, curveM = 0) {
   const b = w.ball;
   const prevHolder = w.agents[b.carrier]; if (prevHolder) b.lastSide = prevHolder.side;
+  w.cues.length < 60 && w.cues.push({ k: 'kick', p: 0 }); const kickCue = w.cues[w.cues.length - 1] as { k: 'kick'; p: number };
   // chute com efeito: a bola sai desviada para o lado e a curva a traz de volta ao ponto (desvio máximo de `curveM` metros no meio do caminho)
   const dx = to.x - b.p.x, dy = to.y - b.p.y, dl = Math.hypot(dx, dy) || 1, px = -dy / dl, py = dx / dl;
   const aim = ground || !curveM ? to : { x: to.x - px * curveM, y: to.y - py * curveM, z: to.z };
   const v = ground ? { x: (to.x - b.p.x) / T, y: (to.y - b.p.y) / T, z: 0 } : ballistic(b.p, aim, T);
   b.v = v; b.mode = 'free'; b.carrier = -1; b.slideUntil = ground ? w.t + T : 0;
+  if (kickCue?.k === 'kick') kickCue.p = Math.hypot(v.x, v.y, v.z);
   b.curve = ground || !curveM ? 0 : (2 * curveM) / (T * T);
 }
 
@@ -207,7 +212,7 @@ function stepBall(w: World, dt: number) {
     }
   }
   // traves e travessão (rebote com perda de energia)
-  const bounce = (nx: number, ny: number, nz: number, e: number) => { const vn = v.x * nx + v.y * ny + v.z * nz; if (vn < 0) { v.x -= (1 + e) * vn * nx; v.y -= (1 + e) * vn * ny; v.z -= (1 + e) * vn * nz; } };
+  const bounce = (nx: number, ny: number, nz: number, e: number) => { const vn = v.x * nx + v.y * ny + v.z * nz; if (vn < 0) { if (-vn > 3 && e >= 0.5) cue(w, { k: 'post' }); v.x -= (1 + e) * vn * nx; v.y -= (1 + e) * vn * ny; v.z -= (1 + e) * vn * nz; } };
   for (const side of [-1, 1]) {
     const py = MID_Y + side * (GOAL_W / 2);
     if (p.z < GOAL_H + 0.1) { // trave: cilindro vertical
@@ -223,13 +228,13 @@ function stepBall(w: World, dt: number) {
   const depth = (p.x - gx) * dir; // positivo = além da linha de gol
   if (depth > 0 && !b.crossed) { // 1ª travessia da linha de gol: só é gol se passou entre as traves e abaixo do travessão (por cima ou ao lado não vale)
     b.crossed = true;
-    if (inMouth(p.y) && p.z + BALL_R * 0.5 < GOAL_H) b.scored = (dir === 1) !== w.flip ? 'home' : 'away';
+    if (inMouth(p.y) && p.z + BALL_R * 0.5 < GOAL_H) { if (!b.scored) cue(w, { k: 'net', p: Math.hypot(v.x, v.y) }); /* a bola passou da linha: o som da rede */ b.scored = (dir === 1) !== w.flip ? 'home' : 'away'; }
   }
   if (depth < -3) b.crossed = false;
   if (b.scored && depth > 0) {
     b.inNet = b.scored;
     const net = w.nets[dir === 1 ? 1 : 0];
-    const hit = (s: number, y: number, z: number) => { if (s > 1.2) netImpact(net, y, z, Math.min(7, s * 0.9)); };
+    const hit = (s: number, y: number, z: number) => { if (s > 1.2) { netImpact(net, y, z, Math.min(7, s * 0.9)); cue(w, { k: 'net', p: s }); } };
     const damp = Math.max(0, 1 - 2.4 * dt); v.x *= damp; v.y *= damp;
     if (depth > GOAL_D - BALL_R) { hit(Math.abs(v.x), p.y, p.z); p.x = gx + dir * (GOAL_D - BALL_R); v.x = -v.x * 0.12; v.y *= 0.6; }
     const yl = MID_Y - GOAL_W / 2 + BALL_R, yr = MID_Y + GOAL_W / 2 - BALL_R;
@@ -290,7 +295,8 @@ function stepOfficials(w: World, dt: number) {
   if (!ar2.ov) { ar2.tx = clamp(b.x, L / 2 - 10, L - 2); ar2.ty = W + 1.4; }
   for (const r of w.refs) { stepAgent(w, r, dt); if (r.role !== 'ref') r.heading = Math.abs(r.vx) > 0.4 ? (r.vx > 0 ? 0 : Math.PI) : (r.y < MID_Y ? Math.PI / 2 : -Math.PI / 2); }
 }
-const whistle = (w: World) => { w.refs[0].act = { kind: 'ref_whistle', t0: w.t, dur: ACT.ref_whistle.dur, dir: 1 }; w.whistles++; };
+const cue = (w: World, c: Cue) => { if (w.cues.length < 60) w.cues.push(c); };
+const whistle = (w: World, kind: WhistleKind = 'foul') => { w.refs[0].act = { kind: 'ref_whistle', t0: w.t, dur: ACT.ref_whistle.dur, dir: 1 }; w.whistles++; cue(w, { k: 'whistle', v: kind }); };
 /** O assistente que cuida da metade do campo onde está a bola. */
 const arFor = (w: World, x: number) => (x < L / 2 ? w.refs[1] : w.refs[2]);
 
@@ -583,6 +589,7 @@ function stepScript(w: World, dt: number) {
         keeper.heading = Math.atan2(b.p.y - keeper.y, b.p.x - keeper.x);
         startAct(w, keeper, 'gk_dive', Math.sign(-(sc.ty - keeper.y) * Math.cos(keeper.heading)) || 1);
         b.mode = 'carried'; kickTo(w, to, T, false, d > 11 && !header ? (hash(sc.shooter * 17 + Math.floor(sc.ty)) - 0.5) * 6 : 0);
+        if (sc.kind !== 'goal') cue(w, { k: 'oh' }); // grande chance: a torcida reage
         sc.data.T = T;
       }
     } else if (sc.phase === 1) {
@@ -601,7 +608,7 @@ function stepScript(w: World, dt: number) {
         shooter.state = 'celebrate'; shooter.ov = { x: corner.x, y: corner.y, speed: 8.8, until: w.t + 3.8 };
         const mates = w.agents.filter((a) => a.side === sc.side && a.idx > 0 && a.id !== shooter.id).sort((a, c) => dist2(a.x, a.y, corner.x, corner.y) - dist2(c.x, c.y, corner.x, corner.y)).slice(0, 5);
         mates.forEach((m, i) => { m.state = 'celebrate'; const ang = (i / 5) * Math.PI * 2; m.ov = { x: corner.x + Math.cos(ang) * 3.4, y: corner.y + Math.sin(ang) * 3.4, speed: 8.6, until: w.t + 3.8 }; });
-        w.banner = { text: 'GOOOL!', sub: sc.player ?? '', t0: w.t };
+        w.banner = { text: 'GOOOL!', sub: sc.player ?? '', t0: w.t }; cue(w, { k: 'cheer', big: true });
         for (let i = 0; i < 70; i++) w.confetti.push({ x: corner.x, y: corner.y, z: 2 + hash(i) * 2, vx: (hash(i * 3 + 1) - 0.5) * 9, vy: (hash(i * 5 + 2) - 0.5) * 9, vz: 4 + hash(i * 7 + 3) * 7, c: ['#ffd23f', '#ff4d6d', '#4dd2ff', '#7dff6b', '#ffffff'][i % 5], life: 3 });
         netImpact(w.nets[sgn === 1 ? 1 : 0], b.p.y, b.p.z, 6);
       } else if (sc.t - sc.data.shot > 2.2 && sc.kind === 'goal') { // o motor disse gol: se a física não colocou, assume a bola para dentro da rede
@@ -642,7 +649,7 @@ function stepScript(w: World, dt: number) {
     if (!ro && !sc.data.hit && sc.t >= strikeDelay('tackle')) { sc.data.hit = 1; if (!adv) { victim.state = 'down'; startAct(w, victim, 'fall', 1); } }
     if (!ro && !sc.data.ref && sc.t >= 0.5) {
       sc.data.ref = 1;
-      if (adv) startAct(w, ref, 'ref_advantage', 1); else { whistle(w); ref.ov = { x: px - 4, y: py + (py < MID_Y ? 5 : -5), speed: 6.5, until: w.t + 4 }; }
+      if (adv) startAct(w, ref, 'ref_advantage', 1); else { whistle(w, pen ? 'penalty' : 'foul'); ref.ov = { x: px - 4, y: py + (py < MID_Y ? 5 : -5), speed: 6.5, until: w.t + 4 }; }
     }
     if (adv) { if (sc.t > 1.6) endScript(w, false); }
     else {
@@ -652,7 +659,7 @@ function stepScript(w: World, dt: number) {
       }
       const waitingPen = pen && !ro && sc.data.vdone === undefined;
       if (card && !ro && !sc.data.cardShown && sc.t >= 1.2) { // o árbitro mostra o cartão
-        sc.data.cardShown = 1; w.card = { agent: carded.id, kind: card === 2 ? 'red' : 'yellow', until: w.t + 1.8 }; startAct(w, ref, 'ref_card', 1); ref.heading = Math.atan2(carded.y - ref.y, carded.x - ref.x);
+        sc.data.cardShown = 1; cue(w, { k: 'murmur' }); w.card = { agent: carded.id, kind: card === 2 ? 'red' : 'yellow', until: w.t + 1.8 }; startAct(w, ref, 'ref_card', 1); ref.heading = Math.atan2(carded.y - ref.y, carded.x - ref.x);
       }
       if (card && !ro && !sc.data.rant && sc.t >= 1.5) { sc.data.rant = 1; startAct(w, carded, 'complain', 1); w.agents.filter((a) => a.side === sc.side && a.id !== carded.id && a.idx > 0 && a.off !== 'gone').sort((p, q) => dist2(p.x, p.y, carded.x, carded.y) - dist2(q.x, q.y, carded.x, carded.y)).slice(0, 2).forEach((a) => startAct(w, a, 'complain', 1)); }
       if (varCard && sc.data.cardShown && !sc.data.cvar && sc.t >= 3.0) { // o VAR revê o cartão (vermelho que pode virar amarelo; punido errado)
@@ -671,7 +678,7 @@ function stepScript(w: World, dt: number) {
         sc.data.kickT = sc.t + clamp(far / 6.5 + 0.8, pen && !cancel ? 2.2 : 2.0, 5.5); // a cobrança espera a barreira se formar
       }
       if (sc.data.setup && !sc.data.kicked && sc.t >= sc.data.kickT) {
-        sc.data.kicked = 1; whistle(w);
+        sc.data.kicked = 1; whistle(w, 'restart');
         const kicker = holderOf(w, fouled, sc.data.kicker);
         if (sc.then) { // a cobrança é a finalização do motor: segue como o roteiro de gol/defesa/chute para fora
           const rx = sc.data.rx, ry = sc.data.ry, th = sc.then; th.shooter = kicker.idx; th.phase = 0.5; th.t = 0; th.data.sx = rx; th.data.sy = ry; th.data.fk = pen ? 0 : 1;
@@ -692,10 +699,10 @@ function stepScript(w: World, dt: number) {
     const ar = arFor(w, sc.data.px), ref = w.refs[0], other: Side = sc.side === 'home' ? 'away' : 'home', px = sc.data.px, py = sc.data.py;
     const ro = sc.data.restartOnly === 1;
     if (!ro && !sc.data.flag && sc.t >= 0.1) { sc.data.flag = 1; ar.ov = { x: clamp(px, 3, L - 3), y: ar.y < MID_Y ? -1.4 : W + 1.4, speed: 7, until: w.t + 6 }; startAct(w, ar, 'flag_up', 1); }
-    if (!ro && !sc.data.whistle && sc.t >= 1.0) { sc.data.whistle = 1; whistle(w); ref.ov = { x: px - 6, y: py > MID_Y ? py - 8 : py + 8, speed: 6.5, until: w.t + 4 }; }
+    if (!ro && !sc.data.whistle && sc.t >= 1.0) { sc.data.whistle = 1; whistle(w, 'offside'); ref.ov = { x: px - 6, y: py > MID_Y ? py - 8 : py + 8, speed: 6.5, until: w.t + 4 }; }
     if (!sc.data.setup && sc.t >= (ro ? 0.3 : 2.0)) { sc.data.setup = 1; const kn = setupRestart(w, sc, other, { x: px, y: py }, 'indirect', 8); sc.data.kickT = sc.t + 1.8; void kn; }
     if (sc.data.setup && !sc.data.kicked && sc.t >= sc.data.kickT) {
-      sc.data.kicked = 1; whistle(w);
+      sc.data.kicked = 1; whistle(w, 'restart');
       const kicker = holderOf(w, other, sc.data.kicker), dir = Math.atan2(MID_Y - py, goalXOf(other, w.flip) - px);
       const mate = w.agents.filter((a) => a.side === other && a.idx > 0 && a.id !== kicker.id && a.off !== 'gone').sort((p, q) => dist2(p.x, p.y, px + Math.cos(dir) * 12, py + Math.sin(dir) * 12) - dist2(q.x, q.y, px + Math.cos(dir) * 12, py + Math.sin(dir) * 12))[0];
       if (mate) { const d = dist2(px, py, mate.x, mate.y), T = clamp(d / 15, 0.5, 1.5); startAct(w, kicker, 'pass', 1); scheduleKick(w, strikeDelay('pass'), { x: mate.x, y: mate.y, z: BALL_R }, T, d < 30, 0, mate.id, other); }
@@ -747,7 +754,7 @@ export function startVar(w: World, o: { kind: VarKind; annul: boolean; line?: { 
   recordFrame(w); // o quadro atual (instante do lance) entra na repetição
   const frames = w.rec.filter((f) => w.t - f.t <= (o.kind === 'goal-foul' ? 5.5 : 4.5));
   w.var = { stage: 'check', kind: o.kind, annul: o.annul, review, text: t.check, decision: o.annul ? t.annul : t.confirm, clock: 0, frames: frames.length ? frames : [w.rec[w.rec.length - 1]], rt: 0, camList: VAR_CAM_LIST[o.kind], camIdx: 0, camOverride: null, line: o.line, focus: o.focus ?? 'ball', camX: w.camX, jumped: true, skip: false, onDone: o.onDone };
-  w.recAcc = 0;
+  w.recAcc = 0; cue(w, { k: 'murmur' });
 }
 
 export const VAR_REPLAY_SPEED = 0.6;
@@ -760,6 +767,7 @@ function stepVar(w: World, dt: number) {
     v.rt += dt * VAR_REPLAY_SPEED;
     if (v.rt >= frameSpan(v) + 0.5) { v.camIdx++; v.rt = 0; v.jumped = true; if (v.camIdx >= v.camList.length) { v.stage = 'decision'; v.clock = 0; } }
   }
+  if (v.stage === 'decision' && !v.reacted) { v.reacted = true; if (v.annul) cue(w, { k: 'groan' }); else if (v.kind === 'pen') cue(w, { k: 'oh' }); } // a torcida reage à decisão
   if (v.stage === 'decision' && v.clock >= (v.annul ? 2.4 : 1.2)) { const done = v.onDone; w.var = null; done(); }
 }
 
@@ -809,7 +817,7 @@ export function stepWorld(w: World, dtTotal: number) {
 
 /** Quando o tempo pula (pular partida, pênaltis): encerra roteiros e põe todos no lugar. */
 export function snapWorld(w: World, st: PlayState, tick: number) {
-  w.skip.clear(); w.var = null; w.rec = []; w.recAcc = 0;
+  w.cues = []; w.skip.clear(); w.var = null; w.rec = []; w.recAcc = 0;
   w.script = null; w.queue = []; w.banner = null; w.card = null; w.confetti = []; w.kickQ = null; for (const a of w.agents) a.act = undefined;
   for (const n of w.nets) { n.d.fill(0); n.dv.fill(0); }
   placeFormation(w, st, tick); ballToCenter(w);

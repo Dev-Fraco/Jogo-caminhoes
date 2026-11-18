@@ -12,17 +12,17 @@ beforeEach(() => {
 
 describe('configurações', () => {
   it('padrões: PT-BR, autosave ligado, normal, 100/80/80, sem mudo', () => {
-    expect(DEFAULT_SETTINGS).toEqual({ language: 'pt-BR', autosave: true, simSpeed: 'normal', graphics: 'medium', audio: { master: 100, music: 80, sfx: 80, muted: false } });
+    expect(DEFAULT_SETTINGS).toEqual({ language: 'pt-BR', autosave: true, simSpeed: 'normal', graphics: 'medium', audio: { master: 100, music: 80, sfx: 80, muted: false, crowd: 80, matchfx: 80, whistle: 80, whistleType: 'classic' } });
     expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
   });
   it('persiste e recarrega', () => {
-    const s = { ...DEFAULT_SETTINGS, language: 'es' as const, autosave: false, audio: { master: 10, music: 20, sfx: 30, muted: true } };
+    const s = { ...DEFAULT_SETTINGS, language: 'es' as const, autosave: false, audio: { master: 10, music: 20, sfx: 30, muted: true, crowd: 80, matchfx: 80, whistle: 80, whistleType: 'classic' as const } };
     expect(saveSettings(s)).toBe(true);
     expect(loadSettings()).toEqual(s);
   });
   it('sanitiza lixo e limita volumes', () => {
     const s = sanitizeSettings({ language: 'fr', autosave: 'sim', simSpeed: 'turbo', audio: { master: 250, music: -5, sfx: 'x', muted: 1 } });
-    expect(s).toEqual({ ...DEFAULT_SETTINGS, audio: { master: 100, music: 0, sfx: 80, muted: false } });
+    expect(s).toEqual({ ...DEFAULT_SETTINGS, audio: { master: 100, music: 0, sfx: 80, muted: false, crowd: 80, matchfx: 80, whistle: 80, whistleType: 'classic' } });
   });
 });
 

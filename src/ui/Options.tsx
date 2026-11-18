@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { t, type StringKey } from '../i18n/strings';
 import { createBackup, deleteBackup, listBackups, MAX_BACKUPS, restoreBackup, type Backup } from '../settings/backups';
+import type { WhistleType } from '../audio/cues';
+import { audio } from '../audio/audio';
 import { DEFAULT_SETTINGS, LANGUAGES, loadSettings, saveSettings, type Graphics, type Language, type Settings, type SimSpeed } from '../settings/settings';
 
 /** Bloco da tela. Novas seções (vídeo, controles, acessibilidade...) são só mais um <Section>. */
@@ -117,6 +119,16 @@ export function Options({ onBack, onRestored }: Props) {
           <Slider id="opt-master" label={tr('options.audio.master')} value={draft.audio.master} disabled={muted} onChange={(v) => setAudio({ master: v })} />
           <Slider id="opt-music" label={tr('options.audio.music')} value={draft.audio.music} disabled={muted} onChange={(v) => setAudio({ music: v })} />
           <Slider id="opt-sfx" label={tr('options.audio.sfx')} value={draft.audio.sfx} disabled={muted} onChange={(v) => setAudio({ sfx: v })} />
+          <Slider id="opt-crowd" label={tr('options.audio.crowd')} value={draft.audio.crowd ?? 80} disabled={muted} onChange={(v) => setAudio({ crowd: v })} />
+          <Slider id="opt-matchfx" label={tr('options.audio.matchfx')} value={draft.audio.matchfx ?? 80} disabled={muted} onChange={(v) => setAudio({ matchfx: v })} />
+          <Slider id="opt-whistle" label={tr('options.audio.whistle')} value={draft.audio.whistle ?? 80} disabled={muted} onChange={(v) => setAudio({ whistle: v })} />
+          <div className="opt-row">
+            <label htmlFor="opt-wtype">{tr('options.audio.whistleType')}</label>
+            <select id="opt-wtype" value={draft.audio.whistleType ?? 'classic'} onChange={(e) => setAudio({ whistleType: e.target.value as WhistleType })}>
+              {(['classic', 'electronic', 'sharp'] as const).map((w) => <option key={w} value={w}>{tr(`options.audio.whistle.${w}` as StringKey)}</option>)}
+            </select>
+            <button type="button" className="primary small" disabled={muted} onClick={() => { audio.unlock(); audio.refresh({ ...draft, audio: { ...draft.audio } }); audio.previewWhistle(draft.audio.whistleType ?? 'classic'); }}>{tr('options.audio.whistle.test')}</button>
+          </div>
           <div className="opt-row">
             <label htmlFor="opt-mute">{tr('options.audio.mute')}</label>
             <input id="opt-mute" type="checkbox" className="check" checked={muted} onChange={(e) => setAudio({ muted: e.target.checked })} />

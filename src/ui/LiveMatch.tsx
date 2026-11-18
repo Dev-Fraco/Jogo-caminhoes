@@ -76,14 +76,16 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
 
   // som: apito inicial/final e festa a cada gol
   const goalsSeen = useRef(0);
-  useEffect(() => { if (phase === 'play') audio.sfx('whistle'); if (phase === 'done') audio.sfx('whistle'); }, [phase]);
+  useEffect(() => { if (phase === 'play') audio.refWhistle('start'); if (phase === 'done') audio.refWhistle('end'); }, [phase]);
+  const halfWhistled = useRef(false);
+  useEffect(() => { if (phase === 'play' && minute >= 45 && !halfWhistled.current) { halfWhistled.current = true; audio.refWhistle('half'); } }, [phase, minute]);
   // torcida durante a partida; a música baixa
   useEffect(() => { audio.duck(true); audio.crowd(true); return () => { audio.crowd(false); audio.duck(false); }; }, []);
   const shown = useMemo(() => result.events.filter((e) => e.minute <= Math.floor(minute)), [result.events, minute]);
   const [hg, ag] = scoreAt(result.events, Math.floor(minute));
   const goalCount = shown.filter((e) => e.type === 'goal' && !e.annulled).length;
   useEffect(() => {
-    if (goalCount > goalsSeen.current) { const last = shown.filter((e) => e.type === 'goal' && !e.annulled).pop(); audio.sfx(last && last.side !== userSide ? 'concede' : 'goal'); } // gol seu: festa; gol sofrido: vaia
+    if (goalCount > goalsSeen.current) { const last = shown.filter((e) => e.type === 'goal' && !e.annulled).pop(); if (reduce) audio.sfx(last && last.side !== userSide ? 'concede' : 'goal'); } // gol seu: festa; gol sofrido: vaia
     goalsSeen.current = goalCount;
   }, [goalCount]); // eslint-disable-line react-hooks/exhaustive-deps
   // cantos da torcida (ligados por padrão; o botão 🎺 desliga)

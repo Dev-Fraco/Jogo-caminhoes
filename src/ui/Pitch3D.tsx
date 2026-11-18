@@ -7,6 +7,7 @@ import { drawOverlay, drawScene, drawVarOverlay, gkColor, type Kit, type Look } 
 import { makeCamera, VAR_CAMS, varCamera, type VarCamId } from './pitch3d/camera';
 import type { PitchRenderer } from './pitch3d/three/scene';
 import { loadSettings } from '../settings/settings';
+import { audio } from '../audio/audio';
 import { createDriver, createWorld, drive, replayView, stepWorld, varFocus } from './pitch3d/world';
 
 const loadBadge = (club: ClubInfo): HTMLImageElement | null => {
@@ -60,6 +61,7 @@ export function Pitch3D({ home, away, homeFormation, awayFormation, events, minu
       const w = Math.max(160, Math.round(rect.width)), h = Math.max(100, Math.round(rect.height));
       if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
       if (!cur.paused || world.var) { if (!world.var) drive(world, drv, cur.events, cur.minute); stepWorld(world, dt * Math.min(cur.speed, 4)); }
+      if (world.cues.length) for (const c of world.cues.splice(0)) audio.cue(c, cur.speed); // sons no instante em que acontecem (acompanham a velocidade da partida)
       if (!!world.var !== inVar) { inVar = !!world.var; cur.onVar?.(inVar); }
       if (world.var && cur.skipVar !== skipSeen) { world.var.skip = true; }
       skipSeen = cur.skipVar;

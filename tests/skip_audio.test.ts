@@ -38,7 +38,7 @@ describe('áudio', () => {
     const s = structuredClone(DEFAULT_SETTINGS);
     expect(volumes(s).music).toBeGreaterThan(0);
     s.audio.muted = true;
-    expect(volumes(s)).toEqual({ music: 0, sfx: 0 });
+    expect(volumes(s)).toEqual({ music: 0, sfx: 0, crowd: 0, matchfx: 0, whistle: 0 }); // mudo zera tudo, inclusive torcida, efeitos da partida e apito
     s.audio.muted = false; s.audio.music = 0;
     expect(volumes(s).music).toBe(0);
     expect(volumes(s).sfx).toBeGreaterThan(0);

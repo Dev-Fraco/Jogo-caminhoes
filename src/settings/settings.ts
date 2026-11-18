@@ -1,3 +1,4 @@
+import type { WhistleType } from '../audio/cues';
 export type Language = 'pt-BR' | 'en' | 'es';
 export type SimSpeed = 'slow' | 'normal' | 'fast';
 /** Qualidade gráfica do campo 3D. */
@@ -8,7 +9,7 @@ export interface Settings {
   autosave: boolean;
   simSpeed: SimSpeed;
   graphics?: Graphics;
-  audio: { master: number; music: number; sfx: number; muted: boolean };
+  audio: { master: number; music: number; sfx: number; muted: boolean; /** volume da torcida na partida */ crowd?: number; /** chute, trave e rede */ matchfx?: number; /** apito do árbitro */ whistle?: number; whistleType?: WhistleType };
   // Novas seções (vídeo, controles, acessibilidade...) entram aqui como novos campos.
 }
 
@@ -17,7 +18,7 @@ export const DEFAULT_SETTINGS: Settings = {
   autosave: true,
   simSpeed: 'normal',
   graphics: 'medium',
-  audio: { master: 100, music: 80, sfx: 80, muted: false },
+  audio: { master: 100, music: 80, sfx: 80, muted: false, crowd: 80, matchfx: 80, whistle: 80, whistleType: 'classic' },
 };
 
 export const LANGUAGES: { id: Language; label: string }[] = [
@@ -45,6 +46,8 @@ export function sanitizeSettings(raw: unknown): Settings {
       music: clampVol(a.music, d.audio.music),
       sfx: clampVol(a.sfx, d.audio.sfx),
       muted: typeof a.muted === 'boolean' ? a.muted : d.audio.muted,
+      crowd: clampVol(a.crowd, d.audio.crowd ?? 80), matchfx: clampVol(a.matchfx, d.audio.matchfx ?? 80), whistle: clampVol(a.whistle, d.audio.whistle ?? 80),
+      whistleType: a.whistleType === 'classic' || a.whistleType === 'electronic' || a.whistleType === 'sharp' ? a.whistleType : 'classic',
     },
   };
 }

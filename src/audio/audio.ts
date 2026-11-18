@@ -1,4 +1,5 @@
 import { loadSettings, type Settings } from '../settings/settings';
+import { WHISTLE_PATTERNS, type Cue, type WhistleKind, type WhistleType } from './cues';
 
 /**
  * Som do jogo, gerado na hora (sem arquivos), no espírito dos jogos de futebol do PlayStation 1:
@@ -52,7 +53,11 @@ export const CHANT: { midi: number; beats: number; vowel: Vowel }[] = [
 
 export function volumes(s: Settings) {
   const m = s.audio.muted ? 0 : s.audio.master / 100;
-  return { music: m * (s.audio.music / 100) * 0.16, sfx: m * (s.audio.sfx / 100) * 0.5 };
+  return {
+    music: m * (s.audio.music / 100) * 0.16, sfx: m * (s.audio.sfx / 100) * 0.5,
+    /** partida: torcida (ambiente e reações), efeitos (chute, trave, rede) e apito do árbitro, cada um com o seu volume */
+    crowd: m * ((s.audio.crowd ?? 80) / 100) * 0.5, matchfx: m * ((s.audio.matchfx ?? 80) / 100) * 0.6, whistle: m * ((s.audio.whistle ?? 80) / 100) * 0.55,
+  };
 }
 
 class AudioSys {
@@ -62,6 +67,11 @@ class AudioSys {
   private crowdGain!: GainNode;
   private crowdSrc: AudioBufferSourceNode | null = null;
   private chantGain!: GainNode;
+  private fxGain!: GainNode;
+  private whistleGain!: GainNode;
+  private reactGain!: GainNode;
+  private lastCue = new Map<string, number>();
+  private crowdBase = 0.1;
   private chantTimer: ReturnType<typeof setInterval> | null = null;
   private chantNext = 0;
   private chantOn = false;
@@ -83,6 +93,9 @@ class AudioSys {
       this.sfxGain = this.ctx.createGain(); this.sfxGain.connect(this.ctx.destination);
       this.crowdGain = this.ctx.createGain(); this.crowdGain.gain.value = 0; this.crowdGain.connect(this.ctx.destination);
       this.chantGain = this.ctx.createGain(); this.chantGain.gain.value = 0; this.chantGain.connect(this.ctx.destination);
+      this.fxGain = this.ctx.createGain(); this.fxGain.connect(this.ctx.destination);
+      this.whistleGain = this.ctx.createGain(); this.whistleGain.connect(this.ctx.destination);
+      this.reactGain = this.ctx.createGain(); this.reactGain.connect(this.ctx.destination);
       this.refresh();
     }
     if (this.ctx.state === 'suspended') void this.ctx.resume();
@@ -96,7 +109,10 @@ class AudioSys {
     const v = volumes(s);
     this.musicGain.gain.setTargetAtTime(v.music * (this.ducked ? 0.2 : 1), this.ctx.currentTime, 0.08);
     this.sfxGain.gain.setTargetAtTime(v.sfx, this.ctx.currentTime, 0.05);
-    this.chantGain.gain.setTargetAtTime(this.chantOn ? v.sfx * 0.55 : 0, this.ctx.currentTime, 0.2);
+    this.chantGain.gain.setTargetAtTime(this.chantOn ? v.crowd * 0.6 : 0, this.ctx.currentTime, 0.2);
+    this.fxGain.gain.setTargetAtTime(v.matchfx, this.ctx.currentTime, 0.05);
+    this.whistleGain.gain.setTargetAtTime(v.whistle, this.ctx.currentTime, 0.05);
+    this.reactGain.gain.setTargetAtTime(v.crowd, this.ctx.currentTime, 0.05);
   }
 
   setMusic(on: boolean) {
@@ -239,6 +255,52 @@ class AudioSys {
     }
   }
 
+  /** Apito do árbitro (o tipo vem das configurações): um toque com "bolinha", eletrônico ou agudo. */
+  private whistleBlast(t: number, dur: number, type: WhistleType, dest: AudioNode) {
+    const c = this.ctx!;
+    const env = c.createGain(); env.gain.setValueAtTime(0.0001, t); env.gain.exponentialRampToValueAtTime(0.9, t + 0.025); env.gain.setValueAtTime(0.9, t + Math.max(0.03, dur - 0.06)); env.gain.exponentialRampToValueAtTime(0.0001, t + dur); env.connect(dest);
+    const trill = (hz: number, depth: number) => { const lfo = c.createOscillator(), d = c.createGain(); lfo.type = 'square'; lfo.frequency.value = hz; d.gain.value = depth; lfo.connect(d); d.connect(env.gain); lfo.start(t); lfo.stop(t + dur + 0.05); };
+    const osc = (type2: OscillatorType, f0: number, f1: number, vol: number, to: AudioNode = env) => { const o = c.createOscillator(), g = c.createGain(); o.type = type2; o.frequency.setValueAtTime(f0, t); o.frequency.linearRampToValueAtTime(f1, t + dur * 0.25); g.gain.value = vol; o.connect(g); g.connect(to); o.start(t); o.stop(t + dur + 0.05); };
+    if (type === 'classic') { osc('triangle', 2800, 3100, 0.55); osc('sine', 2810, 3120, 0.25); trill(26, 0.35); this.noise(t, dur, 0.08, dest, 3200, 3300); }       // apito de bolinha: tom com trinado rápido
+    else if (type === 'electronic') { osc('sine', 3300, 3300, 0.5); osc('sine', 3318, 3318, 0.3); const v = c.createOscillator(), vg = c.createGain(); v.frequency.value = 6; vg.gain.value = 30; v.connect(vg); v.start(t); v.stop(t + dur + 0.05); } // tom limpo com leve batimento
+    else { osc('square', 3800, 3950, 0.22); osc('triangle', 4150, 4250, 0.3); trill(34, 0.25); this.noise(t, dur, 0.06, dest, 4200, 4400); }               // apito agudo e metálico
+  }
+
+  /** Toca um apito completo (os toques de cada tipo de apito estão em cues.ts). */
+  refWhistle(kind: WhistleKind, type: WhistleType = this.settings?.audio.whistleType ?? 'classic') {
+    const c = this.ctx;
+    if (!c || c.state !== 'running') return;
+    const t = c.currentTime + 0.01;
+    for (const b of WHISTLE_PATTERNS[kind]) this.whistleBlast(t + b.at, b.dur, type, this.whistleGain);
+  }
+  /** Para o jogador ouvir o apito escolhido nas Opções. */
+  previewWhistle(type: WhistleType) { this.refWhistle('foul', type); }
+
+  /** A torcida se agita por um instante (reação a um lance): sobe o volume e volta ao normal. */
+  private swell(amount: number, secs: number) {
+    const c = this.ctx; if (!c || !this.crowdSrc) return;
+    const g = this.crowdGain.gain, now = c.currentTime;
+    g.cancelScheduledValues(now); g.setTargetAtTime(this.crowdBase * (1 + amount), now, 0.12); g.setTargetAtTime(this.crowdBase, now + secs, 0.9);
+  }
+
+  /** Reação do campo (chute, trave, rede, torcida...) no instante em que acontece. `speed` = velocidade da partida (em 3x/4x os chutes comuns ficam em silêncio para não virar ruído). */
+  cue(q: Cue, speed = 1) {
+    const c = this.ctx;
+    if (!c || c.state !== 'running') return;
+    const now = c.currentTime, t = now + 0.005;
+    const gap = (k: string, s: number) => { const last = this.lastCue.get(k) ?? -9; if (now - last < s) return false; this.lastCue.set(k, now); return true; };
+    switch (q.k) {
+      case 'whistle': this.refWhistle(q.v); break;
+      case 'kick': if (speed > 2 && q.p < 16) break; if (!gap('kick', 0.12)) break; { const v = Math.min(1, Math.max(0.3, q.p / 26)); this.tone(150, t, 0.11, 'sine', 0.9 * v, this.fxGain, 52); this.noise(t, 0.03, 0.5 * v, this.fxGain, 2500, 1200, 'highpass'); } break;
+      case 'post': if (!gap('post', 0.25)) break; for (const [f, v] of [[820, 0.5], [1570, 0.3], [2430, 0.18]] as const) this.tone(f, t, 0.7, 'sine', v, this.fxGain); this.noise(t, 0.02, 0.6, this.fxGain, 4000, 2000, 'highpass'); break;
+      case 'net': if (!gap('net', 0.4)) break; this.noise(t, 0.55, 0.45 * Math.min(1, q.p / 20 + 0.4), this.fxGain, 1400, 300); this.tone(90, t, 0.2, 'sine', 0.4, this.fxGain, 60); break;
+      case 'cheer': if (!gap('cheer', 1.5)) break; { const k = this.ctx!.createGain(); k.gain.value = q.big ? 1 : 0.5; k.connect(this.reactGain); this.cheer(t, k); this.swell(q.big ? 0.9 : 0.4, q.big ? 4.5 : 2); } break;
+      case 'groan': if (!gap('groan', 1.5)) break; { const k = this.ctx!.createGain(); k.gain.value = 0.8; k.connect(this.reactGain); this.groan(t, k); } break;
+      case 'oh': if (!gap('oh', 1.2)) break; { const k = this.ctx!.createGain(); k.gain.value = 0.7; k.connect(this.reactGain); for (const base of [196, 247, 294]) this.voice(base * (0.97 + Math.random() * 0.06), t, 1.2, 'o', 0.2, k, base * 1.3); this.noise(t, 1.2, 0.25, k, 600, 1200); this.swell(0.5, 1.6); } break;
+      case 'murmur': if (!gap('murmur', 3)) break; { const k = this.ctx!.createGain(); k.gain.value = 0.6; k.connect(this.reactGain); this.noise(t, 2.4, 0.3, k, 500, 300, 'lowpass'); } break;
+    }
+  }
+
   /** Torcida do estádio (ruído suave e contínuo) durante a partida. */
   crowd(on: boolean) {
     const c = this.ctx;
@@ -253,8 +315,8 @@ class AudioSys {
       src.connect(f); f.connect(this.crowdGain); src.start();
       this.crowdSrc = src;
     }
-    const v = this.settings ? volumes(this.settings).sfx : 0.3;
-    this.crowdGain.gain.setTargetAtTime(v * 0.22, c.currentTime, 0.4);
+    this.crowdBase = (this.settings ? volumes(this.settings).crowd : 0.3) * 0.28;
+    this.crowdGain.gain.setTargetAtTime(this.crowdBase, c.currentTime, 0.4);
   }
 
   private startLoop() {
