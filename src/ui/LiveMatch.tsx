@@ -7,7 +7,8 @@ import { audio } from '../audio/audio';
 import { ClubBadge } from './ClubBadge';
 import { PenaltyShootout } from './PenaltyShootout';
 
-export const SPEEDS = [1, 2, 4, 8] as const;
+/** Velocidades da partida assistida: 1x a 4x (limite absoluto). */
+export const SPEEDS = [1, 2, 3, 4] as const;
 export type Speed = (typeof SPEEDS)[number];
 /** Em 1x uma partida de 90 minutos dura 45 segundos (meio segundo por minuto de jogo). As outras velocidades dividem esse tempo. */
 export const MS_PER_MINUTE_AT_1X = 500;

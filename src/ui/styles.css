@@ -340,3 +340,20 @@ select option { background: #35322e; color: var(--ink); }
 /* Campo 3D da partida ao vivo */
 .pitch3d { position: relative; width: 100%; aspect-ratio: 100 / 66; border-radius: 12px; overflow: hidden; border: 1px solid #2c5a3a; box-shadow: 0 0 14px rgba(40, 160, 90, .25); background: #1d1c19; margin: 2px 0 4px; flex: none; }
 .pitch3d canvas { display: block; width: 100%; height: 100%; }
+
+/* escolha antes da partida e simulação */
+.mc { display: grid; gap: 12px; padding: 16px; text-align: center; }
+.mc-div { color: var(--muted); }
+.mc-vs { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.mc-team { display: grid; justify-items: center; gap: 6px; flex: 1; }
+.mc-x { font: 800 28px var(--font-head); color: var(--gold); }
+.mc-std { margin: 0; color: var(--muted); }
+.mc-opt { display: grid; gap: 4px; text-align: left; padding: 14px 16px; min-height: 64px; border-radius: 12px; border: 1px solid var(--gold); background: rgba(0, 0, 0, .45); color: inherit; cursor: pointer; }
+.mc-opt b { font: 800 18px var(--font-head); color: var(--gold); }
+.mc-opt span { color: var(--muted); font-size: 14px; }
+.ms { display: grid; gap: 10px; }
+.ms-feed { max-height: 34vh; overflow-y: auto; }
+.ms-stats { width: 100%; border-collapse: collapse; margin: 10px 0; }
+.ms-stats td, .ms-stats th { padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--line); }
+.ms-stats th[scope='row'] { color: var(--muted); font-weight: 600; }
+.ms-skip { justify-self: start; }
