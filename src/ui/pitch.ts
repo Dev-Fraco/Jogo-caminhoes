@@ -54,7 +54,10 @@ export function positionsOf(side: Side, formation: FormationId, st: PlayState, t
   const has = st.possession === side, lose = st.possession !== 'none' && !has;
   const shift = has ? 14 * st.push : lose ? -5 * st.push : 0;
   const pts = base.map((p, i) => {
-    if (i === 0) return { x: p.x + (has ? 2 * st.push : 0), y: p.y + (st.ball.y - p.y) * 0.08 }; // goleiro acompanha a bola um pouco
+    if (i === 0) { // goleiro: fica no gol do SEU time (o visitante defende o gol da direita) e acompanha a bola um pouco
+      const gx = p.x + (has ? 2 * st.push : 0), gy = (side === 'home' ? p.y : PITCH_H - p.y) + (st.ball.y - (side === 'home' ? p.y : PITCH_H - p.y)) * 0.08;
+      return { x: side === 'home' ? gx : PITCH_W - gx, y: gy };
+    }
     const wobble = (hash(tick * 17 + i + (side === 'home' ? 0 : 99)) - 0.5) * 3;
     const baseX = side === 'home' ? p.x : PITCH_W - p.x; // espelhado para o visitante
     let x = baseX + sgn * shift * (p.x / 48) + wobble;
@@ -65,7 +68,7 @@ export function positionsOf(side: Side, formation: FormationId, st: PlayState, t
   });
   // o portador da bola fica junto dela
   if (has && st.carrier > 0 && st.carrier < pts.length && !st.goalNow) pts[st.carrier] = { x: Math.max(1.5, Math.min(PITCH_W - 1.5, st.ball.x - sgn * 1.4)), y: st.ball.y };
-  return side === 'home' ? pts : pts.map((p) => p);
+  return pts;
 }
 
 /** Cor do time no campo: a principal; se as duas forem parecidas, o visitante usa a secundária. */

@@ -40,15 +40,19 @@ export interface World {
   flow: { st: PlayState; tick: number; carrier: number; side: Side | 'none' };
   formations: { home: FormationId; away: FormationId };
   goals: { home: number; away: number };
+  /** segundo tempo: os times trocaram de lado (o mandante defende o gol da direita) */
+  flip: boolean;
 }
 
 const hash = (n: number) => { let h = (n * 2654435761) >>> 0; h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; return (h >>> 8) / 0xffffff; };
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const dist2 = (ax: number, ay: number, bx: number, by: number) => Math.hypot(ax - bx, ay - by);
-const sgnOf = (side: Side) => (side === 'home' ? 1 : -1);
+/** Direção de ataque (+1 = para o gol da direita). No 2º tempo (`flip`) os times trocam de lado. */
+const sgnOf = (side: Side, flip = false) => ((side === 'home') !== flip ? 1 : -1);
 /** x da linha de gol que o time ataca (mandante ataca a direita). */
-export const goalXOf = (attacker: Side) => (attacker === 'home' ? L : 0);
-const toWorld = (p: Pt): { x: number; y: number } => ({ x: p.x * SX, y: p.y * SY });
+export const goalXOf = (attacker: Side, flip = false) => ((attacker === 'home') !== flip ? L : 0);
+/** Ponto do campo lógico (100 x 64, mandante ataca à direita) para metros; no 2º tempo (`flip`) o campo todo é espelhado. */
+const toWorld = (p: Pt, flip = false): { x: number; y: number } => (flip ? { x: L - p.x * SX, y: W - p.y * SY } : { x: p.x * SX, y: p.y * SY });
 
 export const newNet = (): Net => ({ w: 9, h: 5, d: new Array(45).fill(0), dv: new Array(45).fill(0) });
 
@@ -58,7 +62,7 @@ export function createWorld(homeFormation: FormationId = '4-4-2', awayFormation:
   const w: World = {
     t: 0, ball: { p: { x: CENTER.x, y: CENTER.y, z: BALL_R }, v: { x: 0, y: 0, z: 0 }, mode: 'free', carrier: -1, spin: 0, slideUntil: 0, scored: null, inNet: null, crossed: false },
     agents, nets: [newNet(), newNet()], script: null, queue: [], banner: null, card: null, confetti: [], camX: CENTER.x,
-    flow: { st: playState([], 0, 0), tick: -1, carrier: -1, side: 'none' }, formations: { home: homeFormation, away: awayFormation }, goals: { home: 0, away: 0 },
+    flow: { st: playState([], 0, 0), tick: -1, carrier: -1, side: 'none' }, formations: { home: homeFormation, away: awayFormation }, goals: { home: 0, away: 0 }, flip: false,
   };
   placeFormation(w, playState([], 0, 0), 0);
   return w;
@@ -66,7 +70,7 @@ export function createWorld(homeFormation: FormationId = '4-4-2', awayFormation:
 
 /** Coloca todos nos lugares da formação (sem correr): início, intervalo e saltos no tempo. */
 export function placeFormation(w: World, st: PlayState, tick: number) {
-  const hp = positionsOf('home', w.formations.home, st, tick).map(toWorld), ap = positionsOf('away', w.formations.away, st, tick).map(toWorld);
+  const hp = positionsOf('home', w.formations.home, st, tick).map((p) => toWorld(p, w.flip)), ap = positionsOf('away', w.formations.away, st, tick).map((p) => toWorld(p, w.flip));
   w.agents.forEach((a) => { const p = (a.side === 'home' ? hp : ap)[a.idx]; a.x = a.tx = p.x; a.y = a.ty = p.y; a.vx = a.vy = 0; a.state = 'play'; a.ov = undefined; a.hop = 0; a.hopV = 0; });
 }
 
@@ -153,7 +157,7 @@ function stepBall(w: World, dt: number) {
   const depth = (p.x - gx) * dir; // positivo = além da linha de gol
   if (depth > 0 && !b.crossed) { // 1ª travessia da linha de gol: só é gol se passou entre as traves e abaixo do travessão (por cima ou ao lado não vale)
     b.crossed = true;
-    if (inMouth(p.y) && p.z + BALL_R * 0.5 < GOAL_H) b.scored = dir === 1 ? 'home' : 'away';
+    if (inMouth(p.y) && p.z + BALL_R * 0.5 < GOAL_H) b.scored = (dir === 1) !== w.flip ? 'home' : 'away';
   }
   if (depth < -3) b.crossed = false;
   if (b.scored && depth > 0) {
@@ -211,7 +215,7 @@ const holderOf = (w: World, side: Side, idx: number) => w.agents[(side === 'home
 export function syncFlow(w: World, st: PlayState, tick: number) {
   const prev = w.flow;
   w.flow = { st, tick, carrier: st.possession === 'none' ? -1 : holderOf(w, st.possession, st.carrier).id, side: st.possession };
-  const hp = positionsOf('home', w.formations.home, st, tick).map(toWorld), ap = positionsOf('away', w.formations.away, st, tick).map(toWorld);
+  const hp = positionsOf('home', w.formations.home, st, tick).map((p) => toWorld(p, w.flip)), ap = positionsOf('away', w.formations.away, st, tick).map((p) => toWorld(p, w.flip));
   for (const a of w.agents) { const p = (a.side === 'home' ? hp : ap)[a.idx]; a.tx = p.x; a.ty = p.y; }
   if (w.script) return;
   const b = w.ball;
@@ -267,7 +271,7 @@ function beginScript(w: World, sc: Script) {
   const b = w.ball;
   if (sc.kind === 'goal' || sc.kind === 'save' || sc.kind === 'miss') {
     const shooter = holderOf(w, sc.side, sc.shooter);
-    const gx = goalXOf(sc.side), sgn = sgnOf(sc.side);
+    const gx = goalXOf(sc.side, w.flip), sgn = sgnOf(sc.side, w.flip);
     const spot = { x: gx - sgn * (sc.kind === 'goal' ? 15 + hash(sc.shooter) * 3 : 13 + hash(sc.shooter * 3) * 6), y: clamp(shooter.y, 18, 50) };
     // chega à jogada: a bola vai ao atacante, que conduz até o ponto do chute
     b.mode = 'carried'; b.carrier = shooter.id; b.scored = null; b.inNet = null; b.crossed = false;
@@ -286,7 +290,7 @@ function beginScript(w: World, sc: Script) {
       a.ov = { x: tx, y: ty, speed: 6.5, until: w.t + 3 };
     }
   } else if (sc.kind === 'corner') {
-    const gx = goalXOf(sc.side), sgn = sgnOf(sc.side);
+    const gx = goalXOf(sc.side, w.flip), sgn = sgnOf(sc.side, w.flip);
     const taker = holderOf(w, sc.side, 7);
     taker.ov = { x: gx - sgn * 0.8, y: sc.ty, speed: 8, until: w.t + 2.5 };
     sc.shooter = 7;
@@ -295,7 +299,7 @@ function beginScript(w: World, sc: Script) {
   } else if (sc.kind === 'foul') {
     const who = holderOf(w, sc.side, sc.shooter);
     for (const a of w.agents) { a.ov = { x: a.x, y: a.y, speed: 1, until: w.t + 1.4 }; }
-    const bp = w.flow.st.ball; const spot = toWorld(bp);
+    const bp = w.flow.st.ball; const spot = toWorld(bp, w.flip);
     b.mode = 'free'; b.v = { x: 0, y: 0, z: 0 }; b.p = { x: spot.x, y: spot.y, z: BALL_R }; b.carrier = -1;
     if (sc.data.card) w.card = { agent: who.id, kind: sc.data.card === 2 ? 'red' : 'yellow', until: w.t + 1.6 };
   } else if (sc.kind === 'injury') {
@@ -320,7 +324,7 @@ const SHOT_V = 26;
 function stepScript(w: World, dt: number) {
   const sc = w.script; if (!sc) return;
   sc.t += dt;
-  const gx = goalXOf(sc.side), sgn = sgnOf(sc.side), b = w.ball;
+  const gx = goalXOf(sc.side, w.flip), sgn = sgnOf(sc.side, w.flip), b = w.ball;
   const keeper = holderOf(w, sc.side === 'home' ? 'away' : 'home', 0);
   const shooter = holderOf(w, sc.side, sc.shooter);
   if (sc.kind === 'goal' || sc.kind === 'save' || sc.kind === 'miss') {
@@ -411,6 +415,8 @@ export function snapWorld(w: World, st: PlayState, tick: number) {
 
 export interface Driver { idx: number; lastMinute: number; lastTick: number }
 export const createDriver = (): Driver => ({ idx: 0, lastMinute: 0, lastTick: -1 });
+/** A partir deste minuto (2º tempo) os times jogam com os lados trocados. */
+export const SECOND_HALF = 45.5;
 const SCRIPTED = new Set(['goal', 'save', 'miss', 'corner', 'foul', 'yellow', 'red', 'injury']);
 
 /**
@@ -419,6 +425,8 @@ const SCRIPTED = new Set(['goal', 'save', 'miss', 'corner', 'foul', 'yellow', 'r
  */
 export function drive(w: World, drv: Driver, events: MatchEvent[], minute: number) {
   const tick = Math.floor(minute * 2), mi = Math.floor(minute);
+  const flip = minute >= SECOND_HALF;
+  if (flip !== w.flip) { w.flip = flip; snapWorld(w, playState(events, mi, tick), tick); drv.idx = events.filter((e) => e.minute <= minute).length; drv.lastTick = tick; drv.lastMinute = minute; return; } // intervalo: os times trocam de lado e todos voltam aos seus lugares
   if (minute < drv.lastMinute - 0.01 || minute - drv.lastMinute > 6) {
     drv.idx = events.filter((e) => e.minute <= minute).length;
     snapWorld(w, playState(events, mi, tick), tick);
