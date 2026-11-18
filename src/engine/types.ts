@@ -84,6 +84,15 @@ export interface MatchEvent {
   injury?: { playerId: string; rounds: number; kind: string; days?: number; severity?: 'leve' | 'media' | 'grave' };
   /** Placar [casa, fora] depois do lance (gols, intervalo e fim de jogo). */
   score?: [number, number];
+  /** Quem fez o lance (id do jogador): autor do gol, do chute, da falta, do escanteio, do cartão. */
+  pid?: string;
+  /** Falta: id de quem sofreu. Gol: id de quem deu o passe/cruzamento. Defesa: id do goleiro. Lesão: id de quem entrou. */
+  victimId?: string; assistId?: string; gkId?: string; inId?: string;
+  /** Como foi o lance: gol de cabeça ou de pé (`header`/`foot`, `cross` = veio de cruzamento); chute que bateu na trave (`post`) ou foi para fora (`wide`). */
+  how?: 'header' | 'foot' | 'post' | 'wide';
+  /** Início do jogo: os 11 de cada time e as formações. Mudança tática: a nova escalação e formação. */
+  lineups?: { home: string[]; away: string[]; homeFormation: FormationId; awayFormation: FormationId };
+  lineup?: string[]; formation?: FormationId;
 }
 
 export interface MatchResult {

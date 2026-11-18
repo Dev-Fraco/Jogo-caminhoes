@@ -1,4 +1,4 @@
-import { clamp, makeRng, type Rng } from './rng';
+import { clamp, hashString, makeRng, type Rng } from './rng';
 import { autoLineup, spotOf, teamRatings } from './squad';
 import { MAX_INJURIES_PER_MATCH, rollInjury, rollMatchInjuries, spanLabel, type InjuryHit } from './injuries';
 import { FORMATIONS, type FormationId, type MatchEvent, type Player, type TeamState } from './types';
@@ -93,7 +93,7 @@ export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, m
       if (side === 'home') { hTeam = next; hR = teamRatings(next); hl = lineupOf(next); } else { aTeam = next; aR = teamRatings(next); al = lineupOf(next); }
       text = `${p.name} (${club(side)}) se lesiona (${inj.kind}${inj.severity === 'grave' ? ', lesão grave' : ''}) e sai de campo, fora por ${spanLabel(inj.days)}. Entra ${bench[0].name}.`;
     } else { handicap[side] *= 0.93; text = `${p.name} (${club(side)}) se lesiona (${inj.kind}${inj.severity === 'grave' ? ', lesão grave' : ''}), fora por ${spanLabel(inj.days)}, e o time segue com um a menos.`; }
-    push(minute, 'injury', side, text, { player: p.name, injury: { playerId: p.id, rounds: inj.rounds, kind: inj.kind, days: inj.days, severity: inj.severity } });
+    push(minute, 'injury', side, text, { player: p.name, pid: p.id, ...(bench[0] ? { inId: bench[0].id } : {}), injury: { playerId: p.id, rounds: inj.rounds, kind: inj.kind, days: inj.days, severity: inj.severity } });
   };
 
   const weighted = (list: Player[], weight: (p: Player) => number): Player => {
@@ -111,7 +111,7 @@ export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, m
   const assister = (list: Player[], not: Player) => weighted(list.filter((p) => p !== not && p.pos !== 'GK'), (p) => (p.pos === 'MID' ? 5 : p.pos === 'ATT' ? 4 : 1) * ASSIST_SPOT[spotOf(p)]);
   const WIDE = new Set(['LD', 'LE', 'MD', 'ME', 'PD', 'PE']);
 
-  push(0, 'kickoff', 'none', `Começa o jogo! ${names.home} x ${names.away}.`);
+  push(0, 'kickoff', 'none', `Começa o jogo! ${names.home} x ${names.away}.`, { lineups: { home: [...home.lineup], away: [...away.lineup], homeFormation: home.formation, awayFormation: away.formation } });
 
   for (let minute = 1; minute <= 90; minute++) {
     // mudanças táticas do treinador (valem a partir deste minuto)
@@ -134,7 +134,7 @@ export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, m
         : q <= -0.75 ? (diff < 0 ? `${c} mexeu mal: ${t.formation} fecha demais quando precisa do gol!` : `${c} mexeu mal: ${t.formation} abre espaços na defesa!`)
         : fx.confUntil ? `${c}: mais uma mudança em pouco tempo (${t.formation}); o time se perde um pouco.`
         : `${c} muda para ${t.formation}.`;
-      push(minute - 1, 'tactic', side, text);
+      push(minute - 1, 'tactic', side, text, { lineup: [...next.lineup], formation: next.formation });
     }
     for (const side of ['home', 'away'] as const) { // lesões sorteadas para esta partida (10% leve, 3% grave por time): acontecem no minuto sorteado, mais comuns em veteranos
       for (const plan of injPlan[side]) {
@@ -151,18 +151,18 @@ export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, m
       const fs = rng() < 0.5 ? 'home' : 'away';
       const vs = fs === 'home' ? 'away' : 'home';
       const offender = pickOf(field(fs)), victim = pickOf(field(vs));
-      push(minute, 'foul', fs, `Falta de ${offender.name} (${club(fs)}) em ${victim.name} (${club(vs)}).`, { player: offender.name });
+      push(minute, 'foul', fs, `Falta de ${offender.name} (${club(fs)}) em ${victim.name} (${club(vs)}).`, { player: offender.name, pid: offender.id, victimId: victim.id });
       const r = rng();
       if (r < 0.012 && redCards[fs] < 2) {
         redCards[fs]++; out.add(offender.id);
-        push(minute, 'red', fs, `Cartão vermelho! ${offender.name} (${club(fs)}) é expulso.`, { player: offender.name });
+        push(minute, 'red', fs, `Cartão vermelho! ${offender.name} (${club(fs)}) é expulso.`, { player: offender.name, pid: offender.id });
       } else if (r < 0.3) {
         if (yellows.has(offender.id) && redCards[fs] < 2) {
           redCards[fs]++; out.add(offender.id);
-          push(minute, 'red', fs, `Segundo amarelo! ${offender.name} (${club(fs)}) é expulso.`, { player: offender.name });
+          push(minute, 'red', fs, `Segundo amarelo! ${offender.name} (${club(fs)}) é expulso.`, { player: offender.name, pid: offender.id });
         } else {
           yellows.add(offender.id);
-          push(minute, 'yellow', fs, `Cartão amarelo para ${offender.name} (${club(fs)}).`, { player: offender.name });
+          push(minute, 'yellow', fs, `Cartão amarelo para ${offender.name} (${club(fs)}).`, { player: offender.name, pid: offender.id });
         }
       }
     }
@@ -182,7 +182,7 @@ export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, m
     if (rng() > pShot) {
       if (rng() < 0.2) { // ataque sem finalização: pode terminar em escanteio
         const taker = weighted(field(side), (p) => (p.pos === 'MID' ? 5 : p.pos === 'ATT' ? 2 : 0.5));
-        push(minute, 'corner', side, `Escanteio para o ${club(side)}, cobrança de ${taker.name}.`, { player: taker.name });
+        push(minute, 'corner', side, `Escanteio para o ${club(side)}, cobrança de ${taker.name}.`, { player: taker.name, pid: taker.id });
       }
       continue;
     }
@@ -191,13 +191,13 @@ export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, m
     if (rng() < pGoal) {
       if (homeAttacks) hg++; else ag++;
       const helper = rng() < 0.7 ? assister(field(side), shooter) : null;
-      push(minute, 'goal', side, `GOOOL! ${shooter.name} marca para o ${club(side)}${helper ? (WIDE.has(spotOf(helper)) ? ` (cruzamento de ${helper.name})` : ` (assistência de ${helper.name})`) : ''}. ${names.home} ${hg} x ${ag} ${names.away}.`, { player: shooter.name, score: [hg, ag] });
+      push(minute, 'goal', side, `GOOOL! ${shooter.name} marca para o ${club(side)}${helper ? (WIDE.has(spotOf(helper)) ? ` (cruzamento de ${helper.name})` : ` (assistência de ${helper.name})`) : ''}. ${names.home} ${hg} x ${ag} ${names.away}.`, { player: shooter.name, pid: shooter.id, ...(helper ? { assistId: helper.id } : {}), how: ((helper && WIDE.has(spotOf(helper)) && (shooter.pos === 'DEF' || spotOf(shooter) === 'CA') ? 0.55 : shooter.pos === 'DEF' ? 0.4 : 0.06) > (hashString(`${shooter.id}:${minute}:${hg}:${ag}`) % 1000) / 1000 ? 'header' : 'foot') as 'header' | 'foot', score: [hg, ag] });
     } else {
       const gk = keeper(other);
       const r = rng();
-      if (r < 0.5) push(minute, 'save', side, `${shooter.name} (${club(side)}) finaliza e ${gk.name} defende.`, { player: shooter.name });
-      else if (r < 0.62) push(minute, 'miss', side, `${shooter.name} (${club(side)}) acerta a trave!`, { player: shooter.name });
-      else push(minute, 'miss', side, `${shooter.name} (${club(side)}) chuta para fora.`, { player: shooter.name });
+      if (r < 0.5) push(minute, 'save', side, `${shooter.name} (${club(side)}) finaliza e ${gk.name} defende.`, { player: shooter.name, pid: shooter.id, gkId: gk.id });
+      else if (r < 0.62) push(minute, 'miss', side, `${shooter.name} (${club(side)}) acerta a trave!`, { player: shooter.name, pid: shooter.id, how: 'post' });
+      else push(minute, 'miss', side, `${shooter.name} (${club(side)}) chuta para fora.`, { player: shooter.name, pid: shooter.id, how: 'wide' });
     }
   }
   push(90, 'fulltime', 'none', `Fim de jogo! ${names.home} ${hg} x ${ag} ${names.away}.`, { score: [hg, ag] });
