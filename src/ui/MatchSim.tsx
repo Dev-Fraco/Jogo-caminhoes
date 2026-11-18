@@ -5,11 +5,11 @@ import { ClubBadge } from './ClubBadge';
 
 /** Duração da animação da simulação (o jogo já foi calculado: aqui só se revela a linha do tempo). */
 export const SIM_MS = 6000;
-const ICON: Partial<Record<MatchEvent['type'], string>> = { goal: '⚽', foul: '🅿️', yellow: '🟨', red: '🟥', injury: '🤕', tactic: '🔄', halftime: '⏸️', fulltime: '🏁' };
+const ICON: Partial<Record<MatchEvent['type'], string>> = { goal: '⚽', foul: '🅿️', var: '📺', yellow: '🟨', red: '🟥', injury: '🤕', tactic: '🔄', halftime: '⏸️', fulltime: '🏁' };
 
-const ROWS: { k: 'shots' | 'onTarget' | 'saves' | 'fouls' | 'yellow' | 'red' | 'corners' | 'offsides' | 'penalties' | 'injuries' | 'changes'; label: string }[] = [
+const ROWS: { k: 'shots' | 'onTarget' | 'saves' | 'fouls' | 'yellow' | 'red' | 'corners' | 'offsides' | 'penalties' | 'varReviews' | 'injuries' | 'changes'; label: string }[] = [
   { k: 'shots', label: 'Finalizações' }, { k: 'onTarget', label: 'No alvo' }, { k: 'saves', label: 'Defesas do goleiro' }, { k: 'fouls', label: 'Faltas' },
-  { k: 'yellow', label: 'Cartões amarelos' }, { k: 'red', label: 'Cartões vermelhos' }, { k: 'corners', label: 'Escanteios' }, { k: 'offsides', label: 'Impedimentos' }, { k: 'penalties', label: 'Pênaltis a favor' }, { k: 'injuries', label: 'Lesões' }, { k: 'changes', label: 'Mudanças táticas' },
+  { k: 'yellow', label: 'Cartões amarelos' }, { k: 'red', label: 'Cartões vermelhos' }, { k: 'corners', label: 'Escanteios' }, { k: 'offsides', label: 'Impedimentos' }, { k: 'penalties', label: 'Pênaltis a favor' }, { k: 'varReviews', label: 'Revisões do VAR' }, { k: 'injuries', label: 'Lesões' }, { k: 'changes', label: 'Mudanças táticas' },
 ];
 
 /** Simulação da partida inteira: escudos, barra de tempo, gols e lances aparecendo e, no fim, placar e estatísticas. Usa o MESMO resultado da partida assistida. */

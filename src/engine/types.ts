@@ -75,7 +75,7 @@ export interface TeamState {
 
 export interface MatchEvent {
   minute: number;
-  type: 'kickoff' | 'tactic' | 'injury' | 'goal' | 'yellow' | 'red' | 'foul' | 'save' | 'miss' | 'corner' | 'offside' | 'halftime' | 'fulltime';
+  type: 'kickoff' | 'tactic' | 'injury' | 'goal' | 'yellow' | 'red' | 'foul' | 'save' | 'miss' | 'corner' | 'offside' | 'var' | 'halftime' | 'fulltime';
   side: 'home' | 'away' | 'none';
   text: string;
   /** Jogador principal do lance (autor do gol, da falta, do chute...). */
@@ -95,6 +95,10 @@ export interface MatchEvent {
   lineup?: string[]; formation?: FormationId;
   /** Pênalti: a falta na área e a cobrança trazem esta marca. */
   pen?: boolean;
+  /** O VAR desfez esta decisão (gol anulado, cartão trocado): o lance aconteceu, mas não vale. */
+  annulled?: boolean;
+  /** Revisão do VAR: o que foi decidido. `target` = jogador envolvido (autor do impedimento/falta, ou o jogador certo do cartão). */
+  var?: { kind: 'goal-offside' | 'goal-foul' | 'pen-cancel' | 'red-downgrade' | 'id-fix'; target?: string };
 }
 
 export interface MatchResult {

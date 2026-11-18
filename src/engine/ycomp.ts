@@ -213,15 +213,15 @@ function playOne(g: GameState, c: YComp, homeId: string, awayId: string, rng: Rn
   const tally = (list: Player[], cid: string, e: (typeof out.events)[number], opp: Player[]) => {
     const p = byName(list, e.player) ?? byName(squadOf(e.side as 'home' | 'away'), e.player);
     if (p && !mins.has(p.id)) { mins.set(p.id, 30); subs.set(p.id, p); }
-    if (e.type === 'goal' && p) {
+    if (e.type === 'goal' && !e.annulled && p) {
       bump(c, p, { g: 1 }, cid);
       const m = /\((?:cruzamento|assistência) de ([^)]+)\)/.exec(e.text);
       const helper = m ? byName(list, m[1]) ?? byName(squadOf(e.side as 'home' | 'away'), m[1]) : undefined;
       if (helper && !mins.has(helper.id)) { mins.set(helper.id, 30); subs.set(helper.id, helper); }
       if (helper) bump(c, helper, { a: 1 }, cid);
       const gk = gkOf(opp); goalsAgainst.set(gk.id, (goalsAgainst.get(gk.id) ?? 0) + 1);
-    } else if (e.type === 'yellow' && p) bump(c, p, { y: 1 }, cid);
-    else if (e.type === 'red' && p) { bump(c, p, { r: 1 }, cid); mins.set(p.id, Math.min(mins.get(p.id) ?? 90, e.minute)); }
+    } else if (e.type === 'yellow' && !e.annulled && p) bump(c, p, { y: 1 }, cid);
+    else if (e.type === 'red' && !e.annulled && p) { bump(c, p, { r: 1 }, cid); mins.set(p.id, Math.min(mins.get(p.id) ?? 90, e.minute)); }
   };
   for (const e of out.events) { if (e.side === 'home') tally(lineH, homeId, e, lineA); else if (e.side === 'away') tally(lineA, awayId, e, lineH); }
   for (const p of [...lineH, ...[...subs.values()].filter((x) => ht.players.includes(x))]) bump(c, p, { j: 1, m: mins.get(p.id) ?? 90, gc: goalsAgainst.get(p.id) ?? 0 }, homeId);

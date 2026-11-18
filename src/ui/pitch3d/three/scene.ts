@@ -7,7 +7,7 @@ import { createAthletes, SHIRT_BY_SLOT, type AthleteKit as AthleteKitT } from '.
 import { FORMATION_SLOTS, type FormationId } from '../../../engine/types';
 
 export type Quality = 'low' | 'medium' | 'high';
-export interface PitchRenderer { render(w: World, look: Look, width: number, height: number, cam: Camera): void; dispose(): void }
+export interface PitchRenderer { render(w: World, look: Look, width: number, height: number, cam: Camera): void; /** a próxima imagem vai direto às poses (repetição do VAR volta no tempo) */ snap(): void; dispose(): void }
 
 /** Mundo (x ao longo, y largura, z para cima) -> three.js (X, Y para cima, Z). */
 const T = (x: number, y: number, z: number) => new THREE.Vector3(x, z, -y);
@@ -175,6 +175,10 @@ export function createPitchRenderer(canvas: HTMLCanvasElement, quality: Quality,
   const ring = new THREE.Mesh(own(new THREE.RingGeometry(1.0, 1.15, 28)), own(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false })));
   ring.rotation.x = -Math.PI / 2; ring.position.y = 0.03; ring.visible = false; scene.add(ring);
 
+  // linhas do impedimento (repetição do VAR): branca no último defensor, vermelha no atacante
+  const lineGeo = own(new THREE.BoxGeometry(0.22, 0.03, W + 6));
+  const defLine = new THREE.Mesh(lineGeo, own(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 }))), attLine = new THREE.Mesh(lineGeo, own(new THREE.MeshBasicMaterial({ color: 0xff2d2d, transparent: true, opacity: 0.9 })));
+  defLine.visible = attLine.visible = false; scene.add(defLine, attLine);
   let lastT = -1;
   const resize = (width: number, height: number) => {
     const pr = Math.min(window.devicePixelRatio || 1, q.pr);
@@ -190,6 +194,7 @@ export function createPitchRenderer(canvas: HTMLCanvasElement, quality: Quality,
       camera.fov = (2 * Math.atan(height / 2 / cam.focal) * 180) / Math.PI; camera.aspect = width / height;
       camera.setViewOffset(width, height, 0, -(cam.cy - height / 2), width, height); camera.updateProjectionMatrix();
       camera.position.copy(T(cam.px, cam.py, cam.pz)); camera.up.set(0, 1, 0); camera.lookAt(T(cam.px + cam.fx * 40, cam.py + cam.fy * 40, cam.pz + cam.fz * 40));
+      const vl = w.var?.stage === 'review' ? w.var.line : undefined; defLine.visible = attLine.visible = !!vl; if (vl) { defLine.position.copy(T(vl.def, MID_Y, 0.04)); attLine.position.copy(T(vl.att, MID_Y, 0.045)); }
       // atletas
       athletes.update(w, dt); [...w.agents, ...w.refs].forEach((a, i) => { blobs[i].position.set(a.x, 0.02, -a.y); blobs[i].visible = a.off !== 'gone'; });
       const carrier = lk.userSide && w.flow.carrier >= 0 ? w.agents[w.flow.carrier] : null;
@@ -221,6 +226,7 @@ export function createPitchRenderer(canvas: HTMLCanvasElement, quality: Quality,
       }
       renderer.render(scene, camera);
     },
+    snap() { athletes.snap(); },
     dispose() {
       athletes.dispose(); for (const d of disposables) d.dispose();
       scene.traverse((o) => { const m = o as THREE.Mesh; if (m.geometry) m.geometry.dispose(); });

@@ -153,7 +153,7 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
     const mods = { home: f.homeId === g.userClubId ? factor : 1, away: f.awayId === g.userClubId ? factor : 1 };
     const out = simulateMatch(teams[f.homeId], teams[f.awayId], rng, mods, { home: g.clubs[f.homeId].name, away: g.clubs[f.awayId].name });
     if (out.injured) hits.push(...out.injured);
-    for (const e of out.events) if (e.type === 'goal' && e.player && e.side !== 'none') goalLog.push({ clubId: e.side === 'home' ? f.homeId : f.awayId, name: e.player, comp: f.divisionId });
+    for (const e of out.events) if (e.type === 'goal' && !e.annulled && e.player && e.side !== 'none') goalLog.push({ clubId: e.side === 'home' ? f.homeId : f.awayId, name: e.player, comp: f.divisionId });
     const mine = f.homeId === g.userClubId || f.awayId === g.userClubId;
     // jogo eliminatório empatado: pênaltis
     const sk = f.ko && out.homeGoals === out.awayGoals ? shootoutKicks(rng, teamRatings(teams[f.homeId]).gk, teamRatings(teams[f.awayId]).gk, penaltyTakers(teams[f.homeId]), penaltyTakers(teams[f.awayId])) : undefined;

@@ -70,7 +70,7 @@ describe('lances encenados com os jogadores do motor', () => {
     const events = [kickoff, ev(10, 'goal', 'home', { pid: 'h10', how: 'foot' })];
     const { w, drv } = mk(events); drive(w, drv, events, 9); stepWorld(w, 0.5); drive(w, drv, events, 10);
     let kickedAt = -1, celebratedBeforeGoal = false, scoredAt = -1, shotStartAt = -1;
-    for (let t = 0; t < 9 && w.script; t += 1 / 60) {
+    for (let t = 0; t < 20 && (w.script || w.var); t += 1 / 60) {
       stepWorld(w, 1 / 60);
       const sh = w.agents[10];
       if (shotStartAt < 0 && sh.act?.kind === 'shot') shotStartAt = w.t;

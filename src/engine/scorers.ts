@@ -12,7 +12,7 @@ export interface GoalEntry { clubId: string; name: string; comp: string }
 let PENDING: GoalEntry[] = [];
 /** Anota os gols de uma partida simulada em detalhe (vindos dos lances). */
 export function logGoals(events: MatchEvent[], homeId: string, awayId: string, comp: string) {
-  for (const e of events) if (e.type === 'goal' && e.player && e.side !== 'none') PENDING.push({ clubId: e.side === 'home' ? homeId : awayId, name: e.player, comp });
+  for (const e of events) if (e.type === 'goal' && !e.annulled && e.player && e.side !== 'none') PENDING.push({ clubId: e.side === 'home' ? homeId : awayId, name: e.player, comp });
 }
 /** Partidas com placar rápido (sem lances): distribui os gols entre os jogadores do clube, sem mexer no sorteio da partida. */
 export function spreadGoals(g: GameState, clubId: string, goals: number, comp: string, seedKey: string) {

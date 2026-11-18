@@ -9,7 +9,7 @@ import type { MatchEvent, Player } from './types';
    então "simular" e "assistir" mostram a mesma partida. Quem aparece nos lances é quem estava em campo naquele minuto.
    ===================================================================== */
 
-export type PlayType = 'kickoff' | 'pass' | 'cross' | 'longball' | 'shot' | 'header' | 'goal' | 'save' | 'post' | 'wide' | 'corner' | 'offside' | 'foul' | 'yellow' | 'red' | 'injury' | 'sub' | 'tactic' | 'halftime' | 'fulltime';
+export type PlayType = 'kickoff' | 'pass' | 'cross' | 'longball' | 'shot' | 'header' | 'goal' | 'save' | 'post' | 'wide' | 'corner' | 'offside' | 'var' | 'foul' | 'yellow' | 'red' | 'injury' | 'sub' | 'tactic' | 'halftime' | 'fulltime';
 export interface Play {
   /** posição do lance (evento do motor) na lista; os passes de uma cadeia compartilham o mesmo `ix` */
   ix: number;
@@ -21,6 +21,8 @@ export interface Play {
   pid?: string; to?: string;
   /** o motor confirmou este gol (só o lance final de uma cadeia de gol) */
   decisive?: boolean;
+  /** o VAR desfez o lance (gol anulado) */
+  annulled?: boolean;
 }
 
 export interface FieldState { home: string[]; away: string[] }
@@ -37,7 +39,7 @@ export function onField(events: MatchEvent[], upTo: number, keepRed = false): Fi
     const set = st[e.side];
     if (e.type === 'tactic' && e.lineup) st[e.side] = [...e.lineup];
     else if (e.type === 'injury' && e.pid) { const ix = set.indexOf(e.pid); if (ix >= 0) { if (e.inId) set[ix] = e.inId; else set.splice(ix, 1); } }
-    else if (e.type === 'red' && e.pid && !keepRed) { const ix = set.indexOf(e.pid); if (ix >= 0) set.splice(ix, 1); }
+    else if (e.type === 'red' && e.pid && !keepRed && !e.annulled) { const ix = set.indexOf(e.pid); if (ix >= 0) set.splice(ix, 1); }
   }
   return st;
 }
@@ -68,10 +70,11 @@ export function buildPlays(events: MatchEvent[], players: Map<string, Player>, s
       case 'injury': add(sec0, 'injury', { pid: e.pid }); if (e.inId) add(sec0 + 40, 'sub', { pid: e.inId, to: e.pid }); break;
       case 'corner': add(sec0, 'corner', { pid: e.pid }); break;
       case 'offside': add(sec0, 'offside', { pid: e.pid }); break;
+      case 'var': add(sec0 + 20, 'var', { pid: e.pid }); break;
       case 'goal': case 'save': case 'miss': {
         // cadeia de ataque: sai de trás e chega ao finalizador (e a quem deu o passe, nos gols com assistência)
         const shooter = e.pid ? players.get(e.pid) : undefined;
-        if (!shooter || !mine.length) { add(sec0, e.type === 'goal' ? 'goal' : 'wide', { pid: e.pid, decisive: e.type === 'goal' }); break; }
+        if (!shooter || !mine.length) { add(sec0, e.type === 'goal' ? 'goal' : 'wide', { pid: e.pid, ...(e.type === 'goal' ? (e.annulled ? { annulled: true } : { decisive: true }) : {}) }); break; }
         const used = new Set<string>([shooter.id]);
         const passers: Player[] = [];
         const assist = e.assistId ? players.get(e.assistId) : undefined;
@@ -95,7 +98,7 @@ export function buildPlays(events: MatchEvent[], players: Map<string, Player>, s
         });
         const how = e.how;
         add(sec0, e.type === 'goal' ? (how === 'header' ? 'header' : 'shot') : e.type === 'save' ? 'shot' : how === 'post' ? 'shot' : 'shot', { pid: shooter.id });
-        add(sec0 + 1.2, e.type === 'goal' ? 'goal' : e.type === 'save' ? 'save' : how === 'post' ? 'post' : 'wide', { pid: e.type === 'save' ? e.gkId : shooter.id, ...(e.type === 'goal' ? { decisive: true } : {}) });
+        add(sec0 + 1.2, e.type === 'goal' ? 'goal' : e.type === 'save' ? 'save' : how === 'post' ? 'post' : 'wide', { pid: e.type === 'save' ? e.gkId : shooter.id, ...(e.type === 'goal' ? (e.annulled ? { annulled: true } : { decisive: true }) : {}) });
         break;
       }
     }

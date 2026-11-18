@@ -1,5 +1,5 @@
 import { makeCamera, project, type Camera, type Projected } from './camera';
-import { BALL_R, GOAL_D, GOAL_H, GOAL_W, L, MID_Y, W, goalXOf, type Agent, type V3, type World } from './world';
+import { BALL_R, GOAL_D, GOAL_H, GOAL_W, L, MID_Y, W, goalXOf, VAR_REPLAY_SPEED, type Agent, type V3, type VarState, type World } from './world';
 
 /* Desenho do mundo 3D em canvas 2D com perspectiva real (câmera, profundidade, sombras e ordem de desenho por distância). */
 
@@ -228,5 +228,35 @@ export function drawOverlay(ctx: CanvasRenderingContext2D, w: World, width: numb
     ctx.strokeText(w.banner.text, 0, 0); ctx.fillText(w.banner.text, 0, 0);
     if (w.banner.sub) { ctx.font = `800 ${Math.round(width * 0.042)}px system-ui, sans-serif`; ctx.lineWidth = Math.max(3, width * 0.008); ctx.strokeText(w.banner.sub, 0, width * 0.075); ctx.fillStyle = '#fff'; ctx.fillText(w.banner.sub, 0, width * 0.075); }
     ctx.restore();
+  }
+}
+
+/** Painel do VAR por cima da cena: selo "VAR", o que está sendo revisado, a repetição (câmera e velocidade) e a decisão final. */
+export function drawVarOverlay(ctx: CanvasRenderingContext2D, v: VarState, width: number, height: number, camLabel: string) {
+  const review = v.stage === 'review';
+  if (review) { ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, 0, width, height * 0.07); ctx.fillRect(0, height * 0.93, width, height * 0.07); }
+  // selo
+  const bw = Math.max(44, width * 0.13), bh = bw * 0.46, bx = width * 0.03, by = height * (review ? 0.09 : 0.04);
+  ctx.save(); ctx.fillStyle = '#0b1b3a'; ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = Math.max(2, width * 0.006);
+  ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, bh * 0.25); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#ffd23f'; ctx.font = `900 ${Math.round(bh * 0.66)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('VAR', bx + bw / 2, by + bh / 2 + 1);
+  // linha de status
+  const dots = '.'.repeat(1 + (Math.floor(v.clock * 3) % 3));
+  ctx.textAlign = 'left'; ctx.font = `800 ${Math.round(width * 0.036)}px system-ui, sans-serif`; ctx.lineWidth = Math.max(3, width * 0.008); ctx.strokeStyle = '#000'; ctx.fillStyle = '#fff';
+  const status = v.stage === 'check' ? v.text.replace('…', dots) : review ? `REPLAY ▶ ${VAR_REPLAY_SPEED.toString().replace('.', ',')}x · ${camLabel}` : 'DECISÃO DO VAR';
+  ctx.strokeText(status, bx + bw + width * 0.02, by + bh / 2); ctx.fillText(status, bx + bw + width * 0.02, by + bh / 2);
+  if (review && v.line) { // legenda das linhas do impedimento
+    ctx.font = `700 ${Math.round(width * 0.03)}px system-ui, sans-serif`; ctx.fillStyle = '#fff';
+    ctx.strokeText('Linha branca: último defensor · Linha vermelha: atacante', bx, by + bh + width * 0.04); ctx.fillText('Linha branca: último defensor · Linha vermelha: atacante', bx, by + bh + width * 0.04);
+  }
+  ctx.restore();
+  if (v.stage === 'decision') { // letreiro da decisão
+    const el = v.clock, pop = 1 + Math.max(0, 0.3 - el) * 1.5, ok = !v.annul;
+    ctx.save(); ctx.translate(width / 2, height * 0.5); ctx.scale(pop, pop);
+    const fs = Math.round(width * (v.decision.length > 22 ? 0.05 : 0.075)); ctx.font = `900 ${fs}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+    const tw = ctx.measureText(v.decision).width + width * 0.06;
+    ctx.fillStyle = ok ? 'rgba(18,110,52,.92)' : 'rgba(170,24,32,.92)'; ctx.beginPath(); ctx.roundRect(-tw / 2, -fs * 0.8, tw, fs * 1.6, fs * 0.25); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(2, width * 0.005); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.fillText(v.decision, 0, 2); ctx.restore();
   }
 }

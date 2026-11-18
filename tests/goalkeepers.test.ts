@@ -40,7 +40,7 @@ describe('goleiros: cada um no gol do seu time', () => {
       const flip = minute > 45, defender = side === 'home' ? 'away' : 'home';
       const goalX = flip ? (side === 'home' ? 0 : L) : (side === 'home' ? L : 0);
       let maxNearGoal = Infinity; let scored: typeof w.ball.scored = null;
-      for (let t = 0; t < 8; t += 1 / 30) { stepWorld(w, 1 / 30); maxNearGoal = Math.min(maxNearGoal, Math.abs(gk(w, defender).x - goalX)); scored ??= w.ball.scored; }
+      for (let t = 0; t < 20; t += 1 / 30) { stepWorld(w, 1 / 30); maxNearGoal = Math.min(maxNearGoal, Math.abs(gk(w, defender).x - goalX)); scored ??= w.ball.scored; }
       expect(scored, `${minute}/${side}`).toBe(side);                       // o gol é de quem o motor disse
       expect(maxNearGoal, `${minute}/${side}`).toBeLessThan(4);             // e o goleiro de quem sofreu estava lá
       expect(w.goals[side]).toBe(1);

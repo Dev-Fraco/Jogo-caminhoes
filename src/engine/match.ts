@@ -15,6 +15,12 @@ export function tacticQuality(diff: number, minute: number, fromBias: number, to
   return want * (toBias - fromBias) * (minute >= 70 ? 1.3 : 1);
 }
 
+/** VAR: chance de cada decisão (todas saem de um número fixo do lance, sem favorecer ninguém). */
+export const VAR_GOAL_OFFSIDE = 0.035, VAR_GOAL_FOUL = 0.015, VAR_PEN_CANCEL = 0.10, VAR_RED_DOWNGRADE = 0.25, VAR_ID_FIX = 0.03;
+/** Pênalti convertido: ~76% (o real). Fora do pênalti, o fator ajusta a chance de gol (medido em 10 mil jogos) para repor os gols que o VAR anula e os pênaltis convertidos a mais: a média da liga fica igual (~2,96 gols por jogo). */
+export const PEN_CONVERT = 0.76, VAR_GOAL_COMP = 0.995;
+const unit = (key: string) => (hashString(key) % 10000) / 10000;
+
 let ACTIVE: { clubId: string; list: Tactic[] } | null = null;
 let UNAVAILABLE: Set<string> | null = null;
 /** Executa `fn` sabendo quem já está lesionado: a substituição por lesão em campo nunca usa um desses jogadores. */
@@ -154,14 +160,27 @@ export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, m
       push(minute, 'foul', fs, `Falta de ${offender.name} (${club(fs)}) em ${victim.name} (${club(vs)}).`, { player: offender.name, pid: offender.id, victimId: victim.id });
       const r = rng();
       if (r < 0.012 && redCards[fs] < 2) {
-        redCards[fs]++; out.add(offender.id);
-        push(minute, 'red', fs, `Cartão vermelho! ${offender.name} (${club(fs)}) é expulso.`, { player: offender.name, pid: offender.id });
+        if (unit(`${minute}:${offender.id}:${hg}:${ag}:reddown`) < VAR_RED_DOWNGRADE) { // o VAR revê o vermelho direto e ele vira amarelo
+          yellows.add(offender.id);
+          push(minute, 'red', fs, `Cartão vermelho para ${offender.name} (${club(fs)})! O VAR analisa a jogada.`, { player: offender.name, pid: offender.id, annulled: true });
+          push(minute, 'var', fs, `VAR: a falta de ${offender.name} (${club(fs)}) não é para expulsão. O vermelho vira cartão amarelo.`, { player: offender.name, pid: offender.id, var: { kind: 'red-downgrade', target: offender.id } });
+          push(minute, 'yellow', fs, `Cartão amarelo para ${offender.name} (${club(fs)}).`, { player: offender.name, pid: offender.id });
+        } else {
+          redCards[fs]++; out.add(offender.id);
+          push(minute, 'red', fs, `Cartão vermelho! ${offender.name} (${club(fs)}) é expulso.`, { player: offender.name, pid: offender.id });
+        }
       } else if (r < 0.3) {
         if (yellows.has(offender.id) && redCards[fs] < 2) {
           redCards[fs]++; out.add(offender.id);
           push(minute, 'red', fs, `Segundo amarelo! ${offender.name} (${club(fs)}) é expulso.`, { player: offender.name, pid: offender.id });
         } else {
           yellows.add(offender.id);
+          const others = field(fs).filter((p) => p.id !== offender.id);
+          if (others.length && unit(`${minute}:${offender.id}:${hg}:${ag}:idfix`) < VAR_ID_FIX) { // o árbitro mostra o cartão ao jogador errado: o VAR corrige
+            const wrong = others[hashString(`${minute}:${offender.id}:wrong`) % others.length];
+            push(minute, 'yellow', fs, `Cartão amarelo para ${wrong.name} (${club(fs)}).`, { player: wrong.name, pid: wrong.id, annulled: true });
+            push(minute, 'var', fs, `VAR: o cartão foi para o jogador errado. A falta foi de ${offender.name} (${club(fs)}), que leva o amarelo.`, { player: offender.name, pid: offender.id, var: { kind: 'id-fix', target: offender.id } });
+          }
           push(minute, 'yellow', fs, `Cartão amarelo para ${offender.name} (${club(fs)}).`, { player: offender.name, pid: offender.id });
         }
       }
@@ -197,12 +216,28 @@ export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, m
       const defs = field(other), off = defs.length ? defs[hashString(`${minute}:${shooter.id}:off`) % defs.length] : undefined;
       if (off) push(minute, 'foul', other, `Pênalti! ${off.name} (${club(other)}) derruba ${shooter.name} (${club(side)}) na área.`, { player: off.name, pid: off.id, victimId: shooter.id, pen: true });
     }
-    if (rng() < pGoal) {
-      if (homeAttacks) hg++; else ag++;
+    if (isPen && unit(`${minute}:${shooter.id}:${hg}:${ag}:pencancel`) < VAR_PEN_CANCEL) { // o VAR revê o pênalti e cancela: não houve falta
+      const defs2 = field(other), off2 = defs2.length ? defs2[hashString(`${minute}:${shooter.id}:off`) % defs2.length] : undefined;
+      push(minute, 'var', side, `VAR: sem pênalti! ${shooter.name} (${club(side)}) simulou a queda; o lance recomeça com bola ao ${club(other)}.`, { player: shooter.name, pid: shooter.id, pen: true, var: { kind: 'pen-cancel', target: off2?.id } });
+      continue;
+    }
+    const goalProb = isPen ? PEN_CONVERT : clamp(pGoal * VAR_GOAL_COMP, 0.06, 0.5);
+    if (rng() < goalProb) {
+      const u = isPen ? 1 : unit(`${minute}:${shooter.id}:${hg}:${ag}:var`);
+      const annul: 'goal-offside' | 'goal-foul' | null = u < VAR_GOAL_OFFSIDE ? 'goal-offside' : u < VAR_GOAL_OFFSIDE + VAR_GOAL_FOUL ? 'goal-foul' : null;
+      const nh = hg + (homeAttacks ? 1 : 0), na = ag + (homeAttacks ? 0 : 1);
+      if (!annul) { if (homeAttacks) hg++; else ag++; }
       const drawn = rng() < 0.7 ? assister(field(side), shooter) : null; // (sempre sorteado: o gerador anda igual com ou sem pênalti)
       const helper = isPen ? null : drawn;
       if (isPen) push(minute, 'goal', side, `GOOOL! ${shooter.name} converte o pênalti para o ${club(side)}. ${names.home} ${hg} x ${ag} ${names.away}.`, { player: shooter.name, pid: shooter.id, how: 'foot', pen: true, score: [hg, ag] });
-      else push(minute, 'goal', side, `GOOOL! ${shooter.name} marca para o ${club(side)}${helper ? (WIDE.has(spotOf(helper)) ? ` (cruzamento de ${helper.name})` : ` (assistência de ${helper.name})`) : ''}. ${names.home} ${hg} x ${ag} ${names.away}.`, { player: shooter.name, pid: shooter.id, ...(helper ? { assistId: helper.id } : {}), how: ((helper && WIDE.has(spotOf(helper)) && (shooter.pos === 'DEF' || spotOf(shooter) === 'CA') ? 0.55 : shooter.pos === 'DEF' ? 0.4 : 0.06) > (hashString(`${shooter.id}:${minute}:${hg}:${ag}`) % 1000) / 1000 ? 'header' : 'foot') as 'header' | 'foot', score: [hg, ag] });
+      else {
+        const lead = annul ? `Bola na rede! ${shooter.name} marca para o ${club(side)}${helper ? ` (passe de ${helper.name})` : ''}. O VAR analisa o lance.` : `GOOOL! ${shooter.name} marca para o ${club(side)}${helper ? (WIDE.has(spotOf(helper)) ? ` (cruzamento de ${helper.name})` : ` (assistência de ${helper.name})`) : ''}. ${names.home} ${hg} x ${ag} ${names.away}.`;
+        push(minute, 'goal', side, lead, { player: shooter.name, pid: shooter.id, ...(helper ? { assistId: helper.id } : {}), how: ((helper && WIDE.has(spotOf(helper)) && (shooter.pos === 'DEF' || spotOf(shooter) === 'CA') ? 0.55 : shooter.pos === 'DEF' ? 0.4 : 0.06) > (hashString(`${shooter.id}:${minute}:${hg}:${ag}`) % 1000) / 1000 ? 'header' : 'foot') as 'header' | 'foot', score: [annul ? nh : hg, annul ? na : ag], ...(annul ? { annulled: true } : {}) });
+        if (annul) {
+          const fouler = annul === 'goal-foul' ? (field(side).filter((p) => p.id !== shooter.id)[hashString(`${minute}:${shooter.id}:fouler`) % Math.max(1, field(side).length - 1)] ?? shooter) : shooter;
+          push(minute, 'var', side, annul === 'goal-offside' ? `VAR: gol anulado! ${shooter.name} (${club(side)}) estava em impedimento. ${names.home} ${hg} x ${ag} ${names.away}.` : `VAR: gol anulado! Falta de ${fouler.name} (${club(side)}) no início da jogada. ${names.home} ${hg} x ${ag} ${names.away}.`, { player: fouler.name, pid: fouler.id, score: [hg, ag], var: { kind: annul, target: fouler.id } });
+        }
+      }
     } else {
       const gk = keeper(other);
       const r = rng();

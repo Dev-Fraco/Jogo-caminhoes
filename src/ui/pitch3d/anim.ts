@@ -176,7 +176,7 @@ export const newAnim = (seed = 0): AnimState => ({ pose: newPose(), phase: (seed
 export interface AgentView { vx: number; vy: number; heading: number; carrying: boolean; gk: boolean; down: boolean; celebrate: boolean; act?: Act; t: number }
 
 /** Passo de animação: devolve a pose do quadro. `dt` = tempo de jogo que passou (já na velocidade escolhida: a animação acompanha o jogo). */
-export function stepAnim(s: AnimState, a: AgentView, dt: number): Pose {
+export function stepAnim(s: AnimState, a: AgentView, dt: number, snap = false): Pose {
   const speed = Math.hypot(a.vx, a.vy);
   if (dt > 0) {
     s.phase = (s.phase + (speed / cycleLength(speed)) * dt) % 1; // distância percorrida -> ciclo da passada
@@ -196,7 +196,7 @@ export function stepAnim(s: AnimState, a: AgentView, dt: number): Pose {
     target = target.map((v, i) => (i === J.rootPitch || i === J.rootY ? lerp(v, ap[i], w) : lerp(v, ap[i], w) ));
   }
   const rate = !act ? 16 : act.kind === 'fall' || act.kind === 'getup' ? 8 : act.kind === 'celebrate' ? 14 : 26; // cair e levantar são movimentos lentos
-  const k = dt > 0 ? 1 - Math.exp(-rate * dt) : 0; // suaviza qualquer salto entre poses (troca de corrida para ação etc.)
+  const k = snap ? 1 : dt > 0 ? 1 - Math.exp(-rate * dt) : 0; // `snap`: salto no tempo (repetição do VAR): vai direto à pose // suaviza qualquer salto entre poses (troca de corrida para ação etc.)
   for (let i = 0; i < N_JOINTS; i++) s.pose[i] = lerp(s.pose[i], target[i], k);
   return s.pose;
 }

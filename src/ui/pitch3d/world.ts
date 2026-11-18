@@ -1,6 +1,7 @@
 import type { FormationId, MatchEvent, Position } from '../../engine/types';
 import { onField } from '../../engine/plays';
 import { ACT, strikeDelay, type Act, type ActKind } from './anim';
+import type { VarCamId } from './camera';
 import { PITCH_H, PITCH_W, playState, positionsOf, type PlayState, type Pt, type Side } from '../pitch';
 
 /* =====================================================================
@@ -42,6 +43,30 @@ export interface Banner { text: string; sub: string; t0: number }
 export interface Card { agent: number; kind: 'yellow' | 'red'; until: number }
 export type ScriptKind = 'goal' | 'save' | 'miss' | 'corner' | 'foul' | 'injury' | 'offside' | 'goalkick' | 'throw';
 export interface Script { kind: ScriptKind; side: Side; t: number; phase: number; shooter: number; ty: number; tz: number; player?: string; data: Record<string, number>; dur: number; /** falta perto do gol (ou pênalti): a cobrança É a finalização que o motor registrou logo em seguida */ then?: Script }
+/* ------------------------------ VAR ------------------------------ */
+export type VarKind = 'goal' | 'goal-offside' | 'goal-foul' | 'pen' | 'pen-cancel' | 'red-downgrade' | 'id-fix';
+interface SnapAgent { x: number; y: number; vx: number; vy: number; heading: number; hop: number; state: AgentState; act?: Act; off?: Agent['off'] }
+/** Um quadro gravado do jogo (30 por segundo): a repetição do VAR reproduz estes quadros, o lance real. */
+export interface Frame { t: number; ball: { x: number; y: number; z: number; vx: number; vy: number; vz: number }; agents: SnapAgent[]; nets: [number[], number[]] }
+export interface VarState {
+  stage: 'check' | 'review' | 'decision';
+  kind: VarKind;
+  /** a decisão desfaz o lance (gol anulado, sem pênalti, cartão trocado) */
+  annul: boolean;
+  /** tem repetição (revisões que mudam algo); a simples checagem de um gol que vale não tem */
+  review: boolean;
+  text: string; decision: string;
+  clock: number;
+  frames: Frame[]; rt: number;
+  camList: VarCamId[]; camIdx: number; camOverride: VarCamId | null;
+  /** linhas do impedimento: do último defensor e do atacante (x em metros) */
+  line?: { def: number; att: number };
+  /** quem a câmera acompanha na repetição: a bola ou um jogador (id do agente) */
+  focus: 'ball' | number;
+  camX: number; jumped: boolean; skip: boolean;
+  onDone: () => void;
+}
+
 export interface World {
   t: number; ball: Ball; agents: Agent[]; nets: [Net, Net]; script: Script | null; queue: Script[];
   banner: Banner | null; card: Card | null; confetti: Particle[]; camX: number;
@@ -60,6 +85,8 @@ export interface World {
   skip: Set<number>;
   /** quantos apitos o árbitro deu (o áudio acompanha) */
   whistles: number;
+  /** gravação dos últimos segundos e revisão do VAR em andamento (o jogo fica parado enquanto houver revisão) */
+  rec: Frame[]; recAcc: number; var: VarState | null; view?: World;
   kickQ: { at: number; to: V3; T: number; ground: boolean; curve: number; target?: number; side?: Side } | null;
 }
 
@@ -81,7 +108,7 @@ export function createWorld(homeFormation: FormationId = '4-4-2', awayFormation:
   const w: World = {
     t: 0, ball: { p: { x: CENTER.x, y: CENTER.y, z: BALL_R }, v: { x: 0, y: 0, z: 0 }, mode: 'free', carrier: -1, spin: 0, slideUntil: 0, scored: null, inNet: null, crossed: false },
     agents, nets: [newNet(), newNet()], script: null, queue: [], banner: null, card: null, confetti: [], camX: CENTER.x,
-    flow: { st: playState([], 0, 0), tick: -1, carrier: -1, side: 'none' }, formations: { home: homeFormation, away: awayFormation }, goals: { home: 0, away: 0 }, flip: false, roster: { home: [], away: [] }, kickQ: null, refs: [], skip: new Set<number>(), whistles: 0,
+    flow: { st: playState([], 0, 0), tick: -1, carrier: -1, side: 'none' }, formations: { home: homeFormation, away: awayFormation }, goals: { home: 0, away: 0 }, flip: false, roster: { home: [], away: [] }, kickQ: null, refs: [], skip: new Set<number>(), whistles: 0, rec: [], recAcc: 0, var: null,
   };
   for (const role of ['ref', 'ar1', 'ar2'] as const) w.refs.push({ id: 22 + w.refs.length, side: 'home', idx: 0, gk: false, x: role === 'ref' ? CENTER.x - 6 : role === 'ar1' ? L * 0.3 : L * 0.7, y: role === 'ref' ? MID_Y + 9 : role === 'ar1' ? -1.4 : W + 1.4, vx: 0, vy: 0, heading: 0, gait: 0, hop: 0, hopV: 0, tx: 0, ty: 0, state: 'play', role });
   placeFormation(w, playState([], 0, 0), 0);
@@ -340,6 +367,10 @@ export interface TriggerCtx {
   follow?: { e: MatchEvent; ix: number };
   /** vantagem: o time que sofreu a falta ataca em seguida e o árbitro deixa o jogo seguir */
   adv?: boolean;
+  /** VAR: gol que vai ser anulado (e quem causou), pênalti que vai ser cancelado, revisão de cartão */
+  varKind?: 'goal-offside' | 'goal-foul'; varTarget?: string;
+  cancel?: boolean;
+  cardPid?: string; varCard?: 'red-downgrade' | 'id-fix';
 }
 /** Monta (e, se não for "dry", começa) a encenação de um lance da narração. Gols interrompem tudo; os outros esperam o roteiro em curso. */
 export function triggerEvent(w: World, e: MatchEvent, ix: number, ctx: TriggerCtx = {}, dry = false): Script | undefined {
@@ -349,7 +380,8 @@ export function triggerEvent(w: World, e: MatchEvent, ix: number, ctx: TriggerCt
   const sc: Script = { kind: 'goal', side: att, t: 0, phase: 0, shooter: sh, ty: 0, tz: 0, player: e.player, data: {}, dur: 4 };
   const sgn = Math.sign(hash(ix * 13 + 7) - 0.5) || 1;
   if (e.type === 'goal') {
-    sc.data.header = e.how === 'header' ? 1 : 0; sc.data.pen = e.pen ? 1 : 0;
+    sc.data.header = e.how === 'header' ? 1 : 0; sc.data.pen = e.pen ? 1 : 0; sc.data.varKind = ctx.varKind === 'goal-offside' ? 1 : ctx.varKind === 'goal-foul' ? 2 : 0;
+    const vt = slotOf(w, side, ctx.varTarget); sc.data.varTarget = vt > 0 ? vt : 0;
     sc.kind = 'goal'; sc.ty = MID_Y + sgn * (2.9 + hash(ix * 3) * 0.55); sc.tz = 0.35 + hash(ix * 9 + 2) * 1.85;
     if (!dry) {
       if (w.script?.kind === 'foul' && w.script.data.adv === 1) { w.queue = [sc]; return sc; } // vantagem: a falta é sinalizada e, em seguida, vem o lance do ataque
@@ -359,7 +391,8 @@ export function triggerEvent(w: World, e: MatchEvent, ix: number, ctx: TriggerCt
   else if (e.type === 'miss') { sc.kind = 'miss'; sc.data.pen = e.pen ? 1 : 0; sc.data.post = e.how === 'post' ? 1 : 0; const over = hash(ix * 3) > 0.5; sc.ty = over ? MID_Y + sgn * (GOAL_W / 2 - 1) : MID_Y + sgn * (GOAL_W / 2 + 1.5 + hash(ix) * 3); sc.tz = over ? GOAL_H + 0.7 + hash(ix * 9) * 2 : 0.5 + hash(ix * 9) * 1.2; sc.dur = 3; }
   else if (e.type === 'corner') { sc.kind = 'corner'; sc.ty = sgn > 0 ? 0.4 : W - 0.4; sc.dur = 3.4; sc.data.taker = real > 0 ? real : 7; }
   else if (e.type === 'foul' || e.type === 'yellow' || e.type === 'red') {
-    sc.kind = 'foul'; sc.dur = 9; sc.data.card = ctx.card ?? (e.type === 'yellow' ? 1 : e.type === 'red' ? 2 : 0); sc.data.pen = e.pen ? 1 : 0; sc.data.adv = ctx.adv ? 1 : 0;
+    sc.kind = 'foul'; sc.dur = 9; sc.data.card = ctx.card ?? (e.type === 'yellow' ? 1 : e.type === 'red' ? 2 : 0); sc.data.pen = e.pen ? 1 : 0; sc.data.adv = ctx.adv ? 1 : 0; sc.data.cancel = ctx.cancel ? 1 : 0; sc.data.varCard = ctx.varCard === 'red-downgrade' ? 1 : ctx.varCard === 'id-fix' ? 2 : 0;
+    const cs = slotOf(w, side, ctx.cardPid); sc.data.cardSlot = cs > 0 ? cs : 0;
     sc.shooter = real > 0 ? real : 1 + Math.floor(hash(ix * 7) * 10); const vs = slotOf(w, side === 'home' ? 'away' : 'home', e.victimId); sc.data.victim = vs > 0 ? vs : 1 + Math.floor(hash(ix * 9) * 10);
     if (ctx.follow && !ctx.adv && !w.script && !dry) { // a cobrança é a própria finalização que o motor registrou: mesma jogada, mesmo resultado
       const th = triggerEvent(w, ctx.follow.e, ctx.follow.ix, {}, true);
@@ -441,6 +474,20 @@ function beginScript(w: World, sc: Script) {
       if (dd > 12) { const k = 12 / dd; a.x = tx + (a.x - tx) * k; a.y = ty + (a.y - ty) * k; a.vx = a.vy = 0; }
       a.ov = { x: tx, y: ty, speed: 6.5, until: w.t + 3 };
     }
+    if (sc.data.varKind === 1) { // gol que o VAR vai anular por impedimento: o atacante recebe à frente da linha da defesa
+      const line = gx - sgn * 13, attx = line + sgn * 1.4;
+      sc.data.line = line; sc.data.attx = attx; spot.x = attx; sc.data.sx = attx; shooter.ov = { x: attx, y: spot.y, speed: 6.2, until: w.t + 3 };
+      for (const a of w.agents) if (a.side !== sc.side && a.idx >= 1 && a.idx <= 6) { const ty = clamp(a.y, 6, 62); const dd = dist2(a.x, a.y, line, ty); if (dd > 12) { const k = 12 / dd; a.x = line + (a.x - line) * k; a.y = ty + (a.y - ty) * k; a.vx = a.vy = 0; } a.ov = { x: line, y: ty, speed: 6.5, until: w.t + 3.5 }; }
+    } else if (sc.data.varKind === 2) { // gol que o VAR vai anular por falta no início da jogada: um atacante derruba um defensor
+      const fouler = sc.data.varTarget && sc.data.varTarget !== sc.shooter ? holderOf(w, sc.side, sc.data.varTarget) : w.agents.filter((a) => a.side === sc.side && a.idx > 4 && a.id !== shooter.id)[0];
+      const victim = w.agents.filter((a) => a.side !== sc.side && a.idx > 0 && a.idx <= 6).sort((p, q) => dist2(p.x, p.y, gx - sgn * 26, MID_Y) - dist2(q.x, q.y, gx - sgn * 26, MID_Y))[0];
+      if (fouler && victim) {
+        const fx = gx - sgn * 27, fy = clamp(victim.y, 12, 56);
+        fouler.x = fx; fouler.y = fy; victim.x = fx + sgn * 1.1; victim.y = fy + 0.3; fouler.vx = fouler.vy = victim.vx = victim.vy = 0;
+        fouler.heading = sgn > 0 ? 0 : Math.PI; startAct(w, fouler, 'duel', 1); victim.state = 'down'; startAct(w, victim, 'fall', 1);
+        fouler.ov = { x: fx, y: fy, speed: 1, until: w.t + 0.8 }; sc.data.fouler = fouler.id; sc.data.fx = fx; sc.data.fy = fy;
+      }
+    }
   } else if (sc.kind === 'corner') {
     const gx = goalXOf(sc.side, w.flip), sgn = sgnOf(sc.side, w.flip);
     const taker = holderOf(w, sc.side, sc.data.taker || 7);
@@ -451,10 +498,12 @@ function beginScript(w: World, sc: Script) {
   } else if (sc.kind === 'foul') {
     const who = holderOf(w, sc.side, sc.shooter), other: Side = sc.side === 'home' ? 'away' : 'home', victim = holderOf(w, other, sc.data.victim || 1);
     const adv = sc.data.adv === 1, pen = sc.data.pen === 1;
-    let spot = toWorld(w.flow.st.ball, w.flip);
+    let spot = sc.data.preset ? { x: sc.data.px, y: sc.data.py } : toWorld(w.flow.st.ball, w.flip);
     if (pen) { const gx = goalXOf(other, w.flip), sg = sgnOf(other, w.flip); spot = { x: gx - sg * 13.5, y: MID_Y + (hash(sc.shooter * 3) - 0.5) * 8 }; } // pênalti: a falta é dentro da grande área
     sc.data.px = spot.x; sc.data.py = spot.y;
-    if (adv) { // vantagem: ninguém para; o árbitro sinaliza com os braços
+    if (sc.data.restartOnly) { // cobrança depois de um gol anulado: o jogo já parou
+      holdEveryone(w, 9); b.mode = 'free'; b.v = { x: 0, y: 0, z: 0 }; b.p = { x: spot.x, y: spot.y, z: BALL_R }; b.carrier = -1; b.slideUntil = 0; b.scored = null; b.inNet = null; b.crossed = false;
+    } else if (adv) { // vantagem: ninguém para; o árbitro sinaliza com os braços
       startAct(w, who, 'duel', 1);
     } else {
       holdEveryone(w, 9);
@@ -466,10 +515,10 @@ function beginScript(w: World, sc: Script) {
       startAct(w, who, 'tackle', 1);
     }
   } else if (sc.kind === 'offside') {
-    const who = holderOf(w, sc.side, sc.shooter), spot = toWorld(w.flow.st.ball, w.flip);
+    const who = holderOf(w, sc.side, sc.shooter), spot = sc.data.preset ? { x: sc.data.px, y: sc.data.py } : toWorld(w.flow.st.ball, w.flip);
     sc.data.px = spot.x; sc.data.py = spot.y;
     holdEveryone(w, 9);
-    b.mode = 'free'; b.v = { x: 0, y: 0, z: 0 }; b.p = { x: spot.x, y: spot.y, z: BALL_R }; b.carrier = -1; b.slideUntil = 0;
+    b.mode = 'free'; b.v = { x: 0, y: 0, z: 0 }; b.p = { x: spot.x, y: spot.y, z: BALL_R }; b.carrier = -1; b.slideUntil = 0; b.scored = null; b.inNet = null; b.crossed = false;
     void who;
   } else if (sc.kind === 'goalkick') {
     const defGoal = goalXOf(sc.side, w.flip), into = defGoal === 0 ? 1 : -1, def: Side = sc.side === 'home' ? 'away' : 'home';
@@ -537,7 +586,15 @@ function stepScript(w: World, dt: number) {
         sc.data.T = T;
       }
     } else if (sc.phase === 1) {
-      if (sc.kind === 'goal' && b.scored) { // gol: comemoração
+      if (sc.kind === 'goal' && b.scored && !sc.data.vared) { // a bola entrou: o VAR confere o gol antes de qualquer comemoração
+        sc.data.vared = 1;
+        const vk = sc.data.varKind;
+        startVar(w, { kind: vk === 1 ? 'goal-offside' : vk === 2 ? 'goal-foul' : 'goal', annul: vk > 0, line: vk === 1 ? { def: sc.data.line, att: sc.data.attx } : undefined, focus: vk === 2 && sc.data.fouler !== undefined ? sc.data.fouler : 'ball', onDone: () => { sc.data.vdone = vk > 0 ? 2 : 1; } });
+      } else if (sc.kind === 'goal' && b.scored && sc.data.vdone === 2) { // gol anulado: sem comemoração; o jogo recomeça com cobrança para os defensores
+        const px = sc.data.varKind === 1 ? sc.data.attx : (sc.data.fx ?? shooter.x), py = sc.data.varKind === 1 ? shooter.y : (sc.data.fy ?? shooter.y);
+        const ns: Script = { kind: sc.data.varKind === 1 ? 'offside' : 'foul', side: sc.side, t: 0, phase: 0, shooter: sc.shooter, ty: 0, tz: 0, data: { restartOnly: 1, preset: 1, px, py, victim: 1 }, dur: 9 };
+        w.queue.unshift(ns); endScript(w, false);
+      } else if (sc.kind === 'goal' && b.scored && sc.data.vdone === 1) { // gol confirmado: comemoração
         sc.phase = 2; sc.data.ce = sc.t;
         keeper.state = 'play';
         const corner = { x: gx - sgn * 9, y: 12 }; // corre para a bandeirinha do lado da câmera (aparece grande na tela)
@@ -579,41 +636,53 @@ function stepScript(w: World, dt: number) {
     } else if (sc.phase === 1 && sc.t - sc.data.shot > 1.6) endScript(w, false);
   } else if (sc.kind === 'foul') {
     const other: Side = sc.side === 'home' ? 'away' : 'home', victim = holderOf(w, other, sc.data.victim || 1), who = shooter, ref = w.refs[0];
-    const adv = sc.data.adv === 1, pen = sc.data.pen === 1, card = sc.data.card, px = sc.data.px, py = sc.data.py;
-    if (!sc.data.hit && sc.t >= strikeDelay('tackle')) { sc.data.hit = 1; if (!adv) { victim.state = 'down'; startAct(w, victim, 'fall', 1); } }
-    if (!sc.data.ref && sc.t >= 0.5) {
+    const adv = sc.data.adv === 1, pen = sc.data.pen === 1, card = sc.data.card, px = sc.data.px, py = sc.data.py, ro = sc.data.restartOnly === 1, cancel = sc.data.cancel === 1, varCard = sc.data.varCard;
+    const fouled: Side = cancel ? sc.side : other; // pênalti cancelado: a bola fica com os defensores
+    const carded = sc.data.cardSlot ? holderOf(w, sc.side, sc.data.cardSlot) : who; // quem recebeu o primeiro cartão (no erro de identificação, não é o autor da falta)
+    if (!ro && !sc.data.hit && sc.t >= strikeDelay('tackle')) { sc.data.hit = 1; if (!adv) { victim.state = 'down'; startAct(w, victim, 'fall', 1); } }
+    if (!ro && !sc.data.ref && sc.t >= 0.5) {
       sc.data.ref = 1;
       if (adv) startAct(w, ref, 'ref_advantage', 1); else { whistle(w); ref.ov = { x: px - 4, y: py + (py < MID_Y ? 5 : -5), speed: 6.5, until: w.t + 4 }; }
     }
     if (adv) { if (sc.t > 1.6) endScript(w, false); }
     else {
-      if (pen && !sc.data.point && sc.t >= 1.0) { sc.data.point = 1; startAct(w, ref, 'ref_point', 1); } // marca do pênalti
-      if (card && !sc.data.cardShown && sc.t >= 1.2) { // o árbitro mostra o cartão
-        sc.data.cardShown = 1; w.card = { agent: who.id, kind: card === 2 ? 'red' : 'yellow', until: w.t + 1.8 }; startAct(w, ref, 'ref_card', 1); ref.heading = Math.atan2(who.y - ref.y, who.x - ref.x);
+      if (pen && !ro && !sc.data.point && sc.t >= 1.0) { sc.data.point = 1; startAct(w, ref, 'ref_point', 1); } // marca do pênalti
+      if (pen && !ro && !sc.data.pvar && sc.t >= 1.6) { // o VAR revê o pênalti marcado
+        sc.data.pvar = 1; startVar(w, { kind: cancel ? 'pen-cancel' : 'pen', annul: cancel, focus: who.id, onDone: () => { sc.data.vdone = cancel ? 2 : 1; } });
       }
-      if (card && !sc.data.rant && sc.t >= 1.5) { sc.data.rant = 1; startAct(w, who, 'complain', 1); w.agents.filter((a) => a.side === sc.side && a.id !== who.id && a.idx > 0 && a.off !== 'gone').sort((p, q) => dist2(p.x, p.y, who.x, who.y) - dist2(q.x, q.y, who.x, who.y)).slice(0, 2).forEach((a) => startAct(w, a, 'complain', 1)); }
-      if (card === 2 && !sc.data.leave && sc.t >= 2.7) { sc.data.leave = 1; who.state = 'play'; who.off = 'walking'; who.ov = { x: clamp(who.x, 3, L - 3), y: who.y < MID_Y ? -4 : W + 4, speed: 3.4, until: w.t + 40 }; } // expulso: sai do campo
-      const setupAt = card ? 3.0 : 1.7;
-      if (!sc.data.setup && sc.t >= setupAt) {
-        sc.data.setup = 1; startAct(w, victim, 'getup', 1); victim.state = 'play';
-        const fouled = other, th = sc.then, kickerSlot = th ? th.shooter : 8;
-        setupRestart(w, sc, fouled, { x: px, y: py }, pen ? 'pen' : 'direct', kickerSlot);
+      const waitingPen = pen && !ro && sc.data.vdone === undefined;
+      if (card && !ro && !sc.data.cardShown && sc.t >= 1.2) { // o árbitro mostra o cartão
+        sc.data.cardShown = 1; w.card = { agent: carded.id, kind: card === 2 ? 'red' : 'yellow', until: w.t + 1.8 }; startAct(w, ref, 'ref_card', 1); ref.heading = Math.atan2(carded.y - ref.y, carded.x - ref.x);
+      }
+      if (card && !ro && !sc.data.rant && sc.t >= 1.5) { sc.data.rant = 1; startAct(w, carded, 'complain', 1); w.agents.filter((a) => a.side === sc.side && a.id !== carded.id && a.idx > 0 && a.off !== 'gone').sort((p, q) => dist2(p.x, p.y, carded.x, carded.y) - dist2(q.x, q.y, carded.x, carded.y)).slice(0, 2).forEach((a) => startAct(w, a, 'complain', 1)); }
+      if (varCard && sc.data.cardShown && !sc.data.cvar && sc.t >= 3.0) { // o VAR revê o cartão (vermelho que pode virar amarelo; punido errado)
+        sc.data.cvar = 1; startVar(w, { kind: varCard === 1 ? 'red-downgrade' : 'id-fix', annul: true, focus: who.id, onDone: () => { sc.data.vdone = 2; } });
+      }
+      if (varCard && sc.data.vdone === 2 && !sc.data.finalShown) { // decisão: o cartão certo para o jogador certo
+        sc.data.finalShown = 1; sc.data.cardEnd = sc.t; w.card = { agent: who.id, kind: 'yellow', until: w.t + 1.8 }; startAct(w, ref, 'ref_card', 1); ref.heading = Math.atan2(who.y - ref.y, who.x - ref.x);
+      }
+      if (card === 2 && !varCard && !sc.data.leave && sc.t >= 2.7) { sc.data.leave = 1; who.state = 'play'; who.off = 'walking'; who.ov = { x: clamp(who.x, 3, L - 3), y: who.y < MID_Y ? -4 : W + 4, speed: 3.4, until: w.t + 40 }; } // expulso: sai do campo
+      const setupAt = ro ? 0.3 : varCard ? (sc.data.finalShown ? sc.data.cardEnd + 1.6 : 1e9) : card ? 3.0 : pen ? (sc.data.vdone !== undefined ? sc.t : 1e9) : 1.7;
+      if (!waitingPen && !sc.data.setup && sc.t >= setupAt) {
+        sc.data.setup = 1; if (!ro) { startAct(w, victim, 'getup', 1); victim.state = 'play'; }
+        const th = sc.then, kickerSlot = th ? th.shooter : 8;
+        setupRestart(w, sc, fouled, { x: px, y: py }, pen && !cancel ? 'pen' : 'direct', kickerSlot);
         const far = Math.max(0, ...Array.from({ length: sc.data.wallN || 0 }, (_, i) => { const m = w.agents[sc.data[`wall${i}`]]; return dist2(m.x, m.y, m.ov?.x ?? m.x, m.ov?.y ?? m.y); }));
-        sc.data.kickT = sc.t + clamp(far / 6.5 + 0.8, pen ? 2.2 : 2.0, 5.5); // a cobrança espera a barreira se formar
+        sc.data.kickT = sc.t + clamp(far / 6.5 + 0.8, pen && !cancel ? 2.2 : 2.0, 5.5); // a cobrança espera a barreira se formar
       }
       if (sc.data.setup && !sc.data.kicked && sc.t >= sc.data.kickT) {
         sc.data.kicked = 1; whistle(w);
-        const kicker = holderOf(w, other, sc.data.kicker);
+        const kicker = holderOf(w, fouled, sc.data.kicker);
         if (sc.then) { // a cobrança é a finalização do motor: segue como o roteiro de gol/defesa/chute para fora
           const rx = sc.data.rx, ry = sc.data.ry, th = sc.then; th.shooter = kicker.idx; th.phase = 0.5; th.t = 0; th.data.sx = rx; th.data.sy = ry; th.data.fk = pen ? 0 : 1;
           kicker.ov = { x: rx - Math.cos(kicker.heading) * 0.9, y: ry - Math.sin(kicker.heading) * 0.9, speed: 3, until: w.t + 2 };
           startAct(w, kicker, 'shot', 1); th.data.kickAt = strikeDelay('shot');
           for (let i = 0; i < (sc.data.wallN || 0); i++) startAct(w, w.agents[sc.data[`wall${i}`]], 'wall', 1);
-          w.ball.lastSide = other; w.script = th;
+          w.ball.lastSide = fouled; w.script = th;
         } else { // cobrança comum: toca para um companheiro e o jogo segue
-          const dir = Math.atan2(MID_Y - py, goalXOf(other, w.flip) - px);
-          const mate = w.agents.filter((a) => a.side === other && a.idx > 0 && a.id !== kicker.id && a.off !== 'gone').sort((p, q) => dist2(p.x, p.y, px + Math.cos(dir) * 14, py + Math.sin(dir) * 14) - dist2(q.x, q.y, px + Math.cos(dir) * 14, py + Math.sin(dir) * 14))[0];
-          if (mate) { const d = dist2(px, py, mate.x, mate.y), T = clamp(d / 15, 0.5, 1.5); startAct(w, kicker, d > 25 ? 'cross' : 'pass', 1); scheduleKick(w, strikeDelay(d > 25 ? 'cross' : 'pass'), { x: mate.x, y: mate.y, z: BALL_R }, T, d < 30, 0, mate.id, other); }
+          const dir = Math.atan2(MID_Y - py, goalXOf(fouled, w.flip) - px);
+          const mate = w.agents.filter((a) => a.side === fouled && a.idx > 0 && a.id !== kicker.id && a.off !== 'gone').sort((p, q) => dist2(p.x, p.y, px + Math.cos(dir) * 14, py + Math.sin(dir) * 14) - dist2(q.x, q.y, px + Math.cos(dir) * 14, py + Math.sin(dir) * 14))[0];
+          if (mate) { const d = dist2(px, py, mate.x, mate.y), T = clamp(d / 15, 0.5, 1.5); startAct(w, kicker, d > 25 ? 'cross' : 'pass', 1); scheduleKick(w, strikeDelay(d > 25 ? 'cross' : 'pass'), { x: mate.x, y: mate.y, z: BALL_R }, T, d < 30, 0, mate.id, fouled); }
           for (let i = 0; i < (sc.data.wallN || 0); i++) startAct(w, w.agents[sc.data[`wall${i}`]], 'wall', 1);
         }
       }
@@ -621,9 +690,10 @@ function stepScript(w: World, dt: number) {
     }
   } else if (sc.kind === 'offside') {
     const ar = arFor(w, sc.data.px), ref = w.refs[0], other: Side = sc.side === 'home' ? 'away' : 'home', px = sc.data.px, py = sc.data.py;
-    if (!sc.data.flag && sc.t >= 0.1) { sc.data.flag = 1; ar.ov = { x: clamp(px, 3, L - 3), y: ar.y < MID_Y ? -1.4 : W + 1.4, speed: 7, until: w.t + 6 }; startAct(w, ar, 'flag_up', 1); }
-    if (!sc.data.whistle && sc.t >= 1.0) { sc.data.whistle = 1; whistle(w); ref.ov = { x: px - 6, y: py > MID_Y ? py - 8 : py + 8, speed: 6.5, until: w.t + 4 }; }
-    if (!sc.data.setup && sc.t >= 2.0) { sc.data.setup = 1; const kn = setupRestart(w, sc, other, { x: px, y: py }, 'indirect', 8); sc.data.kickT = sc.t + 1.8; void kn; }
+    const ro = sc.data.restartOnly === 1;
+    if (!ro && !sc.data.flag && sc.t >= 0.1) { sc.data.flag = 1; ar.ov = { x: clamp(px, 3, L - 3), y: ar.y < MID_Y ? -1.4 : W + 1.4, speed: 7, until: w.t + 6 }; startAct(w, ar, 'flag_up', 1); }
+    if (!ro && !sc.data.whistle && sc.t >= 1.0) { sc.data.whistle = 1; whistle(w); ref.ov = { x: px - 6, y: py > MID_Y ? py - 8 : py + 8, speed: 6.5, until: w.t + 4 }; }
+    if (!sc.data.setup && sc.t >= (ro ? 0.3 : 2.0)) { sc.data.setup = 1; const kn = setupRestart(w, sc, other, { x: px, y: py }, 'indirect', 8); sc.data.kickT = sc.t + 1.8; void kn; }
     if (sc.data.setup && !sc.data.kicked && sc.t >= sc.data.kickT) {
       sc.data.kicked = 1; whistle(w);
       const kicker = holderOf(w, other, sc.data.kicker), dir = Math.atan2(MID_Y - py, goalXOf(other, w.flip) - px);
@@ -651,10 +721,70 @@ function stepScript(w: World, dt: number) {
   if (sc.t > 9) endScript(w, sc.kind === 'goal'); // trava de segurança: nunca deixa uma encenação presa
 }
 
+/* ------------------------------ VAR: gravação, revisão e repetição ------------------------------ */
+
+const REC_STEP = 1 / 30, REC_KEEP = 8;
+function recordFrame(w: World) {
+  const all = [...w.agents, ...w.refs];
+  w.rec.push({ t: w.t, ball: { x: w.ball.p.x, y: w.ball.p.y, z: w.ball.p.z, vx: w.ball.v.x, vy: w.ball.v.y, vz: w.ball.v.z }, agents: all.map((a) => ({ x: a.x, y: a.y, vx: a.vx, vy: a.vy, heading: a.heading, hop: a.hop, state: a.state, act: a.act, off: a.off })), nets: [w.nets[0].d.slice(), w.nets[1].d.slice()] });
+  while (w.rec.length && w.t - w.rec[0].t > REC_KEEP) w.rec.shift();
+}
+
+const VAR_TEXT: Record<VarKind, { check: string; confirm: string; annul: string }> = {
+  goal: { check: 'Verificando o gol…', confirm: 'GOL CONFIRMADO', annul: 'GOL ANULADO' },
+  'goal-offside': { check: 'Possível impedimento no gol…', confirm: 'GOL CONFIRMADO', annul: 'GOL ANULADO · IMPEDIMENTO' },
+  'goal-foul': { check: 'Possível falta no início da jogada…', confirm: 'GOL CONFIRMADO', annul: 'GOL ANULADO · FALTA' },
+  pen: { check: 'Revisando o pênalti…', confirm: 'PÊNALTI CONFIRMADO', annul: 'SEM PÊNALTI' },
+  'pen-cancel': { check: 'Revisando o pênalti…', confirm: 'PÊNALTI CONFIRMADO', annul: 'SEM PÊNALTI' },
+  'red-downgrade': { check: 'Revisando o cartão vermelho…', confirm: 'VERMELHO MANTIDO', annul: 'VERMELHO REVISTO · CARTÃO AMARELO' },
+  'id-fix': { check: 'Conferindo o jogador punido…', confirm: 'CARTÃO MANTIDO', annul: 'CARTÃO CORRIGIDO' },
+};
+const VAR_CAM_LIST: Record<VarKind, VarCamId[]> = { goal: [], 'goal-offside': ['high', 'tv'], 'goal-foul': ['close', 'tv'], pen: [], 'pen-cancel': ['close', 'goal'], 'red-downgrade': ['close', 'tv'], 'id-fix': ['close'], };
+
+/** Começa uma revisão do VAR: o jogo fica parado; mostra a checagem, (se houver) a repetição por algumas câmeras e a decisão; ao fim chama `onDone`. */
+export function startVar(w: World, o: { kind: VarKind; annul: boolean; line?: { def: number; att: number }; focus?: 'ball' | number; onDone: () => void }) {
+  const t = VAR_TEXT[o.kind], review = o.annul && VAR_CAM_LIST[o.kind].length > 0;
+  recordFrame(w); // o quadro atual (instante do lance) entra na repetição
+  const frames = w.rec.filter((f) => w.t - f.t <= (o.kind === 'goal-foul' ? 5.5 : 4.5));
+  w.var = { stage: 'check', kind: o.kind, annul: o.annul, review, text: t.check, decision: o.annul ? t.annul : t.confirm, clock: 0, frames: frames.length ? frames : [w.rec[w.rec.length - 1]], rt: 0, camList: VAR_CAM_LIST[o.kind], camIdx: 0, camOverride: null, line: o.line, focus: o.focus ?? 'ball', camX: w.camX, jumped: true, skip: false, onDone: o.onDone };
+  w.recAcc = 0;
+}
+
+export const VAR_REPLAY_SPEED = 0.6;
+const frameSpan = (v: VarState) => Math.max(0.5, v.frames[v.frames.length - 1].t - v.frames[0].t);
+function stepVar(w: World, dt: number) {
+  const v = w.var!; v.clock += dt;
+  if (v.skip) { v.skip = false; if (v.stage !== 'decision') { v.stage = 'decision'; v.clock = 0; } else v.clock = 99; }
+  if (v.stage === 'check') { if (v.clock >= 1.3) { v.clock = 0; if (v.review) { v.stage = 'review'; v.rt = 0; v.camIdx = 0; v.jumped = true; } else v.stage = 'decision'; } }
+  else if (v.stage === 'review') {
+    v.rt += dt * VAR_REPLAY_SPEED;
+    if (v.rt >= frameSpan(v) + 0.5) { v.camIdx++; v.rt = 0; v.jumped = true; if (v.camIdx >= v.camList.length) { v.stage = 'decision'; v.clock = 0; } }
+  }
+  if (v.stage === 'decision' && v.clock >= (v.annul ? 2.4 : 1.2)) { const done = v.onDone; w.var = null; done(); }
+}
+
+/** O quadro da repetição (posições interpoladas) escrito num "mundo de exibição" que o desenhista usa no lugar do jogo ao vivo. */
+export function replayView(w: World): World {
+  const v = w.var!; const f0 = v.frames[0], tt = f0.t + Math.min(v.rt, frameSpan(v));
+  let i = 0; while (i + 1 < v.frames.length && v.frames[i + 1].t <= tt) i++;
+  const a = v.frames[i], b = v.frames[Math.min(i + 1, v.frames.length - 1)], k = b.t > a.t ? Math.min(1, Math.max(0, (tt - a.t) / (b.t - a.t))) : 0;
+  const lerp = (x: number, y: number) => x + (y - x) * k;
+  if (!w.view) w.view = { ...w, agents: w.agents.map((x) => ({ ...x })), refs: w.refs.map((x) => ({ ...x })), ball: { ...w.ball, p: { ...w.ball.p }, v: { ...w.ball.v } }, nets: [newNet(), newNet()], confetti: [], banner: null, card: null, script: null };
+  const rv = w.view, all = [...rv.agents, ...rv.refs];
+  all.forEach((x, n) => { const s = a.agents[n], u = b.agents[n]; x.x = lerp(s.x, u.x); x.y = lerp(s.y, u.y); x.vx = s.vx; x.vy = s.vy; x.heading = s.heading; x.hop = s.hop; x.state = s.state; x.act = s.act; x.off = s.off; });
+  rv.ball.p.x = lerp(a.ball.x, b.ball.x); rv.ball.p.y = lerp(a.ball.y, b.ball.y); rv.ball.p.z = lerp(a.ball.z, b.ball.z); rv.ball.v.x = a.ball.vx; rv.ball.v.y = a.ball.vy; rv.ball.v.z = a.ball.vz; rv.ball.mode = 'free'; rv.ball.curve = 0;
+  rv.nets[0].d = a.nets[0].slice(); rv.nets[1].d = a.nets[1].slice();
+  rv.t = tt; rv.var = v; rv.flip = w.flip; rv.flow = w.flow; rv.camX += (rv.ball.p.x - rv.camX) * 0.1;
+  return rv;
+}
+/** Para onde a câmera da repetição olha (a bola ou o jogador do lance). */
+export function varFocus(w: World, view: World): V3 { const v = w.var!; if (v.focus === 'ball') return { x: view.ball.p.x, y: view.ball.p.y, z: 1 }; const a = view.agents[v.focus]; return { x: a.x, y: a.y, z: 1 }; }
+
 /* ------------------------------ passo geral ------------------------------ */
 
 const SUB = 1 / 90;
 export function stepWorld(w: World, dtTotal: number) {
+  if (w.var) { stepVar(w, Math.min(dtTotal, 1.0)); return; } // o jogo fica parado durante a revisão do VAR
   let left = Math.min(dtTotal, 1.0);
   while (left > 1e-6) {
     const dt = Math.min(SUB, left); left -= dt;
@@ -667,6 +797,7 @@ export function stepWorld(w: World, dtTotal: number) {
     receive(w);
     stepScript(w, dt);
     for (const n of w.nets) stepNet(n, dt);
+    w.recAcc += dt; if (w.recAcc >= REC_STEP) { w.recAcc = 0; recordFrame(w); }
   }
   w.confetti = w.confetti.map((p) => ({ ...p, x: p.x + p.vx * dtTotal, y: p.y + p.vy * dtTotal, z: Math.max(0, p.z + p.vz * dtTotal), vz: p.vz - 9 * dtTotal, vx: p.vx * 0.99, vy: p.vy * 0.99, life: p.life - dtTotal })).filter((p) => p.life > 0);
   if (w.card && w.card.until < w.t) w.card = null;
@@ -678,7 +809,7 @@ export function stepWorld(w: World, dtTotal: number) {
 
 /** Quando o tempo pula (pular partida, pênaltis): encerra roteiros e põe todos no lugar. */
 export function snapWorld(w: World, st: PlayState, tick: number) {
-  w.skip.clear();
+  w.skip.clear(); w.var = null; w.rec = []; w.recAcc = 0;
   w.script = null; w.queue = []; w.banner = null; w.card = null; w.confetti = []; w.kickQ = null; for (const a of w.agents) a.act = undefined;
   for (const n of w.nets) { n.d.fill(0); n.dv.fill(0); }
   placeFormation(w, st, tick); ballToCenter(w);
@@ -714,11 +845,22 @@ export function drive(w: World, drv: Driver, events: MatchEvent[], minute: numbe
     if (w.skip.has(drv.idx)) { w.skip.delete(drv.idx); drv.idx++; continue; } // já encenado junto com outro lance (cartão da falta, cobrança)
     if (SCRIPTED.has(e.type)) {
       const ctx: TriggerCtx = {};
-      if (e.type === 'foul' && e.side !== 'none') { // a falta, o cartão que vem junto e a cobrança (a finalização que o motor registrou em seguida) formam uma jogada só
-        let j = drv.idx + 1; const c = events[j];
-        if (c && (c.type === 'yellow' || c.type === 'red') && c.pid === e.pid && c.minute === e.minute) { ctx.card = c.type === 'red' ? 2 : 1; w.skip.add(j); j++; }
+      if (e.type === 'goal' && e.annulled) { // gol que o VAR vai anular: o lance seguinte da lista é a decisão
+        const v = events[drv.idx + 1];
+        if (v && v.type === 'var' && (v.var?.kind === 'goal-offside' || v.var?.kind === 'goal-foul')) { ctx.varKind = v.var.kind; ctx.varTarget = v.var.target; w.skip.add(drv.idx + 1); }
+      }
+      if (e.type === 'foul' && e.side !== 'none') { // a falta, o cartão (e a revisão do VAR) e a cobrança (a finalização que o motor registrou em seguida) formam uma jogada só
+        let j = drv.idx + 1;
+        const v0 = events[j];
+        if (e.pen && v0 && v0.type === 'var' && v0.var?.kind === 'pen-cancel') { ctx.cancel = true; w.skip.add(j); j++; } // o VAR cancela o pênalti
+        const c = events[j];
+        if (c && (c.type === 'yellow' || c.type === 'red') && c.minute === e.minute && (c.pid === e.pid || c.annulled)) {
+          ctx.card = c.type === 'red' ? 2 : 1; ctx.cardPid = c.pid; w.skip.add(j); j++;
+          const v = events[j];
+          if (c.annulled && v && v.type === 'var' && (v.var?.kind === 'red-downgrade' || v.var?.kind === 'id-fix')) { ctx.varCard = v.var.kind; w.skip.add(j); j++; const c2 = events[j]; if (c2 && (c2.type === 'yellow' || c2.type === 'red') && c2.minute === e.minute) { w.skip.add(j); j++; } }
+        }
         const f = events[j], fouled: Side = e.side === 'home' ? 'away' : 'home';
-        if (f && f.minute === e.minute && f.side === fouled && (f.type === 'goal' || f.type === 'save' || f.type === 'miss')) { ctx.follow = { e: f, ix: j }; if (!e.pen && hash(drv.idx * 17 + 3) < 0.4) ctx.adv = true; } // vantagem: o time ofendido ataca e o árbitro deixa seguir
+        if (!ctx.cancel && f && f.minute === e.minute && f.side === fouled && (f.type === 'goal' || f.type === 'save' || f.type === 'miss') && !f.annulled) { ctx.follow = { e: f, ix: j }; if (!e.pen && hash(drv.idx * 17 + 3) < 0.4) ctx.adv = true; } // vantagem: o time ofendido ataca e o árbitro deixa seguir
       }
       triggerEvent(w, e, drv.idx, ctx);
     }

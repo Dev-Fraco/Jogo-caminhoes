@@ -122,7 +122,7 @@ describe('motor: impedimentos e pênaltis registrados', () => {
     for (let n = 0; n < 150; n++) {
       const h = g.teams[idsC[n % idsC.length]], a = g.teams[idsC[(n * 5 + 1) % idsC.length]]; if (h.clubId === a.clubId) continue;
       const out = simulateMatch(h, a, makeRng(500 + n), {}, { home: 'A', away: 'B' }), st = matchStats(out.events);
-      out.events.forEach((e, i) => { if (e.type === 'foul' && e.pen) { pens++; const nx = out.events[i + 1]; expect(['goal', 'save', 'miss']).toContain(nx.type); expect(nx.pen).toBe(true); expect(nx.side).not.toBe(e.side); expect(nx.minute).toBe(e.minute); } });
+      out.events.forEach((e, i) => { if (e.type === 'foul' && e.pen) { pens++; const nx = out.events[i + 1]; expect(['goal', 'save', 'miss', 'var']).toContain(nx.type); if (nx.type === 'var') { expect(nx.var?.kind).toBe('pen-cancel'); } else { expect(nx.pen).toBe(true); expect(nx.side).not.toBe(e.side); } expect(nx.minute).toBe(e.minute); } });
       offs += st.home.offsides + st.away.offsides;
       expect(st.home.goals).toBe(out.homeGoals); expect(st.away.goals).toBe(out.awayGoals);
     }

@@ -36,6 +36,8 @@ interface Part { mesh: THREE.InstancedMesh; perAthlete: number }
 
 export interface Athletes {
   update(w: World, dt: number): void;
+  /** o próximo quadro vai direto às poses (a repetição do VAR volta no tempo) */
+  snap(): void;
   /** troca o número exibido (substituição): `i` = índice do agente (0 a 21) */
   setNumber(i: number, n: number): void;
   dispose(): void;
@@ -120,18 +122,20 @@ export function createAthletes(scene: THREE.Scene, look: AthleteLook, numbers: n
     s.ank[0].rotation.set(0, 0, p[J.lAnk]); s.ank[1].rotation.set(0, 0, p[J.rAnk]);
   };
   const T = (x: number, y: number, z: number) => new THREE.Vector3(x, z, -y);
-  let lastT = -1;
+  let lastT = -1, snapNext = false;
   return {
+    snap() { snapNext = true; },
     update(w, dtIn) {
       const dt = dtIn >= 0 ? dtIn : lastT < 0 ? 0 : Math.max(0, Math.min(0.1, w.t - lastT)); lastT = w.t;
       [...w.agents, ...w.refs].forEach((a, i) => {
         const s = skels[i];
         const view = { vx: a.vx, vy: a.vy, heading: a.heading, carrying: w.ball.mode === 'carried' && w.ball.carrier === a.id, gk: a.gk, down: a.state === 'down', celebrate: a.state === 'celebrate', act: a.act, t: w.t };
-        const pose = stepAnim(s.state, view, dt);
+        const pose = stepAnim(s.state, view, dt, snapNext);
         s.root.position.copy(T(a.x, a.y, 0)); s.root.rotation.y = a.heading; apply(s, pose);
         s.root.scale.setScalar(a.off === 'gone' ? 0.0001 : SCALE); // quem foi expulso e já saiu do campo não aparece
       });
       const showCard = !!w.card && w.card.until > w.t && w.refs[0]?.act?.kind === 'ref_card'; refCard.visible = showCard; if (showCard && w.card) refCard.material = cardMats[w.card.kind];
+      snapNext = false;
       for (const s of skels) s.root.updateMatrixWorld(true);
       const set = (k: PartName, getJoint: (s: Skel, j: number) => THREE.Object3D) => {
         const { mesh, perAthlete } = parts[k];

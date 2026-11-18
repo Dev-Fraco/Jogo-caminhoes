@@ -359,3 +359,7 @@ select option { background: #35322e; color: var(--ink); }
 .ms-skip { justify-self: start; }
 .pitch3d canvas.p3-gl, .pitch3d canvas.p3-flat { position: absolute; inset: 0; }
 .pitch3d canvas.p3-flat { pointer-events: none; }
+.lm-var { align-items: center; }
+.lm-var-t { font: 800 16px var(--font-head); color: var(--gold); letter-spacing: .06em; }
+.lm-var button { min-height: 44px; border-radius: 6px; border: 1px solid var(--line); background: rgba(0, 0, 0, .45); color: var(--muted); padding: 0 12px; font: 700 14px var(--font-head); }
+.lm-var button.on { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); }
