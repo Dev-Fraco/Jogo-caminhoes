@@ -179,7 +179,7 @@ export function hire(g: GameState, clubId: string): GameState {
   }
   const t = s.teams[clubId];
   s = {
-    ...s, youth: undefined, userClubId: clubId, unemployed: false, firedInfo: g.firedInfo, jobOffers: [], boardLow: 0, appliedKey: undefined,
+    ...s, youth: undefined, userClubId: clubId, unemployed: false, firedInfo: g.firedInfo, jobOffers: [], boardLow: 0, appliedKey: undefined, appliedClubs: undefined,
     payMult: undefined, salaryNeg: undefined, // salário novo no clube novo
     morale: { ...MORALE_START, board: 55 }, transferList: [], loanList: [], offers: [], loans: [], wageCover: 0,
     teams: { ...s.teams, [clubId]: { ...t, lineup: autoLineup(t.players, t.formation) } },
@@ -206,18 +206,21 @@ export function applicationOdds(g: GameState, clubId: string): { pct: number; la
   return { pct, label: pct >= 65 ? 'Alta' : pct >= 40 ? 'Média' : pct >= 15 ? 'Baixa' : 'Muito baixa' };
 }
 
-/** Candidatura: uma por rodada. O resultado é sorteado, mas fixo para a mesma rodada e clube. */
+/** Quem já recusou a sua candidatura nesta rodada. */
+export const refusedNow = (g: GameState, clubId: string): boolean => g.appliedClubs?.key === `${g.season}-${g.round}` && g.appliedClubs.ids.includes(clubId);
+
+/** Candidatura: quantas você quiser, a qualquer hora, a clubes diferentes. O resultado de cada clube é sorteado, mas fixo na rodada (não dá para insistir no mesmo clube até a próxima). */
 export function applyForJob(g: GameState, clubId: string): { ok: true; state: GameState; accepted: boolean; text: string } | { ok: false; error: string } {
   if (!g.unemployed) return { ok: false, error: 'Você já tem um clube.' };
   const key = `${g.season}-${g.round}`;
-  if (g.appliedKey === key) return { ok: false, error: 'Você já se candidatou nesta rodada. Avance a rodada para tentar de novo.' };
+  if (refusedNow(g, clubId)) return { ok: false, error: `O ${g.clubs[clubId].name} já recusou a sua candidatura nesta rodada. Tente outro clube ou espere a próxima rodada.` };
   if (clubId === former(g)) return { ok: false, error: 'O clube que demitiu você não quer te receber de volta agora.' };
   const odds = applicationOdds(g, clubId);
   const rng = makeRng(g.seed * 61 + g.season * 17 + g.round * 5 + clubId.length * 13 + (clubId.charCodeAt(0) || 0));
   const accepted = rng() * 100 < odds.pct;
   const name = g.clubs[clubId].name;
   if (accepted) return { ok: true, state: hire(g, clubId), accepted, text: `O ${name} aceitou a sua candidatura!` };
-  return { ok: true, accepted, state: news({ ...g, appliedKey: key }, `❌ O ${name} recusou a sua candidatura.`, 'bad'), text: `O ${name} preferiu outro treinador.` };
+  return { ok: true, accepted, state: news({ ...g, appliedClubs: { key, ids: [...(g.appliedClubs?.key === key ? g.appliedClubs.ids : []), clubId] } }, `❌ O ${name} recusou a sua candidatura.`, 'bad'), text: `O ${name} preferiu outro treinador.` };
 }
 
 /** Pontos de carreira no fim da temporada. */

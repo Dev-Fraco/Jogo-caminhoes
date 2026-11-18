@@ -546,6 +546,8 @@ export interface GameState {
   boardLow?: number;
   /** Última rodada em que o treinador se candidatou a uma vaga. */
   appliedKey?: string;
+  /** Clubes que já recusaram a sua candidatura nesta rodada (não dá para insistir no mesmo clube até a próxima; os outros clubes ficam livres). */
+  appliedClubs?: { key: string; ids: string[] };
   retired?: RetiredPlayer[];
   /** Últimas transferências entre clubes (para o app Notícias). */
   market?: MarketDeal[];

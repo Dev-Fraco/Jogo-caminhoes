@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { monthlySalaryFor, coachOverallOf } from '../engine/coachpay';
-import { applicationOdds, applyForJob, coachLevel, declineOffer, offerClub } from '../engine/jobs';
+import { applicationOdds, applyForJob, coachLevel, declineOffer, offerClub, refusedNow } from '../engine/jobs';
 import { acceptAnyOffer } from '../engine/abroad';
 import type { GameState } from '../engine/types';
 import { EXPECTATION_LABEL, formatBudget } from '../newgame/format';
@@ -81,7 +81,7 @@ export function Unemployed({ game, over, onChange, onPlay, onAdvance, onAdvanceT
 
       <section>
         <h3>Candidatar-se a um clube</h3>
-        <p className="hint">Uma candidatura por rodada. Clubes maiores que o seu nível quase nunca aceitam.</p>
+        <p className="hint">Candidate-se a quantos clubes quiser, quando quiser. Um clube que recusou só aceita nova candidatura na próxima rodada. Clubes maiores que o seu nível quase nunca aceitam.</p>
         <div className="chips" role="tablist" aria-label="Divisão">
           {game.divisions.map((d, i) => <button key={d.id} role="tab" aria-selected={i === div} className={i === div ? 'on' : ''} onClick={() => setDiv(i)}>{d.name}</button>)}
         </div>
@@ -89,7 +89,7 @@ export function Unemployed({ game, over, onChange, onPlay, onAdvance, onAdvanceT
           {clubs.map((id) => {
             const c = game.clubs[id];
             const odds = applicationOdds(game, id);
-            const blocked = info?.clubId === id && game.season - info.season <= 1;
+            const blocked = (info?.clubId === id && game.season - info.season <= 1) || refusedNow(game, id);
             return (
               <li key={id}>
                 <ClubBadge club={c} size={36} />

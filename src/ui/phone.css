@@ -294,14 +294,14 @@
 .hold-ring { position: relative; display: grid; place-items: center; width: 92px; height: 92px; }
 .hold-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
 .hold-ring circle { fill: none; stroke-width: 6; } .hold-ring .bg { stroke: rgba(255, 255, 255, .2); } .hold-ring .fg { stroke: #5ee08a; stroke-linecap: round; stroke-dasharray: 276.5; stroke-dashoffset: 276.5; }
-.hold.holding .hold-ring .fg { animation: hold-fill 1.5s linear forwards; }
+.hold.holding .hold-ring .fg { animation: hold-fill 1s linear forwards; }
 .hold.scan .hold-ring .fg { stroke-dashoffset: 0; }
 .hold.holding .ph-finger-ico { animation: hold-pulse .6s ease-in-out infinite alternate; }
 @keyframes hold-fill { to { stroke-dashoffset: 0; } }
 @keyframes hold-pulse { from { transform: scale(1); filter: drop-shadow(0 0 0 #5ee08a); } to { transform: scale(1.12); filter: drop-shadow(0 0 8px #5ee08a); } }
 .ph-btn.hold { position: relative; overflow: hidden; }
 .ph-btn.hold .hold-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: rgba(94, 224, 138, .45); pointer-events: none; }
-.ph-btn.hold.holding .hold-bar { animation: hold-bar 1.5s linear forwards; } .ph-btn.hold.ok .hold-bar { width: 100%; }
+.ph-btn.hold.holding .hold-bar { animation: hold-bar 1s linear forwards; } .ph-btn.hold.ok .hold-bar { width: 100%; }
 .ph-btn.hold span { position: relative; }
 @keyframes hold-bar { to { width: 100%; } }
 @media (prefers-reduced-motion: reduce) { .hold.holding .ph-finger-ico { animation: none; } }

@@ -46,7 +46,7 @@ export function AccountGate({ game, app, onChange }: { game: GameState; app: str
   );
 }
 
-/** Botão de digital: confirma no lugar da senha (só aparece se a digital estiver ativada nas Configurações). Segure por 1,5 s. */
+/** Botão de digital: confirma no lugar da senha (só aparece se a digital estiver ativada nas Configurações). Segure por 1 s. */
 export function FingerButton({ game, onOk, label = '👆 Segure para usar a digital' }: { game: GameState; onOk: () => void; label?: string }) {
   if (!phoneOf(game).settings.fingerprint) return null;
   return <HoldScan variant="button" label={label} onDone={onOk} />;

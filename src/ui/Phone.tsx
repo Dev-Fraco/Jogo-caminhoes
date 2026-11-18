@@ -173,7 +173,7 @@ export function Phone({ game, onChange, onClose }: Props) {
   );
 }
 
-/** Sensor de digital: é preciso segurar o dedo por 1,5 s para a leitura. */
+/** Sensor de digital: é preciso segurar o dedo por 1 s para a leitura. */
 const Finger = ({ onDone, label }: { onDone: () => void; label: string }) => <HoldScan onDone={onDone} label={label} />;
 
 function FingerOffer({ onYes, onNo }: { onYes: () => void; onNo: () => void }) {
@@ -188,35 +188,8 @@ function FingerOffer({ onYes, onNo }: { onYes: () => void; onNo: () => void }) {
             <button className="ph-btn pri" onClick={() => setReg(true)}>Cadastrar digital</button>
             <button className="ph-link" onClick={onNo}>Agora não</button>
           </>
-        ) : <Finger label="Segure o dedo no sensor (1,5 s) para cadastrar" onDone={onYes} />}
+        ) : <Finger label="Segure o dedo no sensor (1 s) para cadastrar" onDone={onYes} />}
       </div>
-    </div>
-  );
-}
-
-/** Barra "Deslize para desbloquear": arraste a bolinha até o fim (ou toque) para abrir o PIN / sensor. */
-function SlideToUnlock({ onDone, label }: { onDone: () => void; label: string }) {
-  const track = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ sx: number; max: number; moved: boolean } | null>(null);
-  const [x, setX] = useState(0);
-  const [back, setBack] = useState(false);
-  const down = (e: React.PointerEvent) => {
-    const w = track.current?.clientWidth ?? 0;
-    drag.current = { sx: e.clientX - x, max: Math.max(0, w - 56), moved: false }; setBack(false);
-    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-  };
-  const move = (e: React.PointerEvent) => { const d = drag.current; if (!d) return; const nx = Math.max(0, Math.min(d.max, e.clientX - d.sx)); if (Math.abs(nx - x) > 3) d.moved = true; setX(nx); };
-  const up = () => {
-    const d = drag.current; drag.current = null;
-    if (!d) return;
-    if (!d.moved || x >= d.max * 0.8) { setX(d.max); window.setTimeout(onDone, 120); return; } // toque simples também libera
-    setBack(true); setX(0);
-  };
-  return (
-    <div className="ph-slide" ref={track} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} role="button" tabIndex={0} aria-label={label}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onDone(); }}>
-      <i className={`ph-thumb ${back ? 'back' : ''}`} style={{ transform: `translateX(${x}px)` }} aria-hidden="true">»</i>
-      <span className="ph-slide-t">{label}</span>
     </div>
   );
 }
@@ -224,7 +197,6 @@ function SlideToUnlock({ onDone, label }: { onDone: () => void; label: string })
 function LockScreen({ game, now, onSubmit, firstPin, err, shake, onReset, onFinger }: { game: GameState; now: string; onSubmit: (pin: string) => void; firstPin: string | null; err?: string; shake: number; onReset: () => void; onFinger: () => void }) {
   const ph = phoneOf(game);
   const registering = !hasPin(game);
-  const [slid, setSlid] = useState(false);
   const [torch, setTorch] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const finger = !registering && !!ph.settings.fingerprint;
@@ -245,15 +217,9 @@ function LockScreen({ game, now, onSubmit, firstPin, err, shake, onReset, onFing
       {!ph.settings.dnd && ph.notifications.filter((n) => !n.read).slice(0, 2).map((n) => (
         <div className="ph-notif" key={n.id}><b>{appById(n.app)?.icon} {appById(n.app)?.name ?? n.app}</b><span>{n.text}</span></div>
       ))}
-      {!slid ? (
-        <div className="ph-lockbar">
-          <button className="ph-round" aria-label={torch ? 'Desligar a lanterna' : 'Ligar a lanterna'} aria-pressed={torch} onClick={() => setTorch(!torch)}>🔦</button>
-          <SlideToUnlock label={registering ? 'Deslize para criar o PIN' : 'Deslize para desbloquear'} onDone={() => setSlid(true)} />
-          <button className="ph-round" aria-label="Câmera" onClick={() => { setNote('A câmera do celular ainda não funciona.'); window.setTimeout(() => setNote(null), 2500); }}>📷</button>
-        </div>
-      ) : finger && !usePin ? (
+      {finger && !usePin ? (
         <>
-          <Finger label="Segure o dedo no sensor (1,5 s) para desbloquear" onDone={onFinger} />
+          <Finger label="Segure o dedo no sensor (1 s) para desbloquear" onDone={onFinger} />
           <button className="ph-link" onClick={() => setUsePin(true)}>Usar PIN</button>
         </>
       ) : registering ? (
@@ -265,6 +231,11 @@ function LockScreen({ game, now, onSubmit, firstPin, err, shake, onReset, onFing
         <PinPad title="Digite o PIN" error={err} shake={shake} onDone={onSubmit} />
       )}
       {note && <p className="ph-lock-note" role="status">{note}</p>}
+      <div className="ph-lockbar">
+        <button className="ph-round" aria-label={torch ? 'Desligar a lanterna' : 'Ligar a lanterna'} aria-pressed={torch} onClick={() => setTorch(!torch)}>🔦</button>
+        <span style={{ flex: 1 }} />
+        <button className="ph-round" aria-label="Câmera" onClick={() => { setNote('A câmera do celular ainda não funciona.'); window.setTimeout(() => setNote(null), 2500); }}>📷</button>
+      </div>
     </div>
   );
 }

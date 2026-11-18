@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { balanceOf } from '../src/engine/bank';
-import { acceptOffer, applicationOdds, applyForJob, boardTick, coachLevel, declineOffer, eligibleClubs, fire, generateJobOffers, hire, jobsOf, resign, seasonEndFiring, seasonEndOffers } from '../src/engine/jobs';
+import { acceptOffer, applicationOdds, applyForJob, refusedNow, boardTick, coachLevel, declineOffer, eligibleClubs, fire, generateJobOffers, hire, jobsOf, resign, seasonEndFiring, seasonEndOffers } from '../src/engine/jobs';
 import { firingWarning, isSeasonOver, playNext, playRound, startNextSeason, simulateToEnd } from '../src/engine/game';
 import { retireUser } from '../src/engine/ai';
 import { makeRng } from '../src/engine/rng';
@@ -106,7 +106,7 @@ describe('ficar sem clube e ser contratado', () => {
     const old = generateJobOffers({ ...g, round: g.round + 9 }, makeRng(9), 0);
     expect((old.jobOffers ?? []).every((o) => o.round !== g.round)).toBe(true);
   });
-  it('candidatura: chance maior em clubes menores; uma por rodada; resultado fixo na rodada', () => {
+  it('candidatura: chance maior em clubes menores; quantos clubes quiser na mesma rodada; o clube que recusou só na próxima; resultado fixo na rodada', () => {
     const g = fired(makeCareer('flamengo', 6));
     const lvl = coachLevel(g);
     const small = Object.keys(g.clubs).find((id) => g.clubs[id].reputation <= lvl - 1 && id !== 'flamengo')!;
@@ -117,8 +117,9 @@ describe('ficar sem clube e ser contratado', () => {
     const r = applyForJob(g, big);
     if (!r.ok) throw new Error(r.error);
     if (!r.accepted) {
-      expect(applyForJob(r.state, small)).toMatchObject({ ok: false });
-      expect(applyForJob({ ...r.state, round: r.state.round + 1 }, small).ok).toBe(true);
+      expect(applyForJob(r.state, small).ok).toBe(true);                                 // outro clube, na mesma rodada: pode
+      expect(applyForJob(r.state, big)).toMatchObject({ ok: false });                    // o mesmo clube que recusou: só na próxima
+      expect(applyForJob({ ...r.state, round: r.state.round + 1 }, big).ok).toBe(true);
     }
     // empregado não se candidata
     expect(applyForJob(makeCareer('flamengo'), small)).toMatchObject({ ok: false });
@@ -126,6 +127,14 @@ describe('ficar sem clube e ser contratado', () => {
     let hired = false;
     for (let i = 0; i < 12 && !hired; i++) { const t = applyForJob({ ...g, round: g.round + i }, small); hired = t.ok && t.accepted; }
     expect(hired).toBe(true);
+  });
+  it('dá para se candidatar a 30 clubes no mesmo dia, um depois do outro, sem nenhum bloqueio por rodada', () => {
+    let g = fired(makeCareer('flamengo', 6)); const lvl = coachLevel(g); const ids = Object.keys(g.clubs).filter((id) => id !== 'flamengo' && g.clubs[id].reputation >= lvl + 2).slice(0, 30); let tried = 0; // clubes acima do seu nível: quase sempre recusam
+    for (const id of ids) { const r = applyForJob(g, id); expect(r.ok, id).toBe(true); tried++; if (!r.ok) break; if (!r.accepted) g = r.state; } // (se algum aceitar, o teste segue com o estado sem clube para continuar candidatando)
+    expect(tried).toBe(ids.length);                       // vários clubes seguidos, na mesma rodada
+    const refused = ids.filter((id) => refusedNow(g, id)); expect(refused.length).toBeGreaterThan(0);
+    for (const id of refused) expect(applyForJob(g, id)).toMatchObject({ ok: false });   // quem recusou só na próxima rodada
+    for (const id of refused.slice(0, 2)) expect(applyForJob({ ...g, round: g.round + 1 }, id).ok).toBe(true);
   });
   it('quem vai bem recebe proposta de clube maior no fim da temporada; quem vai mal, não', () => {
     let any = false;
