@@ -6,13 +6,15 @@ import { ensureCategoryState, ensureYouth, promoteProspect, releaseProspect, you
 import { migrateGame } from '../src/engine/migrate';
 import { loadGame, saveGame } from '../src/engine/save';
 import type { GameState, Player } from '../src/engine/types';
+import { legacyYouth } from './helpers';
+
 
 beforeEach(() => {
   const m = new Map<string, string>();
   vi.stubGlobal('localStorage', { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) });
 });
 
-const mk = (): GameState => newCareer({ saveName: 't', coach: { name: 'A B', nationality: 'BR', reputation: 'pro' }, difficulty: 'normal', mode: 'career', season: 2026, userClubId: 'palmeiras', divisions: brazilPyramid() } as never, 7);
+const mk = (): GameState => legacyYouth(newCareer({ saveName: 't', coach: { name: 'A B', nationality: 'BR', reputation: 'pro' }, difficulty: 'normal', mode: 'career', season: 2026, userClubId: 'palmeiras', divisions: brazilPyramid() } as never, 7));
 const keep = (g: GameState): GameState => ({ ...g, morale: { ...g.morale, board: 60 } });
 const pr = (id: string, age: number, over = 30, pos: Player['pos'] = 'MID'): Prospect => ({ player: { id, name: `Jovem ${id}`, pos, age, strength: over }, potential: 70, exact: over });
 const withProspects = (g: GameState, list: Prospect[]): GameState => ({ ...g, youth: { ...youthOf(ensureYouth(g)), prospects: list } });

@@ -86,6 +86,8 @@ export interface World {
   skip: Set<number>;
   /** quantos apitos o árbitro deu (o áudio acompanha) */
   whistles: number;
+  /** largura (m) que a câmera mostra: fecha um pouco perto do gol */
+  span: number;
   /** sons a tocar (chute, trave, rede, apito, torcida): quem desenha/ouve esvazia a fila a cada quadro */
   cues: Cue[];
   /** gravação dos últimos segundos e revisão do VAR em andamento (o jogo fica parado enquanto houver revisão) */
@@ -111,7 +113,7 @@ export function createWorld(homeFormation: FormationId = '4-4-2', awayFormation:
   const w: World = {
     t: 0, ball: { p: { x: CENTER.x, y: CENTER.y, z: BALL_R }, v: { x: 0, y: 0, z: 0 }, mode: 'free', carrier: -1, spin: 0, slideUntil: 0, scored: null, inNet: null, crossed: false },
     agents, nets: [newNet(), newNet()], script: null, queue: [], banner: null, card: null, confetti: [], camX: CENTER.x,
-    flow: { st: playState([], 0, 0), tick: -1, carrier: -1, side: 'none' }, formations: { home: homeFormation, away: awayFormation }, goals: { home: 0, away: 0 }, flip: false, roster: { home: [], away: [] }, kickQ: null, refs: [], skip: new Set<number>(), whistles: 0, cues: [], rec: [], recAcc: 0, var: null,
+    flow: { st: playState([], 0, 0), tick: -1, carrier: -1, side: 'none' }, formations: { home: homeFormation, away: awayFormation }, goals: { home: 0, away: 0 }, flip: false, roster: { home: [], away: [] }, kickQ: null, refs: [], skip: new Set<number>(), whistles: 0, span: 38, cues: [], rec: [], recAcc: 0, var: null,
   };
   for (const role of ['ref', 'ar1', 'ar2'] as const) w.refs.push({ id: 22 + w.refs.length, side: 'home', idx: 0, gk: false, x: role === 'ref' ? CENTER.x - 6 : role === 'ar1' ? L * 0.3 : L * 0.7, y: role === 'ref' ? MID_Y + 9 : role === 'ar1' ? -1.4 : W + 1.4, vx: 0, vy: 0, heading: 0, gait: 0, hop: 0, hopV: 0, tx: 0, ty: 0, state: 'play', role });
   placeFormation(w, playState([], 0, 0), 0);
@@ -378,6 +380,9 @@ export interface TriggerCtx {
   cancel?: boolean;
   cardPid?: string; varCard?: 'red-downgrade' | 'id-fix';
 }
+/** A partida fica com o relógio parado enquanto um lance é encenado (gol, falta, escanteio...), durante o VAR e enquanto há lances esperando a vez: nenhum lance se perde nem se atropela. */
+export const isHolding = (w: World): boolean => !!w.script || !!w.var || w.queue.length > 0;
+
 /** Monta (e, se não for "dry", começa) a encenação de um lance da narração. Gols interrompem tudo; os outros esperam o roteiro em curso. */
 export function triggerEvent(w: World, e: MatchEvent, ix: number, ctx: TriggerCtx = {}, dry = false): Script | undefined {
   const side: Side = e.side === 'none' ? 'home' : e.side;
@@ -390,8 +395,11 @@ export function triggerEvent(w: World, e: MatchEvent, ix: number, ctx: TriggerCt
     const vt = slotOf(w, side, ctx.varTarget); sc.data.varTarget = vt > 0 ? vt : 0;
     sc.kind = 'goal'; sc.ty = MID_Y + sgn * (2.9 + hash(ix * 3) * 0.55); sc.tz = 0.35 + hash(ix * 9 + 2) * 1.85;
     if (!dry) {
-      if (w.script?.kind === 'foul' && w.script.data.adv === 1) { w.queue = [sc]; return sc; } // vantagem: a falta é sinalizada e, em seguida, vem o lance do ataque
-      if (w.script) { endScript(w, false); } w.queue = []; // gol corta qualquer outra encenação
+      if ((w.script?.kind === 'goal' || w.var) && !(w.script?.kind === 'foul')) { w.queue.push(sc); return sc; } // outro gol na mesma hora: espera a vez (cada gol é mostrado inteiro, com VAR e comemoração)
+      if (w.script?.kind === 'foul' && w.script.data.adv === 1) { w.queue = [...w.queue.filter((q) => q.kind === 'goal'), sc]; return sc; } // vantagem: a falta é sinalizada e, em seguida, vem o lance do ataque
+      const waiting = w.queue.filter((q) => q.kind === 'goal'); w.queue = [];
+      if (w.script) { endScript(w, false); }
+      w.queue = waiting; // o gol corta qualquer outra encenação, mas não os gols que já esperavam
     }
   } else if (e.type === 'save') { sc.kind = 'save'; sc.data.pen = e.pen ? 1 : 0; sc.ty = MID_Y + sgn * (0.6 + hash(ix * 3) * 1.8); sc.tz = 0.3 + hash(ix * 9 + 2) * 1.2; sc.dur = 3.2; }
   else if (e.type === 'miss') { sc.kind = 'miss'; sc.data.pen = e.pen ? 1 : 0; sc.data.post = e.how === 'post' ? 1 : 0; const over = hash(ix * 3) > 0.5; sc.ty = over ? MID_Y + sgn * (GOAL_W / 2 - 1) : MID_Y + sgn * (GOAL_W / 2 + 1.5 + hash(ix) * 3); sc.tz = over ? GOAL_H + 0.7 + hash(ix * 9) * 2 : 0.5 + hash(ix * 9) * 1.2; sc.dur = 3; }
@@ -408,7 +416,7 @@ export function triggerEvent(w: World, e: MatchEvent, ix: number, ctx: TriggerCt
   else if (e.type === 'injury') { sc.kind = 'injury'; sc.dur = 2.6; sc.shooter = real > 0 ? real : 1 + Math.floor(hash(ix * 7) * 10); }
   else return undefined;
   if (dry) return sc;
-  if (w.script && e.type !== 'goal') { if (w.queue.length < 3) w.queue.push(sc); return sc; }
+  if (w.script && e.type !== 'goal') { if (w.queue.length < 8) w.queue.push(sc); return sc; }
   beginScript(w, sc);
   return sc;
 }
@@ -550,7 +558,7 @@ function endScript(w: World, restart: boolean) {
   for (const a of w.agents) { if (a.state === 'down') startAct(w, a, 'getup', 1); if (a.state !== 'play') a.state = 'play'; if (a.off !== 'walking') a.ov = undefined; } // o expulso segue saindo do campo
   for (const r of w.refs) r.ov = undefined;
   if (sc && restart) {
-    if (sc.kind === 'goal') { w.goals[sc.side]++; placeFormation(w, playState([], 0, 0), 0); ballToCenter(w); w.flow.carrier = -1; }
+    if (sc.kind === 'goal') { w.goals[sc.side]++; placeFormation(w, playState([], 0, 0), 0); ballToCenter(w); w.flow.carrier = -1; whistle(w, 'restart'); } // tudo volta ao lugar e o jogo recomeça do meio
     else if (sc.kind === 'miss') { w.queue.unshift({ kind: 'goalkick', side: sc.side, t: 0, phase: 0, shooter: sc.shooter, ty: 0, tz: 0, data: {}, dur: 3.4 }); } // bola para fora/na trave: tiro de meta
   }
   w.ball.scored = null; w.ball.inNet = null; w.ball.crossed = false;
@@ -811,8 +819,10 @@ export function stepWorld(w: World, dtTotal: number) {
   if (w.card && w.card.until < w.t) w.card = null;
   if (w.banner && w.t - w.banner.t0 > 3.4) w.banner = null;
   // câmera segue a bola (suave), sem sair do campo
-  const target = clamp(w.ball.p.x, 16, L - 15);
+  const target = clamp(w.ball.p.x, 13, L - 11); // o gol fica inteiro no quadro
   w.camX += (target - w.camX) * Math.min(1, 3.2 * dtTotal);
+  const nearGoal = w.script?.kind === 'goal' || Math.min(w.ball.p.x, L - w.ball.p.x) < 24; // perto do gol (ou lance de gol): câmera mais fechada
+  w.span += ((nearGoal ? 30 : 38) - w.span) * Math.min(1, 1.6 * dtTotal);
 }
 
 /** Quando o tempo pula (pular partida, pênaltis): encerra roteiros e põe todos no lugar. */

@@ -25,7 +25,8 @@ const prospect = (g: GameState, id: string, age: number, over: number, pot: numb
   const p: Prospect = { player: { id, name: `Jovem ${id}`, pos: POSES[i % 9], age, strength: over, pot }, potential: pot, exact: over, train: 0, base: over, attrs: Array(6).fill(over), joined: g.season - 1, origin: 'academia', sat: 70, mot: 60, history: [{ season: g.season - 1, text: 'Chegou.' }] };
   return { ...p, player: { ...p.player, contract: { wage: fairWage(g, p), from: g.season - 1, until: g.season + 1 } } };
 };
-const base = (): GameState => { const g = newCareer({ saveName: 't', coach: { name: 'A B', nationality: 'BR', reputation: 'pro' }, difficulty: 'normal', mode: 'career', season: 2026, userClubId: 'palmeiras', divisions: brazilPyramid(), cup: true } as never, 7); const e = ensureYouth(g); return { ...e, budgets: { ...e.budgets, palmeiras: 5e9 } }; };
+import { legacyYouth } from './helpers';
+const base = (): GameState => { const g = newCareer({ saveName: 't', coach: { name: 'A B', nationality: 'BR', reputation: 'pro' }, difficulty: 'normal', mode: 'career', season: 2026, userClubId: 'palmeiras', divisions: brazilPyramid(), cup: true } as never, 7); const e = legacyYouth(ensureYouth(g)); return { ...e, budgets: { ...e.budgets, palmeiras: 5e9 } }; };
 const withProspects = (g: GameState, list: Prospect[]): GameState => ({ ...g, youth: { ...youthOf(g), prospects: list } });
 const cashOf = (g: GameState) => g.budgets.palmeiras;
 const sumLog = (g: GameState, kind: string, income = false) => (youthOf(g).fin?.log ?? []).filter((e) => e.kind === kind && !!e.income === income).reduce((t, e) => t + e.cost, 0);

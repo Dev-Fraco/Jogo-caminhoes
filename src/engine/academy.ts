@@ -86,7 +86,7 @@ export function coachSpecBonus(y: Pick<YouthState, 'fac'>, spec: string): number
 }
 /** Dedicação do jovem com o alojamento (o limite sobe de 1,3 para 1,6). */
 export const dedicationWith = (base: number, y: Pick<YouthState, 'fac'>): number => Math.min(1.6, base * (1 + 0.012 * (facLevel(y, 'alojamento') - 1)));
-export const youthCapacity = (y: Pick<YouthState, 'fac'>): number => 60 + 2 * (facLevel(y, 'alojamento') - 1);
+export const youthCapacity = (y: Pick<YouthState, 'fac'>): number => 80 + 2 * (facLevel(y, 'alojamento') - 1);
 /** Centro médico: multiplicador da duração de uma lesão (leve: −2%/nível; grave: −0,8%/nível). */
 export const injuryDurationFactor = (y: Pick<YouthState, 'fac'> | undefined, severity: 'leve' | 'media' | 'grave' | undefined): number => {
   const l = (y ? facLevel(y, 'medico') : 1) - 1;

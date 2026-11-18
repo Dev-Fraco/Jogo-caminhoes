@@ -20,7 +20,8 @@ beforeEach(() => {
   vi.stubGlobal('localStorage', { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) });
 });
 
-const base = (club = 'palmeiras'): GameState => newCareer({ saveName: 't', coach: { name: 'A B', nationality: 'BR', reputation: 'pro' }, difficulty: 'normal', mode: 'career', season: 2026, userClubId: club, divisions: brazilPyramid(), cup: true } as never, 7);
+import { legacyYouth } from './helpers';
+const base = (club = 'palmeiras'): GameState => legacyYouth(newCareer({ saveName: 't', coach: { name: 'A B', nationality: 'BR', reputation: 'pro' }, difficulty: 'normal', mode: 'career', season: 2026, userClubId: club, divisions: brazilPyramid(), cup: true } as never, 7));
 const POSES: Player['pos'][] = ['GK', 'DEF', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'MID', 'ATT', 'ATT', 'ATT', 'DEF', 'MID'];
 const prospect = (id: string, age: number, i: number, over = 30, pot = 70): Prospect => ({ player: { id, name: `Jovem ${id}`, pos: POSES[i % POSES.length], age, strength: over }, potential: pot, exact: over, train: 0, base: over, attrs: Array(6).fill(over) });
 /** Seu clube com 14 jovens reais em cada faixa de idade (o suficiente para se inscrever nas quatro categorias). */

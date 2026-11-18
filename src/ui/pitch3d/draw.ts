@@ -105,8 +105,8 @@ function drawGoal(ctx: CanvasRenderingContext2D, cam: Camera, w: World, gx: numb
     ctx.globalAlpha = 1;
   } else { // quadro: traves e travessão
     const c = '#f5f5f5';
-    line3(ctx, cam, { x: gx, y: yl, z: 0 }, { x: gx, y: yl, z: GOAL_H }, c, 0.14); line3(ctx, cam, { x: gx, y: yr, z: 0 }, { x: gx, y: yr, z: GOAL_H }, c, 0.14);
-    line3(ctx, cam, { x: gx, y: yl, z: GOAL_H }, { x: gx, y: yr, z: GOAL_H }, c, 0.14);
+    line3(ctx, cam, { x: gx, y: yl, z: 0 }, { x: gx, y: yl, z: GOAL_H }, c, 0.32); line3(ctx, cam, { x: gx, y: yr, z: 0 }, { x: gx, y: yr, z: GOAL_H }, c, 0.32);
+    line3(ctx, cam, { x: gx, y: yl, z: GOAL_H }, { x: gx, y: yr, z: GOAL_H }, c, 0.32);
     line3(ctx, cam, { x: gx, y: yl, z: GOAL_H }, { x: bx, y: yl, z: GOAL_H }, 'rgba(255,255,255,.5)', 0.07); line3(ctx, cam, { x: gx, y: yr, z: GOAL_H }, { x: bx, y: yr, z: GOAL_H }, 'rgba(255,255,255,.5)', 0.07);
   }
 }

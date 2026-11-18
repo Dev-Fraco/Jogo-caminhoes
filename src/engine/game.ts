@@ -27,7 +27,7 @@ import { playHomeGate } from './stadium';
 import { inboxTick } from './inbox';
 import './shop';
 import { processDays } from './daily';
-import { youthSeason, youthTick } from './youth';
+import { ensureYouth, youthSeason, youthTick } from './youth';
 import { youthSeasonEnd, youthStartSeason, youthSync } from './ycomp';
 import { fibraTick } from './netfibra';
 import { settleSalary } from './salary';
@@ -113,8 +113,8 @@ export function newCareer(input: CareerInput, seed = Date.now() % 2147483647): G
     clubs, budgets, transfers: [], morale: { ...MORALE_START }, transferList: [], loanList: [], offers: [], loans: [], news: [], divisions, teams, fixtures, results: [], history: [],
   };
   // a carreira já nasce completa (contratos, treinadores, base, objetivos): carregar o save depois não muda nada
-  if (!input.cup) return youthStartSeason(stampPayTier(ensureAiState(freezeGoals(createContinentals(career)))));
-  return youthStartSeason(stampPayTier(ensureAiState(freezeGoals(createContinentals({ ...career, cup: createCup(career), estadual: createEstaduais(input.outside ? { id: input.outside.id, uf: input.outside.uf ?? 'SP' } : undefined) })))));
+  if (!input.cup) return youthStartSeason(ensureYouth(stampPayTier(ensureAiState(freezeGoals(createContinentals(career))))));
+  return youthStartSeason(ensureYouth(stampPayTier(ensureAiState(freezeGoals(createContinentals({ ...career, cup: createCup(career), estadual: createEstaduais(input.outside ? { id: input.outside.id, uf: input.outside.uf ?? 'SP' } : undefined) }))))));
 }
 
 export const isSeasonOver = (g: GameState) => g.round > g.totalRounds && !g.mundial?.due;

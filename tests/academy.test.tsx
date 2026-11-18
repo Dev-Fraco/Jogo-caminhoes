@@ -122,12 +122,12 @@ describe('benefícios reais', () => {
   it('alojamento: dedicação maior e mais vagas na base', () => {
     expect(dedicationWith(1, { fac: { ...START_FACILITIES, alojamento: 20 } })).toBeGreaterThan(1.2); expect(dedicationWith(1, { fac: START_FACILITIES })).toBe(1);
     expect(dedicationWith(1.3, { fac: { ...START_FACILITIES, alojamento: 20 } })).toBeLessThanOrEqual(1.6);
-    expect(youthCapacity({ fac: START_FACILITIES })).toBe(60); expect(youthCapacity({ fac: { ...START_FACILITIES, alojamento: 20 } })).toBe(98);
+    expect(youthCapacity({ fac: START_FACILITIES })).toBe(80); expect(youthCapacity({ fac: { ...START_FACILITIES, alojamento: 20 } })).toBe(118);
     const p = pr('e', 16, 30, 90);
     expect(pointsPerYear(p, withFac({ alojamento: 20 }))).toBeGreaterThan(pointsPerYear(p, withFac({ alojamento: 1 })));
-    // capacidade real: com 70 jovens de potenciais diferentes, o alojamento no máximo mantém mais deles na virada
+    // capacidade real: com 100 jovens de potenciais diferentes, o alojamento no máximo mantém mais deles na virada
     const many = (n: number): Prospect[] => Array.from({ length: n }, (_, i) => pr(`m${i}`, 13, 8, 50 + (i % 40)));
-    const keep = (alo: number) => youthOf(youthSeason({ ...base, round: base.totalRounds + 1, youth: { ...youthOf(base), fac: { ...START_FACILITIES, alojamento: alo }, prospects: many(70) } })).prospects.length;
+    const keep = (alo: number) => youthOf(youthSeason({ ...base, round: base.totalRounds + 1, youth: { ...youthOf(base), fac: { ...START_FACILITIES, alojamento: alo }, prospects: many(100) } })).prospects.length;
     expect(keep(20)).toBeGreaterThan(keep(1));
   });
   it('centro médico: lesões leves do SEU clube duram menos; graves seguem acima de 1 mês; rivais não mudam', () => {

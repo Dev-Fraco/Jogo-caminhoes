@@ -8,7 +8,7 @@ import { makeCamera, VAR_CAMS, varCamera, type VarCamId } from './pitch3d/camera
 import type { PitchRenderer } from './pitch3d/three/scene';
 import { loadSettings } from '../settings/settings';
 import { audio } from '../audio/audio';
-import { createDriver, createWorld, drive, replayView, stepWorld, varFocus } from './pitch3d/world';
+import { createDriver, createWorld, drive, isHolding, replayView, stepWorld, varFocus } from './pitch3d/world';
 
 const loadBadge = (club: ClubInfo): HTMLImageElement | null => {
   if (!club.badge || typeof Image === 'undefined') return null;
@@ -21,18 +21,18 @@ const loadBadge = (club: ClubInfo): HTMLImageElement | null => {
  * Campo em 3D (câmera de transmissão): os 22 jogadores são botões de futebol com o escudo e as cores do uniforme, que correm pelo campo,
  * e a bola obedece à física (gravidade, quique, trave, travessão e rede). O motor decide a partida; aqui se encenam os lances da narração.
  */
-export function Pitch3D({ home, away, homeFormation, awayFormation, events, minute, speed, userSide, paused = false, players, onVar, varCam = null, skipVar = 0 }: {
+export function Pitch3D({ home, away, homeFormation, awayFormation, events, minute, speed, userSide, paused = false, players, onVar, onHold, varCam = null, skipVar = 0 }: {
   home: ClubInfo; away: ClubInfo; homeFormation: FormationId; awayFormation: FormationId; events: MatchEvent[]; minute: number; speed: number; userSide: 'home' | 'away'; paused?: boolean;
   /** jogadores dos dois times (por id): com eles os lances são feitos pelos jogadores que o motor escolheu */
   players?: Map<string, Player>;
   /** VAR: avisa quando uma revisão começa/termina (a partida fica parada), câmera escolhida na repetição e pedido para pular a revisão */
-  onVar?: (active: boolean) => void; varCam?: VarCamId | null; skipVar?: number;
+  onVar?: (active: boolean) => void; /** o relógio da partida deve ficar parado (lance sendo mostrado, VAR, comemoração) */ onHold?: (holding: boolean) => void; varCam?: VarCamId | null; skipVar?: number;
 }) {
   const reduce = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const ref = useRef<HTMLCanvasElement>(null);       // campo em WebGL (three.js)
   const flat = useRef<HTMLCanvasElement>(null);      // letreiros por cima (gol, cartão, confete) ou, sem WebGL, o campo inteiro em 2D
-  const live = useRef({ events, minute, speed, paused, userSide, onVar, varCam, skipVar });
-  live.current = { events, minute, speed, paused, userSide, onVar, varCam, skipVar };
+  const live = useRef({ events, minute, speed, paused, userSide, onVar, onHold, varCam, skipVar });
+  live.current = { events, minute, speed, paused, userSide, onVar, onHold, varCam, skipVar };
   const supported = typeof document !== 'undefined' && !!document.createElement('canvas').getContext;
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export function Pitch3D({ home, away, homeFormation, awayFormation, events, minu
     const look: Look = { home: kit(home, hc), away: kit(away, ac), userSide };
     let renderer: PitchRenderer | null = null;
     gl.style.display = 'none'; // enquanto o 3D carrega (ou sem WebGL) o campo em 2D aparece
-    let raf = 0, last = performance.now(), alive = true, inVar = false, skipSeen = live.current.skipVar;
+    let raf = 0, last = performance.now(), alive = true, inVar = false, holding = false, skipSeen = live.current.skipVar;
     import('./pitch3d/three/scene').then((m) => { // o three.js só é baixado quando existe uma partida para mostrar
       if (!alive) return;
       try { renderer = m.createPitchRenderer(gl, loadSettings().graphics ?? 'medium', look, { home: homeFormation, away: awayFormation }); } catch { renderer = null; }
@@ -63,10 +63,11 @@ export function Pitch3D({ home, away, homeFormation, awayFormation, events, minu
       if (!cur.paused || world.var) { if (!world.var) drive(world, drv, cur.events, cur.minute); stepWorld(world, dt * Math.min(cur.speed, 4)); }
       if (world.cues.length) for (const c of world.cues.splice(0)) audio.cue(c, cur.speed); // sons no instante em que acontecem (acompanham a velocidade da partida)
       if (!!world.var !== inVar) { inVar = !!world.var; cur.onVar?.(inVar); }
+      const hold = isHolding(world); if (hold !== holding) { holding = hold; cur.onHold?.(hold); } // relógio parado durante o lance encenado
       if (world.var && cur.skipVar !== skipSeen) { world.var.skip = true; }
       skipSeen = cur.skipVar;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const v = world.var; let view = world, cam = makeCamera(w, h, world.camX), camLabel = 'TV';
+      const v = world.var; let view = world, cam = makeCamera(w, h, world.camX, world.span), camLabel = 'TV';
       if (v && v.stage === 'review') { // repetição do lance, pela câmera escolhida (ou pela sequência automática)
         view = replayView(world); const id = cur.varCam ?? v.camList[v.camIdx] ?? 'tv'; camLabel = VAR_CAMS.find((c) => c.id === id)?.label ?? 'TV';
         cam = varCamera(id, w, h, varFocus(world, view), view.camX);
@@ -78,7 +79,7 @@ export function Pitch3D({ home, away, homeFormation, awayFormation, events, minu
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
-    return () => { alive = false; cancelAnimationFrame(raf); renderer?.dispose(); };
+    return () => { alive = false; cancelAnimationFrame(raf); renderer?.dispose(); if (holding) live.current.onHold?.(false); };
   }, [home.id, away.id, homeFormation, awayFormation]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (reduce || !supported) return <PitchSim home={home} away={away} homeFormation={homeFormation} awayFormation={awayFormation} events={events} minute={minute} speed={speed} userSide={userSide} />;

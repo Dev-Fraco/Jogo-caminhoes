@@ -5,7 +5,8 @@ import { academyCost, ensureYouth, MAX_LEVEL, MAX_PROSPECTS, promoteProspect, re
 import { MAX_SQUAD } from '../src/engine/transfers';
 import type { GameState } from '../src/engine/types';
 
-const mk = (): GameState => newCareer({ saveName: 't', coach: { name: 'A B', nationality: 'BR', reputation: 'pro' }, difficulty: 'normal', mode: 'career', season: 2026, userClubId: 'palmeiras', divisions: brazilPyramid(), cup: true }, 12);
+import { legacyYouth } from './helpers';
+const mk = (): GameState => legacyYouth(newCareer({ saveName: 't', coach: { name: 'A B', nationality: 'BR', reputation: 'pro' }, difficulty: 'normal', mode: 'career', season: 2026, userClubId: 'palmeiras', divisions: brazilPyramid(), cup: true }, 12));
 const keep = (g: GameState): GameState => ({ ...g, morale: { ...g.morale, board: 60 } });
 
 describe('categorias de base', () => {

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { Camera } from '../camera';
 import type { Look } from '../draw';
-import { BALL_R, GOAL_D, GOAL_H, GOAL_W, L, MID_Y, POST_R, W, type World } from '../world';
+import { BALL_R, GOAL_D, GOAL_H, GOAL_W, L, MID_Y, W, type World } from '../world';
 import { APRON, makeBallTexture, makePitchTexture } from './textures';
 import { createAthletes, SHIRT_BY_SLOT, type AthleteKit as AthleteKitT } from './athletes';
 import { FORMATION_SLOTS, type FormationId } from '../../../engine/types';
@@ -83,16 +83,27 @@ export function createPitchRenderer(canvas: HTMLCanvasElement, quality: Quality,
   }
 
   /* ---- traves, travessão e rede ---- */
-  const white = own(new THREE.MeshStandardMaterial({ color: 0xf6f6f6, roughness: 0.4, metalness: 0.1 }));
-  const post = own(new THREE.CylinderGeometry(POST_R * 1.15, POST_R * 1.15, GOAL_H, 10));
-  const bar = own(new THREE.CylinderGeometry(POST_R * 1.15, POST_R * 1.15, GOAL_W, 10));
+  // moldura bem visível no celular: traves e travessão grossos (só o desenho; a física usa o raio real), mais as barras do fundo e dos lados
+  const white = own(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35, metalness: 0.05, emissive: 0x666666 }));
+  const FR = 0.2, BR = 0.09;
+  const post = own(new THREE.CylinderGeometry(FR, FR, GOAL_H + FR, 12));
+  const bar = own(new THREE.CylinderGeometry(FR, FR, GOAL_W + FR * 2, 12));
+  const sideBar = own(new THREE.CylinderGeometry(BR, BR, GOAL_D, 8)), backPost = own(new THREE.CylinderGeometry(BR, BR, GOAL_H, 8)), backBar = own(new THREE.CylinderGeometry(BR, BR, GOAL_W, 8));
+  const netFill = own(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false }));
   const NW = 9, NH = 5;
   const netLines: { geo: THREE.BufferGeometry; gx: number; dir: number; ni: number }[] = [];
-  const netMat = own(new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 }));
+  const netMat = own(new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 }));
   for (const gx of [0, L]) {
     const dir = gx === 0 ? -1 : 1, yl = MID_Y - GOAL_W / 2, yr = MID_Y + GOAL_W / 2;
-    for (const yy of [yl, yr]) { const p = new THREE.Mesh(post, white); p.position.copy(T(gx, yy, GOAL_H / 2)); p.castShadow = q.shadow > 0; scene.add(p); }
-    const b = new THREE.Mesh(bar, white); b.rotation.x = Math.PI / 2; b.position.copy(T(gx, MID_Y, GOAL_H)); scene.add(b);
+    for (const yy of [yl, yr]) { const p = new THREE.Mesh(post, white); p.position.copy(T(gx, yy, (GOAL_H + FR) / 2)); p.castShadow = q.shadow > 0; scene.add(p); }
+    const b = new THREE.Mesh(bar, white); b.rotation.x = Math.PI / 2; b.position.copy(T(gx, MID_Y, GOAL_H)); b.castShadow = q.shadow > 0; scene.add(b);
+    for (const yy of [yl, yr]) { // barras de cima (do travessão ao fundo) e postes do fundo
+      const sb = new THREE.Mesh(sideBar, white); sb.rotation.z = Math.PI / 2; sb.position.copy(T(gx + dir * GOAL_D / 2, yy, GOAL_H)); scene.add(sb);
+      const bp = new THREE.Mesh(backPost, white); bp.position.copy(T(gx + dir * GOAL_D, yy, GOAL_H / 2)); scene.add(bp);
+    }
+    const bb = new THREE.Mesh(backBar, white); bb.rotation.x = Math.PI / 2; bb.position.copy(T(gx + dir * GOAL_D, MID_Y, GOAL_H)); scene.add(bb);
+    const backFill = new THREE.Mesh(new THREE.PlaneGeometry(GOAL_W, GOAL_H), netFill); backFill.rotation.y = Math.PI / 2; backFill.position.copy(T(gx + dir * GOAL_D, MID_Y, GOAL_H / 2)); scene.add(backFill); own(backFill.geometry);
+    const top = new THREE.Mesh(new THREE.PlaneGeometry(GOAL_D, GOAL_W), netFill); top.rotation.x = -Math.PI / 2; top.position.copy(T(gx + dir * GOAL_D / 2, MID_Y, GOAL_H)); scene.add(top); own(top.geometry);
     // rede: fundo com nós que balançam (grade 9 x 5) + laterais e teto
     const segs: number[] = [];
     const back = (i: number, j: number) => [gx + dir * GOAL_D, yl + (GOAL_W * i) / (NW - 1), (GOAL_H * j) / (NH - 1)];
@@ -181,13 +192,22 @@ export function createPitchRenderer(canvas: HTMLCanvasElement, quality: Quality,
   defLine.visible = attLine.visible = false; scene.add(defLine, attLine);
   let lastT = -1;
   const resize = (width: number, height: number) => {
-    const pr = Math.min(window.devicePixelRatio || 1, q.pr);
+    const pr = Math.min(window.devicePixelRatio || 1, q.pr) * scale;
     renderer.setPixelRatio(pr); renderer.setSize(width, height, false);
   };
   let sizeKey = '';
+  // qualidade adaptativa: se o aparelho não dá conta (quadros lentos por alguns segundos), baixa a resolução e depois as sombras, sem o jogador mexer em nada
+  let scale = 1, ema = 16, slow = 0, lastFrame = 0;
+  const adapt = () => {
+    const now = performance.now(), ft = lastFrame ? now - lastFrame : 16; lastFrame = now;
+    if (ft > 250) return; // aba em segundo plano ou pausa: não conta
+    ema = ema * 0.92 + ft * 0.08;
+    if (ema > 34) { if (++slow > 40) { slow = 0; if (scale > 0.62) { scale = Math.max(0.6, scale * 0.85); sizeKey = ''; } else if (sun.castShadow) { sun.castShadow = false; renderer.shadowMap.enabled = false; scene.traverse((o) => { const m = (o as THREE.Mesh).material as THREE.Material | undefined; if (m) m.needsUpdate = true; }); } } } else slow = 0;
+  };
 
   return {
     render(w, lk, width, height, cam) {
+      adapt();
       const key = `${width}x${height}`; if (key !== sizeKey) { sizeKey = key; resize(width, height); }
       // câmera de transmissão: a mesma do desenho 2D (assim o letreiro, o cartão e o confete por cima ficam alinhados)
       const dt = lastT < 0 ? 0 : Math.max(0, Math.min(0.1, w.t - lastT)); lastT = w.t;

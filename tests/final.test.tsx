@@ -21,7 +21,8 @@ beforeEach(() => {
   vi.stubGlobal('localStorage', { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) });
 });
 
-const base = (seed = 11): GameState => { const g = newCareer({ saveName: 't', coach: { name: 'A B', nationality: 'BR', reputation: 'pro' }, difficulty: 'normal', mode: 'career', season: 2026, userClubId: 'palmeiras', divisions: brazilPyramid(), cup: true } as never, seed); const e = ensureYouth(g); return { ...e, budgets: { ...e.budgets, palmeiras: 5e9 } }; };
+import { legacyYouth } from './helpers';
+const base = (seed = 11): GameState => { const g = newCareer({ saveName: 't', coach: { name: 'A B', nationality: 'BR', reputation: 'pro' }, difficulty: 'normal', mode: 'career', season: 2026, userClubId: 'palmeiras', divisions: brazilPyramid(), cup: true } as never, seed); const e = legacyYouth(ensureYouth(g)); return { ...e, budgets: { ...e.budgets, palmeiras: 5e9 } }; };
 const POSES: Player['pos'][] = ['GK', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'ATT', 'ATT'];
 const prospect = (id: string, age: number, over: number, pot: number, i = 0): Prospect => ({ player: { id, name: `Jovem ${id}`, pos: POSES[i % 9], age, strength: over, pot, contract: { wage: 20_000, from: 2025, until: 2028 } }, potential: pot, exact: over, train: 0, base: over, attrs: Array(6).fill(over), joined: 2025, origin: 'academia', sat: 70, mot: 60, history: [{ season: 2025, text: 'Chegou.' }] });
 const withProspects = (g: GameState, list: Prospect[]): GameState => ({ ...g, youth: { ...youthOf(g), prospects: list } });

@@ -1,7 +1,7 @@
 import { ACADEMY_START_AGE, ACADEMY_START_OVERALL, canPromoteAge, homeCategory, categoryDef, MIN_PRO_AGE, needsDecision } from './categories';
 import { inflate } from './economy';
 import { academyCost, intakeCount, MAX_ACADEMY_LEVEL, START_FACILITIES, upgradeAcademy, youthCapacity, type FacilityLevels, type YouthFinance } from './academy';
-import { rollPotential, STAR_POTENTIAL, trainTick, type Specialty } from './training';
+import { basePointsAt, potentialFactor, rollPotential, STAR_POTENTIAL, trainTick, type Specialty } from './training';
 import { ensureCoaches, evaluateCoaches, marketTick, midSeasonCheck, payCoaches, refreshMarket, trackSeason, upgradeLegacyCoaches, type CatLogEntry, type CoachMarket, type YouthCoach } from './coaches';
 import { attributesOf, CATEGORIES } from './categories';
 import { newContract, payWages, personalityOf, SAT_START, satTick } from './ycontract';
@@ -48,6 +48,8 @@ export interface YouthState { level: number; prospects: Prospect[]; seq: number;
   /** Olheiros contratados, candidatos a olheiro, jovens observados (olheiros e peneiras), propostas, jogadores à venda e última peneira. */
   scouts?: import('./yscout').Scout[]; scoutMarket?: import('./yscout').Scout[]; pool?: import('./yscout').Candidate[]; lastTryout?: { season: number; round: number };
   offers?: import('./ymarket').YOffer[]; listings?: import('./ymarket').Listing[];
+  /** A base já começou com 15 atletas em cada categoria (feito uma vez só). */
+  seeded?: boolean;
   /** Os quatro treinadores iniciais já foram criados (depois disso uma vaga só é preenchida contratando). */
   coachesInit?: boolean;
   /** Mercado de treinadores disponíveis (renovado de tempos em tempos). */
@@ -58,13 +60,47 @@ export const YOUTH_SCHEMA = 5;
 
 export const MAX_LEVEL = MAX_ACADEMY_LEVEL;
 /** Limite de jovens na base (as quatro categorias juntas). Quem aguarda decisão aos 21 anos nunca é cortado. */
-export const MAX_PROSPECTS = 60; // base; o alojamento acrescenta vagas (youthCapacity)
+export const MAX_PROSPECTS = 80; // base; o alojamento acrescenta vagas (youthCapacity)
 const HISTORY_MAX = 24;
 const note = (p: Prospect, season: number, text: string): Prospect => ({ ...p, history: [...(p.history ?? []), { season, text }].slice(-HISTORY_MAX) });
 const POS_BAG: Position[] = ['GK', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'ATT', 'ATT'];
 
 export const youthOf = (g: GameState): YouthState => g.youth ?? { level: 0, prospects: [], seq: 1, lastIntake: -1, schema: YOUTH_SCHEMA, fac: { ...START_FACILITIES }, fin: { total: 0, staff: 0, log: [] } };
 const news = (g: GameState, text: string, tone: NewsItem['tone'] = 'info'): GameState => ({ ...g, news: [{ season: g.season, round: g.round, text, tone }, ...g.news].slice(0, 80) });
+
+/** Atletas com que cada categoria de base começa: assim as competições já podem começar (mínimo de 11 para inscrever). */
+export const SEED_PER_CATEGORY = 15;
+/** Faixas de idade "da casa" de cada categoria (sem sobreposição): Sub-13, Sub-15, Sub-17 e Sub-21 (18 a 21 anos). */
+const SEED_BANDS: readonly [number, number][] = [[12, 13], [14, 15], [16, 17], [18, 21]];
+const SEED_POS: Position[] = ['GK', 'GK', 'DEF', 'DEF', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'MID', 'MID', 'ATT', 'ATT', 'ATT'];
+
+/** Completa a base até 15 atletas em cada categoria (os que já existem ficam como estão; só entram os que faltam). Feito uma vez por carreira. */
+export function seedCategories(g: GameState, y: YouthState): YouthState {
+  if (y.seeded) return y;
+  const rng = makeRng(g.seed * 131 + g.season * 11 + 17);
+  const used = new Set([...g.teams[g.userClubId].players.map((p) => p.name), ...y.prospects.map((p) => p.player.name)]);
+  const out = [...y.prospects]; let seq = y.seq;
+  for (const [lo, hi] of SEED_BANDS) {
+    const inBand = (x: Prospect) => x.player.age >= lo && x.player.age <= hi;
+    const have = out.filter(inBand);
+    const needGk = Math.max(0, 2 - have.filter((x) => x.player.pos === 'GK').length);
+    const rest = SEED_POS.filter((p) => p !== 'GK');
+    for (let k = 0, i = have.length; i < SEED_PER_CATEGORY; i++, k++) {
+      const pos = k < needGk ? 'GK' : rest[(k - needGk) % rest.length];
+      const age = lo + (k % (hi - lo + 1));
+      const potential = rollPotential(rng, y.level);
+      let ovr = ACADEMY_START_OVERALL; for (let a = ACADEMY_START_AGE; a < age; a++) ovr = Math.min(potential - 1, ovr + basePointsAt(a) * potentialFactor(potential) * (0.85 + rng() * 0.3)); // quem já passou anos na base é mais forte
+      const strength = Math.max(ACADEMY_START_OVERALL, Math.round(ovr)), train = Math.floor(rng() * 90);
+      const player: Player = { id: `${g.userClubId}-y${seq++}`, name: randomName(rng, used), pos, spot: pickSpot(out.map((x) => x.player), pos), age, strength, pot: potential, formedAt: g.userClubId, formedSeason: g.season - (age - ACADEMY_START_AGE) };
+      const pr: Prospect = { player, potential, exact: Math.min(potential, strength + train / 100), train, base: Math.min(potential, strength + train / 100), joined: g.season - (age - ACADEMY_START_AGE), origin: 'anterior', sat: 78, mot: 70,
+        history: [{ season: g.season, text: `Fazia parte da categoria ${categoryDef(age <= 13 ? 'sub13' : age <= 15 ? 'sub15' : age <= 17 ? 'sub17' : 'sub21').label} quando a carreira começou (overall ${strength}).` }] };
+      pr.attrs = attributesOf(pr.player).map((a) => a.value);
+      pr.player = { ...pr.player, contract: newContract(g, pr, 2) };
+      out.push(pr);
+    }
+  }
+  return { ...y, prospects: out, seq, seeded: true };
+}
 
 /** Estrelas de potencial (1–5). */
 export const stars = (potential: number) => Math.max(1, Math.min(5, Math.round((potential - 40) / 11)));
@@ -124,7 +160,7 @@ export function completeYouth(g: GameState, y: YouthState): YouthState {
 export function ensureYouth(g: GameState): GameState {
   if (g.youth || g.unemployed || g.observer) return g;
   const y0 = youthOf(g);
-  return { ...g, youth: completeYouth(g, refreshMarket(g, ensureCoaches(g, intake(g, y0, makeRng(g.seed * 53 + g.season * 7 + 3))), 'full')) };
+  return { ...g, youth: completeYouth(g, refreshMarket(g, ensureCoaches(g, seedCategories(g, intake(g, y0, makeRng(g.seed * 53 + g.season * 7 + 3)))), 'full')) };
 }
 
 /** A cada rodada a barra de treino de cada jovem enche um pouco (veja training.ts). Roda sozinho durante a temporada, com ou sem a tela aberta. */

@@ -18,7 +18,8 @@ beforeEach(() => {
   vi.stubGlobal('localStorage', { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) });
 });
 
-const mk = (): GameState => { const g = newCareer({ saveName: 't', coach: { name: 'A B', nationality: 'BR', reputation: 'pro' }, difficulty: 'normal', mode: 'career', season: 2026, userClubId: 'palmeiras', divisions: brazilPyramid() } as never, 7); return { ...ensureYouth(g), budgets: { ...g.budgets, palmeiras: 5e9 } }; };
+import { legacyYouth } from './helpers';
+const mk = (): GameState => { const g = newCareer({ saveName: 't', coach: { name: 'A B', nationality: 'BR', reputation: 'pro' }, difficulty: 'normal', mode: 'career', season: 2026, userClubId: 'palmeiras', divisions: brazilPyramid() } as never, 7); return { ...legacyYouth(ensureYouth(g)), budgets: { ...g.budgets, palmeiras: 5e9 } }; };
 const C = (rating: number, specs: CoachSpecId[] = ['tatica'], extra: Partial<YouthCoach> = {}): YouthCoach => ({ id: `c${rating}-${specs.join('')}`, name: `T${rating}${specs[0]}`, age: 45, exp: 15, rating, specs, trait: 'metodico', wage: 50000, history: [], ...extra });
 const withCoach = (y: YouthState, c: YouthCoach, cat: 'sub13' | 'sub15' | 'sub17' | 'sub21' = 'sub17'): YouthState => ({ ...y, coaches: { ...y.coaches, [cat]: c } });
 const pr = (id: string, age: number, over: number, pot: number, pos: Player['pos'] = 'ATT'): Prospect => ({ player: { id, name: `J ${id}`, pos, age, strength: over }, potential: pot, exact: over, train: 0, base: over, attrs: Array(6).fill(over) });

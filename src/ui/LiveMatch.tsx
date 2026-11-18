@@ -48,6 +48,8 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
   const [varCam, setVarCam] = useState<VarCamId | null>(null);
   const [skipVar, setSkipVar] = useState(0);
   const onVar = (on: boolean) => { setVarHold(on); if (!on) setVarCam(null); };
+  // relógio parado enquanto o lance é mostrado (gol com comemoração e VAR, falta, escanteio...): só volta quando tudo termina
+  const [playHold, setPlayHold] = useState(false);
   const speedRef = useRef(speed); speedRef.current = speed;
 
   // animação de entrada
@@ -59,7 +61,7 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
 
   // relógio da partida
   useEffect(() => {
-    if (phase !== 'play' || paused || varHold) return;
+    if (phase !== 'play' || paused || varHold || playHold) return;
     let raf = 0, last = performance.now();
     const tick = (now: number) => {
       const dt = now - last; last = now;
@@ -72,7 +74,7 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [phase, paused, varHold]);
+  }, [phase, paused, varHold, playHold]);
 
   // som: apito inicial/final e festa a cada gol
   const goalsSeen = useRef(0);
@@ -131,7 +133,7 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
       </div>
 
       {tactics && userTeam && onTactic && <TacticsSheet team={userTeam} unavailable={unavailable} minute={Math.floor(minute)} score={[hg, ag]} side={userSide} used={tacticsUsed} onClose={() => { setTactics(false); setPaused(false); }} onApply={(t) => { onTactic(t); setTactics(false); setPaused(false); }} />}
-      {phase !== 'pens' && <Pitch3D players={players} onVar={onVar} varCam={varCam} skipVar={skipVar} paused={paused} home={home} away={away} homeFormation={homeFormation} awayFormation={awayFormation} events={result.events} minute={phase === 'play' ? minute : 90} speed={speed} userSide={userSide} />}
+      {phase !== 'pens' && <Pitch3D players={players} onVar={onVar} onHold={setPlayHold} varCam={varCam} skipVar={skipVar} paused={paused} home={home} away={away} homeFormation={homeFormation} awayFormation={awayFormation} events={result.events} minute={phase === 'play' ? minute : 90} speed={speed} userSide={userSide} />}
 
       {phase === 'pens' && result.penKicks ? (
         <PenaltyShootout home={home} away={away} kicks={result.penKicks} userSide={userSide} onDone={() => setPhase('done')} />
