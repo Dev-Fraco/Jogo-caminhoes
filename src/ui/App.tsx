@@ -43,6 +43,7 @@ import { PremiumGate } from './PremiumGate';
 import { recheckExtras, useExtras } from '../premium/usePremium';
 import { inTrial, isPremium, modsAllowed, setActiveGame } from '../premium/entitlement';
 import { reconcile } from '../premium/ledger';
+import { maybeShowAd } from '../premium/ads';
 import { PlanScreen } from '../premium/ui/PlanScreen';
 import { PremiumPreview } from '../premium/ui/PremiumPreview';
 import { Screen as MenuFrame } from './Screen';
@@ -114,7 +115,7 @@ export function App() {
     return () => { window.removeEventListener('pointerdown', unlock); window.removeEventListener('click', click); window.removeEventListener('vr-settings', onSettings); document.removeEventListener('visibilitychange', onVis); };
   }, []);
 
-  const toMenu = () => setScreen('menu');
+  const toMenu = () => { setScreen('menu'); void maybeShowAd('menu', { matchOn: !!live }); }; // (anúncio só na versão grátis da loja, nunca durante a partida)
   const goMenu = (t: MenuTarget) => {
     if (t === 'exit') return toMenu();
     if (t === 'phone') return ownsPhone(game!) ? setPhoneOpen(true) : setTab('shop');
@@ -197,7 +198,7 @@ export function App() {
   // seu time com as mudanças táticas já feitas (formação e escalação); serve para a tela de formação e para os bonecos
   const liveUserTeam = (() => { const t = healUserLineup(game, true).teams[game.userClubId]; const last = tactics[tactics.length - 1]; const st = [...tactics].reverse().find((x) => x.stance)?.stance; return t && last ? { ...t, formation: last.formation, lineup: last.lineup, ...(st ? { stance: st } : {}) } : t; })();
   const liveFormation = (side: 'home' | 'away') => { const id = side === 'home' ? liveResult?.homeId : liveResult?.awayId; return id === game.userClubId && liveUserTeam ? liveUserTeam.formation : teamOf(game, id ?? game.userClubId).formation; };
-  const nextSeason = async () => { setLast([]); const pack = await loadSeasonPack(); setGame(pack.startNextSeason(game)); }; // (o pacote da 2ª temporada em diante carrega sob demanda)
+  const nextSeason = async () => { setLast([]); const pack = await loadSeasonPack(); setGame(pack.startNextSeason(game)); void maybeShowAd('season'); }; // (o pacote da 2ª temporada em diante carrega sob demanda)
 
   return (
     <>

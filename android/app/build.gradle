@@ -51,6 +51,8 @@ dependencies {
     implementation project(':capacitor-android')
     implementation "com.android.billingclient:billing:7.1.1" // cobrança do Premium (Play Billing)
     implementation "com.google.android.gms:play-services-auth-blockstore:16.4.0" // livro da temporada grátis (Block Store)
+    implementation "com.google.android.gms:play-services-ads:23.6.0" // anúncios da versão grátis (AdMob)
+    implementation "com.google.android.ump:user-messaging-platform:3.1.0" // consentimento de privacidade (LGPD/GDPR)
     implementation "com.google.android.play:asset-delivery:2.2.2" // download do pacote Premium (Play Asset Delivery)
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"

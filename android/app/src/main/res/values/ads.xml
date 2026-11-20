@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- IDs do AdMob. Os valores abaixo são os de TESTE da Google (mostram anúncios de teste).
+         Antes de publicar: troque pelo ID do app e pelo ID do bloco "Intersticial" criados no AdMob. -->
+    <string name="admob_app_id" translatable="false">ca-app-pub-3940256099942544~3347511713</string>
+    <string name="admob_interstitial_id" translatable="false">ca-app-pub-3940256099942544/1033173712</string>
+</resources>
