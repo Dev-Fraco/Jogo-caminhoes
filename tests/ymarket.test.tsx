@@ -1,9 +1,11 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { calOf } from '../src/engine/calendar';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { brazilPyramid } from '../src/data/pyramid';
-import { isSeasonOver, newCareer, playNext, startNextSeason } from '../src/engine/game';
+import { isSeasonOver, newCareer, playNext } from '../src/engine/game';
 import { CATEGORIES } from '../src/engine/categories';
 import { loadGame, saveGame } from '../src/engine/save';
 import { migrateGame } from '../src/engine/migrate';

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { pyramidOf, slotsOfLeague } from '../data/pyramid';
 import { getLeague } from '../data/world';
 import { audio } from '../audio/audio';
-import { isSeasonOver, newCareer, playNext, startNextSeason, userDivision } from '../engine/game';
+import { isSeasonOver, newCareer, playNext, userDivision } from '../engine/game';
+import { loadSeasonPack } from '../premium/loader';
 import { pendingEvent } from '../engine/events';
 import { balanceOf } from '../engine/bank';
 import { clubOf, teamOf } from '../engine/lookup';
@@ -173,7 +174,7 @@ export function App() {
   // seu time com as mudanças táticas já feitas (formação e escalação); serve para a tela de formação e para os bonecos
   const liveUserTeam = (() => { const t = healUserLineup(game, true).teams[game.userClubId]; const last = tactics[tactics.length - 1]; const st = [...tactics].reverse().find((x) => x.stance)?.stance; return t && last ? { ...t, formation: last.formation, lineup: last.lineup, ...(st ? { stance: st } : {}) } : t; })();
   const liveFormation = (side: 'home' | 'away') => { const id = side === 'home' ? liveResult?.homeId : liveResult?.awayId; return id === game.userClubId && liveUserTeam ? liveUserTeam.formation : teamOf(game, id ?? game.userClubId).formation; };
-  const nextSeason = () => { setLast([]); setGame(startNextSeason(game)); };
+  const nextSeason = async () => { setLast([]); const pack = await loadSeasonPack(); setGame(pack.startNextSeason(game)); }; // (o pacote da 2ª temporada em diante carrega sob demanda)
 
   return (
     <>

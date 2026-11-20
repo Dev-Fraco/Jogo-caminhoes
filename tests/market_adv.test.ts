@@ -1,3 +1,5 @@
+import { startNextSeason, skipSeasons } from '../src/premium/season';
+import { startNextSeason, skipSeasons } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { makeRng } from '../src/engine/rng';
 import { aiWindow } from '../src/engine/ai';
@@ -14,7 +16,7 @@ import { makeInstallments } from '../src/engine/dealpay';
 import { settleDebts } from '../src/engine/dealpay';
 import { dealsTick, executeDeal, incomingDeals, openDeal, outgoingDeals, userAccept, userCounter } from '../src/engine/deals';
 import { payrollOf, loanOwed } from '../src/engine/finance';
-import { skipSeasons, startNextSeason, simulateToEnd } from '../src/engine/game';
+import { simulateToEnd } from '../src/engine/game';
 import { exerciseBuyOption, finishLoans, settleLoanPurchases } from '../src/engine/loandeals';
 import { freeList, proposeBuy, proposeFree, proposeLoan } from '../src/engine/marketdeals';
 import { returnLoans } from '../src/engine/roster';

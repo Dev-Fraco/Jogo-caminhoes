@@ -1,6 +1,8 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { brazilPyramid } from '../src/data/pyramid';
-import { isSeasonOver, newCareer, playNext, startNextSeason } from '../src/engine/game';
+import { isSeasonOver, newCareer, playNext } from '../src/engine/game';
 import { ACADEMY_START_AGE, ACADEMY_START_OVERALL, attributesOf, awaitingDecision, canPromoteAge, CATEGORIES, categoriesOf, inCategory, MIN_PRO_AGE, needsDecision, splitByCategory } from '../src/engine/categories';
 import { ensureCategoryState, ensureYouth, promoteProspect, releaseProspect, youthOf, youthSeason, YOUTH_SCHEMA, type Prospect } from '../src/engine/youth';
 import { migrateGame } from '../src/engine/migrate';

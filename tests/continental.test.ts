@@ -1,7 +1,9 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { COMP_NAMES } from '../src/data/names';
 import { describe, expect, it } from 'vitest';
 import { brazilPyramid } from '../src/data/pyramid';
-import { isSeasonOver, newCareer, playNext, playRound, startNextSeason } from '../src/engine/game';
+import { isSeasonOver, newCareer, playNext, playRound } from '../src/engine/game';
 import { CONTINENTALS, groupTable, matchDue, userMatch } from '../src/engine/continental';
 import { pyramidOf, slotsOfLeague } from '../src/data/pyramid';
 

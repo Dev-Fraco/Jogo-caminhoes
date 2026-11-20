@@ -1,7 +1,9 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { GROUP_COUNT, GROUP_ROUNDS, GROUP_SIZE, KO_FIRST_ROUND, KO_LAST_ROUND, finalStandings, groupTables, knockoutView } from '../src/engine/groups';
 import { teamRatings } from '../src/engine/squad';
-import { isSeasonOver, playNext, playRound, seasonOutcome, startNextSeason } from '../src/engine/game';
+import { isSeasonOver, playNext, playRound, seasonOutcome } from '../src/engine/game';
 import { makeCareer } from './helpers';
 import type { GameState } from '../src/engine/types';
 

@@ -1,5 +1,7 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
-import { isSeasonOver, playNext, startNextSeason } from '../src/engine/game';
+import { isSeasonOver, playNext } from '../src/engine/game';
 import { ensureWorld, simulateWorldMatch, worldDivisions, worldRound, worldTable, worldTick, worldTotalRounds } from '../src/engine/wleagues';
 import { migrateGame } from '../src/engine/migrate';
 import { makeCareer } from './helpers';

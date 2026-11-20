@@ -1,6 +1,7 @@
 import { pyramidOf, slotsOfLeague } from '../data/pyramid';
 import { COUNTRY_ORDER, WORLD_DATA } from '../data/world';
-import { isSeasonOver, newCareer, simulateToEnd, startNextSeason } from './game';
+import { isSeasonOver, newCareer, simulateToEnd } from './game';
+import { loadSeasonPack } from '../premium/loader';
 import type { GameState } from './types';
 
 /** Ligas que dá para simular (todas as divisões têm clubes). */
@@ -20,7 +21,7 @@ export function newObserverWorld(countryId: string, leagueId: string, seed = Dat
 }
 
 /** Simula uma temporada inteira e passa para a seguinte (as temporadas encerradas ficam em `history`). */
-export function simulateOneYear(g: GameState): GameState {
+export async function simulateOneYear(g: GameState): Promise<GameState> {
   const done = isSeasonOver(g) ? g : simulateToEnd(g);
-  return startNextSeason(done);
+  return (await loadSeasonPack()).startNextSeason(done);
 }

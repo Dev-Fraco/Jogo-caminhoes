@@ -1,9 +1,11 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { brazilPyramid } from '../src/data/pyramid';
 import { coachMoneyOf, gateOf, isPayday, nextPayday, payMonthlySalaries, payrollOf, setWageCover, wageOf } from '../src/engine/finance';
 import { calOf, fromDay, toDay } from '../src/engine/calendar';
 import { processDays } from '../src/engine/daily';
-import { isSeasonOver, newCareer, playNext, playRound, startNextSeason } from '../src/engine/game';
+import { isSeasonOver, newCareer, playNext, playRound } from '../src/engine/game';
 
 const career = (user = 'vasco', rep = 'pro', seed = 4) => newCareer({
   saveName: 't', coach: { name: 'Teste Silva', nationality: 'BR', reputation: rep }, difficulty: 'normal', mode: 'career', season: 2026,

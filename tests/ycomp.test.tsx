@@ -1,10 +1,12 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { brazilPyramid } from '../src/data/pyramid';
 import { COMP_NAMES } from '../src/data/names';
 import { CLUBS_DATA } from '../src/data/clubs';
-import { isSeasonOver, newCareer, playNext, startNextSeason } from '../src/engine/game';
+import { isSeasonOver, newCareer, playNext } from '../src/engine/game';
 import { CATEGORIES, categoryDef, type CategoryId } from '../src/engine/categories';
 import { clubOfPlayer, compsOf, createYouthComps, gamesOf, isFinished, leaders, PRIZE_CAP, prizeOf, prizeTable, proProgress, rrRounds, stepDay, stepsOf, tablesOf, totalSteps, youthSeasonEnd, youthSync, type YComp } from '../src/engine/ycomp';
 import { aiOverall, enrollCheck, MIN_ROSTER, pickTeam, qualityOf, rosterOf } from '../src/engine/yroster';

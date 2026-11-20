@@ -1,8 +1,10 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { pyramidOf, slotsOfLeague } from '../src/data/pyramid';
 import { WORLD_DATA } from '../src/data/world';
 import { calOf, formatDay } from '../src/engine/calendar';
-import { divisionTable, isSeasonOver, newCareer, playNext, simulateToEnd, startNextSeason } from '../src/engine/game';
+import { divisionTable, isSeasonOver, newCareer, playNext, simulateToEnd } from '../src/engine/game';
 import { newObserverWorld } from '../src/engine/sim';
 import { fire, hire, resign } from '../src/engine/jobs';
 import { estadualChampions } from '../src/engine/estadual';

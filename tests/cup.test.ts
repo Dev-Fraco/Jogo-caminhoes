@@ -1,7 +1,9 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { brazilPyramid } from '../src/data/pyramid';
 import { CUP_DATES, CUP_SIZE, cupMatchDue, playCupRound, userCupTie } from '../src/engine/cup';
-import { isSeasonOver, newCareer, playNext, playRound, startNextSeason } from '../src/engine/game';
+import { isSeasonOver, newCareer, playNext, playRound } from '../src/engine/game';
 
 /** Cria a carreira e já passa pelos estaduais (que acontecem antes do campeonato), para testar a copa. */
 const career = (user = 'palmeiras', seed = 5) => { let g = fresh(user, seed); while (g.estadual?.due) g = playNext(g).state; return g; };

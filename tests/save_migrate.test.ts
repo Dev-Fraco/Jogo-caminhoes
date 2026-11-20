@@ -1,8 +1,10 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { auditUniverse } from '../src/engine/aiaudit';
 import { balanceOf } from '../src/engine/bank';
-import { isSeasonOver, playNext, simulateToEnd, startNextSeason } from '../src/engine/game';
+import { isSeasonOver, playNext, simulateToEnd } from '../src/engine/game';
 import { detectSchema, migrateGame, migrationNotice, SAVE_SCHEMA, STEPS, verifyPreserved } from '../src/engine/migrate';
 import { clearSave, listOriginals, loadGame, loadGameDetailed, originalKey, readRawSave, restoreOriginal, saveGame, takeLoadNotice } from '../src/engine/save';
 import { decompress } from '../src/engine/lzstore';

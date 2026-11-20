@@ -1,8 +1,10 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { CLUBS_DATA } from '../src/data/clubs';
 import { pyramidOf, slotsOfLeague } from '../src/data/pyramid';
 import { getLeague } from '../src/data/world';
-import { isSeasonOver, newCareer, playRound, startNextSeason, divisionTable } from '../src/engine/game';
+import { isSeasonOver, newCareer, playRound, divisionTable } from '../src/engine/game';
 
 const LEAGUES: [string, string][] = [['AR', 'liga-profesional'], ['EN', 'premier-league'], ['IT', 'serie-a-it'], ['ES', 'la-liga'], ['DE', 'bundesliga'], ['FR', 'ligue-1'], ['PT', 'primeira-liga']]
 const ONE_DIV: [string, string][] = [['BO', 'liga-boliviana'], ['CL', 'primera-chile'], ['CO', 'liga-colombiana'], ['EC', 'liga-pro'], ['PY', 'primera-paraguay'], ['PE', 'liga-1-peru'], ['UY', 'primera-uruguay'], ['VE', 'liga-futve']];;

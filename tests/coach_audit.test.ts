@@ -1,6 +1,8 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { ensureAiCoaches, aiCoachSeasonEnd, coachOf, coachPressure, unemployedCoaches, FIRE_AT } from '../src/engine/aicoaches';
-import { simulateToEnd, startNextSeason } from '../src/engine/game';
+import { simulateToEnd } from '../src/engine/game';
 import { newObserverWorld } from '../src/engine/sim';
 import { managed } from '../src/engine/lookup';
 import { MAX_OFFERS, acceptOffer, fire, generateJobOffers, hire, resign } from '../src/engine/jobs';

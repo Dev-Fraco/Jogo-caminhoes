@@ -1,6 +1,8 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { brazilPyramid } from '../src/data/pyramid';
-import { isSeasonOver, newCareer, playNext, startNextSeason } from '../src/engine/game';
+import { isSeasonOver, newCareer, playNext } from '../src/engine/game';
 import { REGIONALS, regionalMatchDue } from '../src/engine/regional';
 import { ufOfClub } from '../src/data/estaduais_clubs';
 import type { GameState } from '../src/engine/types';

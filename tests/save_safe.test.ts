@@ -1,9 +1,11 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Autosaver, importantReason } from '../src/engine/autosave';
 import { compress, decompress } from '../src/engine/lzstore';
 import { BACKUP_EVERY_MS, checksum, clearSave, isValidSave, loadGame, loadGameDetailed, onSaveResult, readRawSave, saveGame, SAVE_KEYS, type SaveOutcome } from '../src/engine/save';
 import { createBackup, restoreBackup } from '../src/settings/backups';
-import { playNext, simulateToEnd, startNextSeason } from '../src/engine/game';
+import { playNext, simulateToEnd } from '../src/engine/game';
 import { auditUniverse } from '../src/engine/aiaudit';
 import type { GameState } from '../src/engine/types';
 import { makeCareer } from './helpers';

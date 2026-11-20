@@ -1,8 +1,10 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { CUP_PRIZE } from '../src/engine/cup';
 import { inflate, nextInflation, PRIZE_SCALE, priceIndex, prize, seasonIncome } from '../src/engine/economy';
 import { baseWage, coachSalary, gateOf, payrollOf } from '../src/engine/finance';
-import { isSeasonOver, playNext, startNextSeason } from '../src/engine/game';
+import { isSeasonOver, playNext } from '../src/engine/game';
 import { quote } from '../src/engine/market';
 import { buyVehicle, priceOf, vehicleById } from '../src/engine/assets';
 import { myValue } from '../src/engine/roster';

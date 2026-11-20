@@ -1,6 +1,8 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { auditUniverse } from '../src/engine/aiaudit';
-import { simulateToEnd, startNextSeason } from '../src/engine/game';
+import { simulateToEnd } from '../src/engine/game';
 import { loadGame, saveGame } from '../src/engine/save';
 import { newObserverWorld } from '../src/engine/sim';
 import { managed } from '../src/engine/lookup';

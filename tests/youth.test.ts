@@ -1,6 +1,8 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { brazilPyramid } from '../src/data/pyramid';
-import { isSeasonOver, newCareer, playNext, startNextSeason } from '../src/engine/game';
+import { isSeasonOver, newCareer, playNext } from '../src/engine/game';
 import { academyCost, ensureYouth, MAX_LEVEL, MAX_PROSPECTS, promoteProspect, releaseProspect, stars, upgradeAcademy, youthOf, youthSeason, youthTick } from '../src/engine/youth';
 import { MAX_SQUAD } from '../src/engine/transfers';
 import type { GameState } from '../src/engine/types';

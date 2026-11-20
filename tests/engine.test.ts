@@ -1,9 +1,9 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { CLUBS_DATA } from '../src/data/clubs';
 import { parsePack } from '../src/data/pack';
-import {
-  divisionTable, isSeasonOver, PROMOTION_SLOTS, RELEGATION_SLOTS, playRound, seasonOutcome, setFormation, startNextSeason, swapPlayer, userDivision,
-} from '../src/engine/game';
+import { divisionTable, isSeasonOver, PROMOTION_SLOTS, RELEGATION_SLOTS, playRound, seasonOutcome, setFormation, swapPlayer, userDivision } from '../src/engine/game';
 import { simulateMatch } from '../src/engine/match';
 import { makeRng } from '../src/engine/rng';
 import { buildFixtures } from '../src/engine/schedule';

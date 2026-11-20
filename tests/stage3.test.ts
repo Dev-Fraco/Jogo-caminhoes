@@ -1,10 +1,12 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { CLUBS_DATA, getClubs } from '../src/data/clubs';
 import { brazilPyramid } from '../src/data/pyramid';
 import { getDivision } from '../src/data/world';
 import { generateSquad } from '../src/engine/squad';
 import { SERIE_D_SLOTS, estadualOfUser, estadualTable, serieDQualifiers } from '../src/engine/estadual';
-import { isSeasonOver, newCareer, playNext, seasonOutcome, startNextSeason, userDivision } from '../src/engine/game';
+import { isSeasonOver, newCareer, playNext, seasonOutcome, userDivision } from '../src/engine/game';
 import { createEstaduais } from '../src/engine/estadual';
 import { createContinentals } from '../src/engine/continental';
 import type { ClubData } from '../src/data/clubs';

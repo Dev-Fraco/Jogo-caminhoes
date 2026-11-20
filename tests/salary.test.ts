@@ -1,7 +1,9 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { brazilPyramid } from '../src/data/pyramid';
 import { coachSalary } from '../src/engine/finance';
-import { isSeasonOver, newCareer, playNext, startNextSeason } from '../src/engine/game';
+import { isSeasonOver, newCareer, playNext } from '../src/engine/game';
 import { chanceLabel, defendSalary, MAX_RAISE, negotiateRaise, raiseChance, RAISE_STEPS, salaryNegotiated, settleSalary, standingOf } from '../src/engine/salary';
 import type { GameState } from '../src/engine/types';
 

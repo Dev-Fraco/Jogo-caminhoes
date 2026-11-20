@@ -1,6 +1,8 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { CLUBS_DATA } from '../src/data/clubs';
-import { isSeasonOver, playRound, seasonIncome, startNextSeason } from '../src/engine/game';
+import { isSeasonOver, playRound, seasonIncome } from '../src/engine/game';
 import { isValidSave, loadGame, migrateSave } from '../src/engine/save';
 import { BUY_BLOCK_TEXT, buyPlayer, checkBuy, divisionIndexOf, marketEntries, MAX_SQUAD, MIN_BY_POS, MIN_SQUAD, playerValue } from '../src/engine/transfers';
 import type { GameState, Player } from '../src/engine/types';

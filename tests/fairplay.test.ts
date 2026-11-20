@@ -1,9 +1,11 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { calOf, YEAR_DAYS } from '../src/engine/calendar';
 import { banOf, FAIRPLAY_LIMIT, fairplayWarning, signingsThisSeason } from '../src/engine/fairplay';
 import { loanIn, loanMarket } from '../src/engine/loanin';
 import { quickSign } from '../src/engine/market';
-import { startNextSeason, simulateToEnd } from '../src/engine/game';
+import { simulateToEnd } from '../src/engine/game';
 import { autoLineup } from '../src/engine/squad';
 import { returnLoans } from '../src/engine/roster';
 import { MAX_SQUAD } from '../src/engine/transfers';

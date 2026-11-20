@@ -1,7 +1,9 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { aiWindow } from '../src/engine/ai';
 import { DAYS_PER_ROUND, INJURY_CHANCE, applyInjuries, healUserLineup, injuredSet, isInjured, pruneInjuries, replaceInjuredStarters, rollInjury, rollMatchInjuries, rolloverInjuries, roundsLeft, spanLabel } from '../src/engine/injuries';
-import { isSeasonOver, playNext, playRound, startNextSeason } from '../src/engine/game';
+import { isSeasonOver, playNext, playRound } from '../src/engine/game';
 import { simulateMatch, withInjured } from '../src/engine/match';
 import { makeRng } from '../src/engine/rng';
 import { autoLineup } from '../src/engine/squad';

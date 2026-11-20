@@ -1,3 +1,5 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { ESTADUAIS, ESTADUAL_CLUB_COUNT } from '../src/data/br_estaduais';
 import { CLUBS_DATA } from '../src/data/clubs';
@@ -5,7 +7,7 @@ import { allEstadualClubs, estadualClub, estadualClubsOf } from '../src/data/est
 import { brazilPyramid } from '../src/data/pyramid';
 import { createEstaduais, estadualRanking, estadualSummary, fixturesAt, playoffOf, stepLabel, estadualChampions, estadualOfUser, estadualTable, nextEstaduais, playEstadualStep, quickScore, singleRounds, userEstadualMatch } from '../src/engine/estadual';
 import { pendingEvent } from '../src/engine/events';
-import { isSeasonOver, newCareer, playNext, playRound, startNextSeason } from '../src/engine/game';
+import { isSeasonOver, newCareer, playNext, playRound } from '../src/engine/game';
 import { clubOf, teamOf } from '../src/engine/lookup';
 import { makeRng } from '../src/engine/rng';
 import type { GameState } from '../src/engine/types';

@@ -1,8 +1,10 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { brazilPyramid } from '../src/data/pyramid';
 import { advanceDay, advanceToMatch, calOf, daysToMatch, formatDay, formatDayLong, fromDay, isMatchDay, matchDayOf, nextMatchDay, seasonStart, toDay } from '../src/engine/calendar';
 import { coachSalary } from '../src/engine/finance';
-import { isSeasonOver, newCareer, playNext, startNextSeason } from '../src/engine/game';
+import { isSeasonOver, newCareer, playNext } from '../src/engine/game';
 import type { GameState } from '../src/engine/types';
 
 const mk = (seed = 5): GameState => newCareer({ saveName: 't', coach: { name: 'A B', nationality: 'BR', reputation: 'pro' }, difficulty: 'normal', mode: 'career', season: 2026, userClubId: 'palmeiras', divisions: brazilPyramid(), cup: true }, seed);

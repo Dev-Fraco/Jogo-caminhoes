@@ -1,3 +1,5 @@
+import { startNextSeason, skipSeasons } from '../src/premium/season';
+import { startNextSeason, skipSeasons } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { aiLoanOut, aiPromoteYouth, ensureAiYouth } from '../src/engine/aiyouth';
 import { auditUniverse } from '../src/engine/aiaudit';
@@ -7,7 +9,7 @@ import { aiRenewTick, applyContract, contractAlerts, renewalAnswer, renewOffer }
 import { executeDeal, openDeal } from '../src/engine/deals';
 import { locate } from '../src/engine/dealeval';
 import { loanOwed, payMonthlySalaries, payrollOf } from '../src/engine/finance';
-import { simulateToEnd, skipSeasons, startNextSeason } from '../src/engine/game';
+import { simulateToEnd } from '../src/engine/game';
 import { endLoans, exerciseBuyOption, loanReport } from '../src/engine/loandeals';
 import { aiRenewals } from '../src/engine/aicontracts';
 import { devRateOf, ensurePotentials, growYoung, impliedPot, potentialOf, rollPotential, startStrength, tierOf } from '../src/engine/potential';

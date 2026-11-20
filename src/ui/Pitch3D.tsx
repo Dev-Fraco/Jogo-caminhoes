@@ -10,6 +10,7 @@ import { loadSettings } from '../settings/settings';
 import { audio } from '../audio/audio';
 import { createDriver, createWorld, drive, isHolding, replayView, stepWorld, varFocus } from './pitch3d/world';
 import { skipCeremony, startCeremony } from './pitch3d/ceremony';
+import { loadScene3D } from '../premium/loader';
 
 const loadBadge = (club: ClubInfo): HTMLImageElement | null => {
   if (!club.badge || typeof Image === 'undefined') return null;
@@ -49,7 +50,7 @@ export function Pitch3D({ home, away, homeFormation, awayFormation, events, minu
     gl.style.display = 'none'; // enquanto o 3D carrega (ou sem WebGL) o campo em 2D aparece
     if (live.current.minute < 0.5 && live.current.events.length > 0) startCeremony(world); // entrada das equipes e hino antes do apito inicial (só no começo da partida)
     let raf = 0, last = performance.now(), alive = true, inVar = false, holding = false, skipSeen = live.current.skipVar, skipCerSeen = live.current.skipCer;
-    import('./pitch3d/three/scene').then((m) => { // o three.js só é baixado quando existe uma partida para mostrar
+    loadScene3D().then((m) => { // o three.js (pacote Premium) só é baixado quando existe uma partida para mostrar
       if (!alive) return;
       try { renderer = m.createPitchRenderer(gl, loadSettings().graphics ?? 'medium', look, { home: homeFormation, away: awayFormation }); } catch { renderer = null; }
       gl.style.display = renderer ? 'block' : 'none';

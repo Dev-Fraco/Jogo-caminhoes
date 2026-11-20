@@ -1,6 +1,8 @@
+import { skipSeasons } from '../src/premium/season';
+import { skipSeasons } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { aiLoanWindow, aiPromoteYouth, ensureAiYouth, loanedIds, MAX_AI_LOANS, MAX_LOAN_AGE, returnAiLoans } from '../src/engine/aiyouth';
-import { skipSeasons } from '../src/engine/game';
+
 import { rosterOk } from '../src/engine/roster';
 import { divisionIndexOf, MIN_BY_POS } from '../src/engine/transfers';
 import { makeRng } from '../src/engine/rng';

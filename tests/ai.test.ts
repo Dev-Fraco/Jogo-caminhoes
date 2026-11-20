@@ -1,6 +1,8 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { aiWindow, AI_MAX_SQUAD, developPlayer, PROMOTED_STRONG_CHANCE, SQUAD_TARGET } from '../src/engine/ai';
-import { isSeasonOver, playRound, seasonMoves, startNextSeason } from '../src/engine/game';
+import { isSeasonOver, playRound, seasonMoves } from '../src/engine/game';
 import { makeRng } from '../src/engine/rng';
 import { rosterOk } from '../src/engine/roster';
 import { MIN_SQUAD } from '../src/engine/transfers';

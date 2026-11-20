@@ -1,5 +1,7 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { isSeasonOver, playRound, startNextSeason } from '../src/engine/game';
+import { isSeasonOver, playRound } from '../src/engine/game';
 import { MORALE_START, moodLabel, moraleFactor, targetPosition, updateMorale } from '../src/engine/morale';
 import { incomingDeals } from '../src/engine/deals';
 import { calOf } from '../src/engine/calendar';

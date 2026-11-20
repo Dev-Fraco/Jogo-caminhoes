@@ -1,6 +1,8 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { brazilPyramid } from '../src/data/pyramid';
-import { isSeasonOver, newCareer, playNext, startNextSeason } from '../src/engine/game';
+import { isSeasonOver, newCareer, playNext } from '../src/engine/game';
 import { CATEGORIES } from '../src/engine/categories';
 import { buildReport, competitionLines } from '../src/engine/coachtalk';
 import { evaluateCoaches, type YouthCoach } from '../src/engine/coaches';

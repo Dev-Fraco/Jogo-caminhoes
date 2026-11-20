@@ -1,6 +1,8 @@
+import { skipSeasons } from '../src/premium/season';
+import { skipSeasons } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { aiCoachSeasonEnd, aiCoachTick, coachOf, coachPressure, ensureAiCoaches, FIRE_AT, maxFirings, replaceCoach, unemployedCoaches } from '../src/engine/aicoaches';
-import { skipSeasons } from '../src/engine/game';
+
 import { fire, hire } from '../src/engine/jobs';
 import { makeRng } from '../src/engine/rng';
 import type { GameState, MatchResult } from '../src/engine/types';

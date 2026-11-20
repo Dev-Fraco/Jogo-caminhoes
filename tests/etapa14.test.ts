@@ -1,3 +1,5 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { existsSync, readFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { aiCoachTick, coachOf, maxFirings, unemployedCoaches } from '../src/engine/aicoaches';
@@ -10,7 +12,7 @@ import { ensureAiState } from '../src/engine/aistate';
 import { aiBalanceSquads } from '../src/engine/aisquad';
 import { aiLoanWindow, loanedIds, returnAiLoans } from '../src/engine/aiyouth';
 import { payrollOf } from '../src/engine/finance';
-import { playRound, simulateToEnd, startNextSeason } from '../src/engine/game';
+import { playRound, simulateToEnd } from '../src/engine/game';
 import { makeRng } from '../src/engine/rng';
 import { managed } from '../src/engine/lookup';
 import type { GameState, MatchResult, Player, Position } from '../src/engine/types';

@@ -1,3 +1,5 @@
+import { startNextSeason, skipSeasons } from '../src/premium/season';
+import { startNextSeason, skipSeasons } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { aiCoachTick, replaceCoach } from '../src/engine/aicoaches';
 import { aiRenewals, aiSignFreeAgents } from '../src/engine/aicontracts';
@@ -8,7 +10,7 @@ import { aiWindow, clubActivity } from '../src/engine/ai';
 import { clubProfile } from '../src/engine/aiprofile';
 import { auditUniverse } from '../src/engine/aiaudit';
 import { ensureAiState } from '../src/engine/aistate';
-import { playRound, skipSeasons, startNextSeason } from '../src/engine/game';
+import { playRound } from '../src/engine/game';
 import { aiLineup, matchImportance, REST_BASE } from '../src/engine/rotation';
 import { makeRng } from '../src/engine/rng';
 import type { GameState } from '../src/engine/types';

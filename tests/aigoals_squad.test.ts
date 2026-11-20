@@ -1,9 +1,11 @@
+import { skipSeasons } from '../src/premium/season';
+import { skipSeasons } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { clubGoals, goalStatus } from '../src/engine/aigoals';
 import { aiBalanceSquads, DEFAULT_LIMITS, squadLimits, squadReport } from '../src/engine/aisquad';
 import { squadNeeds } from '../src/engine/aineeds';
 import { clubProfile } from '../src/engine/aiprofile';
-import { skipSeasons } from '../src/engine/game';
+
 import { makeRng } from '../src/engine/rng';
 import { rosterOk } from '../src/engine/roster';
 import type { GameState, MatchResult, Player, Position } from '../src/engine/types';

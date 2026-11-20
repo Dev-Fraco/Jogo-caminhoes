@@ -1,10 +1,12 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { brazilPyramid } from '../src/data/pyramid';
 import { calOf } from '../src/engine/calendar';
 import { marketTick } from '../src/engine/aimarket';
 import { prunePlayerMaps } from '../src/engine/aistate';
 import { locate } from '../src/engine/dealeval';
-import { newCareer, simulateToEnd, startNextSeason } from '../src/engine/game';
+import { newCareer, simulateToEnd } from '../src/engine/game';
 import type { GameState } from '../src/engine/types';
 
 const career = (): GameState => newCareer({ saveName: 't', coach: { name: 'A B', nationality: 'BR', reputation: 'pro' }, difficulty: 'normal', mode: 'career', season: 2026, userClubId: 'palmeiras', divisions: brazilPyramid(), cup: true }, 77);

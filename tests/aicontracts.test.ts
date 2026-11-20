@@ -1,3 +1,5 @@
+import { skipSeasons } from '../src/premium/season';
+import { skipSeasons } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { aiRenewals, aiSignFreeAgents, decideRenewal, ensureAiContracts, importanceOf, WAGE_LIMIT } from '../src/engine/aicontracts';
 import { clubProfile, profileCtx } from '../src/engine/aiprofile';
@@ -95,7 +97,7 @@ describe('contratos da IA', () => {
   });
 });
 
-import { skipSeasons } from '../src/engine/game';
+
 describe('contratos ao longo de várias temporadas', () => {
   it('3 temporadas: folhas dos clubes da IA ficam sob controle, elencos válidos e o mercado de livres não explode', () => {
     const g = skipSeasons(makeCareer('flamengo', 9), 3);

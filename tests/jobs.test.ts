@@ -1,7 +1,9 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { balanceOf } from '../src/engine/bank';
 import { acceptOffer, applicationOdds, applyForJob, refusedNow, boardTick, coachLevel, declineOffer, eligibleClubs, fire, generateJobOffers, hire, jobsOf, resign, seasonEndFiring, seasonEndOffers } from '../src/engine/jobs';
-import { firingWarning, isSeasonOver, playNext, playRound, startNextSeason, simulateToEnd } from '../src/engine/game';
+import { firingWarning, isSeasonOver, playNext, playRound, simulateToEnd } from '../src/engine/game';
 import { retireUser } from '../src/engine/ai';
 import { makeRng } from '../src/engine/rng';
 import { makeCareer } from './helpers';

@@ -1,7 +1,9 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { wageOf } from '../src/engine/finance';
 import { MAX_TALKS_PER_ROUND, anyClubName, clubPlayers, contractLeft, directory, expireContracts, foreignSquad, homeLeague, leagueScore, negotiate, quickSign, quote, renew, renewalQuote, talksLeft } from '../src/engine/market';
-import { isSeasonOver, playNext, startNextSeason } from '../src/engine/game';
+import { isSeasonOver, playNext } from '../src/engine/game';
 import { makeCareer } from './helpers';
 import type { GameState } from '../src/engine/types';
 

@@ -1,3 +1,5 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { aiSignFreeAgents, aiRenewals } from '../src/engine/aicontracts';
 import { aiWindow } from '../src/engine/ai';
@@ -8,7 +10,7 @@ import { TRADE_STATS } from '../src/engine/aitrade';
 import { locate } from '../src/engine/dealeval';
 import { calOf, toDay } from '../src/engine/calendar';
 import { FREE_AGENT_MAX, freeAgentBlock, freeAgentLimit } from '../src/engine/freeagents';
-import { simulateToEnd, startNextSeason } from '../src/engine/game';
+import { simulateToEnd } from '../src/engine/game';
 import { openDeal } from '../src/engine/deals';
 import { proposeFree } from '../src/engine/marketdeals';
 import { freeList } from '../src/engine/marketdeals';

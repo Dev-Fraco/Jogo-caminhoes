@@ -1,9 +1,11 @@
+import { startNextSeason, skipSeasons } from '../src/premium/season';
+import { startNextSeason, skipSeasons } from '../src/premium/season';
 import { COMP_NAMES } from '../src/data/names';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { applyMods, modTemplate, parseMod } from '../src/data/mods';
 import { CLUBS_DATA } from '../src/data/clubs';
 import { balanceOf, createBoleto, openBoletos, registerBank } from '../src/engine/bank';
-import { isSeasonOver, skipSeasons, startNextSeason } from '../src/engine/game';
+import { isSeasonOver } from '../src/engine/game';
 import { entriesOf } from '../src/engine/hall';
 import { newObserverWorld, simLeagues, simulateOneYear } from '../src/engine/sim';
 import { makeCareer } from './helpers';

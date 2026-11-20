@@ -1,3 +1,5 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { CLUBS_DATA, type ClubData } from '../src/data/clubs';
 import { brazilPyramid, pyramidOf, slotsOfLeague } from '../src/data/pyramid';
@@ -8,7 +10,7 @@ import { coachAfterMatch, coachSeasonEval, payTierNotice, reputationDrift } from
 import { PAY_CONFIG, bumpOverall, clubQuality, coachMonthly, coachOverallInt, coachOverallOf, monthlySalaryFor, payTierOf, salaryRange } from '../src/engine/coachpay';
 import { processDays } from '../src/engine/daily';
 import { coachSalary, nextPayday, payMonthlySalaries } from '../src/engine/finance';
-import { newCareer, simulateToEnd, startNextSeason } from '../src/engine/game';
+import { newCareer, simulateToEnd } from '../src/engine/game';
 import { answerMessage, inboxOf, postContractOffer, inboxTick } from '../src/engine/inbox';
 import { migrateGame } from '../src/engine/migrate';
 import { loadGame, saveGame } from '../src/engine/save';

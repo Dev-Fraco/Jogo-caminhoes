@@ -1,6 +1,8 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { brazilPyramid } from '../src/data/pyramid';
-import { divisionTable, newCareer, simulateToEnd, startNextSeason } from '../src/engine/game';
+import { divisionTable, newCareer, simulateToEnd } from '../src/engine/game';
 import { estadualTable, estadualChampions, playoffOf, hasPlayoff } from '../src/engine/estadual';
 import { finalStandings } from '../src/engine/groups';
 import { groupTable } from '../src/engine/continental';

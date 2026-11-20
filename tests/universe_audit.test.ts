@@ -1,6 +1,8 @@
+import { startNextSeason } from '../src/premium/season';
+import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
 import { brazilPyramid } from '../src/data/pyramid';
-import { newCareer, simulateToEnd, startNextSeason } from '../src/engine/game';
+import { newCareer, simulateToEnd } from '../src/engine/game';
 import { fire } from '../src/engine/jobs';
 import { managed } from '../src/engine/lookup';
 import { auditUniverse } from '../src/engine/aiaudit';
