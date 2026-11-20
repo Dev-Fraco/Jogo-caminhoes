@@ -42,7 +42,7 @@ import { LiveMatch } from './LiveMatch';
 import { PremiumGate } from './PremiumGate';
 import { recheckExtras, useExtras } from '../premium/usePremium';
 import { inTrial, isPremium, modsAllowed, setActiveGame } from '../premium/entitlement';
-import { PlanChoice } from '../premium/ui/PlanChoice';
+import { PlanScreen } from '../premium/ui/PlanScreen';
 import { PremiumPreview } from '../premium/ui/PremiumPreview';
 import { Screen as MenuFrame } from './Screen';
 import { hooks } from '../engine/hooks';
@@ -144,8 +144,8 @@ export function App() {
     setScreen(id);
   };
 
-  if (plansOpen) return <PlanChoice onFree={() => setPlansOpen(false)} />;
-  if (screen === 'plano') return <PlanChoice onFree={() => { planSeen.current = true; try { sessionStorage.setItem('vr-plan-seen', '1'); } catch { /* sem armazenamento */ } const id = planNext.current; planNext.current = null; if (id) select(id); else setScreen('menu'); }} />;
+  if (plansOpen) return <PlanScreen onDone={() => setPlansOpen(false)} />;
+  if (screen === 'plano') return <PlanScreen onDone={() => { planSeen.current = true; try { sessionStorage.setItem('vr-plan-seen', '1'); } catch { /* sem armazenamento */ } const id = planNext.current; planNext.current = null; if (id) select(id); else setScreen('menu'); }} />;
   if (screen === 'menu') return <MainMenu onSelect={select} hasSave={!!game} />;
 
   if (screen === 'novo-jogo') return <NewGame onBack={toMenu} onStart={startCareer} hasSave={!!game} />;

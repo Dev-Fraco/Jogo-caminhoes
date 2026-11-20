@@ -31,3 +31,7 @@
 .pl-foot { margin-top: 22px; color: #7d8a9e; font-size: 12px; line-height: 1.55; }
 .pl-foot p { margin: 0 0 8px; }
 @media (max-width: 420px) { .pl-head h1 { font-size: 24px; } .pl-table { font-size: 13px; } .pl-table th, .pl-table td { padding: 11px 8px; } .pl-plan b { font-size: 19px; } }
+
+.pl-msg { min-height: 20px; margin: 10px 0 0; text-align: center; font-size: 13px; color: var(--pl-dim); }
+.pl-link { background: none; border: 0; padding: 0; color: var(--pl-acc); font: inherit; text-decoration: underline; cursor: pointer; }
+.pl-link:disabled { opacity: .5; cursor: default; }

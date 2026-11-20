@@ -2,6 +2,11 @@ name: Android (APK + AAB)
 
 on:
   workflow_dispatch: # botão "Run workflow" na aba Actions (funciona pelo celular)
+    inputs:
+      store:
+        description: 'Build da loja: exige a compra do Premium (Play Billing). Deixe desmarcado nos APKs de teste.'
+        type: boolean
+        default: false
   push:
     branches: [main]
 
@@ -25,6 +30,8 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+        env:
+          VITE_ENFORCE_BILLING: ${{ inputs.store && '1' || '' }}
       - run: npx cap sync android
       - name: APK de teste (debug)
         run: cd android && ./gradlew assembleDebug

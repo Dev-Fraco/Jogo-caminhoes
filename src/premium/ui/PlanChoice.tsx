@@ -30,7 +30,7 @@ const Dash = () => (
  * Tela "Escolha como jogar": compara a versão grátis com o Premium e mostra os três planos.
  * `billingReady` = a cobrança pela Google Play já está ativa; enquanto não estiver, o botão de assinar fica indisponível.
  */
-export function PlanChoice({ onFree, onSubscribe, billingReady = false }: { onFree: () => void; onSubscribe?: (plan: PlanId) => void; billingReady?: boolean }) {
+export function PlanChoice({ onFree, onSubscribe, onRestore, billingReady = false, busy = false, message }: { onFree: () => void; onSubscribe?: (plan: PlanId) => void; onRestore?: () => void; billingReady?: boolean; busy?: boolean; message?: string }) {
   const [plan, setPlan] = useState<PlanId>('monthly');
   const chosen = PLANS.find((p) => p.id === plan)!;
   return (
@@ -69,15 +69,16 @@ export function PlanChoice({ onFree, onSubscribe, billingReady = false }: { onFr
             </button>
           ))}
         </div>
-        <button type="button" className="pl-cta" disabled={!billingReady} onClick={() => onSubscribe?.(plan)}>
-          {billingReady ? (plan === 'lifetime' ? `Comprar por ${chosen.price}` : `Assinar por ${chosen.price}`) : 'Disponível em breve na Google Play'}
+        <button type="button" className="pl-cta" disabled={!billingReady || busy} onClick={() => onSubscribe?.(plan)}>
+          {!billingReady ? 'Disponível em breve na Google Play' : busy ? 'Aguarde…' : plan === 'lifetime' ? `Comprar por ${chosen.price}` : `Assinar por ${chosen.price}`}
         </button>
+        <p className="pl-msg" role="status" aria-live="polite">{message ?? ''}</p>
         <button type="button" className="pl-free" onClick={onFree}>Continuar com a versão grátis</button>
       </section>
 
       <footer className="pl-foot">
         <p>As assinaturas semanal e mensal são cobradas pela Google Play e renovam automaticamente até serem canceladas. Você pode cancelar a qualquer momento em Play Store, Pagamentos e assinaturas. O plano Vitalício é um pagamento único e libera o Premium para sempre.</p>
-        <p>Restaurar compras: o acesso volta automaticamente ao entrar com a mesma conta Google.</p>
+        <p>O acesso volta automaticamente ao entrar com a mesma conta Google.{billingReady && onRestore ? <> <button type="button" className="pl-link" onClick={onRestore} disabled={busy}>Restaurar compras</button></> : null}</p>
       </footer>
     </main>
   );

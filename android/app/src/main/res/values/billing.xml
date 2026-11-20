@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Chave pública de licenciamento do Play Console (Configuração do app > Licenciamento), em base64, numa linha só.
+         Vazia: só builds de depuração aceitam compras (builds de loja recusam). -->
+    <string name="play_public_key" translatable="false"></string>
+</resources>
