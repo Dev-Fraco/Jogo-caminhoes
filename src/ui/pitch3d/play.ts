@@ -127,7 +127,7 @@ export function thinkPlay(w: World) {
 
   // ---- defesa: pressão e cobertura ----
   const presser = foes.filter((a) => a.idx > 0).sort((p, q) => dist2(p.x, p.y, ballAt.x, ballAt.y) - dist2(q.x, q.y, ballAt.x, ballAt.y));
-  if (presser[0]) { const a = presser[0]; a.tx = ballAt.x + (carrier ? carrier.vx * 0.25 : 0) - dir * 0.6; a.ty = ballAt.y + (carrier ? carrier.vy * 0.25 : 0); a.ov = { x: a.tx, y: a.ty, speed: 7.2, until: w.t + 0.5 }; }
+  if (presser[0]) { const a = presser[0]; a.tx = ballAt.x + (carrier ? carrier.vx * 0.25 : 0) + dir * 1.3; a.ty = ballAt.y + (carrier ? carrier.vy * 0.25 : 0); /* o marcador vem de frente, a ~2 m do portador */ a.ov = { x: a.tx, y: a.ty, speed: 7.2, until: w.t + 0.5 }; }
   if (presser[1]) { const a = presser[1]; a.tx = ballAt.x + Math.sign(goalX - ballAt.x) * 4.5; a.ty = ballAt.y + (MID_Y - ballAt.y) * 0.3; } // cobertura: atrás do que pressiona, no sentido do gol que defende
   // linha de impedimento: o último defensor (sem o goleiro)
   const lastLine = dir > 0 ? Math.max(...foes.filter((a) => a.idx > 0).map((a) => a.x), CENTER.x) : Math.min(...foes.filter((a) => a.idx > 0).map((a) => a.x), CENTER.x);

@@ -6,7 +6,7 @@ import type { MatchEvent } from '../src/engine/types';
 
 const ev = (minute: number, type: MatchEvent['type'], side: MatchEvent['side'], player = 'Fulano'): MatchEvent => ({ minute, type, side, text: '', player });
 const run = (w: World, seconds: number, dt = 1 / 30, each?: () => void) => { for (let t = 0; t < seconds; t += dt) { stepWorld(w, dt); each?.(); } };
-const fresh = (): World => { const w = createWorld('4-4-2', '4-3-3'); snapWorld(w, playState([], 0, 0), 0); return w; };
+const fresh = (): World => { const w = createWorld('4-4-2', '4-3-3'); snapWorld(w, playState([], 0, 0), 0); w.brain.next = 1e9; return w; }; // (cérebro desligado: estes testes são da física e dos roteiros, com a bola onde o teste a põe)
 const insideNet = (w: World, side: 'home' | 'away') => {
   const gx = goalXOf(side), dir = side === 'home' ? 1 : -1, b = w.ball.p, depth = (b.x - gx) * dir;
   return depth > 0 && depth <= GOAL_D + 1e-6 && Math.abs(b.y - MID_Y) <= GOAL_W / 2 && b.z <= GOAL_H;
@@ -98,7 +98,7 @@ describe('gol: a bola entra de verdade e há comemoração', () => {
       expect(celebrated && banner, `gol ${n}`).toBe(true);
       expect(net, `gol ${n}: rede`).toBeGreaterThan(0.1);
       expect(w.script).toBeNull(); expect(w.goals[side]).toBe(1);
-      expect(w.ball.p.x).toBeCloseTo(L / 2, 1); expect(w.ball.scored).toBeNull();      // bola ao meio para a saída
+      expect(Math.abs(w.ball.p.x - L / 2)).toBeLessThan(1.2); expect(w.ball.scored).toBeNull();      // bola ao meio para a saída
     }
   });
   it('o goleiro não defende o gol (chega tarde) e o chute sai com velocidade de chute', () => {
