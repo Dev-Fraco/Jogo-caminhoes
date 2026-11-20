@@ -32,6 +32,10 @@ jobs:
       - run: npm run build
         env:
           VITE_ENFORCE_BILLING: ${{ inputs.store && '1' || '' }}
+          VITE_SPLIT_PREMIUM: ${{ inputs.store && '1' || '' }} # build da loja: a parte Premium vai para o pacote da Play
+      - name: Separar o pacote Premium (build da loja)
+        if: ${{ inputs.store }}
+        run: node scripts/split-premium.mjs
       - run: npx cap sync android
       - name: APK de teste (debug)
         run: cd android && ./gradlew assembleDebug

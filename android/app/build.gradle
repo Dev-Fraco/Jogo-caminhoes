@@ -3,6 +3,7 @@ apply plugin: 'com.android.application'
 android {
     namespace "com.exemplo.brasileiraomanager"
     compileSdk rootProject.ext.compileSdkVersion
+    assetPacks = [":premium_pack"] // conteúdo Premium entregue pela Play (Play Asset Delivery)
     defaultConfig {
         applicationId "com.exemplo.brasileiraomanager"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -49,6 +50,7 @@ dependencies {
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
     implementation "com.android.billingclient:billing:7.1.1" // cobrança do Premium (Play Billing)
+    implementation "com.google.android.play:asset-delivery:2.2.2" // download do pacote Premium (Play Asset Delivery)
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"

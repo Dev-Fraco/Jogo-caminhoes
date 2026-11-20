@@ -1,5 +1,6 @@
 import { resetHooks } from '../engine/hooks';
 import { extrasOpen } from './entitlement';
+import { ensurePack } from './pack';
 
 /* =====================================================================
    Carregador do pacote Premium (2ª temporada em diante).
@@ -32,5 +33,12 @@ let extrasInstalled = false;
 /** Carrega (uma vez) o pacote dos extras (mundo, copas especiais, Super Mundial) e ativa os recursos no jogo. Cada chamada confere o portão de novo. */
 export async function loadExtras(): Promise<void> {
   if (!(await gate())) { resetHooks(); extrasInstalled = false; throw new Error('premium-required'); }
-  if (!extrasInstalled) { (await import('./extras')).installExtras(); extrasInstalled = true; }
+  if (!extrasInstalled) { await ensurePack(); (await import('./extras')).installExtras(); extrasInstalled = true; }
 }
+
+/** Para telas Premium carregadas sob demanda (`lazy`): confere o portão e baixa o pacote Premium (build da loja) antes de importar o arquivo. */
+export const premiumChunk = <T>(load: () => Promise<T>) => async (): Promise<T> => {
+  if (!(await gate())) throw new Error('premium-required');
+  await ensurePack();
+  return load();
+};

@@ -8,3 +8,7 @@ android/.gradle
 android/local.properties
 *.keystore
 *.jks
+
+# Conteúdo Premium gerado pelo build da loja (scripts/split-premium.mjs)
+android/premium_pack/src/main/assets/prem/*
+!android/premium_pack/src/main/assets/prem/LEIAME.txt

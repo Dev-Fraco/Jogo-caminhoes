@@ -1,3 +1,4 @@
+import { premiumChunk } from '../premium/loader';
 import { lazy, useState } from 'react';
 import { COMP_NAMES, shortCompName } from '../data/names';
 import { ClubBadge } from './ClubBadge';
@@ -9,9 +10,9 @@ import { useExtras } from '../premium/usePremium';
 import { freeLimited } from '../premium/entitlement';
 import { PremiumPreview } from '../premium/ui/PremiumPreview';
 import type { FeatureId } from '../premium/features';
-const ExtraRegional = lazy(() => import('./ExtraViews').then((m) => ({ default: m.RegionalView })));
-const ExtraSuper = lazy(() => import('./ExtraViews').then((m) => ({ default: m.SuperView })));
-const ExtraOther = lazy(() => import('./ExtraViews').then((m) => ({ default: m.OtherCupsView })));
+const ExtraRegional = lazy(() => premiumChunk(() => import('./ExtraViews'))().then((m) => ({ default: m.RegionalView })));
+const ExtraSuper = lazy(() => premiumChunk(() => import('./ExtraViews'))().then((m) => ({ default: m.SuperView })));
+const ExtraOther = lazy(() => premiumChunk(() => import('./ExtraViews'))().then((m) => ({ default: m.OtherCupsView })));
 const REGIONAL_ICON = { nordeste: '🌵', verde: '🌳' } as const;
 import { clubOf } from '../engine/lookup';
 import { GROUP_ROUNDS, groupTables, isGroups, knockoutView } from '../engine/groups';

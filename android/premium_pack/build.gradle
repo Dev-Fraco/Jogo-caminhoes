@@ -1,0 +1,9 @@
+// Pacote de recursos da Play (Play Asset Delivery): o conteúdo Premium do app. Entrega sob demanda: só baixa depois da compra.
+apply plugin: 'com.android.asset-pack'
+
+assetPack {
+    packName = "premium"
+    dynamicDelivery {
+        deliveryType = "on-demand"
+    }
+}

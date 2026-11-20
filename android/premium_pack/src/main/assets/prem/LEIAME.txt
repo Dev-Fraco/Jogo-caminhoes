@@ -1,0 +1,1 @@
+Marcador: o pacote nunca fica vazio (o bundletool recusa pacote sem arquivos). O script scripts/split-premium.mjs põe aqui o conteúdo Premium do build da loja.

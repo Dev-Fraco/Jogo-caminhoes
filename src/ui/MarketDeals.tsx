@@ -1,3 +1,4 @@
+import { premiumChunk } from '../premium/loader';
 import { lazy, Suspense, useState } from 'react';
 import { agentOf } from '../engine/aimarket';
 import { calOf, formatDay } from '../engine/calendar';
@@ -13,7 +14,7 @@ import { transferBlock, windowInfo, windowLabel } from '../engine/windows';
 import { formatBudget } from '../newgame/format';
 import { ClubBadge } from './ClubBadge';
 import { hooks, openForeignSales } from '../engine/hooks';
-const ForeignSalesSection = lazy(() => import('../premium/ui/ForeignSales').then((m) => ({ default: m.ForeignSalesSection }))); // (recurso Premium, carregado sob demanda)
+const ForeignSalesSection = lazy(() => premiumChunk(() => import('../premium/ui/ForeignSales'))().then((m) => ({ default: m.ForeignSalesSection }))); // (recurso Premium, carregado sob demanda)
 
 const STATE_LABEL: Record<DealState, string> = {
   enviada: 'Enviada', recebida: 'Recebida', 'em-analise': 'Em análise', contraproposta: 'Contraproposta', aguardando: 'Aguardando resposta',

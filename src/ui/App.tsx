@@ -3,7 +3,7 @@ import { pyramidOf, slotsOfLeague } from '../data/pyramid';
 import { getLeague } from '../data/world';
 import { audio } from '../audio/audio';
 import { isSeasonOver, newCareer, playNext, userDivision } from '../engine/game';
-import { loadSeasonPack } from '../premium/loader';
+import { loadSeasonPack, premiumChunk } from '../premium/loader';
 import { pendingEvent } from '../engine/events';
 import { balanceOf } from '../engine/bank';
 import { clubOf, teamOf } from '../engine/lookup';
@@ -46,7 +46,7 @@ import { PlanScreen } from '../premium/ui/PlanScreen';
 import { PremiumPreview } from '../premium/ui/PremiumPreview';
 import { Screen as MenuFrame } from './Screen';
 import { hooks } from '../engine/hooks';
-const WorldScreen = lazy(() => import('./WorldScreen').then((m) => ({ default: m.WorldScreen }))); // (recurso Premium, carregado sob demanda)
+const WorldScreen = lazy(() => premiumChunk(() => import('./WorldScreen'))().then((m) => ({ default: m.WorldScreen }))); // (recurso Premium, carregado sob demanda)
 import { MatchChoice, type MatchMode } from './MatchChoice';
 import { MatchSim } from './MatchSim';
 import { healUserLineup, injuredSet } from '../engine/injuries';
