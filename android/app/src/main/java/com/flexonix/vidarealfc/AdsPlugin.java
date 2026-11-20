@@ -52,11 +52,11 @@ public class AdsPlugin extends Plugin {
 
     private void startSdk() {
         if (started.compareAndSet(false, true)) {
-            MobileAds.initialize(getContext(), status -> load());
+            MobileAds.initialize(getContext(), status -> loadAd());
         }
     }
 
-    private void load() {
+    private void loadAd() {
         if (loading || ad != null) return;
         loading = true;
         InterstitialAd.load(getContext(), getContext().getString(R.string.admob_interstitial_id), new AdRequest.Builder().build(),
@@ -71,11 +71,11 @@ public class AdsPlugin extends Plugin {
         getActivity().runOnUiThread(() -> {
             InterstitialAd a = ad;
             JSObject o = new JSObject();
-            if (a == null) { load(); o.put("shown", false); call.resolve(o); return; }
+            if (a == null) { loadAd(); o.put("shown", false); call.resolve(o); return; }
             ad = null;
             a.setFullScreenContentCallback(new FullScreenContentCallback() {
-                @Override public void onAdDismissedFullScreenContent() { load(); }
-                @Override public void onAdFailedToShowFullScreenContent(AdError e) { load(); }
+                @Override public void onAdDismissedFullScreenContent() { loadAd(); }
+                @Override public void onAdFailedToShowFullScreenContent(AdError e) { loadAd(); }
             });
             a.show(getActivity());
             o.put("shown", true);
