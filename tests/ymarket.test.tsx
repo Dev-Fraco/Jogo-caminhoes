@@ -1,3 +1,4 @@
+import { calOf } from '../src/engine/calendar';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -90,10 +91,13 @@ describe('peneiras', () => {
     expect(pool).toHaveLength(TRYOUT_SIZES.media);
     for (const c of pool) { expect([14, 15]).toContain(c.player.age); expect(c.origin).toMatchObject({ kind: 'peneira', region: 'sudeste' }); expect(c.player.strength).toBeLessThanOrEqual(c.potential); expect(['GK', 'DEF', 'MID', 'ATT']).toContain(c.player.pos); expect(c.seen.lo).toBeLessThanOrEqual(c.seen.hi); }
     expect(new Set(pool.map((c) => c.id)).size).toBe(pool.length);
-    expect(tryoutReady(g)).toBe(TRYOUT_COOLDOWN);
+    expect(tryoutReady(g)).toBeGreaterThan(0);
     const again = holdTryout(g, 'media', 'sub15', 'sudeste'); expect(again.ok).toBe(false);
     expect(cashOf(g)).toBe(cash0 - cost);
-    expect(holdTryout({ ...g, round: g.round + TRYOUT_COOLDOWN }, 'pequena', 'sub13', 'sul').ok).toBe(true);
+    expect(holdTryout({ ...g, round: g.round + 30 }, 'pequena', 'sub13', 'sul').ok).toBe(false); // rodadas não liberam: só o mês
+    const left = tryoutReady(g), c0 = calOf(g);
+    expect(holdTryout({ ...g, cal: { ...c0, day: c0.day + left - 1 } }, 'pequena', 'sub13', 'sul').ok).toBe(false); // último dia do mês
+    expect(holdTryout({ ...g, cal: { ...c0, day: c0.day + left } }, 'pequena', 'sub13', 'sul').ok).toBe(true);  // dia 1 do mês seguinte
     const poor = { ...base(), budgets: { ...base().budgets, palmeiras: 1000 } };
     const r = holdTryout(poor, 'grande', 'todas', 'europa'); expect(r.ok).toBe(false); expect(cashOf(poor)).toBe(1000);
     expect(tryoutCost(g, 'grande', 'europa')).toBeGreaterThan(tryoutCost(g, 'pequena', 'sudeste'));

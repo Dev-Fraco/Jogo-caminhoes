@@ -6,6 +6,7 @@ import { pickSpot } from './squad';
 import { fairWage, newContract, SAT_START, type YResult } from './ycontract';
 import { derivedPlayer, parseDerived, youthName } from './yroster';
 import { scoutWage, tryoutCost } from './yscout';
+import { applyLoanGain } from './yform';
 import { youthOf, type Prospect, type YouthState } from './youth';
 import type { GameState, NewsItem, Player, Position } from './types';
 
@@ -171,8 +172,10 @@ export function recallLoan(g: GameState, id: string): YResult {
   const y = youthOf(g);
   const p = y.prospects.find((x) => x.player.id === id && x.loanedTo);
   if (!p) return { ok: false, error: 'Esse jovem não está emprestado.' };
-  const s0: GameState = { ...g, youth: { ...y, prospects: y.prospects.map((x) => (x.player.id === id ? { ...x, loanedTo: undefined } : x)) } };
-  return { ok: true, state: news(endMove(s0, id), `↩️ ${p.player.name} voltou do empréstimo antes do prazo.`) };
+  const years = (g.season - (g.ymoves?.[id]?.season ?? g.season)) + g.round / Math.max(1, g.totalRounds); // tempo que ficou fora (o ganho é proporcional)
+  const r = applyLoanGain({ ...p, loanedTo: undefined }, g.season, years);
+  const s0: GameState = { ...g, youth: { ...y, prospects: y.prospects.map((x) => (x.player.id === id ? { ...r.p, history: [...(r.p.history ?? []), { season: g.season, text: `Voltou do empréstimo antes do prazo: +${r.gain} de overall.` }] } : x)) } };
+  return { ok: true, state: news(endMove(s0, id), `↩️ ${p.player.name} voltou do empréstimo antes do prazo com overall ${r.p.player.strength} (+${r.gain}).`, 'good') };
 }
 
 /** Virada de temporada: empréstimos que terminam voltam ao clube de origem (os seus saem de volta, os recebidos são devolvidos). */
@@ -182,7 +185,12 @@ export function returnLoans(g: GameState): GameState {
   let s = g;
   const keep: Prospect[] = [];
   for (const p of y.prospects) {
-    if (p.loanedTo && p.loanedTo.until < g.season) { s = news(endMove(s, p.player.id), `↩️ ${p.player.name} voltou do empréstimo ao ${nameOfClub(g, p.loanedTo.club)}.`); keep.push({ ...p, loanedTo: undefined }); continue; }
+    if (p.loanedTo && p.loanedTo.until < g.season) {
+      const years = p.loanedTo.until - (g.ymoves?.[p.player.id]?.season ?? p.loanedTo.until) + 1; // temporadas que passou fora
+      const r = applyLoanGain({ ...p, loanedTo: undefined }, g.season, years);
+      const back: Prospect = { ...r.p, history: [...(r.p.history ?? []), { season: g.season, text: `Voltou do empréstimo muito mais maduro: +${r.gain} de overall (agora ${r.p.player.strength}).` }] };
+      s = news(endMove(s, p.player.id), `↩️ ${p.player.name} voltou do empréstimo ao ${nameOfClub(g, p.loanedTo.club)} com overall ${r.p.player.strength} (+${r.gain}).`, 'good'); keep.push(back); continue;
+    }
     if (p.loanFrom && p.loanFrom.until < g.season) { s = news(endMove(s, p.player.id), `↩️ ${p.player.name} foi devolvido ao ${nameOfClub(g, p.loanFrom.club)} (fim do empréstimo).`); continue; }
     keep.push(p);
   }

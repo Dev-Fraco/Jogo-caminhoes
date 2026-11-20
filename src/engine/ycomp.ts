@@ -8,6 +8,7 @@ import { simulateMatch } from './match';
 import { clubOf } from './lookup';
 import { clamp, hashString, makeRng, type Rng } from './rng';
 import { calOf } from './calendar';
+import { idlePenalty } from './yform';
 import { buildFixtures } from './schedule';
 import { computeTable } from './table';
 import { enrollCheck, MIN_ROSTER, pickTeam, prepMods, rosterOf, youthName } from './yroster';
@@ -399,6 +400,7 @@ export function youthSeasonEnd(g: GameState): GameState {
     const r = playStep(s, open, new Set());
     s = { ...r.g, ycomps: (r.g.ycomps ?? s.ycomps)!.map((c) => (c.id === open.id ? r.c : c)) };
   }
+  s = idlePenalty(s); // quem jogou pouco perde overall (com as estatísticas ainda na mão)
   const hist: YHist[] = (s.ycomps ?? []).map((c) => historyOf(s, c));
   return { ...s, yhist: [...(s.yhist ?? []), ...hist].slice(-(YHIST_KEEP * 24)), ycomps: [] };
 }

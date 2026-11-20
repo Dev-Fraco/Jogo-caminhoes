@@ -7,10 +7,37 @@ import { formatBudget } from '../newgame/format';
 import { formatDayShort } from '../engine/calendar';
 import type { GameState } from '../engine/types';
 import { SubTabs } from './FmParts';
+import { ClubBadge } from './ClubBadge';
 
 const POS = ['GOL', 'DEF', 'MEI', 'ATA'];
 const nameOf = (g: GameState, id: string) => clubOf(g, id)?.name ?? id;
-const score = (x: YGame) => (x.hg === undefined ? 'x' : `${x.hg} x ${x.ag}${x.pens ? ` (${x.pens[0]}-${x.pens[1]})` : ''}${x.wo ? ' W.O.' : ''}`);
+
+/** Escudo + nome do clube (o seu aparece em destaque). */
+function Team({ game, id, right }: { game: GameState; id: string; right?: boolean }) {
+  const c = clubOf(game, id);
+  const name = c?.name ?? id;
+  return <span className={`yc2-team ${right ? 'right' : ''} ${id === game.userClubId ? 'me' : ''}`}>{!right && c && <ClubBadge club={c} size={22} />}<span className="nm">{name}</span>{right && c && <ClubBadge club={c} size={22} />}</span>;
+}
+/** Resultado do seu clube no jogo: V, E ou D. */
+const outcome = (g: GameState, x: YGame): 'V' | 'E' | 'D' | undefined => {
+  if (!x.mine || x.hg === undefined || x.ag === undefined) return undefined;
+  const me = x.homeId === g.userClubId ? x.hg - x.ag : x.ag - x.hg;
+  if (me === 0 && x.pens) { const mp = x.homeId === g.userClubId ? x.pens[0] - x.pens[1] : x.pens[1] - x.pens[0]; return mp > 0 ? 'V' : 'D'; }
+  return me > 0 ? 'V' : me < 0 ? 'D' : 'E';
+};
+/** Uma partida: data, mandante x visitante (com escudos) e placar. */
+function MatchRow({ game, x, comp }: { game: GameState; x: YGame; comp?: string }) {
+  const o = outcome(game, x);
+  return (
+    <li className={`yc2-match ${x.mine ? 'mine' : ''}`}>
+      <div className="yc2-when"><b>{formatDayShort(x.day)}</b>{comp ? <small>{comp}</small> : null}<small>{x.round}</small></div>
+      <div className="yc2-vs"><Team game={game} id={x.homeId} /><span className={`yc2-score ${x.hg === undefined ? 'todo' : ''}`}>{x.hg === undefined ? 'x' : `${x.hg} - ${x.ag}`}{x.pens ? <small>pên. {x.pens[0]}-{x.pens[1]}</small> : null}{x.wo ? <small>W.O.</small> : null}</span><Team game={game} id={x.awayId} right /></div>
+      {o && <span className={`yc2-res r${o}`} aria-label={o === 'V' ? 'Vitória' : o === 'E' ? 'Empate' : 'Derrota'}>{o}</span>}
+    </li>
+  );
+}
+const compShort = (c: YComp, cat: CategoryId) => c.name.replace(`${categoryDef(cat).label} · `, '');
+const SRC_ICON: Record<string, string> = { estadual: '🏟️', liga: '🏆', copa: '🥇', lib: '🌎', sula: '🌎', ucl: '🌍' };
 
 /** Competições de cada categoria da base: acompanha jogos, classificação, artilharia, estatísticas, prêmios e histórico. Quem escala é o treinador. */
 export function YouthComps({ game }: { game: GameState }) {
@@ -20,6 +47,7 @@ export function YouthComps({ game }: { game: GameState }) {
   const comp = sel ? list.find((c) => c.id === sel) : undefined;
   const en = enrollCheck(game, cat);
   const coach = game.youth?.coaches?.[cat];
+  const nextAll = list.flatMap((c) => nextGamesOf(game, c, 1).map((x) => ({ c, x, comp: compShort(c, cat) }))).sort((p, q) => p.x.day - q.x.day)[0];
   const hist = (game.yhist ?? []).filter((h) => h.cat === cat).slice().reverse();
 
   return (
@@ -27,47 +55,71 @@ export function YouthComps({ game }: { game: GameState }) {
       <div className="ym-tabs"><SubTabs items={CATEGORIES.map((c) => ({ label: c.label, on: cat === c.id, onClick: () => { setCat(c.id); setSel(null); } }))} /></div>
       {comp ? <CompDetail game={game} c={comp} onBack={() => setSel(null)} /> : (
         <>
-          <section className="card mk-card yc-head">
-            <h3>{categoryDef(cat).label} · competições</h3>
-            <p className={en.ok ? 'yc-ok' : 'yc-no'}>{en.ok ? `✔ Seu clube está inscrito (${en.have} atletas elegíveis).` : `✖ Seu clube não está inscrito: precisa de pelo menos ${MIN_ROSTER} atletas elegíveis (${categoryDef(cat).minAge} a ${categoryDef(cat).maxAge} anos) e tem ${en.have}. Os jovens não são inventados para completar o time.`}</p>
-            <small>🧑‍🏫 Treinador: {coach ? `${coach.name} — ele escala e decide o time; você acompanha` : 'vaga aberta (contrate um treinador)'}.</small>
+          <section className="yc2-status">
+            <div className={`yc2-chip ${en.ok ? 'ok' : 'no'}`}>{en.ok ? `✔ Inscrito · ${en.have} atletas elegíveis` : `✖ Não inscrito · ${en.have}/${MIN_ROSTER} atletas elegíveis (${categoryDef(cat).minAge}–${categoryDef(cat).maxAge} anos)`}</div>
+            <div className="yc2-chip">🧑‍🏫 {coach ? `Treinador: ${coach.name}` : 'Sem treinador (vaga aberta)'}</div>
+            {!en.ok && <p className="yc-no">Para disputar, o clube precisa de pelo menos {MIN_ROSTER} atletas na faixa de idade. Os jovens não são inventados: contrate ou promova na base.</p>}
           </section>
 
-          <section className="mk-sec">
-            <h3><span className="yt-bar2" aria-hidden="true" />Competições disponíveis ({list.length})</h3>
+          {nextAll && (
+            <section className="yc2-next" aria-label="Seu próximo jogo">
+              <small className="yc2-eyebrow">Seu próximo jogo · {nextAll.comp}</small>
+              <div className="yc2-vsbig"><Team game={game} id={nextAll.x.homeId} /><b>x</b><Team game={game} id={nextAll.x.awayId} right /></div>
+              <small>{formatDayShort(nextAll.x.day)} · {nextAll.x.round}</small>
+            </section>
+          )}
+
+          <section className="yc2-sec">
+            <h3>Competições <span>{list.length}</span></h3>
             {list.length === 0 && <p className="hint">Nenhuma competição de base nesta temporada (o seu clube precisa estar em uma competição profissional equivalente).</p>}
-            <ul className="tc-list">
+            <ul className="yc2-comps">
               {list.map((c) => {
                 const t = tablesOf(game, c).find((x) => x.rows.some((r) => r.clubId === game.userClubId));
+                const row = t?.rows.find((r) => r.clubId === game.userClubId);
                 const pos = t ? t.rows.findIndex((r) => r.clubId === game.userClubId) + 1 : 0;
-                const next = nextGamesOf(game, c, 1)[0], last = lastGamesOf(game, c, 1)[0];
+                const last = lastGamesOf(game, c, 1)[0];
+                const total = totalSteps(c), done = Math.min(c.done, total);
+                const ko = koStatus(c, game.userClubId);
+                const o = last ? outcome(game, last) : undefined;
                 return (
-                  <li key={c.id} className="mk-card tc-card yc-card">
-                    <div className="tc-cat">{SRC_LABEL[c.src]}</div>
-                    <b>{c.name.replace(`${categoryDef(cat).label} · `, '')}</b>
-                    <small>{isFinished(c) ? `Encerrada${c.champion ? ` · campeão: ${nameOf(game, c.champion)}` : ''}` : `Etapa ${Math.min(c.done + 1, totalSteps(c))} de ${totalSteps(c)} · ${c.clubs.length} clubes`}</small>
-                    {enrolledMine(c, game.userClubId) ? <small>{koStatus(c, game.userClubId) ?? (pos ? `Você: ${pos}º${c.groups ? ' no grupo' : ''}` : 'Você está na fase final')}{next ? ` · próximo: ${nameOf(game, next.homeId === game.userClubId ? next.awayId : next.homeId)} (${next.round})` : ''}{last ? ` · último: ${score(last)}` : ''}</small> : <small className="yc-no">Seu clube não está inscrito.</small>}
-                    <button className="primary" onClick={() => setSel(c.id)}>Abrir competição</button>
+                  <li key={c.id} className="yc2-comp">
+                    <header><span className="ico" aria-hidden="true">{SRC_ICON[c.src] ?? '🏆'}</span><div><b>{compShort(c, cat)}</b><small>{SRC_LABEL[c.src]} · {c.clubs.length} clubes</small></div></header>
+                    <div className="yc2-prog" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} aria-label="Andamento da competição"><i style={{ width: `${total ? (done / total) * 100 : 0}%` }} /></div>
+                    <small className="yc2-progtxt">{isFinished(c) ? `Encerrada${c.champion ? ` · campeão: ${nameOf(game, c.champion)}` : ''}` : `Etapa ${Math.min(c.done + 1, total)} de ${total}`}</small>
+                    {enrolledMine(c, game.userClubId) ? (
+                      <div className="yc2-tiles">
+                        {pos > 0 && <div><b>{pos}º</b><small>{c.groups ? 'no grupo' : 'posição'}</small></div>}
+                        {row && <div><b>{row.points}</b><small>pontos</small></div>}
+                        {row && <div><b>{row.played}</b><small>jogos</small></div>}
+                        {last && o && <div className={`r${o}`}><b>{o}</b><small>último jogo</small></div>}
+                        {!pos && <div className="wide"><b>{ko ?? 'Na competição'}</b><small>sua situação</small></div>}
+                      </div>
+                    ) : <p className="yc-no">Seu clube não está inscrito.</p>}
+                    {pos > 0 && ko && <small className="yc2-ko">{ko}</small>}
+                    <button className="yc2-open" onClick={() => setSel(c.id)}>Ver tabela, jogos e estatísticas ›</button>
                   </li>
                 );
               })}
             </ul>
           </section>
 
-          <section className="mk-sec">
-            <h3><span className="yt-bar2" aria-hidden="true" />Próximos jogos e últimos resultados</h3>
-            <Games game={game} list={list.flatMap((c) => nextGamesOf(game, c, 2).map((x) => ({ c, x })))} empty="Sem jogos marcados para o seu clube." />
-            <Games game={game} list={list.flatMap((c) => lastGamesOf(game, c, 2).map((x) => ({ c, x })))} empty="Ainda sem resultados." />
+          <section className="yc2-sec">
+            <h3>Próximos jogos</h3>
+            <MatchList game={game} items={list.flatMap((c) => nextGamesOf(game, c, 2).map((x) => ({ c, x })))} cat={cat} empty="Sem jogos marcados para o seu clube." />
+          </section>
+          <section className="yc2-sec">
+            <h3>Últimos resultados</h3>
+            <MatchList game={game} items={list.flatMap((c) => lastGamesOf(game, c, 2).map((x) => ({ c, x })))} cat={cat} empty="Ainda sem resultados." />
           </section>
 
-          <section className="mk-sec">
-            <h3><span className="yt-bar2" aria-hidden="true" />Histórico de temporadas ({categoryDef(cat).label})</h3>
+          <section className="yc2-sec">
+            <h3>Campeões das temporadas anteriores</h3>
             {hist.length === 0 && <p className="hint">O histórico aparece quando a primeira temporada termina.</p>}
-            <ul className="tc-hist">
-              {hist.slice(0, 40).map((h, i) => (
-                <li key={i}><b>{h.season}</b> {h.name.replace(`${categoryDef(cat).label} · `, '')} — 🏆 {h.champion ?? '—'}{h.runnerUp ? ` · vice ${h.runnerUp}` : ''}{h.final ? ` · final ${h.final}` : ''}{h.scorer ? ` · artilheiro ${h.scorer.name} (${h.scorer.club}, ${h.scorer.goals})` : ''}{h.best ? ` · melhor ${h.best.name}` : ''}{h.gk ? ` · goleiro ${h.gk.name}` : ''}{h.rev ? ` · revelação ${h.rev.name}` : ''}{h.mine ? ` · seu clube: ${h.mine}` : ''}</li>
-              ))}
-            </ul>
+            {hist.length > 0 && (
+              <div className="tb-wrap"><table className="tb yc2-hist"><thead><tr><th>Ano</th><th className="l">Competição</th><th className="l">Campeão</th><th className="l">Vice</th></tr></thead>
+                <tbody>{hist.slice(0, 40).map((h, i) => <tr key={i} className={h.mine ? 'mine' : ''}><td>{h.season}</td><td className="l">{h.name.replace(`${categoryDef(cat).label} · `, '')}</td><td className="l">🏆 {h.champion ?? '—'}</td><td className="l">{h.runnerUp ?? '—'}</td></tr>)}</tbody>
+              </table></div>
+            )}
           </section>
         </>
       )}
@@ -84,15 +136,15 @@ function koStatus(c: YComp, me: string): string | undefined {
   return c.alive.includes(me) ? 'Você segue na competição' : 'Seu clube foi eliminado';
 }
 
-function Games({ game, list, empty }: { game: GameState; list: { c: YComp; x: YGame }[]; empty: string }) {
-  if (!list.length) return <p className="hint">{empty}</p>;
-  return <ul className="yc-games">{list.map(({ c, x }, i) => <li key={i} className={x.mine ? 'mine' : ''}><small>{formatDayShort(x.day)} · {c.name} · {x.round}</small><span>{nameOf(game, x.homeId)} <b>{score(x)}</b> {nameOf(game, x.awayId)}</span></li>)}</ul>;
+function MatchList({ game, items, cat, empty }: { game: GameState; items: { c: YComp; x: YGame }[]; cat: CategoryId; empty: string }) {
+  if (!items.length) return <p className="hint">{empty}</p>;
+  return <ul className="yc2-matches">{items.sort((a, b) => a.x.day - b.x.day).map(({ c, x }, i) => <MatchRow key={i} game={game} x={x} comp={compShort(c, cat)} />)}</ul>;
 }
 
 type Tab = 'resumo' | 'jogos' | 'tabela' | 'artilharia' | 'stats' | 'premios';
 
 /** Tela de detalhes de uma competição de base. */
-function CompDetail({ game, c, onBack }: { game: GameState; c: YComp; onBack: () => void }) {
+export function CompDetail({ game, c, onBack }: { game: GameState; c: YComp; onBack: () => void }) {
   const [tab, setTab] = useState<Tab>('resumo');
   const [all, setAll] = useState(false);
   const steps = stepsOf(c);
@@ -108,8 +160,9 @@ function CompDetail({ game, c, onBack }: { game: GameState; c: YComp; onBack: ()
     <>
       <button className="btn" onClick={onBack}>‹ Voltar às competições</button>
       <section className="card mk-card yc-head">
-        <h3>{c.name}</h3>
-        <small>{SRC_LABEL[c.src]} · {c.clubs.length} clubes · {isFinished(c) ? 'encerrada' : `etapa ${Math.min(c.done + 1, steps.length)} de ${steps.length}`}</small>
+        <h3>{compShort(c, c.cat)}</h3>
+        <small>{categoryDef(c.cat).label} · {SRC_LABEL[c.src]} · {c.clubs.length} clubes · {isFinished(c) ? 'encerrada' : `etapa ${Math.min(c.done + 1, steps.length)} de ${steps.length}`}</small>
+        <div className="yc2-prog" role="progressbar" aria-valuemin={0} aria-valuemax={steps.length} aria-valuenow={Math.min(c.done, steps.length)} aria-label="Andamento da competição"><i style={{ width: `${steps.length ? (Math.min(c.done, steps.length) / steps.length) * 100 : 0}%` }} /></div>
         {!enrolledMine(c, game.userClubId) && <p className="yc-no">Seu clube não está inscrito nesta competição (falta de atletas elegíveis).</p>}
       </section>
       <div className="ym-tabs"><SubTabs items={tabs.map(([id, label]) => ({ label, on: tab === id, onClick: () => setTab(id) }))} /></div>
@@ -117,8 +170,8 @@ function CompDetail({ game, c, onBack }: { game: GameState; c: YComp; onBack: ()
       {tab === 'resumo' && (
         <section className="mk-sec">
           {c.champion ? <p>🏆 Campeão: <b>{nameOf(game, c.champion)}</b>{c.runnerUp ? ` · vice: ${nameOf(game, c.runnerUp)}` : ''}{c.finalText ? ` · final: ${c.finalText}` : ''}</p> : <p className="hint">Competição em andamento.</p>}
-          <h4>Próximos jogos do seu clube</h4><Games game={game} list={nextGamesOf(game, c, 3).map((x) => ({ c, x }))} empty="Nenhum jogo marcado." />
-          <h4>Últimos resultados do seu clube</h4><Games game={game} list={lastGamesOf(game, c, 3).map((x) => ({ c, x }))} empty="Ainda sem resultados." />
+          <h4>Próximos jogos do seu clube</h4><MatchList game={game} items={nextGamesOf(game, c, 3).map((x) => ({ c, x }))} cat={c.cat} empty="Nenhum jogo marcado." />
+          <h4>Últimos resultados do seu clube</h4><MatchList game={game} items={lastGamesOf(game, c, 3).map((x) => ({ c, x }))} cat={c.cat} empty="Ainda sem resultados." />
           <h4>Artilheiros</h4><Board game={game} c={c} by="gols" n={3} />
         </section>
       )}
@@ -128,7 +181,7 @@ function CompDetail({ game, c, onBack }: { game: GameState; c: YComp; onBack: ()
           <div className="tc-btns"><button className={`btn ${!all ? 'on' : ''}`} onClick={() => setAll(false)}>Meus jogos</button><button className={`btn ${all ? 'on' : ''}`} onClick={() => setAll(true)}>Todos os jogos</button></div>
           {[...byStep.entries()].sort((a, b) => a[0] - b[0]).map(([k, list]) => (
             <div key={k} className="yc-round"><h4>{steps[k]?.name}</h4>
-              <ul className="yc-games">{list.map((x, i) => <li key={i} className={x.mine ? 'mine' : ''}><small>{formatDayShort(x.day)}</small><span>{nameOf(game, x.homeId)} <b>{score(x)}</b> {nameOf(game, x.awayId)}</span></li>)}</ul>
+              <ul className="yc2-matches">{list.map((x, i) => <MatchRow key={i} game={game} x={x} />)}</ul>
             </div>
           ))}
           {byStep.size === 0 && <p className="hint">Nenhum jogo para mostrar.</p>}
@@ -140,12 +193,12 @@ function CompDetail({ game, c, onBack }: { game: GameState; c: YComp; onBack: ()
           {tb.map((t) => (
             <div key={t.name} className="tb-wrap">
               {c.groups && <h4>{t.name}</h4>}
-              <table className="tb"><thead><tr><th>#</th><th className="l">Clube</th><th>J</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>SG</th><th>PTS</th></tr></thead>
-                <tbody>{t.rows.map((r, i) => <tr key={r.clubId} className={r.clubId === game.userClubId ? 'mine' : ''}><td><span className="pos">{i + 1}</span></td><td className="l"><span className="cname">{nameOf(game, r.clubId)}</span></td><td>{r.played}</td><td>{r.won}</td><td>{r.drawn}</td><td>{r.lost}</td><td>{r.gf}</td><td>{r.ga}</td><td>{r.gd > 0 ? `+${r.gd}` : r.gd}</td><td><span className="pts">{r.points}</span></td></tr>)}</tbody>
+              <table className="tb yc2-tb"><thead><tr><th>#</th><th className="l">Clube</th><th>J</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>SG</th><th>PTS</th></tr></thead>
+                <tbody>{t.rows.map((r, i) => <tr key={r.clubId} className={r.clubId === game.userClubId ? 'mine' : ''}><td><span className="pos">{i + 1}</span></td><td className="l"><Team game={game} id={r.clubId} /></td><td>{r.played}</td><td>{r.won}</td><td>{r.drawn}</td><td>{r.lost}</td><td>{r.gf}</td><td>{r.ga}</td><td>{r.gd > 0 ? `+${r.gd}` : r.gd}</td><td><span className="pts">{r.points}</span></td></tr>)}</tbody>
               </table>
             </div>
           ))}
-          <p className="legend">Desempate: pontos, vitórias, saldo de gols, gols marcados e nome do clube.</p>
+          <p className="legend">J jogos · V vitórias · E empates · D derrotas · GP gols pró · GC gols contra · SG saldo · PTS pontos. Desempate: pontos, vitórias, saldo de gols, gols marcados e nome do clube.</p>
           {ko.length > 0 && <><h4>Mata-mata</h4><ul className="yc-games">{ko.map((x, i) => <li key={i} className={c.clubs[x[1]] === game.userClubId || c.clubs[x[2]] === game.userClubId ? 'mine' : ''}><small>{steps[x[0]]?.name}</small><span>{nameOf(game, c.clubs[x[1]])} <b>{x[3]} x {x[4]}{x[5] || x[6] ? ` (${x[5]}-${x[6]})` : ''}</b> {nameOf(game, c.clubs[x[2]])}</span></li>)}</ul></>}
         </section>
       )}

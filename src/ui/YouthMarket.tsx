@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { audio } from '../audio/audio';
 import { CATEGORIES, type CategoryId } from '../engine/categories';
 import { maxScouts } from '../engine/yscout';
-import { candidateAsk, discardCandidate, findInterval, fireScout, holdTryout, hireScout, missionCost, REGIONS, regionOf, scoutFee, signCandidate, sendScout, recallScout, TRYOUT_SIZES, tryoutCost, tryoutReady, type Candidate, type RegionId, type TryoutSize } from '../engine/yscout';
+import { candidateAsk, discardCandidate, findInterval, fireScout, holdTryout, hireScout, missionCost, REGIONS, regionOf, scoutFee, signCandidate, sendScout, recallScout, TRYOUT_SIZES, tryoutCost, tryoutNextLabel, tryoutReady, type Candidate, type RegionId, type TryoutSize } from '../engine/yscout';
 import { askWage, contractStatus, expiring, mood, payroll, personalityOf, PERS_LABEL, releaseWithContract, renewContract, SAT_START, yearsLeft } from '../engine/ycontract';
 import { acceptOffer, buyListing, counterOffer, formationComp, listingPlayer, loanOut, loanTargets, recallLoan, rejectOffer, youthValue } from '../engine/ymarket';
 import { youthOf, type Prospect } from '../engine/youth';
@@ -145,7 +145,7 @@ function Tryouts({ game, run, onChange }: { game: GameState; run: Run; onChange:
         <label className="ym-row">Tamanho<select value={size} onChange={(e) => setSize(e.target.value as TryoutSize)}>{(Object.keys(TRYOUT_SIZES) as TryoutSize[]).map((k) => <option key={k} value={k}>{k} ({TRYOUT_SIZES[k]} jovens)</option>)}</select></label>
         <label className="ym-row">Categoria<select value={cat} onChange={(e) => setCat(e.target.value as CategoryId | 'todas')}><option value="todas">Todas as idades</option>{CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select></label>
         <label className="ym-row">Região<select value={region} onChange={(e) => setRegion(e.target.value as RegionId)}>{REGIONS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}</select></label>
-        <p>Custo: <b>{formatBudget(cost)}</b>{wait > 0 ? ` · próxima peneira em ${wait} rodada(s)` : ''}</p>
+        <p>Custo: <b>{formatBudget(cost)}</b>{wait > 0 ? ` · já feita neste mês: libera no ${tryoutNextLabel(game)} (em ${wait} dia${wait === 1 ? '' : 's'})` : ' · disponível (1 por mês)'}</p>
         <button className="primary mk-big" disabled={wait > 0 || cash(game) < cost} onClick={() => run(holdTryout(game, size, cat, region))}>🧢 Organizar peneira · {formatBudget(cost)}</button>
       </section>
       <Pool game={game} run={run} onChange={onChange} />

@@ -46,7 +46,7 @@ export interface YouthState { level: number; prospects: Prospect[]; seq: number;
   /** Histórico e totais dos investimentos da formação. */
   fin?: YouthFinance;
   /** Olheiros contratados, candidatos a olheiro, jovens observados (olheiros e peneiras), propostas, jogadores à venda e última peneira. */
-  scouts?: import('./yscout').Scout[]; scoutMarket?: import('./yscout').Scout[]; pool?: import('./yscout').Candidate[]; lastTryout?: { season: number; round: number };
+  scouts?: import('./yscout').Scout[]; scoutMarket?: import('./yscout').Scout[]; pool?: import('./yscout').Candidate[]; lastTryout?: { season: number; round: number; /** dia do calendário (a peneira é uma por mês) */ day?: number };
   offers?: import('./ymarket').YOffer[]; listings?: import('./ymarket').Listing[];
   /** A base já começou com 15 atletas em cada categoria (feito uma vez só). */
   seeded?: boolean;

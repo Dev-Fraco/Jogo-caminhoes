@@ -289,9 +289,9 @@ describe('interface', () => {
   it('a tela mostra categorias, competições, inscrição, próximos jogos, histórico e abre cada competição', () => {
     const g = withYouth(base(), 30);
     const html = renderToStaticMarkup(createElement(YouthComps, { game: g }));
-    for (const t of ['Sub-13', 'Sub-15', 'Sub-17', 'Sub-21', 'Competições disponíveis', 'Próximos jogos e últimos resultados', 'Histórico de temporadas', 'Abrir competição', 'Treinador', 'inscrito']) expect(html, t).toContain(t);
+    for (const t of ['Sub-13', 'Sub-15', 'Sub-17', 'Sub-21', 'Competições', 'Próximos jogos', 'Últimos resultados', 'Campeões das temporadas anteriores', 'Ver tabela, jogos e estatísticas', 'Treinador', 'Inscrito']) expect(html, t).toContain(t);
     const none = renderToStaticMarkup(createElement(YouthComps, { game: base() }));
-    expect(none).toMatch(/não está inscrito: precisa de pelo menos 11 atletas/);
+    expect(none).toMatch(/Não inscrito/); expect(none).toMatch(/pelo menos 11 atletas/);
     expect(categoryDef('sub17').label).toBe('Sub-17');
   });
 });

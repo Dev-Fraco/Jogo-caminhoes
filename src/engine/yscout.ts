@@ -1,3 +1,4 @@
+import { calOf, fromDay, toDay, MONTHS } from './calendar';
 import { attributesOf, categoryDef, CATEGORIES, type CategoryId } from './categories';
 import { facilitiesOf, logSpend, spend, youthCapacity } from './academy';
 import { inflate } from './economy';
@@ -162,7 +163,16 @@ export function scoutTick(g: GameState): GameState {
 
 export const tryoutCost = (g: GameState, size: TryoutSize, region: RegionId): number => Math.round((inflate(g, 75_000) * (TRYOUT_SIZES[size] / 28) * regionOf(region).cost) / 1000) * 1000;
 export const roundsSince = (g: GameState, last?: { season: number; round: number }): number => (last ? (g.season - last.season) * g.totalRounds + (g.round - last.round) : 999);
-export const tryoutReady = (g: GameState): number => Math.max(0, TRYOUT_COOLDOWN - roundsSince(g, g.youth?.lastTryout));
+/** Peneira: no máximo UMA por mês do calendário; volta a funcionar no dia 1 de cada mês. Devolve quantos dias faltam (0 = pode fazer agora). */
+export const tryoutReady = (g: GameState): number => {
+  const last = g.youth?.lastTryout?.day;
+  if (last === undefined) return 0;
+  const now = calOf(g).day, a = fromDay(last), b = fromDay(now);
+  if (a.y * 12 + a.m !== b.y * 12 + b.m) return 0;
+  return toDay(b.m === 12 ? b.y + 1 : b.y, b.m === 12 ? 1 : b.m + 1, 1) - now;
+};
+/** Texto da próxima liberação ("dia 1 de março"). */
+export const tryoutNextLabel = (g: GameState): string => { const b = fromDay(calOf(g).day); return `dia 1 de ${MONTHS[b.m % 12]}`; };
 const bestScoutIn = (y: YouthState, region: RegionId): number => Math.max(0, ...(y.scouts ?? []).filter((s) => s.region === region).map((s) => s.quality));
 
 /** Organiza uma peneira: custa dinheiro, gera os participantes (idades da categoria) e os coloca na lista de observados. */
@@ -170,7 +180,7 @@ export function holdTryout(g: GameState, size: TryoutSize, cat: CategoryId | 'to
   const y = youthOf(g);
   if (g.unemployed) return { ok: false, error: 'Sem clube.' };
   const wait = tryoutReady(g);
-  if (wait > 0) return { ok: false, error: `Uma nova peneira só pode ser feita em ${wait} rodada(s).` };
+  if (wait > 0) return { ok: false, error: `Só uma peneira por mês: a próxima libera no ${tryoutNextLabel(g)} (em ${wait} dia${wait === 1 ? '' : 's'}).` };
   const cost = tryoutCost(g, size, region);
   const paid = spend(g, y, { season: g.season, round: g.round, kind: 'peneira', text: `Peneira ${size} em ${regionOf(region).label}${cat === 'todas' ? '' : ` (${categoryDef(cat).label})`}`, cost });
   if (!paid.ok) return paid;
@@ -183,7 +193,7 @@ export function holdTryout(g: GameState, size: TryoutSize, cat: CategoryId | 'to
   let seq = ny0.seq;
   const list: Candidate[] = [];
   for (let i = 0; i < TRYOUT_SIZES[size]; i++) list.push(makeCandidate(g, ny0, rng, { age: ages[Math.floor(rng() * ages.length)], bonus: ny0.level * 0.08 + sq * 0.3 + regionOf(region).pot * 0.6, starRate: star, quality, kind: 'peneira', by: 'Peneira', region }, used, seq++));
-  const ny: YouthState = { ...ny0, seq, lastTryout: { season: g.season, round: g.round }, pool: [...list, ...(ny0.pool ?? [])].slice(0, MAX_POOL) };
+  const ny: YouthState = { ...ny0, seq, lastTryout: { season: g.season, round: g.round, day: calOf(g).day }, pool: [...list, ...(ny0.pool ?? [])].slice(0, MAX_POOL) };
   const best = [...list].sort((a, b) => b.seen.hi - a.seen.hi)[0];
   return { ok: true, state: news({ ...paid.g, youth: ny }, `🧢 Peneira em ${regionOf(region).label}: ${list.length} jovens avaliados${best ? `; destaque: ${best.player.name} (${best.player.age} anos, potencial ${best.seen.lo}–${best.seen.hi})` : ''}. Veja os observados.`, 'good'), msg: `${list.length} jovens avaliados.` };
 }
