@@ -307,3 +307,25 @@
 @media (prefers-reduced-motion: reduce) { .hold.holding .ph-finger-ico { animation: none; } }
 .ph-ico:has(> img.gi) { background: none; box-shadow: 0 2px 8px rgba(0, 0, 0, .5); }
 .ph-ico > img.gi { width: 100%; height: 100%; display: block; border-radius: inherit; object-fit: contain; }
+
+/* Digital 3D: a imagem em camadas com profundidade (perspectiva), balanço suave, feixe de leitura e brilho que acompanham o dedo */
+.ph-finger-ico.fp3d { width: 96px; height: 96px; font-size: 0; background: radial-gradient(circle at 50% 30%, #fff, #cfd6e4 80%); box-shadow: inset 0 0 0 3px rgba(255, 255, 255, .9), 0 10px 18px rgba(0, 0, 0, .45); perspective: 340px; position: relative; overflow: visible; animation: none; }
+.fp3d .fp-card { position: relative; width: 68%; height: 68%; transform-style: preserve-3d; animation: fp-idle 3.2s ease-in-out infinite; transition: transform .25s; }
+.fp3d .fp-l { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; user-select: none; }
+.fp3d .fp-l1 { transform: translateZ(-9px); filter: brightness(.2) blur(2px); opacity: .45; }
+.fp3d .fp-l2 { transform: translateZ(-4px); filter: brightness(.5); opacity: .6; }
+.fp3d .fp-l3 { transform: translateZ(6px); filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .5)); }
+.fp3d .fp-beam, .fp3d .fp-gloss { position: absolute; inset: 0; transform: translateZ(8px); pointer-events: none; -webkit-mask: url(./assets/ui/fingerprint.png) center / contain no-repeat; mask: url(./assets/ui/fingerprint.png) center / contain no-repeat; }
+.fp3d .fp-gloss { background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, .95) 50%, transparent 65%); background-size: 250% 100%; background-position: 130% 0; animation: fp-gloss 3.2s ease-in-out infinite; }
+.fp3d .fp-beam { background: linear-gradient(to bottom, transparent 0, rgba(94, 224, 138, 0) 40%, #5ee08a 50%, rgba(94, 224, 138, 0) 60%, transparent 100%); background-size: 100% 60%; background-repeat: no-repeat; background-position: 0 -80%; opacity: 0; filter: drop-shadow(0 0 5px #5ee08a); }
+.hold.holding .fp3d .fp-card { animation: none; transform: rotateX(14deg) scale(.9) translateZ(-10px); }
+.hold.holding .fp3d .fp-beam { opacity: 1; animation: fp-scan .5s linear infinite alternate; }
+.hold.holding .fp3d { animation: hold-pulse .6s ease-in-out infinite alternate; }
+.hold.scan .fp3d { background: radial-gradient(circle at 50% 30%, #eaffef, #8be8ac 80%); box-shadow: inset 0 0 0 3px #5ee08a, 0 0 18px #5ee08a; }
+.hold.scan .fp3d .fp-card { animation: none; transform: scale(1.05) translateZ(10px); }
+.fp3d .fp-ok { position: absolute; right: -4px; bottom: -4px; width: 28px; height: 28px; border-radius: 50%; background: #2fbf64; color: #fff; font: 700 18px/28px system-ui; text-align: center; box-shadow: 0 2px 6px rgba(0, 0, 0, .5); animation: fp-pop .3s ease-out; }
+@keyframes fp-idle { 0%, 100% { transform: rotateY(-18deg) rotateX(6deg); } 50% { transform: rotateY(18deg) rotateX(-4deg); } }
+@keyframes fp-gloss { 0%, 20% { background-position: 130% 0; } 60%, 100% { background-position: -30% 0; } }
+@keyframes fp-scan { from { background-position: 0 -10%; } to { background-position: 0 110%; } }
+@keyframes fp-pop { from { transform: scale(0); } to { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .fp3d .fp-card, .fp3d .fp-gloss, .hold.holding .fp3d .fp-beam { animation: none; } }

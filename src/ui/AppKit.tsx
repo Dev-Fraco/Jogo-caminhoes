@@ -104,7 +104,15 @@ export function HoldScan({ onDone, label, variant = 'sensor', className = '' }: 
     <button type="button" className={`ph-finger hold ${holding ? 'holding' : ''} ${done ? 'scan' : ''} ${className}`} aria-label="Sensor de impressão digital: segure o dedo por 1 segundo" {...handlers}>
       <span className="hold-ring" aria-hidden="true">
         <svg viewBox="0 0 100 100"><circle className="bg" cx="50" cy="50" r="44" /><circle className="fg" cx="50" cy="50" r="44" /></svg>
-        <span className="ph-finger-ico">{done ? '✅' : '🫆'}</span>
+        <span className="ph-finger-ico fp3d" aria-hidden="true">
+          <span className="fp-card">
+            <img className="fp-l fp-l1" src="./assets/ui/fingerprint.png" alt="" draggable={false} />
+            <img className="fp-l fp-l2" src="./assets/ui/fingerprint.png" alt="" draggable={false} />
+            <img className="fp-l fp-l3" src="./assets/ui/fingerprint.png" alt="" draggable={false} />
+            <i className="fp-beam" /><i className="fp-gloss" />
+          </span>
+          {done && <b className="fp-ok">✓</b>}
+        </span>
       </span>
       <small>{hint}</small>
     </button>
