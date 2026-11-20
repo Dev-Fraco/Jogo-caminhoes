@@ -3,6 +3,7 @@ import { COMP_NAMES, shortCompName } from '../data/names';
 import { ClubBadge } from './ClubBadge';
 import { ScreenTitle } from './FmParts';
 import { COMPS, CONTINENTALS, groupTable, type Comp } from '../engine/continental';
+import { REGIONALS, REGIONAL_KEYS, regionalStepName } from '../engine/regional';
 import { isSuperYear, SUPER_EVERY, SUPER_STEPS } from '../engine/supermundial';
 import { otherClub } from '../data/otherworld';
 import { COMP_NAMES as NAMES } from '../data/names';
@@ -35,7 +36,7 @@ function formOf(game: GameState, divisionId: string, clubId: string): ('W' | 'D'
 export function Table({ game, initialView = 'div' }: { game: GameState; initialView?: 'div' | 'rounds' | 'hist' | 'scorers' }) {
   const mineIndex = userDivisionIndex(game);
   const [idx, setIdx] = useState(mineIndex);
-  const [view, setView] = useState<'div' | 'cup' | Comp | 'mundial' | 'super' | 'outras' | 'rounds' | 'hist' | 'titles' | 'estadual' | 'scorers'>(initialView);
+  const [view, setView] = useState<'div' | 'cup' | Comp | 'mundial' | 'super' | 'nordeste' | 'verde' | 'outras' | 'rounds' | 'hist' | 'titles' | 'estadual' | 'scorers'>(initialView);
   const division = game.divisions[idx];
   const rows = divisionTable(game, division.id);
   const n = rows.length;
@@ -52,6 +53,7 @@ export function Table({ game, initialView = 'div' }: { game: GameState; initialV
     ...COMPS.filter((k) => game[k]).map((k) => mk(k, `${CONTINENTALS[k].icon} ${shortCompName(COMP_NAMES[k])}`, k)),
     ...(game.mundial ? [mk('mundial', '🌍 Mundial', 'mundial')] : []),
     ...(game.superMundial ? [mk('super', '🌐 Super Mundial', 'super')] : []),
+    ...REGIONAL_KEYS.filter((k) => game.regionais?.[k]).map((k) => mk(k, `${REGIONALS[k].icon} ${COMP_NAMES[k]}`, k)),
     mk('outras', '🌍 África e Arábia', 'outras'),
   ];
   const infoItems: Item[] = [mk('rounds', '📋 Jogos', 'rounds'), mk('scorers', '⚽ Artilharia', 'scorers'), mk('hist', '🏅 Campeões', 'hist'), mk('titles', '🥇 Meus títulos', 'titles')];
@@ -91,6 +93,7 @@ export function Table({ game, initialView = 'div' }: { game: GameState; initialV
       {(view === 'lib' || view === 'sula' || view === 'ucl') && game[view] && <LibView game={game} comp={view} />}
       {view === 'mundial' && game.mundial && <MundialView game={game} />}
       {view === 'super' && game.superMundial && <SuperView game={game} />}
+      {(view === 'nordeste' || view === 'verde') && game.regionais?.[view] && <RegionalView game={game} k={view} />}
       {view === 'outras' && <OtherCupsView game={game} />}
       {view === 'div' && division.format === 'outside' && (
         <div className="card">
@@ -394,16 +397,15 @@ function EstadualView({ game }: { game: GameState }) {
   );
 }
 
-/** Super Mundial de Clubes: 8 grupos de 4 (o seu primeiro) e o mata-mata. */
-function SuperView({ game }: { game: GameState }) {
-  const sm = game.superMundial!;
+/** Grupos (o seu primeiro) e mata-mata de uma competição com fase de grupos. */
+function GroupsKoView({ game, groups: gs, ko, championId, champLabel, subtitle }: { game: GameState; groups: { id: string; clubIds: string[]; matches: { round: number; homeId: string; awayId: string; homeGoals?: number; awayGoals?: number }[] }[]; ko: { name: string; ties: { homeId: string; awayId: string; homeGoals?: number; awayGoals?: number; pens?: [number, number]; winnerId?: string }[] }[]; championId?: string; champLabel: string; subtitle: string }) {
   const name = (id: string) => clubOf(game, id).name;
-  const groups = [...sm.groups].sort((a, b) => Number(b.clubIds.includes(game.userClubId)) - Number(a.clubIds.includes(game.userClubId)));
+  const groups = [...gs].sort((a, b) => Number(b.clubIds.includes(game.userClubId)) - Number(a.clubIds.includes(game.userClubId)));
   return (
     <div className="cup-view">
-      {sm.championId && <p className="outcome">🏆 Campeão do Super Mundial: <b>{name(sm.championId)}</b></p>}
-      {!sm.championId && <p className="hint">{sm.entrants.length} clubes · {SUPER_STEPS[Math.min(sm.step, SUPER_STEPS.length - 1)]}</p>}
-      {[...sm.ko].reverse().map((r) => (
+      {championId && <p className="outcome">🏆 {champLabel}: <b>{name(championId)}</b></p>}
+      {!championId && <p className="hint">{subtitle}</p>}
+      {[...ko].reverse().map((r) => (
         <section key={r.name}>
           <h3>{r.name}</h3>
           <ul className="list">
@@ -435,6 +437,18 @@ function SuperView({ game }: { game: GameState }) {
       ))}
     </div>
   );
+}
+
+/** Super Mundial de Clubes: 4 grupos de 4 (o seu primeiro) e o mata-mata. */
+function SuperView({ game }: { game: GameState }) {
+  const sm = game.superMundial!;
+  return <GroupsKoView game={game} groups={sm.groups} ko={sm.ko} championId={sm.championId} champLabel="Campeão do Super Mundial" subtitle={`${sm.entrants.length} clubes · ${SUPER_STEPS[Math.min(sm.step, SUPER_STEPS.length - 1)]}`} />;
+}
+
+/** Copa do Nordeste e Copa Verde. */
+function RegionalView({ game, k }: { game: GameState; k: 'nordeste' | 'verde' }) {
+  const r = game.regionais![k]!;
+  return <GroupsKoView game={game} groups={r.groups} ko={r.ko} championId={r.championId} champLabel={`Campeão da ${r.name}`} subtitle={`${r.entrants.length} clubes · ${regionalStepName(k, r)} · os 4 melhores de cada estado do ${k === 'nordeste' ? 'Nordeste' : 'Norte, Centro-Oeste e ES (2 por estado)'}`} />;
 }
 
 /** Copas dos Campeões da África e Árabe (nos bastidores) e quando é o próximo Super Mundial. */

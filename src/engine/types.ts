@@ -257,6 +257,23 @@ export interface SuperState {
   entrants: string[];
   championId?: string;
 }
+/** Copa do Nordeste e Copa Verde: fase de grupos (turno único) e mata-mata, dentro da temporada. */
+export interface RegionalState {
+  id: string;
+  name: string;
+  groups: LibGroup[];
+  ko: CupRound[];
+  /** 0 a groupRounds-1: rodadas de grupos; depois cada fase do mata-mata */
+  step: number;
+  groupRounds: number;
+  /** Depois de qual rodada do campeonato cada etapa acontece. */
+  dueAfter: number[];
+  due: boolean;
+  alive: string[];
+  entrants: string[];
+  championId?: string;
+}
+export type RegionalKey = 'nordeste' | 'verde';
 /** Copas dos Campeões da África e Árabe (disputadas nos bastidores, um campeão por temporada). */
 export interface OtherEdition { season: number; championId: string; runnerUpId: string }
 export interface OtherCups { africa: OtherEdition[]; arab: OtherEdition[] }
@@ -318,6 +335,8 @@ export interface SeasonSummary {
   uclChampionId?: string;
   mundialChampionId?: string;
   superChampionId?: string;
+  nordesteChampionId?: string;
+  verdeChampionId?: string;
   libChampionId?: string;
   cupChampionId?: string;
   season: number;
@@ -580,6 +599,8 @@ export interface GameState {
   mundial?: MundialState;
   /** Super Mundial de Clubes da temporada (32 clubes). */
   superMundial?: SuperState;
+  /** Copa do Nordeste e Copa Verde da temporada (só nas carreiras do Brasil com estaduais). */
+  regionais?: Partial<Record<RegionalKey, RegionalState>>;
   /** Campeões da África e da Arábia (os últimos 4 de cada um vão ao Super Mundial). */
   otherCups?: OtherCups;
   /** Dinheiro pessoal do treinador (R$) e quanto da folha ele paga (0/25/50/100). */

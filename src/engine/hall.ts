@@ -31,6 +31,8 @@ export function entriesOf(g: GameState): HallEntry[] {
       ...(h.sulaChampionId ? [{ icon: '🌴', name: COMP_NAMES.sula, champion: anyClubName(g, h.sulaChampionId) }] : []),
       ...(h.uclChampionId ? [{ icon: '⭐', name: COMP_NAMES.ucl, champion: anyClubName(g, h.uclChampionId) }] : []),
       ...(h.mundialChampionId ? [{ icon: '🌍', name: COMP_NAMES.mundial, champion: anyClubName(g, h.mundialChampionId) }] : []),
+      ...(h.nordesteChampionId ? [{ icon: '🌵', name: COMP_NAMES.nordeste, champion: anyClubName(g, h.nordesteChampionId) }] : []),
+      ...(h.verdeChampionId ? [{ icon: '🌳', name: COMP_NAMES.verde, champion: anyClubName(g, h.verdeChampionId) }] : []),
       ...(h.superChampionId ? [{ icon: '🌐', name: COMP_NAMES.supermundial, champion: anyClubName(g, h.superChampionId) }] : []),
     ],
   }));

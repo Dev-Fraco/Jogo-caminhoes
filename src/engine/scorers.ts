@@ -74,6 +74,7 @@ export function competitionName(g: GameState, id: string): string {
   if (id === 'copa') return g.cup?.name ?? 'Copa';
   for (const k of ['lib', 'sula', 'ucl'] as const) if (g[k]?.id === id || id === k) return g[k]?.name ?? id;
   if (id === 'mundial') return g.mundial?.name ?? COMP_NAMES.mundial;
+  if (id === 'nordeste' || id === 'verde') return g.regionais?.[id]?.name ?? COMP_NAMES[id];
   if (id === 'super') return g.superMundial?.name ?? COMP_NAMES.supermundial;
   if (id.startsWith('est:')) {
     const [, uf, di] = id.split(':');

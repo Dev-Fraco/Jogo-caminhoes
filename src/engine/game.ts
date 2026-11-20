@@ -14,6 +14,7 @@ import { aiPromoteYouth, ensureAiYouth, trackApps } from './aiyouth';
 import { aiCoachSeasonEnd, aiCoachTick } from './aicoaches';
 import { contAfterLeagueRound, createContinentals, mundialAfterLeagueRound, playContStep, playMundialStep } from './continental';
 import { playSuperStep, superAfterLeagueRound } from './supermundial';
+import { createRegionals, playRegionalStep, regionalAfterLeagueRound, REGIONAL_KEYS } from './regional';
 import { pendingEvent, playEvent } from './events';
 import { tickContracts } from './assets';
 import { advanceKnockout, finalStandings, groupFixtures, isGroups, userGroupRows, withGroups } from './groups';
@@ -117,10 +118,10 @@ export function newCareer(input: CareerInput, seed = Date.now() % 2147483647): G
   };
   // a carreira já nasce completa (contratos, treinadores, base, objetivos): carregar o save depois não muda nada
   if (!input.cup) return ensureWorld(youthStartSeason(ensureYouth(stampPayTier(ensureAiState(freezeGoals(createContinentals(career)))))));
-  return ensureWorld(youthStartSeason(ensureYouth(stampPayTier(ensureAiState(freezeGoals(createContinentals({ ...career, cup: createCup(career), estadual: createEstaduais(input.outside ? { id: input.outside.id, uf: input.outside.uf ?? 'SP' } : undefined) })))))));
+  return ensureWorld(youthStartSeason(ensureYouth(stampPayTier(ensureAiState(freezeGoals(createRegionals(createContinentals({ ...career, cup: createCup(career), estadual: createEstaduais(input.outside ? { id: input.outside.id, uf: input.outside.uf ?? 'SP' } : undefined) }))))))));
 }
 
-export const isSeasonOver = (g: GameState) => g.round > g.totalRounds && !g.mundial?.due && !g.superMundial?.due;
+export const isSeasonOver = (g: GameState) => g.round > g.totalRounds && !g.mundial?.due && !g.superMundial?.due && !REGIONAL_KEYS.some((k) => g.regionais?.[k]?.due);
 
 export const userDivisionIndex = (g: GameState) => g.divisions.findIndex((d) => d.clubIds.includes(g.userClubId));
 export const userDivision = (g: GameState) => g.divisions[userDivisionIndex(g)];
@@ -131,7 +132,7 @@ export function fixturesOfRound(g: GameState, round: number, divisionId?: string
 
 /** Joga a próxima rodada em TODAS as divisões. Retorna o novo estado e os resultados da rodada. */
 export function playRound(g: GameState): { state: GameState; results: MatchResult[] } {
-  if (g.round > g.totalRounds) return g.mundial?.due ? playMundialStep(g) : g.superMundial?.due ? playSuperStep(g) : { state: g, results: [] }; // só falta o Mundial / Super Mundial
+  if (g.round > g.totalRounds) return g.mundial?.due ? playMundialStep(g) : g.superMundial?.due ? playSuperStep(g) : (() => { const k = REGIONAL_KEYS.find((x) => g.regionais?.[x]?.due); return k ? playRegionalStep(g, k) : { state: g, results: [] as MatchResult[] }; })(); // só falta o Mundial / Super Mundial / copas regionais
   for (let i = 0; g.estadual?.due && i < 40; i++) g = playEstadualStep(g).state; // estaduais pendentes (antes do campeonato): simulados automaticamente
   if (g.cup?.due) g = playCupRound(g).state; // fases pendentes das copas: simuladas automaticamente
   for (const key of ['lib', 'sula', 'ucl'] as const) if (g[key]?.due) g = playContStep(g, key).state;
@@ -196,7 +197,7 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
   state = youthTick(fibraTick(inboxTick(state))); // mensagens, metas, fatura e plano de dados do celular
   state = boardTick(state, makeRng(g.seed * 19 + g.season * 7 + g.round)); // diretoria (demissão) ou, sem clube, propostas de emprego
   if (state.round >= 8 && state.round < state.totalRounds && state.round % 4 === 0) state = aiCoachTick(state, makeRng(g.seed * 53 + g.season * 17 + g.round)); // diretorias da IA avaliam os treinadores
-  state = superAfterLeagueRound(mundialAfterLeagueRound(contAfterLeagueRound(cupAfterLeagueRound(state))));
+  state = superAfterLeagueRound(mundialAfterLeagueRound(regionalAfterLeagueRound(contAfterLeagueRound(cupAfterLeagueRound(state)))));
   // propostas dos outros clubes pelos jogadores listados
   state = generateOffers(state, rng);
   state = foreignSalesTick(state, makeRng(g.seed * 43 + g.season * 13 + g.round * 3)); // propostas de clubes de outros países pelos jogadores à venda
@@ -234,6 +235,7 @@ function playNextRaw(g: GameState) {
   if (g.estadual?.due) return playEstadualStep(g); // rodada dos estaduais sem jogo seu
   if (g.mundial?.due) return playMundialStep(g); // o seu clube não joga: avança sozinho
   if (g.superMundial?.due) return playSuperStep(g);
+  { const k = REGIONAL_KEYS.find((x) => g.regionais?.[x]?.due); if (k) return playRegionalStep(g, k); }
   return playRound(g);
 }
 
@@ -296,7 +298,7 @@ export function seasonOutcome(g: GameState): SeasonOutcome {
 export function seasonSummary(g: GameState, out: SeasonOutcome = seasonOutcome(g)): SeasonSummary {
   const moves = out.moves;
   return {
-    season: g.season, estadualChampions: g.estadual?.done ? estadualChampions(g) : undefined, tables: moves.map((m) => ({ id: m.divisionId, rows: m.table.map((r) => [r.clubId, r.points, r.played, r.gd] as [string, number, number, number]) })), cupChampionId: g.cup?.championId, libChampionId: g.lib?.championId, sulaChampionId: g.sula?.championId, uclChampionId: g.ucl?.championId, mundialChampionId: g.mundial?.championId, superChampionId: g.superMundial?.championId, userDivisionId: out.userDivisionId, userPosition: out.userPosition,
+    season: g.season, estadualChampions: g.estadual?.done ? estadualChampions(g) : undefined, tables: moves.map((m) => ({ id: m.divisionId, rows: m.table.map((r) => [r.clubId, r.points, r.played, r.gd] as [string, number, number, number]) })), cupChampionId: g.cup?.championId, libChampionId: g.lib?.championId, sulaChampionId: g.sula?.championId, uclChampionId: g.ucl?.championId, mundialChampionId: g.mundial?.championId, superChampionId: g.superMundial?.championId, nordesteChampionId: g.regionais?.nordeste?.championId, verdeChampionId: g.regionais?.verde?.championId, userDivisionId: out.userDivisionId, userPosition: out.userPosition,
     divisions: moves.map((m) => ({ id: m.divisionId, championId: m.table[0].clubId, promoted: m.promoted, relegated: m.relegated })),
     topScorers: topScorersOf(g),
   };
@@ -360,6 +362,7 @@ function startNextSeasonCore(g: GameState, calNew: ReturnType<typeof newSeasonCa
     if (g.ucl?.championId === mine) add(g.ucl.name, 'continental');
     if (g.mundial?.championId === mine) add(g.mundial.name, 'mundial');
     if (g.superMundial?.championId === mine) add(g.superMundial.name, 'mundial');
+    for (const k of REGIONAL_KEYS) if (g.regionais?.[k]?.championId === mine) add(g.regionais[k]!.name, 'copa');
   }
   const inflation = nextInflation(g, makeRng(g.seed * 37 + g.season * 5 + 1)); // a inflação do ano que começa
   let next: GameState = { ...back, titles, inflation, news: [{ season: g.season + 1, round: 1, text: `📈 Inflação de ${(inflation.rate * 100).toFixed(1).replace('.', ',')}%: preços, salários e receitas sobem.`, tone: 'info' as const }, ...back.news].slice(0, 80), season: g.season + 1, round: 1, totalRounds, divisions, fixtures, results: [], budgets, offers: [], history: [...g.history, summary] };
@@ -374,7 +377,7 @@ function startNextSeasonCore(g: GameState, calNew: ReturnType<typeof newSeasonCa
   const rng = makeRng(g.seed * 977 + g.season * 31 + 5);
   const { state, promotion } = offseason(next, rng, { promoted: arrivals('promoted', -1), relegated: arrivals('relegated', 1) });
   const cupped: GameState = g.cup ? { ...state, cup: createCup(state), estadual: g.estadual ? nextEstaduais(g, g.estadual) : undefined } : state;
-  const withCup: GameState = createContinentals({ ...cupped, mundial: undefined, superMundial: undefined }, moves[0].table.map((r) => r.clubId), g.cup?.championId);
+  const withCup: GameState = createRegionals(createContinentals({ ...cupped, mundial: undefined, superMundial: undefined }, moves[0].table.map((r) => r.clubId), g.cup?.championId), g);
   const cal = calNew;
   let result: GameState = freezeGoals(youthSeason({ ...withCup, cal, history: withCup.history.map((h, i) => (i === withCup.history.length - 1 ? { ...h, promotion } : h)) }));
   result = { ...result, apps: {} }; // a evolução desta temporada já usou os minutos jogados: a contagem recomeça
