@@ -27,7 +27,7 @@ describe('simular x assistir: mesma partida', () => {
   it('a partida assistida não tem velocidades: 3 s por minuto de jogo (cerca de 5 minutos reais com os lances) e só dá para pular até o fim', () => {
     expect(MS_PER_MINUTE).toBe(3000); expect(MATCH_SECONDS).toBe(270);
     const html = renderToStaticMarkup(createElement(MatchChoice, { home: clubOf(userMatch(3).g, userMatch(3).r.homeId), away: clubOf(userMatch(3).g, userMatch(3).r.awayId), divisionName: 'x', stadium: 'y', onChoose: () => {} }));
-    expect(html).toContain('cerca de 5 minutos'); expect(html).not.toMatch(/1x a 4x/);
+    expect(html).toContain('cerca de 4 minutos e meio'); expect(html).not.toMatch(/1x a 4x/);
   });
 });
 

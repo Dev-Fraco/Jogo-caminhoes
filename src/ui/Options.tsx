@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { t, type StringKey } from '../i18n/strings';
 import { createBackup, deleteBackup, listBackups, MAX_BACKUPS, restoreBackup, type Backup } from '../settings/backups';
 import type { WhistleType } from '../audio/cues';
+import { isFreePreview, setFreePreview } from '../premium/entitlement';
 import { audio } from '../audio/audio';
 import { DEFAULT_SETTINGS, LANGUAGES, loadSettings, saveSettings, type Graphics, type Language, type Settings, type SimSpeed } from '../settings/settings';
 
@@ -132,6 +133,13 @@ export function Options({ onBack, onRestored }: Props) {
           <div className="opt-row">
             <label htmlFor="opt-mute">{tr('options.audio.mute')}</label>
             <input id="opt-mute" type="checkbox" className="check" checked={muted} onChange={(e) => setAudio({ muted: e.target.checked })} />
+          </div>
+        </Section>
+
+        <Section title="Premium (teste)">
+          <div className="opt-row">
+            <label htmlFor="opt-freeprev">Testar o modo grátis<small>Finge ser um jogador do grátis: depois da 1ª temporada ficam só a liga do clube, sem outras divisões, copas e o Mundo. Reinicia o jogo ao mudar.</small></label>
+            <input id="opt-freeprev" type="checkbox" className="check" defaultChecked={isFreePreview()} onChange={(e) => { setFreePreview(e.target.checked); window.location.reload(); }} />
           </div>
         </Section>
 

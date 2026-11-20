@@ -12,6 +12,7 @@ import { clauseSeasonEnd } from '../engine/dealpay';
 import { aiCoachSeasonEnd } from '../engine/aicoaches';
 import { createContinentals } from '../engine/continental';
 import { hooks, REGIONAL_KEYS } from '../engine/hooks';
+import { limitedAt } from './entitlement';
 import { withGroups } from '../engine/groups';
 import { adoptClub, estadualOfUser, estadualTable, nextEstaduais, serieDQualifiers } from '../engine/estadual';
 import { fire, seasonEndFiring, seasonEndOffers, seasonPoints } from '../engine/jobs';
@@ -108,7 +109,8 @@ function startNextSeasonCore(g: GameState, calNew: ReturnType<typeof newSeasonCa
   const cupped: GameState = g.cup ? { ...state, cup: createCup(state), estadual: g.estadual ? nextEstaduais(g, g.estadual) : undefined } : state;
   const withCup: GameState = hooks.createRegionals(createContinentals({ ...cupped, mundial: undefined, superMundial: undefined }, moves[0].table.map((r) => r.clubId), g.cup?.championId), g);
   const cal = calNew;
-  let result: GameState = freezeGoals(youthSeason({ ...withCup, cal, history: withCup.history.map((h, i) => (i === withCup.history.length - 1 ? { ...h, promotion } : h)) }));
+  const league = limitedAt(g, g.season + 1) ? onlyClubLeague(withCup) : withCup; // jogador do grátis depois da 1ª temporada: só a liga do clube
+  let result: GameState = freezeGoals(youthSeason({ ...league, cal, history: withCup.history.map((h, i) => (i === withCup.history.length - 1 ? { ...h, promotion } : h)) }));
   result = { ...result, apps: {} }; // a evolução desta temporada já usou os minutos jogados: a contagem recomeça
   // carreira do treinador: pontos, demissão ou propostas de clubes maiores
   const relegatedU = out.movement === 'relegated', promotedU = out.movement === 'promoted';
@@ -130,4 +132,10 @@ export function skipSeasons(g: GameState, years: number, autoPay = true): GameSt
     if (i < n - 1) s = startNextSeason(s);
   }
   return { ...s, autoPay: g.autoPay };
+}
+
+/** Jogo grátis depois da temporada grátis: ficam só a liga (divisão) do clube e o que ela exige. Sem copa nacional, estadual (exceto para quem só joga o estadual), continentais, Mundial, copas especiais e Super Mundial. */
+export function onlyClubLeague(g: GameState): GameState {
+  const outside = g.divisions.some((d) => d.format === 'outside' && d.clubIds.includes(g.userClubId)); // o estadual é a liga de quem está fora da pirâmide
+  return { ...g, cup: undefined, estadual: outside ? g.estadual : undefined, lib: undefined, sula: undefined, ucl: undefined, mundial: undefined, superMundial: undefined, regionais: undefined, foreign: undefined };
 }

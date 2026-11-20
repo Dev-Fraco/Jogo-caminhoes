@@ -2,8 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ClubInfo, FormationId, MatchEvent, MatchResult, Player, TeamState } from '../engine/types';
 import { TacticsSheet } from './TacticsSheet';
 import type { Tactic } from '../engine/match';
-import { Pitch3D } from './Pitch3D';
-import { VAR_CAMS, type VarCamId } from './pitch3d/camera';
+import { PitchSim } from './PitchSim';
 import { audio } from '../audio/audio';
 import { ClubBadge } from './ClubBadge';
 import { PenaltyShootout } from './PenaltyShootout';
@@ -34,20 +33,12 @@ interface Props {
 }
 
 /** Partida ao vivo: animação de entrada, relógio de 0 a 90 minutos, placar e narração dos lances com o nome dos jogadores. */
-export function LiveMatch({ home, away, result, userSide, divisionName, stadium, onFinish, homeFormation = '4-4-2', awayFormation = '4-4-2', userTeam, unavailable, tacticsUsed = 0, onTactic, players }: Props) {
+export function LiveMatch({ home, away, result, userSide, divisionName, stadium, onFinish, homeFormation = '4-4-2', awayFormation = '4-4-2', userTeam, unavailable, tacticsUsed = 0, onTactic }: Props) {
   const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const [phase, setPhase] = useState<'intro' | 'play' | 'pens' | 'done'>(reduce ? 'play' : 'intro');
   const [paused, setPaused] = useState(false);
   const [tactics, setTactics] = useState(false);
   const [minute, setMinute] = useState(0);
-  // VAR: durante a revisão a partida fica parada; dá para trocar a câmera da repetição ou pular
-  const [varHold, setVarHold] = useState(false);
-  const [varCam, setVarCam] = useState<VarCamId | null>(null);
-  const [skipVar, setSkipVar] = useState(0);
-  const onVar = (on: boolean) => { setVarHold(on); if (!on) setVarCam(null); };
-  // relógio parado enquanto o lance é mostrado (gol com comemoração e VAR, falta, escanteio...): só volta quando tudo termina
-  const [playHold, setPlayHold] = useState(false);
-  const [skipCer, setSkipCer] = useState(0); // pedido para pular a cerimônia de entrada e do hino
 
   // animação de entrada
   useEffect(() => {
@@ -58,7 +49,7 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
 
   // relógio da partida
   useEffect(() => {
-    if (phase !== 'play' || paused || varHold || playHold) return;
+    if (phase !== 'play' || paused) return;
     let raf = 0, last = performance.now();
     const tick = (now: number) => {
       const dt = now - last; last = now;
@@ -71,7 +62,7 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [phase, paused, varHold, playHold]);
+  }, [phase, paused]);
 
   // som: apito inicial/final e festa a cada gol
   const goalsSeen = useRef(0);
@@ -84,7 +75,7 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
   const [hg, ag] = scoreAt(result.events, Math.floor(minute));
   const goalCount = shown.filter((e) => e.type === 'goal' && !e.annulled).length;
   useEffect(() => {
-    if (goalCount > goalsSeen.current) { const last = shown.filter((e) => e.type === 'goal' && !e.annulled).pop(); if (reduce) audio.sfx(last && last.side !== userSide ? 'concede' : 'goal'); } // gol seu: festa; gol sofrido: vaia
+    if (goalCount > goalsSeen.current) { const last = shown.filter((e) => e.type === 'goal' && !e.annulled).pop(); audio.sfx(last && last.side !== userSide ? 'concede' : 'goal'); } // gol seu: festa; gol sofrido: vaia
     goalsSeen.current = goalCount;
   }, [goalCount]); // eslint-disable-line react-hooks/exhaustive-deps
   // cantos da torcida (ligados por padrão; o botão 🎺 desliga)
@@ -130,21 +121,14 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
       </div>
 
       {tactics && userTeam && onTactic && <TacticsSheet team={userTeam} unavailable={unavailable} minute={Math.floor(minute)} score={[hg, ag]} side={userSide} used={tacticsUsed} onClose={() => { setTactics(false); setPaused(false); }} onApply={(t) => { onTactic(t); setTactics(false); setPaused(false); }} />}
-      {phase !== 'pens' && <Pitch3D players={players} onVar={onVar} onHold={setPlayHold} varCam={varCam} skipVar={skipVar} paused={paused} home={home} away={away} homeFormation={homeFormation} awayFormation={awayFormation} events={result.events} minute={phase === 'play' ? minute : 90} speed={1} skipCeremony={skipCer} userSide={userSide} />}
+      {phase !== 'pens' && <PitchSim home={home} away={away} homeFormation={homeFormation} awayFormation={awayFormation} events={result.events} minute={phase === 'play' ? minute : 90} speed={1} userSide={userSide} />}
 
       {phase === 'pens' && result.penKicks ? (
         <PenaltyShootout home={home} away={away} kicks={result.penKicks} userSide={userSide} onDone={() => setPhase('done')} />
-      ) : phase === 'play' && varHold ? (
-        <div className="lm-ctrl lm-var" role="group" aria-label="Revisão do VAR">
-          <span className="lm-var-t">📺 VAR</span>
-          {VAR_CAMS.map((c) => <button key={c.id} className={varCam === c.id ? 'on' : ''} aria-pressed={varCam === c.id} onClick={() => setVarCam(varCam === c.id ? null : c.id)}>{c.label}</button>)}
-          <button className="btn lm-pause" onClick={() => setSkipVar((n) => n + 1)}>⏭ Pular revisão</button>
-        </div>
       ) : phase === 'play' ? (
         <div className="lm-ctrl">
           {userTeam && onTactic && <button className="btn lm-pause lm-tac" onClick={() => { setPaused(true); setTactics(true); }}>⚙️ Formação</button>}
           <button className="btn lm-pause" onClick={toggleChants} aria-pressed={chants} aria-label="Cantos da torcida">{chants ? '🎺 Cantos: sim' : '🎺 Cantos: não'}</button>
-          {playHold && minute === 0 ? <button className="btn lm-pause" onClick={() => setSkipCer((n) => n + 1)}>⏭ Pular apresentação</button> : null}
           <button className="btn lm-pause" onClick={skip}>⏭ Pular até o fim</button>
         </div>
       ) : (

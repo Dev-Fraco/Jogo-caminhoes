@@ -597,6 +597,8 @@ export interface GameState {
   /** Últimas transferências entre clubes (para o app Notícias). */
   market?: MarketDeal[];
   mundial?: MundialState;
+  /** Primeira temporada da carreira (a temporada grátis do Premium conta a partir dela). */
+  freeStart?: number;
   /** Super Mundial de Clubes da temporada (32 clubes). */
   superMundial?: SuperState;
   /** Copa do Nordeste e Copa Verde da temporada (só nas carreiras do Brasil com estaduais). */

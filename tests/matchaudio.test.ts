@@ -2,9 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WHISTLE_PATTERNS, WHISTLE_TYPES, type Cue } from '../src/audio/cues';
 import { audio, volumes } from '../src/audio/audio';
 import { DEFAULT_SETTINGS, sanitizeSettings, type Settings } from '../src/settings/settings';
-import { BALL_R, GOAL_H, GOAL_W, L, MID_Y, createDriver, createWorld, drive, kickTo, stepWorld, type World } from '../src/ui/pitch3d/world';
-import { playState } from '../src/ui/pitch';
-import type { MatchEvent, Position } from '../src/engine/types';
 
 /* ---------- WebAudio de mentira: conta o que o jogo manda tocar ---------- */
 const log = { osc: [] as { type: string; f0: number }[], buffers: 0, gainSets: new Map<string, number[]>() };
@@ -62,65 +59,5 @@ describe('apitos e volumes', () => {
     vi.stubGlobal('window', { AudioContext: FakeCtx });
     expect(play({ k: 'kick', p: 12 }, 4)).toBe(0);
     for (const c of [{ k: 'post' }, { k: 'net', p: 20 }, { k: 'cheer', big: true }, { k: 'groan' }, { k: 'oh' }, { k: 'murmur' }] as Cue[]) expect(play(c), c.k).toBeGreaterThan(0);
-  });
-});
-
-describe('sons acompanham o campo', () => {
-  const ev = (minute: number, type: MatchEvent['type'], side: MatchEvent['side'], extra: Partial<MatchEvent> = {}): MatchEvent => ({ minute, type, side, text: '', player: 'x', ...extra });
-  const hid = (p: string) => Array.from({ length: 11 }, (_, i) => `${p}${i}`);
-  const posOf = (id: string): Position | undefined => { const i = Number(id.slice(1)); return i === 0 ? 'GK' : i <= 4 ? 'DEF' : i <= 8 ? 'MID' : 'ATT'; };
-  const kickoff = ev(0, 'kickoff', 'none', { lineups: { home: hid('h'), away: hid('a'), homeFormation: '4-4-2', awayFormation: '4-4-2' } });
-  const play = (events: MatchEvent[], secs = 40) => {
-    const w = createWorld('4-4-2', '4-4-2'); w.posOf = posOf; const drv = createDriver(); drive(w, drv, events, 19); for (let i = 0; i < 20; i++) stepWorld(w, 1 / 30); w.cues = []; drive(w, drv, events, 20);
-    const all: { c: Cue; i: number }[] = []; let n = 0;
-    for (let t = 0; t < secs && (w.script || w.var || n < 5); t += 1 / 30, n++) { stepWorld(w, 1 / 30); for (const c of w.cues.splice(0)) all.push({ c, i: n }); }
-    return { w, all, ks: all.map((x) => x.c.k === 'whistle' ? `whistle:${x.c.v}` : x.c.k) };
-  };
-
-  it('gol: chute, bola na rede, o VAR confere (murmúrio) e só então a torcida comemora', () => {
-    const { ks } = play([kickoff, ev(20, 'goal', 'home', { pid: 'h9', how: 'foot' })]);
-    const iKick = ks.indexOf('kick'), iNet = ks.indexOf('net'), iMur = ks.indexOf('murmur'), iCheer = ks.indexOf('cheer');
-    expect(iKick).toBeGreaterThanOrEqual(0); expect(iNet).toBeGreaterThan(iKick); expect(iMur).toBeGreaterThan(-1); expect(iCheer).toBeGreaterThan(iNet); expect(iCheer).toBeGreaterThan(iMur);
-    expect(ks.filter((k) => k === 'cheer')).toHaveLength(1);
-  });
-
-  it('gol anulado: não há festa; a torcida reclama', () => {
-    const { ks } = play([kickoff, ev(20, 'goal', 'home', { pid: 'h9', annulled: true, how: 'foot' }), ev(20, 'var', 'home', { pid: 'h9', var: { kind: 'goal-offside', target: 'h9' } })]);
-    expect(ks).not.toContain('cheer'); expect(ks).toContain('groan'); expect(ks).toContain('net');
-  });
-
-  it('falta: apito curto, depois o apito da cobrança; pênalti tem apito longo próprio; impedimento tem o seu', () => {
-    const foul = play([kickoff, ev(20, 'foul', 'away', { pid: 'a6', victimId: 'h7' })]).ks.filter((k) => k.startsWith('whistle'));
-    expect(foul[0]).toBe('whistle:foul'); expect(foul).toContain('whistle:restart');
-    const pen = play([kickoff, ev(20, 'foul', 'away', { pid: 'a3', victimId: 'h9', pen: true }), ev(20, 'goal', 'home', { pid: 'h9', pen: true, how: 'foot' })]).ks.filter((k) => k.startsWith('whistle'));
-    expect(pen[0]).toBe('whistle:penalty');
-    const off = play([kickoff, ev(20, 'offside', 'home', { pid: 'h9' })]).ks.filter((k) => k.startsWith('whistle'));
-    expect(off[0]).toBe('whistle:offside');
-  });
-
-  it('grande chance: a torcida reage na defesa e no chute para fora', () => {
-    expect(play([kickoff, ev(20, 'save', 'home', { pid: 'h9', gkId: 'a0' })]).ks).toContain('oh');
-    expect(play([kickoff, ev(20, 'miss', 'home', { pid: 'h9', how: 'wide' })]).ks).toContain('oh');
-  });
-
-  it('bola na trave e no travessão fazem o som de trave', () => {
-    const w = createWorld('4-4-2', '4-4-2'); w.agents.forEach((a, i) => { a.x = 8 + i * 2; a.y = 3; });
-    w.ball.p = { x: L - 6, y: MID_Y + GOAL_W / 2, z: 1 }; w.ball.mode = 'free'; w.ball.v = { x: 18, y: 0, z: 0 }; w.cues = [];
-    for (let t = 0; t < 0.6; t += 1 / 60) stepWorld(w, 1 / 60);
-    expect(w.cues.some((c) => c.k === 'post')).toBe(true);
-    const w2 = createWorld('4-4-2', '4-4-2'); w2.agents.forEach((a, i) => { a.x = 8 + i * 2; a.y = 3; }); w2.ball.p = { x: L - 6, y: MID_Y, z: GOAL_H - 0.7 }; w2.ball.mode = 'free'; w2.ball.v = { x: 20, y: 0, z: 4.3 }; w2.cues = [];
-    for (let t = 0; t < 0.6; t += 1 / 60) stepWorld(w2, 1 / 60);
-    expect(w2.cues.some((c) => c.k === 'post')).toBe(true);
-  });
-
-  it('chute faz o som no instante do contato e a força vem da velocidade da bola', () => {
-    const w = createWorld('4-4-2', '4-4-2'); w.ball.p = { x: 50, y: 30, z: BALL_R }; kickTo(w, { x: 80, y: 30, z: 1 }, 1.2);
-    const k = w.cues.find((c) => c.k === 'kick') as { k: 'kick'; p: number }; expect(k.p).toBeGreaterThan(15);
-    void playState;
-  });
-
-  it('o som não tem sobra: depois de saltar no tempo (pular a partida) a fila de sons está vazia', () => {
-    const w = createWorld(); w.cues.push({ k: 'groan' }); const drv = createDriver(); drive(w, drv, [kickoff], 0); drive(w, drv, [kickoff], 60);
-    expect(w.cues).toEqual([]);
   });
 });

@@ -40,7 +40,8 @@ import { absRound, pendingCount, urgentMessages } from '../engine/inbox';
 import { Lineup } from './Lineup';
 import { LiveMatch } from './LiveMatch';
 import { PremiumGate } from './PremiumGate';
-import { useExtras } from '../premium/usePremium';
+import { recheckExtras, useExtras } from '../premium/usePremium';
+import { inTrial, setActiveGame } from '../premium/entitlement';
 import { hooks } from '../engine/hooks';
 const WorldScreen = lazy(() => import('./WorldScreen').then((m) => ({ default: m.WorldScreen }))); // (recurso Premium, carregado sob demanda)
 import { MatchChoice, type MatchMode } from './MatchChoice';
@@ -62,6 +63,10 @@ type Screen = 'menu' | MenuOptionId | 'game' | 'hall';
 export function App() {
   const [game, setGame] = useState<GameState | null>(() => loadGame());
   const extras = useExtras();
+  // temporada grátis: a carreira lembra onde começou; o portão dos extras acompanha se ainda está na temporada grátis
+  useEffect(() => { setGame((g) => (g && g.freeStart === undefined ? { ...g, freeStart: g.season } : g)); }, [game?.saveName]);
+  const trial = game ? inTrial(game) : true;
+  useEffect(() => { setActiveGame(game); recheckExtras(); }, [trial]); // eslint-disable-line react-hooks/exhaustive-deps
   // quando o pacote dos extras carrega, saves que ainda não têm as ligas do mundo ganham o estado delas
   useEffect(() => { if (extras === 'on') setGame((g) => (g && !g.world && !g.observer ? hooks.worldTick(hooks.ensureWorld(g)) : g)); }, [extras]);
   const [screen, setScreen] = useState<Screen>('menu');

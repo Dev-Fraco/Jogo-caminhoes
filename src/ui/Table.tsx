@@ -6,6 +6,8 @@ import { COMPS, CONTINENTALS, groupTable, type Comp } from '../engine/continenta
 import { REGIONAL_KEYS } from '../engine/hooks';
 import { PremiumGate } from './PremiumGate';
 import { useExtras } from '../premium/usePremium';
+import { freeLimited } from '../premium/entitlement';
+import { PremiumPreview } from '../premium/ui/PremiumPreview';
 import type { FeatureId } from '../premium/features';
 const ExtraRegional = lazy(() => import('./ExtraViews').then((m) => ({ default: m.RegionalView })));
 const ExtraSuper = lazy(() => import('./ExtraViews').then((m) => ({ default: m.SuperView })));
@@ -40,7 +42,7 @@ function formOf(game: GameState, divisionId: string, clubId: string): ('W' | 'D'
 export function Table({ game, initialView = 'div' }: { game: GameState; initialView?: 'div' | 'rounds' | 'hist' | 'scorers' }) {
   const mineIndex = userDivisionIndex(game);
   const [idx, setIdx] = useState(mineIndex);
-  const [view, setView] = useState<'div' | 'cup' | Comp | 'mundial' | 'super' | 'nordeste' | 'verde' | 'outras' | 'rounds' | 'hist' | 'titles' | 'estadual' | 'scorers'>(initialView);
+  const [view, setView] = useState<'div' | 'cup' | Comp | 'mundial' | 'super' | 'copas' | 'nordeste' | 'verde' | 'outras' | 'rounds' | 'hist' | 'titles' | 'estadual' | 'scorers'>(initialView);
   const division = game.divisions[idx];
   const rows = divisionTable(game, division.id);
   const n = rows.length;
@@ -51,7 +53,8 @@ export function Table({ game, initialView = 'div' }: { game: GameState; initialV
   type Item = { key: string; label: string; on: boolean; go: () => void };
   const extras = useExtras(), locked = extras === 'off', lk = locked ? ' 🔒' : ''; // sem o pacote Premium, os extras aparecem trancados
   const mk = (key: string, label: string, v: typeof view, extra?: () => void): Item => ({ key, label, on: view === v, go: () => { extra?.(); setView(v); } });
-  const divItems: Item[] = game.divisions.map((d, i) => ({ key: d.id, label: `${d.name}${i === mineIndex ? ' ★' : ''}`, on: view === 'div' && i === idx, go: () => { setIdx(i); setView('div'); } }));
+  const limited = freeLimited(game); // jogo grátis depois da temporada grátis: só a divisão do clube
+  const divItems: Item[] = game.divisions.map((d, i) => ({ key: d.id, label: `${d.name}${i === mineIndex ? ' ★' : limited ? ' 🔒' : ''}`, on: view === 'div' && i === idx, go: () => { setIdx(i); setView('div'); } }));
   const cupItems: Item[] = [
     ...(game.estadual ? [mk('estadual', '🏟️ Estadual', 'estadual')] : []),
     ...(game.cup ? [mk('cup', '🏆 Copa', 'cup')] : []),
@@ -60,6 +63,7 @@ export function Table({ game, initialView = 'div' }: { game: GameState; initialV
     ...(game.superMundial || locked ? [mk('super', `🌐 Super Mundial${lk}`, 'super')] : []),
     ...REGIONAL_KEYS.filter((k) => game.regionais?.[k] || locked).map((k) => mk(k, `${REGIONAL_ICON[k]} ${COMP_NAMES[k]}${lk}`, k)),
     mk('outras', `🌍 África e Arábia${lk}`, 'outras'),
+    ...(limited ? [mk('copas', '🏆 Copas e continentais 🔒', 'copas')] : []),
   ];
   const infoItems: Item[] = [mk('rounds', '📋 Jogos', 'rounds'), mk('scorers', '⚽ Artilharia', 'scorers'), mk('hist', '🏅 Campeões', 'hist'), mk('titles', '🥇 Meus títulos', 'titles')];
   const groupsOf = [{ title: 'Divisões', items: divItems }, { title: 'Copas e torneios', items: cupItems }, { title: 'Jogos e estatísticas', items: infoItems }];
@@ -100,15 +104,17 @@ export function Table({ game, initialView = 'div' }: { game: GameState; initialV
       {view === 'super' && <PremiumGate feature="super">{game.superMundial ? <ExtraSuper game={game} /> : <p className="hint">O Super Mundial acontece a cada 4 anos, no fim da temporada (2026, 2030...).</p>}</PremiumGate>}
       {(view === 'nordeste' || view === 'verde') && <PremiumGate feature={view as FeatureId}>{game.regionais?.[view] ? <ExtraRegional game={game} k={view} /> : <p className="hint">Esta copa começa na próxima temporada.</p>}</PremiumGate>}
       {view === 'outras' && <PremiumGate feature="africa"><ExtraOther game={game} /></PremiumGate>}
-      {view === 'div' && division.format === 'outside' && (
+      {view === 'copas' && <PremiumPreview feature="leagues" onBack={() => setView('div')} />}
+      {view === 'div' && limited && idx !== mineIndex && <PremiumPreview feature="leagues" onBack={() => setIdx(mineIndex)} />}
+      {view === 'div' && !(limited && idx !== mineIndex) && division.format === 'outside' && (
         <div className="card">
           <h2>Fora da pirâmide</h2>
           <p>Seu clube joga só o estadual. Termine entre os 2 primeiros da Série A estadual (sendo o melhor clube do estado fora das Séries A–D) para subir à Série D.</p>
           <button className="btn main" onClick={() => setView('estadual')}>🏟️ Ver o estadual</button>
         </div>
       )}
-      {view === 'div' && isGroups(division) && <GroupsView game={game} />}
-      {view === 'div' && !isGroups(division) && division.format !== 'outside' && <>
+      {view === 'div' && !(limited && idx !== mineIndex) && isGroups(division) && <GroupsView game={game} />}
+      {view === 'div' && !(limited && idx !== mineIndex) && !isGroups(division) && division.format !== 'outside' && <>
       <div className="tb-wrap">
       <table className="tb">
         <thead><tr><th>#</th><th className="l">Clube</th><th>PTS</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr></thead>

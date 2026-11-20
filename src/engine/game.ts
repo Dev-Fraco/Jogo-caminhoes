@@ -104,7 +104,7 @@ export function newCareer(input: CareerInput, seed = Date.now() % 2147483647): G
   const { fixtures, totalRounds } = buildSeason(divisions);
   const career: GameState = {
     coachOverall: startingOverall(input.difficulty), version: 5, leagueName: input.leagueName, slots, saveName: input.saveName, coach: input.coach, difficulty: input.difficulty, mode: input.mode,
-    userClubId: input.userClubId, seed, season: input.season, round: 1, totalRounds,
+    userClubId: input.userClubId, seed, season: input.season, freeStart: input.season, round: 1, totalRounds,
     clubs, budgets, transfers: [], morale: { ...MORALE_START }, transferList: [], loanList: [], offers: [], loans: [], news: [], divisions, teams, fixtures, results: [], history: [],
   };
   // a carreira já nasce completa (contratos, treinadores, base, objetivos): carregar o save depois não muda nada
