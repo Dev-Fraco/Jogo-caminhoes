@@ -43,18 +43,19 @@ describe('academia de 20 níveis', () => {
   });
 });
 
-describe('custos: triplo da tabela original', () => {
-  it('exemplos obrigatórios: R$ 500 mil → R$ 1,5 mi e R$ 2 mi → R$ 6 mi', () => {
-    expect(originalCost(6_250_000, 0)).toBe(500_000); expect(academyCostAt(6_250_000, 0)).toBe(1_500_000);
-    expect(originalCost(25_000_000, 0)).toBe(2_000_000); expect(academyCostAt(25_000_000, 0)).toBe(6_000_000);
+describe('custos: 1,2× a tabela original (o triplo com 60% de desconto)', () => {
+  it('exemplos: R$ 500 mil → R$ 600 mil e R$ 2 mi → R$ 2,4 mi (antes R$ 1,5 mi e R$ 6 mi: 60% a menos)', () => {
+    expect(originalCost(6_250_000, 0)).toBe(500_000); expect(academyCostAt(6_250_000, 0)).toBe(600_000);
+    expect(originalCost(25_000_000, 0)).toBe(2_000_000); expect(academyCostAt(25_000_000, 0)).toBe(2_400_000);
+    for (const inc of [3e6, 6.25e6, 25e6, 80e6]) for (let L = 0; L < 20; L++) expect(academyCostAt(inc, L)).toBeCloseTo(0.4 * 3 * originalCost(inc, L), -3); // exatamente 40% do custo de antes, em todos os níveis
   });
-  it('a tabela do jogo é exatamente 3× a original, mantendo a progressão entre os níveis (sem valores iguais)', () => {
+  it('a tabela do jogo é exatamente 1,2× a original, mantendo a progressão entre os níveis (sem valores iguais)', () => {
     const g = mk(); const inc = income(g);
     const table = academyCostTable(g);
     expect(table).toHaveLength(20);
     for (let L = 0; L < 20; L++) {
-      expect(table[L]).toBe(3 * Math.round((0.08 * inc * (L + 1)) / 10_000) * 10_000); // a fórmula original, ×3
-      expect(table[L]).toBe(3 * originalCost(inc, L));
+      expect(table[L]).toBe(Math.round(1.2 * Math.round((0.08 * inc * (L + 1)) / 10_000) * 10_000)); // a fórmula original, ×1,2
+      expect(table[L]).toBe(Math.round(1.2 * originalCost(inc, L)));
       if (L > 0) expect(table[L]).toBeGreaterThan(table[L - 1]);
     }
     expect(new Set(table).size).toBe(20);

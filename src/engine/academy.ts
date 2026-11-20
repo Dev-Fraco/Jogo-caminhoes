@@ -16,8 +16,10 @@ import type { YouthState } from './youth';
 
 export const MAX_ACADEMY_LEVEL = 20;
 export const MAX_FACILITY_LEVEL = 20;
-/** O custo de cada melhoria é este múltiplo da tabela original. */
-export const COST_MULTIPLIER = 3;
+/** Antes o custo de cada melhoria era o TRIPLO da tabela original; agora tem 60% de desconto (para o usuário, as instalações e os clubes da IA). */
+export const COST_DISCOUNT = 0.6;
+/** O custo de cada melhoria é este múltiplo da tabela original (3 × 0,4 = 1,2). */
+export const COST_MULTIPLIER = 1.2;
 
 export type FacilityId = 'centro' | 'fisica' | 'medico' | 'alojamento' | 'campos';
 export interface FacilityDef { id: FacilityId; label: string; icon: string; /** peso do custo em relação à academia */ weight: number; benefits: readonly string[] }
@@ -47,8 +49,8 @@ export const academyPercent = (y: Pick<YouthState, 'level'>): number => Math.rou
 /** TABELA ORIGINAL (antes da Etapa 4): subir do nível L para L+1 custava 8% da receita-base × (L+1), arredondado a R$ 10 mil. */
 export const originalCost = (income: number, level: number): number => Math.round((0.08 * income * (level + 1)) / 10_000) * 10_000;
 const incomeOf = (g: GameState, clubId: string): number => baseIncome(divisionIndexOf(g, clubId), g.clubs[clubId].reputation, priceIndex(g));
-/** Custo de subir a academia de `level` para `level + 1`: o TRIPLO da tabela original, mantendo a progressão entre os níveis. */
-export const academyCostAt = (income: number, level: number): number => COST_MULTIPLIER * originalCost(income, level);
+/** Custo de subir a academia de `level` para `level + 1`: 1,2 × a tabela original (o triplo com 60% de desconto), mantendo a progressão entre os níveis. */
+export const academyCostAt = (income: number, level: number): number => Math.round((COST_MULTIPLIER * originalCost(income, level)) / 1_000) * 1_000; // (arredondado a R$ 1 mil: sem sobra de casas decimais)
 /** A tabela completa (20 degraus: do nível 0→1 ao 19→20) do clube. */
 export const academyCostTable = (g: GameState, clubId = g.userClubId): number[] => { const inc = incomeOf(g, clubId); return Array.from({ length: MAX_ACADEMY_LEVEL }, (_, L) => academyCostAt(inc, L)); };
 export const academyCost = (g: GameState, level = g.youth?.level ?? 0): number => (level >= MAX_ACADEMY_LEVEL ? 0 : academyCostAt(incomeOf(g, g.userClubId), level));

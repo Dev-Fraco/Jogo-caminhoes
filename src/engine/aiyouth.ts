@@ -97,7 +97,7 @@ export const aiFacilityBoost = (g: GameState, id: string): number => { const a =
 
 /** Parte da receita anual que um clube da IA separa para a formação (limitada pelo caixa: só sai dinheiro que existe). */
 export const AI_ACADEMY_SHARE = 0.08;
-/** Os clubes da IA constroem pela tabela ORIGINAL (o triplo vale para os investimentos do usuário): sem isso, com a receita deles, ninguém sairia do lugar. */
+/** Os clubes da IA pagam 1/3 do custo do usuário (a tabela original, já com os 60% de desconto: 0,4 × a original): sem isso, com a receita deles, ninguém sairia do lugar. */
 export const AI_COST_FACTOR = 1 / 3;
 /**
  * Virada de temporada: cada clube separa parte da receita num fundo da formação (o dinheiro sai do caixa dele, e só se houver folga) e,

@@ -235,5 +235,5 @@ export function releaseProspect(g: GameState, id: string): GameState {
   return { ...g, youth: { ...y, prospects: y.prospects.filter((x) => x.player.id !== id) } };
 }
 
-/** Custo e melhoria da academia (20 níveis, custo triplo da tabela original) e das instalações: veja academy.ts. */
+/** Custo e melhoria da academia (20 níveis, custo com 60% de desconto sobre o triplo da tabela original) e das instalações: veja academy.ts. */
 export { academyCost, upgradeAcademy };
