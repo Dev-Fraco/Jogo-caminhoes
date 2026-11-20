@@ -4,14 +4,16 @@
    Eixos do boneco (de frente para +X): ângulo de quadril/ombro positivo = perna/braço para frente; joelho positivo = dobra para trás.
    ===================================================================== */
 
-export type ActKind =
+/** Ações originais (poses calculadas por código); as demais (mais de 130) vêm da biblioteca por quadros-chave (anims.ts). */
+export type BaseKind =
   | 'pass' | 'pass_first' | 'long_pass' | 'cross' | 'shot' | 'header' | 'control' | 'tackle' | 'duel' | 'jump' | 'aerial'
   | 'celebrate' | 'complain' | 'fall' | 'getup' | 'wall'
   | 'gk_dive' | 'gk_catch' | 'gk_ready'
   | 'throw' | 'ref_whistle' | 'ref_card' | 'ref_point' | 'ref_advantage' | 'flag_up' | 'flag_corner' | 'flag_horizontal';
+export type ActKind = BaseKind | (string & {});
 
 /** Duração de cada ação (segundos de jogo) e o instante do contato com a bola (0 a 1), para a bola sair junto com o pé/cabeça. */
-export const ACT: Record<ActKind, { dur: number; strike: number }> = {
+const BASE_ACT: Record<BaseKind, { dur: number; strike: number }> = {
   pass: { dur: 0.55, strike: 0.42 }, pass_first: { dur: 0.4, strike: 0.4 }, long_pass: { dur: 0.75, strike: 0.46 }, cross: { dur: 0.75, strike: 0.46 },
   shot: { dur: 0.7, strike: 0.45 }, header: { dur: 0.9, strike: 0.5 }, control: { dur: 0.6, strike: 0.3 },
   tackle: { dur: 0.9, strike: 0.4 }, duel: { dur: 0.7, strike: 0.5 }, jump: { dur: 0.8, strike: 0.5 }, aerial: { dur: 0.9, strike: 0.5 },
@@ -20,20 +22,15 @@ export const ACT: Record<ActKind, { dur: number; strike: number }> = {
   throw: { dur: 0.9, strike: 0.5 }, ref_whistle: { dur: 0.9, strike: 0 }, ref_card: { dur: 1.6, strike: 0 }, ref_point: { dur: 1.4, strike: 0 }, ref_advantage: { dur: 1.4, strike: 0 },
   flag_up: { dur: 1.8, strike: 0 }, flag_corner: { dur: 1.6, strike: 0 }, flag_horizontal: { dur: 1.6, strike: 0 },
 };
+export const ACT: Record<ActKind, { dur: number; strike: number }> = { ...Object.fromEntries(Object.entries(ANIMS).map(([k, v]) => [k, { dur: v.dur, strike: v.strike }])), ...BASE_ACT };
 /** Atraso entre o início da ação e o contato com a bola (s). */
 export const strikeDelay = (k: ActKind) => ACT[k].dur * ACT[k].strike;
 
 export interface Act { kind: ActKind; t0: number; dur: number; /** -1/+1: lado do mergulho, perna de chute... */ dir: number }
 
-// índices da pose
-export const J = {
-  rootY: 0, rootPitch: 1, rootRoll: 2, spinePitch: 3, spineTwist: 4, headPitch: 5, headYaw: 6,
-  lShP: 7, lShA: 8, lElb: 9, rShP: 10, rShA: 11, rElb: 12,
-  lHip: 13, lHipA: 14, lKnee: 15, lAnk: 16, rHip: 17, rHipA: 18, rKnee: 19, rAnk: 20,
-} as const;
-export const N_JOINTS = 21;
-export type Pose = number[];
-export const newPose = (): Pose => new Array(N_JOINTS).fill(0);
+export { J, N_JOINTS, newPose, type Pose } from './joints';
+import { J, N_JOINTS, newPose, type Pose } from './joints';
+import { ANIMS, hasAnim, sampleAnim } from './anims';
 
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 const smooth = (x: number) => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
@@ -69,6 +66,7 @@ export function locomotion(phase: number, speed: number, lean: number, roll: num
 
 /** Pose de uma ação em `t` de 0 a 1. `dir` troca o lado (perna de chute, direção do mergulho). Soma-se ao corpo todo; o peso de entrada/saída é aplicado fora. */
 export function actionPose(kind: ActKind, t: number, dir: number): Pose {
+  if (!(kind in BASE_ACT) && hasAnim(kind)) return sampleAnim(kind, t, dir >= 0 ? 1 : -1);
   const p = newPose(), d = dir >= 0 ? 1 : -1;
   const kickHip = d > 0 ? J.rHip : J.lHip, kickKnee = d > 0 ? J.rKnee : J.lKnee, kickAnk = d > 0 ? J.rAnk : J.lAnk;
   const planHip = d > 0 ? J.lHip : J.rHip, planKnee = d > 0 ? J.lKnee : J.rKnee;

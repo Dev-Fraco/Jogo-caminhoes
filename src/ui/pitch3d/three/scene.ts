@@ -3,6 +3,7 @@ import type { Camera } from '../camera';
 import type { Look } from '../draw';
 import { BALL_R, GOAL_D, GOAL_H, GOAL_W, L, MID_Y, W, type World } from '../world';
 import { APRON, makeBallTexture, makePitchTexture } from './textures';
+import { createStadium } from './stadium';
 import { createAthletes, SHIRT_BY_SLOT, type AthleteKit as AthleteKitT } from './athletes';
 import { FORMATION_SLOTS, type FormationId } from '../../../engine/types';
 
@@ -33,8 +34,8 @@ export function createPitchRenderer(canvas: HTMLCanvasElement, quality: Quality,
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#0b1428');
-  scene.fog = new THREE.Fog('#0b1428', 90, 220);
-  const camera = new THREE.PerspectiveCamera(30, 1, 0.5, 400);
+  scene.fog = new THREE.Fog('#0b1428', 150, 380);
+  const camera = new THREE.PerspectiveCamera(30, 1, 0.5, 520);
 
   /* ---- luzes de estádio: céu/gramado + refletores ---- */
   scene.add(new THREE.HemisphereLight(0xeaf2ff, 0x2a5a30, 1.35));
@@ -119,47 +120,23 @@ export function createPitchRenderer(canvas: HTMLCanvasElement, quality: Quality,
   }
 
   /* ---- arquibancadas, placas e refletores ---- */
-  const tiers = new THREE.Group(); scene.add(tiers);
-  const standMat = own(new THREE.MeshLambertMaterial({ color: 0x2a3552 }));
   const adCols = [0xe63946, 0xf1faee, 0x457b9d, 0xffd23f, 0x2a9d8f, 0xf4a261];
   const adGeo = own(new THREE.BoxGeometry(1, 1, 0.12));
   const addBoards = (x0: number, y0: number, x1: number, y1: number, n: number) => {
     for (let i = 0; i < n; i++) {
       const t0 = i / n, t1 = (i + 1) / n, mx = x0 + (x1 - x0) * (t0 + t1) / 2, my = y0 + (y1 - y0) * (t0 + t1) / 2, len = Math.hypot(x1 - x0, y1 - y0) / n;
+      if (my > W + 3 && Math.abs(mx - L / 2) < 6) continue; // boca do túnel dos jogadores
       const m = new THREE.Mesh(adGeo, own(new THREE.MeshLambertMaterial({ color: adCols[i % adCols.length] })));
       m.scale.set(len * 0.98, 0.95, 1); m.position.copy(T(mx, my, 0.5)); m.rotation.y = Math.atan2(y1 - y0, x1 - x0) * -1 + 0; scene.add(m);
     }
   };
-  addBoards(-APRON + 1, W + 3.5, L + APRON - 1, W + 3.5, 16);
+  addBoards(-APRON + 1, W + 3.5, L + APRON - 1, W + 3.5, 20);
   addBoards(-4.5, -2, -4.5, W + 3.5, 8); addBoards(L + 4.5, -2, L + 4.5, W + 3.5, 8);
-  const side = (x0: number, y0: number, len: number, horizontal: boolean, rows: number, crowdStep: number, crowdOut: THREE.Matrix4[]) => {
-    for (let r = 0; r < rows; r++) {
-      const d = 1.05 + r * 1.45, h = 0.9 + r * 1.0;
-      const box = new THREE.Mesh(own(new THREE.BoxGeometry(horizontal ? len : 1.5, 0.35, horizontal ? 1.5 : len)), standMat);
-      const cx = horizontal ? x0 + len / 2 : x0 + (x0 < 0 ? -d : d), cy = horizontal ? y0 + d : y0 + len / 2;
-      box.position.copy(T(cx, cy, h)); tiers.add(box);
-      if (crowdStep > 0) for (let k = 0; k < len / crowdStep; k++) {
-        const px = horizontal ? x0 + k * crowdStep + hash(r * 91 + k) * 0.3 : cx, py = horizontal ? cy : y0 + k * crowdStep + hash(r * 77 + k) * 0.3;
-        crowdOut.push(new THREE.Matrix4().makeTranslation(px, h + 0.55, -py));
-      }
-    }
-  };
-  const crowdSlots: THREE.Matrix4[] = [];
-  const step = quality === 'high' ? 0.8 : 1.15;
-  side(-APRON - 6, W + 6, L + APRON * 2 + 12, true, 8, q.crowd ? step : 0, crowdSlots);
-  side(-APRON - 4, -4, W + 14, false, 6, q.crowd ? step * 1.2 : 0, crowdSlots);
-  side(L + APRON + 4, -4, W + 14, false, 6, q.crowd ? step * 1.2 : 0, crowdSlots);
-  let crowd: THREE.InstancedMesh | null = null; const crowdBase: THREE.Matrix4[] = [];
-  if (q.crowd && crowdSlots.length) {
-    const n = Math.min(q.crowd, crowdSlots.length);
-    crowd = new THREE.InstancedMesh(own(new THREE.BoxGeometry(0.45, 0.8, 0.35)), own(new THREE.MeshLambertMaterial({ color: 0xffffff })), n);
-    const pal = [0xffd23f, 0xff6b6b, 0xffffff, 0x5ec8ff, 0x9be564, 0xb388ff], c = new THREE.Color();
-    for (let i = 0; i < n; i++) { const m = crowdSlots[Math.floor((i / n) * crowdSlots.length)]; crowdBase.push(m); crowd.setMatrixAt(i, m); crowd.setColorAt(i, c.setHex(pal[Math.floor(hash(i * 7 + 1) * pal.length)])); }
-    scene.add(crowd);
-  }
+  const crowdStep = quality === 'high' ? 0.62 : quality === 'medium' ? 0.95 : 1.9; // pessoas na arquibancada: mais ou menos conforme o aparelho
+  const stadium = createStadium(scene, look, crowdStep, own);
   const towerMat = own(new THREE.MeshBasicMaterial({ color: 0xfffbe6 }));
   const poleMat = own(new THREE.MeshLambertMaterial({ color: 0x555d6e }));
-  for (const [tx, ty] of [[-18, W + 16], [L + 18, W + 16]]) {
+  for (const [tx, ty] of [[-34, W + 44], [L + 34, W + 44]]) {
     const pole = new THREE.Mesh(own(new THREE.CylinderGeometry(0.5, 0.7, 30, 8)), poleMat); pole.position.copy(T(tx, ty, 15)); scene.add(pole);
     const lamp = new THREE.Mesh(own(new THREE.BoxGeometry(7, 3.6, 0.4)), towerMat); lamp.position.copy(T(tx, ty, 31)); lamp.lookAt(T(L / 2, MID_Y, 0)); scene.add(lamp);
   }
@@ -238,12 +215,7 @@ export function createPitchRenderer(canvas: HTMLCanvasElement, quality: Quality,
         for (let j = 0; j < NH; j++) for (let i = 0; i < NW - 1; i++) { const a = node(i, j), c = node(i + 1, j); pos.setXYZ(k++, a.x, a.y, a.z); pos.setXYZ(k++, c.x, c.y, c.z); }
         pos.needsUpdate = true;
       }
-      // torcida pula no gol
-      if (crowd) {
-        const m = new THREE.Matrix4();
-        if (w.banner) { for (let i = 0; i < crowdBase.length; i++) { m.copy(crowdBase[i]); m.elements[13] += Math.abs(Math.sin(w.t * 9 + i * 0.7)) * 0.4; crowd.setMatrixAt(i, m); } crowd.instanceMatrix.needsUpdate = true; crowd.userData.jumped = true; }
-        else if (crowd.userData.jumped) { for (let i = 0; i < crowdBase.length; i++) crowd.setMatrixAt(i, crowdBase[i]); crowd.instanceMatrix.needsUpdate = true; crowd.userData.jumped = false; }
-      }
+      stadium.update(w, dt); // torcida (pula no gol) e mosaico da cerimônia
       renderer.render(scene, camera);
     },
     snap() { athletes.snap(); },

@@ -18,7 +18,7 @@ const gk = (w: World, side: 'home' | 'away') => w.agents[side === 'home' ? 0 : 1
 describe('arbitragem', () => {
   it('árbitro e dois assistentes: o assistente fica na linha lateral, cada um numa metade, e o árbitro acompanha a jogada dentro do campo', () => {
     const w = createWorld('4-4-2', '4-4-2'); expect(w.refs).toHaveLength(3);
-    const ball = (x: number, y: number) => { w.ball.p = { x, y, z: 0.22 }; run(w, 8); };
+    const ball = (x: number, y: number) => { w.brain.next = 1e9; w.ball.mode = 'free'; w.ball.carrier = -1; w.ball.v = { x: 0, y: 0, z: 0 }; w.ball.p = { x, y, z: 0.22 }; run(w, 8); }; // (cérebro desligado: a bola fica parada onde o teste a põe)
     for (const [x, y] of [[20, 30], [85, 50], [52, 10]] as const) {
       ball(x, y); const [ref, ar1, ar2] = w.refs;
       expect(ar1.y).toBeLessThan(0); expect(ar2.y).toBeGreaterThan(W);                       // fora das linhas, um de cada lado

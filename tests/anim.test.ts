@@ -69,16 +69,16 @@ describe('lances encenados com os jogadores do motor', () => {
   it('a bola só sai no contato do pé e a comemoração só começa depois que a bola entra na rede', () => {
     const events = [kickoff, ev(10, 'goal', 'home', { pid: 'h10', how: 'foot' })];
     const { w, drv } = mk(events); drive(w, drv, events, 9); stepWorld(w, 0.5); drive(w, drv, events, 10);
-    let kickedAt = -1, celebratedBeforeGoal = false, scoredAt = -1, shotStartAt = -1;
+    let kickedAt = -1, celebratedBeforeGoal = false, scoredAt = -1, shotStartAt = -1, shotKindUsed = 'shot';
     for (let t = 0; t < 20 && (w.script || w.var); t += 1 / 60) {
       stepWorld(w, 1 / 60);
       const sh = w.agents[10];
-      if (shotStartAt < 0 && sh.act?.kind === 'shot') shotStartAt = w.t;
+      if (shotStartAt < 0 && sh.act?.kind.startsWith('shot')) { shotStartAt = w.t; shotKindUsed = sh.act!.kind; }
       if (kickedAt < 0 && w.ball.mode === 'free' && shotStartAt >= 0) kickedAt = w.t;
       if (scoredAt < 0 && w.ball.scored) scoredAt = w.t;
       if (scoredAt < 0 && w.agents.some((a) => a.state === 'celebrate')) celebratedBeforeGoal = true;
     }
-    expect(shotStartAt).toBeGreaterThan(0); expect(kickedAt - shotStartAt).toBeGreaterThan(strikeDelay('shot') - 0.05); // a bola espera o pé
+    expect(shotStartAt).toBeGreaterThan(0); expect(kickedAt - shotStartAt).toBeGreaterThan(strikeDelay(shotKindUsed) - 0.05); // a bola espera o pé
     expect(scoredAt).toBeGreaterThan(kickedAt); expect(celebratedBeforeGoal).toBe(false); expect(w.goals.home).toBe(1);
   });
 

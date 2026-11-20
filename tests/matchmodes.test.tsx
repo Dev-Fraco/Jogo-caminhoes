@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { playNext } from '../src/engine/game';
 import { consistent, matchStats } from '../src/engine/matchstats';
 import { clubOf } from '../src/engine/lookup';
-import { SPEEDS, scoreAt } from '../src/ui/LiveMatch';
+import { MATCH_SECONDS, MS_PER_MINUTE, scoreAt } from '../src/ui/LiveMatch';
 import { MatchChoice } from '../src/ui/MatchChoice';
 import { MatchSim } from '../src/ui/MatchSim';
 import { makeCareer } from './helpers';
@@ -24,8 +24,10 @@ describe('simular x assistir: mesma partida', () => {
       expect(st.home.onTarget).toBeGreaterThanOrEqual(st.home.goals);
     }
   });
-  it('as velocidades da partida assistida vão de 1x a 4x (nunca acima)', () => {
-    expect([...SPEEDS]).toEqual([1, 2, 3, 4]); expect(Math.max(...SPEEDS)).toBe(4);
+  it('a partida assistida não tem velocidades: 3 s por minuto de jogo (cerca de 5 minutos reais com os lances) e só dá para pular até o fim', () => {
+    expect(MS_PER_MINUTE).toBe(3000); expect(MATCH_SECONDS).toBe(270);
+    const html = renderToStaticMarkup(createElement(MatchChoice, { home: clubOf(userMatch(3).g, userMatch(3).r.homeId), away: clubOf(userMatch(3).g, userMatch(3).r.awayId), divisionName: 'x', stadium: 'y', onChoose: () => {} }));
+    expect(html).toContain('cerca de 5 minutos'); expect(html).not.toMatch(/1x a 4x/);
   });
 });
 

@@ -8,11 +8,9 @@ import { audio } from '../audio/audio';
 import { ClubBadge } from './ClubBadge';
 import { PenaltyShootout } from './PenaltyShootout';
 
-/** Velocidades da partida assistida: 1x a 4x (limite absoluto). */
-export const SPEEDS = [1, 2, 3, 4] as const;
-export type Speed = (typeof SPEEDS)[number];
-/** Em 1x uma partida de 90 minutos dura 45 segundos (meio segundo por minuto de jogo). As outras velocidades dividem esse tempo. */
-export const MS_PER_MINUTE_AT_1X = 500;
+/** Não há mais escolha de velocidade: cada minuto de jogo dura 3 segundos reais, ou seja, 90 minutos em 4min30 de bola rolando (com as comemorações, o VAR e a cerimônia, a partida passa de 5 minutos). Só dá para pular até o fim. */
+export const MS_PER_MINUTE = 3000;
+export const MATCH_SECONDS = (MS_PER_MINUTE * 90) / 1000;
 export const INTRO_MS = 3600;
 
 const ICON: Record<MatchEvent['type'], string> = { kickoff: '⏱️', tactic: '🔄', injury: '🤕', goal: '⚽', yellow: '🟨', red: '🟥', foul: '🦵', save: '🧤', miss: '🎯', corner: '🚩', offside: '🏳️', var: '📺', halftime: '⏸️', fulltime: '🏁' };
@@ -39,7 +37,6 @@ interface Props {
 export function LiveMatch({ home, away, result, userSide, divisionName, stadium, onFinish, homeFormation = '4-4-2', awayFormation = '4-4-2', userTeam, unavailable, tacticsUsed = 0, onTactic, players }: Props) {
   const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const [phase, setPhase] = useState<'intro' | 'play' | 'pens' | 'done'>(reduce ? 'play' : 'intro');
-  const [speed, setSpeed] = useState<Speed>(1);
   const [paused, setPaused] = useState(false);
   const [tactics, setTactics] = useState(false);
   const [minute, setMinute] = useState(0);
@@ -50,7 +47,7 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
   const onVar = (on: boolean) => { setVarHold(on); if (!on) setVarCam(null); };
   // relógio parado enquanto o lance é mostrado (gol com comemoração e VAR, falta, escanteio...): só volta quando tudo termina
   const [playHold, setPlayHold] = useState(false);
-  const speedRef = useRef(speed); speedRef.current = speed;
+  const [skipCer, setSkipCer] = useState(0); // pedido para pular a cerimônia de entrada e do hino
 
   // animação de entrada
   useEffect(() => {
@@ -66,7 +63,7 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
     const tick = (now: number) => {
       const dt = now - last; last = now;
       setMinute((m) => {
-        const n = Math.min(90, m + (dt / MS_PER_MINUTE_AT_1X) * speedRef.current);
+        const n = Math.min(90, m + dt / MS_PER_MINUTE);
         if (n >= 90) setPhase(result.penKicks ? 'pens' : 'done');
         return n;
       });
@@ -133,7 +130,7 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
       </div>
 
       {tactics && userTeam && onTactic && <TacticsSheet team={userTeam} unavailable={unavailable} minute={Math.floor(minute)} score={[hg, ag]} side={userSide} used={tacticsUsed} onClose={() => { setTactics(false); setPaused(false); }} onApply={(t) => { onTactic(t); setTactics(false); setPaused(false); }} />}
-      {phase !== 'pens' && <Pitch3D players={players} onVar={onVar} onHold={setPlayHold} varCam={varCam} skipVar={skipVar} paused={paused} home={home} away={away} homeFormation={homeFormation} awayFormation={awayFormation} events={result.events} minute={phase === 'play' ? minute : 90} speed={speed} userSide={userSide} />}
+      {phase !== 'pens' && <Pitch3D players={players} onVar={onVar} onHold={setPlayHold} varCam={varCam} skipVar={skipVar} paused={paused} home={home} away={away} homeFormation={homeFormation} awayFormation={awayFormation} events={result.events} minute={phase === 'play' ? minute : 90} speed={1} skipCeremony={skipCer} userSide={userSide} />}
 
       {phase === 'pens' && result.penKicks ? (
         <PenaltyShootout home={home} away={away} kicks={result.penKicks} userSide={userSide} onDone={() => setPhase('done')} />
@@ -145,13 +142,10 @@ export function LiveMatch({ home, away, result, userSide, divisionName, stadium,
         </div>
       ) : phase === 'play' ? (
         <div className="lm-ctrl">
-          <div className="lm-speeds" role="group" aria-label="Velocidade do tempo">
-            {SPEEDS.map((s) => <button key={s} className={speed === s ? 'on' : ''} aria-pressed={speed === s} onClick={() => setSpeed(s)}>{s}x</button>)}
-          </div>
-          <button className="btn lm-pause" onClick={() => setPaused((p) => !p)} aria-pressed={paused}>{paused ? '▶ Continuar' : '⏸ Pausar'}</button>
           {userTeam && onTactic && <button className="btn lm-pause lm-tac" onClick={() => { setPaused(true); setTactics(true); }}>⚙️ Formação</button>}
           <button className="btn lm-pause" onClick={toggleChants} aria-pressed={chants} aria-label="Cantos da torcida">{chants ? '🎺 Cantos: sim' : '🎺 Cantos: não'}</button>
-          <button className="btn lm-pause" onClick={skip}>⏭ Pular</button>
+          {playHold && minute === 0 ? <button className="btn lm-pause" onClick={() => setSkipCer((n) => n + 1)}>⏭ Pular apresentação</button> : null}
+          <button className="btn lm-pause" onClick={skip}>⏭ Pular até o fim</button>
         </div>
       ) : (
         <div className="lm-final">

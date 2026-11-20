@@ -1,6 +1,6 @@
 import { L, MID_Y, type V3 } from './world';
 
-/* Câmera em perspectiva (transmissão de TV): fica ao lado do campo, alta, olhando para o centro e acompanhando a bola. */
+/* Câmera em perspectiva do TREINADOR: fica ao lado do campo, na altura do banco de reservas, olhando para o centro e acompanhando a bola. */
 export interface Camera { px: number; py: number; pz: number; rx: number; ry: number; rz: number; ux: number; uy: number; uz: number; fx: number; fy: number; fz: number; focal: number; cx: number; cy: number }
 export interface Projected { x: number; y: number; scale: number; depth: number }
 
@@ -9,7 +9,8 @@ const cross = (a: number[], b: number[]): [number, number, number] => [a[1] * b[
 
 /** `camX` = ponto do campo (no comprimento) para onde a câmera olha; `span` = quantos metros cabem na largura da tela no centro do campo. */
 export function makeCamera(width: number, height: number, camX: number, span = 38): Camera {
-  const pos: [number, number, number] = [camX, -19, 17], target: [number, number, number] = [camX, 27, 0];
+  // câmera do treinador: baixa e perto da linha lateral (do banco), olhando para o campo grande
+  const pos: [number, number, number] = [camX, -10.5, 9.6], target: [number, number, number] = [camX, 27, 0];
   const f = norm([target[0] - pos[0], target[1] - pos[1], target[2] - pos[2]]);
   const r = norm(cross(f, [0, 0, 1])), u = cross(r, f);
   const dist = Math.hypot(target[0] - pos[0], target[1] - pos[1], target[2] - pos[2]);

@@ -16,7 +16,7 @@ export function MatchChoice({ home, away, divisionName, stadium, onChoose }: { h
       <p className="mc-std">🏟️ {stadium}</p>
       <button className="mc-opt" onClick={() => onChoose('watch')}>
         <b>▶ Assistir partida</b>
-        <span>Acompanhe os 90 minutos no campo, com velocidade de 1x a 4x, pausa e mudanças táticas.</span>
+        <span>Entrada das equipes, hino e a partida no campo (cerca de 5 minutos), com mudanças táticas e a opção de pular até o fim.</span>
       </button>
       <button className="mc-opt" onClick={() => onChoose('sim')}>
         <b>⚡ Simular partida inteira</b>
