@@ -1,10 +1,24 @@
 import { clamp, hashString, makeRng, type Rng } from './rng';
 import { autoLineup, spotOf, teamRatings } from './squad';
 import { MAX_INJURIES_PER_MATCH, rollInjury, rollMatchInjuries, spanLabel, type InjuryHit } from './injuries';
-import { FORMATIONS, type FormationId, type MatchEvent, type Player, type TeamState } from './types';
+import { FORMATIONS, type FormationId, type MatchEvent, type Player, type Stance, type TeamState } from './types';
 
 /** Mudança tática feita pelo treinador durante a partida: vale a partir do minuto seguinte. */
-export interface Tactic { minute: number; formation: FormationId; lineup: string[] }
+export interface Tactic { minute: number; formation: FormationId; lineup: string[]; /** nova postura (opcional) */ stance?: Stance }
+
+/**
+ * Postura do time: muda cada decisão da partida. `mid` = controle do jogo (quem ataca mais minutos), `att` = qualidade das finalizações,
+ * `def` = solidez para evitar as do rival, `foul` = faltas cometidas e `card` = cartões por falta. Equilibrado = 1 em tudo (o resultado de sempre).
+ * Todas as posturas têm custo: quem ataca mais se expõe, quem se fecha cria menos.
+ */
+export const STANCES: Record<Stance, { label: string; icon: string; desc: string; mid: number; att: number; def: number; foul: number; card: number }> = {
+  equilibrado: { label: 'Equilibrado', icon: '⚖️', desc: 'Sem exagero: joga o jogo normal.', mid: 1, att: 1, def: 1, foul: 1, card: 1 },
+  posse: { label: 'Posse de bola', icon: '🎯', desc: 'Foca na bola: domina o meio e ataca mais minutos, com poucas faltas, mas chuta com menos veneno.', mid: 1.09, att: 0.97, def: 1, foul: 0.85, card: 0.9 },
+  contra: { label: 'Recuado no contra-ataque', icon: '🛡️', desc: 'Fica atrás esperando o erro do rival: defende bem e ataca pouco, mas os contra-ataques saem perigosos.', mid: 0.92, att: 1.07, def: 1.07, foul: 1, card: 1 },
+  agressivo: { label: 'Agressivo: ataque o tempo todo', icon: '🔥', desc: 'Pressiona sem parar: cria muito, mas deixa a defesa aberta, comete mais faltas e leva mais cartões.', mid: 1.05, att: 1.1, def: 0.9, foul: 1.25, card: 1.2 },
+  cauteloso: { label: 'Cauteloso', icon: '🧱', desc: 'Joga para não sofrer: defesa mais firme, ataque mais tímido e poucas faltas.', mid: 0.98, att: 0.95, def: 1.09, foul: 0.85, card: 0.85 },
+};
+export const STANCE_LIST = Object.keys(STANCES) as Stance[];
 export const MAX_TACTIC_CHANGES = 5;
 /** Quanto a formação "ataca" (0 = 4-4-2; positivo ataca mais, negativo defende mais). */
 export const attackBias = (f: FormationId) => { const x = FORMATIONS[f]; return (x.ATT - 2) + (x.MID - 4) * 0.5 - (x.DEF - 4) * 0.5; };
@@ -63,8 +77,10 @@ export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, m
   const injured: InjuryHit[] = [];
   const handicap = { home: 1, away: 1 }; // sem reserva para repor o lesionado: joga com um a menos
   const injCount = { home: 0, away: 0 };
+  const stance: Record<'home' | 'away', Stance> = { home: home.stance ?? 'equilibrado', away: away.stance ?? 'equilibrado' };
   const ratings = (side: 'home' | 'away', minute: number) => {
-    const r = side === 'home' ? hR : aR, k = ((side === 'home' ? mods.home : mods.away) ?? 1) * handicap[side];
+    const sf = STANCES[stance[side]];
+    const r0 = side === 'home' ? hR : aR, r = sf === STANCES.equilibrado ? r0 : { ...r0, mid: r0.mid * sf.mid, att: r0.att * sf.att, def: r0.def * sf.def }, k = ((side === 'home' ? mods.home : mods.away) ?? 1) * handicap[side];
     if (side !== mineSide) return scale(r, k);
     const fade = Math.max(0, 1 - (minute - fx.start) / 25), all = 1 + fx.bonus * fade + (minute < fx.confUntil ? -0.03 : 0), st = curBias - origBias;
     return scale({ ...r, mid: r.mid * all }, k, all * (1 + 0.08 * st), all * (1 - 0.08 * st));
@@ -127,6 +143,14 @@ export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, m
       const team = side === 'home' ? hTeam : aTeam;
       const ok = t.lineup.length === 11 && new Set(t.lineup).size === 11 && t.lineup.every((id) => team.players.some((p) => p.id === id)) && t.lineup.filter((id) => team.players.find((p) => p.id === id)!.pos === 'GK').length === 1;
       const next: TeamState = { ...team, formation: t.formation, lineup: ok ? t.lineup : autoLineup(team.players, t.formation) };
+      const oldStance = stance[side];
+      if (t.stance && STANCES[t.stance]) stance[side] = t.stance;
+      if (t.formation === team.formation && next.lineup.every((id, i) => id === team.lineup[i])) { // só a postura mudou: sem bônus nem confusão da formação
+        if (stance[side] === oldStance) continue;
+        lastChange = minute; changes++;
+        push(minute - 1, 'tactic', side, `${club(side)} muda a postura: ${STANCES[stance[side]].icon} ${STANCES[stance[side]].label}.`, { lineup: [...team.lineup], formation: team.formation });
+        continue;
+      }
       const oldR = side === 'home' ? hR : aR, newR = teamRatings(next);
       const diff = side === 'home' ? hg - ag : ag - hg;
       const q = tacticQuality(diff, minute, curBias, attackBias(t.formation));
@@ -154,7 +178,8 @@ export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, m
 
     // falta (e cartão), independente dos ataques
     if (rng() < 0.11) {
-      const fs = rng() < 0.5 ? 'home' : 'away';
+      const fh = STANCES[stance.home].foul, fa = STANCES[stance.away].foul;
+      const fs = rng() < fh / (fh + fa) ? 'home' : 'away';
       const vs = fs === 'home' ? 'away' : 'home';
       const offender = pickOf(field(fs)), victim = pickOf(field(vs));
       push(minute, 'foul', fs, `Falta de ${offender.name} (${club(fs)}) em ${victim.name} (${club(vs)}).`, { player: offender.name, pid: offender.id, victimId: victim.id });
@@ -169,7 +194,7 @@ export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, m
           redCards[fs]++; out.add(offender.id);
           push(minute, 'red', fs, `Cartão vermelho! ${offender.name} (${club(fs)}) é expulso.`, { player: offender.name, pid: offender.id });
         }
-      } else if (r < 0.3) {
+      } else if (r < 0.3 * STANCES[stance[fs]].card) {
         if (yellows.has(offender.id) && redCards[fs] < 2) {
           redCards[fs]++; out.add(offender.id);
           push(minute, 'red', fs, `Segundo amarelo! ${offender.name} (${club(fs)}) é expulso.`, { player: offender.name, pid: offender.id });

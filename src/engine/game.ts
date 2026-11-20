@@ -43,7 +43,7 @@ import { buildFixtures } from './schedule';
 import { generateOffers, returnLoans } from './roster';
 import { autoLineup, teamFromPlayers, teamRatings } from './squad';
 import { computeTable } from './table';
-import type { ClubInfo, DivisionState, FormationId, Fixture, GameState, MatchResult, PlayedMatch, Position, SeasonSummary, TableRow } from './types';
+import type { ClubInfo, DivisionState, FormationId, Fixture, GameState, MatchResult, PlayedMatch, Position, SeasonSummary, Stance, TableRow } from './types';
 
 export { DIVISION_INCOME, seasonIncome } from './economy';
 import { baseIncome } from './finance';
@@ -407,6 +407,12 @@ export const firingWarning = (g: GameState): string | null => {
 export function setFormation(g: GameState, formation: FormationId): GameState {
   const t = g.teams[g.userClubId];
   return { ...g, teams: { ...g.teams, [g.userClubId]: { ...t, formation, lineup: autoLineup(t.players, formation) } } };
+}
+
+/** Postura do seu time (posse, contra-ataque, agressivo, cauteloso ou equilibrado): vale em todas as partidas até mudar. */
+export function setStance(g: GameState, stance: Stance): GameState {
+  const t = g.teams[g.userClubId];
+  return { ...g, teams: { ...g.teams, [g.userClubId]: { ...t, stance } } };
 }
 
 /** Troca um titular por um reserva da MESMA posição. */

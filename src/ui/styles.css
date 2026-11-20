@@ -404,3 +404,11 @@ select option { background: #35322e; color: var(--ink); }
 .pp-ovr { min-width: 26px; padding: 0 5px; border-radius: 9px; background: #ffd23f; color: #101820; font: 800 13px/18px var(--font-head); text-align: center; box-shadow: 0 2px 5px rgba(0, 0, 0, .5); }
 .lu-pitch .pp { gap: 1px; }
 .lu-pitch .pp-n { max-width: 88px; margin-top: 1px; }
+
+/* Postura do time */
+.stance { margin: 12px 0; }
+.stance-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 6px; }
+.stance-grid button { display: flex; align-items: center; gap: 6px; padding: 9px 8px; border-radius: 10px; border: 1px solid #514d46; background: rgba(31, 30, 27, .9); color: #fff; font: 700 12.5px/1.2 var(--font-body); text-align: left; cursor: pointer; }
+.stance-grid button .st-ico { font-size: 20px; }
+.stance-grid button.on { background: linear-gradient(180deg, #ffd23d, #f0b90b); color: #101820; border-color: #ffe88a; box-shadow: 0 0 10px rgba(255, 210, 61, .5); }
+.stance-desc { margin: 8px 2px 0; }

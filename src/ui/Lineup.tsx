@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { setFormation, swapPlayer } from '../engine/game';
+import { setFormation, setStance, swapPlayer } from '../engine/game';
 import { teamRatings } from '../engine/squad';
 import { FORMATIONS, SPOT_LABEL, SPOT_SHORT, type FormationId, type GameState, type Player, type Position } from '../engine/types';
 import { spotOf } from '../engine/squad';
 import { isInjured, remainingLabel } from '../engine/injuries';
 import { kitOf } from '../data/kit';
 import { Shirt } from './Shirt';
+import { StancePicker } from './StancePicker';
 
 /** Número da camisa pela função na formação (1 goleiro, 2 lateral direito, 3 e 4 zagueiros, 5 volante...): o motor não guarda número. */
 const SHIRT_BY_SPOT: Record<string, number[]> = { GK: [1], LD: [2], LE: [6], ZAG: [3, 4, 13], MC: [5, 8, 15, 18], MD: [7], ME: [11], PD: [7], PE: [11], CA: [9, 10, 19] };
@@ -149,6 +150,8 @@ export function Lineup({ game, onChange, onBack }: { game: GameState; onChange: 
           ))}
         </ul>
       </section>
+
+      <StancePicker value={team.stance ?? 'equilibrado'} onPick={(st) => { setNotice(null); onChange(setStance(game, st)); }} />
 
       {open && <SwapSheet game={game} player={open} onClose={close} onSwap={(outId, inId) => {
         const o = team.players.find((p) => p.id === outId)!, i = team.players.find((p) => p.id === inId)!;

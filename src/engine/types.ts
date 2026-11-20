@@ -71,7 +71,11 @@ export interface TeamState {
   players: Player[];
   formation: FormationId;
   lineup: string[]; // 11 ids de jogadores
+  /** Postura do time na partida (junto com a formação). Ausente = equilibrado. */
+  stance?: Stance;
 }
+
+export type Stance = 'equilibrado' | 'posse' | 'contra' | 'agressivo' | 'cauteloso';
 
 export interface MatchEvent {
   minute: number;

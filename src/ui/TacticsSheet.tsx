@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { StancePicker } from './StancePicker';
 import { MAX_TACTIC_CHANGES, attackBias, type Tactic } from '../engine/match';
 import { autoLineup, spotOf } from '../engine/squad';
-import { FORMATIONS, SPOT_SHORT, type FormationId, type Position, type TeamState } from '../engine/types';
+import { FORMATIONS, SPOT_SHORT, type FormationId, type Position, type Stance, type TeamState } from '../engine/types';
 
 const POS_LABEL: Record<Position, string> = { GK: 'Goleiro', DEF: 'Defensores', MID: 'Meias', ATT: 'Atacantes' };
 const ORDER: Position[] = ['GK', 'DEF', 'MID', 'ATT'];
@@ -14,11 +15,12 @@ export function TacticsSheet({ team, minute, score, side, used, unavailable, onA
   const box = useRef<HTMLDivElement>(null);
   const [formation, setFormation] = useState<FormationId>(team.formation);
   const [lineup, setLineup] = useState<string[]>(team.lineup);
+  const [stance, setStance] = useState<Stance>(team.stance ?? 'equilibrado');
   const [pick, setPick] = useState<string | null>(null); // titular escolhido para sair
   useEffect(() => { box.current?.focus(); }, []);
   const byId = new Map(team.players.map((p) => [p.id, p]));
   const mine = side === 'home' ? score[0] - score[1] : score[1] - score[0];
-  const changed = formation !== team.formation || lineup.some((id, i) => id !== team.lineup[i]) || lineup.length !== team.lineup.length;
+  const changed = formation !== team.formation || lineup.some((id, i) => id !== team.lineup[i]) || lineup.length !== team.lineup.length || stance !== (team.stance ?? 'equilibrado');
   const left = MAX_TACTIC_CHANGES - used;
   const pickFormation = (f: FormationId) => { setFormation(f); setLineup(autoLineup(team.players, f, unavailable)); setPick(null); };
   const swapIn = (inId: string) => { if (!pick) return; setLineup(lineup.map((id) => (id === pick ? inId : id))); setPick(null); };
@@ -40,6 +42,8 @@ export function TacticsSheet({ team, minute, score, side, used, unavailable, onA
           ))}
         </div>
 
+        <StancePicker value={stance} onPick={setStance} />
+
         {ORDER.map((pos) => (
           <section key={pos} className="ts-pos">
             <h3>{POS_LABEL[pos]}</h3>
@@ -58,7 +62,7 @@ export function TacticsSheet({ team, minute, score, side, used, unavailable, onA
         ))}
 
         {!valid && <p className="un-warn">A escalação precisa ter 1 goleiro, {need.DEF} defensores, {need.MID} meias e {need.ATT} atacantes.</p>}
-        <button className="primary" disabled={!changed || !valid || left <= 0 || minute >= 88} onClick={() => onApply({ minute, formation, lineup })}>✔ Aplicar mudança</button>
+        <button className="primary" disabled={!changed || !valid || left <= 0 || minute >= 88} onClick={() => onApply({ minute, formation, lineup, stance })}>✔ Aplicar mudança</button>
         <button className="btn ps-close" onClick={onClose}>Cancelar</button>
       </div>
     </div>
