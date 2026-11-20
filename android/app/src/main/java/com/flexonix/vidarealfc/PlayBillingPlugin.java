@@ -1,4 +1,4 @@
-package com.exemplo.brasileiraomanager;
+package com.flexonix.vidarealfc;
 
 import android.content.pm.ApplicationInfo;
 import android.util.Base64;

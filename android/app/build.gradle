@@ -1,11 +1,11 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace "com.exemplo.brasileiraomanager"
+    namespace "com.flexonix.vidarealfc"
     compileSdk rootProject.ext.compileSdkVersion
     assetPacks = [":premium_pack"] // conteúdo Premium entregue pela Play (Play Asset Delivery)
     defaultConfig {
-        applicationId "com.exemplo.brasileiraomanager"
+        applicationId "com.flexonix.vidarealfc"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode Integer.parseInt(System.getenv('GITHUB_RUN_NUMBER') ?: '1')

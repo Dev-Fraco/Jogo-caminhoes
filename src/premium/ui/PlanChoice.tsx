@@ -12,9 +12,9 @@ export const PLANS: { id: PlanId; name: string; price: string; unit: string; not
 export const COMPARE: { feature: string; free: string; premium: string }[] = [
   { feature: 'Primeira temporada', free: 'Completa', premium: 'Completa' },
   { feature: 'Da segunda temporada em diante', free: 'Liga do seu clube', premium: 'Jogo completo' },
-  { feature: 'Divisões do campeonato', free: 'Só na primeira temporada', premium: 'Todas, sempre' },
-  { feature: 'Copa nacional, estaduais e continentais', free: 'Só na primeira temporada', premium: 'Sempre' },
-  { feature: 'Mundo, copas especiais e Super Mundial', free: 'Só na primeira temporada', premium: 'Sempre' },
+  { feature: 'Divisões do campeonato', free: '1 temporada grátis por aparelho', premium: 'Todas, sempre' },
+  { feature: 'Copa nacional, estaduais e continentais', free: '1 temporada grátis por aparelho', premium: 'Sempre' },
+  { feature: 'Mundo, copas especiais e Super Mundial', free: '1 temporada grátis por aparelho', premium: 'Sempre' },
   { feature: 'Mods da comunidade', free: 'Indisponível', premium: 'Incluído' },
   { feature: 'Anúncios', free: 'Com anúncios', premium: 'Sem anúncios' },
 ];

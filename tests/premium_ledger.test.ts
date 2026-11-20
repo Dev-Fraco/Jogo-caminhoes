@@ -27,7 +27,15 @@ describe('livro da temporada grátis', () => {
     reconcile(save(7, 2026, 2026));
     expect(reconcile(save(7, 2028, 2025)).freeStart).toBe(2025);
     expect(ledgerStart(7)).toBe(2025);
-    expect(reconcile(save(8, 2030, 2030)).freeStart).toBe(2030);
+    expect(ledgerStart(8)).toBeUndefined();
+  });
+  it('1 temporada grátis por aparelho: a primeira carreira tem; as novas já começam sem a temporada grátis', () => {
+    const a = reconcile(save(1, 2026));
+    expect(inTrial(a)).toBe(true);
+    const b = reconcile(save(2, 2026));
+    expect(inTrial(b)).toBe(false);
+    expect(reconcile(save(2, 2026, 2026)).freeStart).toBe(2025);   // editar não devolve
+    expect(inTrial(reconcile(save(1, 2026, 2026)))).toBe(true);    // a primeira continua com a dela
   });
   it('nada muda: devolve o mesmo objeto', () => {
     const g = save(1, 2026, 2026);

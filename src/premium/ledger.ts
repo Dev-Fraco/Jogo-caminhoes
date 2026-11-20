@@ -1,5 +1,6 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import type { GameState } from '../engine/types';
+import { FREE_SEASONS } from './entitlement';
 
 /* =====================================================================
    Livro da temporada grátis. O "onde a carreira começou" (freeStart) fica no save, e o save é do jogador: editar o arquivo ou o
@@ -8,6 +9,7 @@ import type { GameState } from '../engine/types';
      Block Store do Google Play Services, que costuma sobreviver a limpar dados e reinstalar);
    - nos demais (web, testes) o livro fica no localStorage, sem proteção (nessas versões nada é cobrado).
    Regra: o livro manda. Um save nunca pode "começar depois" do que o livro registrou.
+   Uma temporada grátis por aparelho: só a primeira carreira anotada tem a temporada grátis; as seguintes já começam limitadas.
    ===================================================================== */
 
 export interface SecureLedgerPlugin {
@@ -17,7 +19,7 @@ export interface SecureLedgerPlugin {
 
 const LS_KEY = 'vr-ledger';
 const MAX = 300;
-interface Book { v: 1; c: Record<string, number> }
+interface Book { v: 1; c: Record<string, number>; /** carreira dona da temporada grátis deste aparelho */ o?: number }
 
 let plugin: SecureLedgerPlugin | null = null;
 let nativeOverride: boolean | null = null;
@@ -34,7 +36,7 @@ function parse(text: string | null | undefined): Book | null {
     if (b?.v !== 1 || typeof b.c !== 'object' || b.c === null) return null;
     const c: Record<string, number> = {};
     for (const [k, v] of Object.entries(b.c)) if (Number.isFinite(v)) c[k] = v as number;
-    return { v: 1, c };
+    return { v: 1, c, o: Number.isFinite(b.o) ? b.o : undefined };
   } catch { return null; }
 }
 
@@ -70,7 +72,14 @@ export function reconcile<T extends Pick<GameState, 'seed' | 'season' | 'freeSta
   const key = String(g.seed);
   const known = book.c[key];
   const claimed = g.freeStart ?? g.season;
-  if (known === undefined) { book.c[key] = claimed; persist(); return g.freeStart === undefined ? { ...g, freeStart: claimed } : g; }
+  if (known === undefined) {
+    // 1 temporada grátis por APARELHO: a primeira carreira registrada fica com ela; as carreiras novas já nascem sem temporada grátis
+    let start = claimed;
+    if (book.o === undefined) book.o = g.seed;
+    else if (book.o !== g.seed) start = claimed - FREE_SEASONS;
+    book.c[key] = start; persist();
+    return g.freeStart === start ? g : { ...g, freeStart: start };
+  }
   const start = Math.min(known, claimed);
   if (start !== known) { book.c[key] = start; persist(); }
   return g.freeStart === start ? g : { ...g, freeStart: start };

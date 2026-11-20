@@ -1,4 +1,4 @@
-package com.exemplo.brasileiraomanager;
+package com.flexonix.vidarealfc;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;

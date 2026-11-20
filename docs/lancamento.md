@@ -4,9 +4,9 @@ Tudo aqui é o roteiro do dono. Itens marcados [CLAUDE] eu faço no código quan
 Ordem importa: só tire o jogo do ar (site, releases, repositório público) DEPOIS que o app estiver publicado na Play.
 
 ## 1. Decisões que travam o resto
-1. **ID do aplicativo (applicationId).** Hoje é provisório: `com.exemplo.brasileiraomanager`. A Play não deixa trocar depois de publicar. Escolha algo seu e definitivo, ex.: `com.seunome.vidarealfc` (só letras minúsculas, números e pontos). [CLAUDE troca no código: build.gradle, capacitor.config.json, pastas Java, MainActivity.]
+1. **ID do aplicativo (applicationId).** DEFINIDO: `com.flexonix.vidarealfc` (já trocado no código). A Play não deixa trocar depois de publicado.
 2. **Nome na loja:** "Vida Real FC" (confira se está livre e se não usa marca de terceiros: sem nomes reais de clubes/jogadores/escudos licenciados na loja).
-3. **Limite do grátis por aparelho:** hoje cada carreira nova ganha uma temporada grátis. Quer limitar a 1 por aparelho?
+3. **Limite do grátis:** DEFINIDO e feito: 1 temporada grátis por aparelho (a primeira carreira do aparelho; as novas já nascem limitadas).
 
 ## 2. Chave de publicação (upload key)
 - Com o "Play App Signing" (padrão), o Google guarda a chave final do app; você só precisa de uma chave de envio (upload key), que pode ser trocada se perder.

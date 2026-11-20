@@ -1,4 +1,4 @@
-package com.exemplo.brasileiraomanager;
+package com.flexonix.vidarealfc;
 
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;

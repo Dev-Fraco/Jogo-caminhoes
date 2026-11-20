@@ -22,4 +22,4 @@ O Modo Desafio (Premium) ainda não existe: ele sorteará um clube que joga só 
 ## Gerar APK / AAB
 - **Sem instalar nada (pelo celular):** no GitHub, aba *Actions* → *Android (APK + AAB)* → *Run workflow*. Baixe o resultado em *Artifacts*.
 - **No PC:** `npm run sync:android`, abra a pasta `android/` no Android Studio e use Build → Generate Signed Bundle / APK.
-- Antes de publicar: troque `appId` em `capacitor.config.json` (hoje `com.exemplo.brasileiraomanager`) e assine o AAB com sua chave de upload.
+- Antes de publicar: troque `appId` em `capacitor.config.json` (já é `com.flexonix.vidarealfc`) e assine o AAB com sua chave de upload.
