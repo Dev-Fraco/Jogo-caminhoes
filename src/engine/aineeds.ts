@@ -1,3 +1,4 @@
+import { roundsLeft } from './injuries';
 import { squadLimits } from './aisquad';
 import type { ClubProfile } from './aiprofile';
 import { avgXI } from './aiprofile';
@@ -37,9 +38,8 @@ export const AGING_AGE = 32;
 export const NEED_THRESHOLD = 15;
 
 /** Lesionado por longo tempo? (o jogo ainda não gera lesões; se existirem em `g.injuries`, a IA já as respeita) */
-export function longInjured(g: Pick<GameState, 'injuries' | 'season' | 'round'>, playerId: string): boolean {
-  const i = g.injuries?.[playerId];
-  return !!i && (i.season > g.season || (i.season === g.season && i.untilRound - g.round >= LONG_INJURY_ROUNDS));
+export function longInjured(g: Pick<GameState, 'injuries' | 'season' | 'round' | 'cal'>, playerId: string): boolean {
+  return roundsLeft(g, playerId) >= LONG_INJURY_ROUNDS;
 }
 
 /** Analisa o elenco e devolve as necessidades por posição, da mais urgente para a menos. */

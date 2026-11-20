@@ -309,7 +309,7 @@ export interface SeasonSummary {
 }
 
 /** Lesão de um jogador: volta a poder jogar na rodada `untilRound` da temporada `season` (pode passar da última rodada e seguir na próxima temporada). */
-export interface Injury { season: number; untilRound: number; kind: string; /** quantas rodadas ficou fora no total */ rounds: number; clubId?: string; /** afastamento em dias de jogo e gravidade (lesões novas) */ days?: number; severity?: 'leve' | 'media' | 'grave' }
+export interface Injury { season: number; untilRound: number; /** dia do calendário em que volta (as lesões novas contam por dias) */ untilDay?: number; kind: string; /** quantas rodadas ficou fora no total */ rounds: number; clubId?: string; /** afastamento em dias de jogo e gravidade (lesões novas) */ days?: number; severity?: 'leve' | 'media' | 'grave' }
 
 /** Registro de uma contratação (o jogador passa de um clube para outro). */
 export interface Transfer {

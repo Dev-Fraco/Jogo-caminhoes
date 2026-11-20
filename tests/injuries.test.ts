@@ -8,6 +8,8 @@ import { autoLineup } from '../src/engine/squad';
 import { saleReasons } from '../src/engine/aisales';
 import { clubProfile } from '../src/engine/aiprofile';
 import type { GameState } from '../src/engine/types';
+import { calOf } from '../src/engine/calendar';
+import { daysLeft } from '../src/engine/injuries';
 import { makeCareer } from './helpers';
 
 const g0 = makeCareer('flamengo', 4);
@@ -62,14 +64,15 @@ describe('sistema de lesões', () => {
     expect(grave / sides).toBeGreaterThan(0.02); expect(grave / sides).toBeLessThan(0.04);
     expect(mostPerTeam).toBeLessThanOrEqual(2);
   });
-  it('o jogador volta no prazo: lesão de 3 rodadas na rodada 5 fica fora das rodadas 6, 7 e 8', () => {
+  it('o jogador volta no prazo: lesão de 3 rodadas (12 dias) cura 12 dias depois', () => {
     const id = g0.teams.flamengo.players[3].id;
     const g = hit({ ...g0, round: 5 }, 'flamengo', id, 3);
-    const at = (r: number) => isInjured({ ...g, round: r }, id);
-    expect([6, 7, 8, 9].map(at)).toEqual([true, true, true, false]); // a lesão foi na rodada 5: fora das rodadas 6, 7 e 8
-    expect(roundsLeft({ ...g, round: 6 }, id)).toBe(3);
-    expect(injuredSet({ ...g, round: 7 }).has(id)).toBe(true);
-    expect(pruneInjuries({ ...g, round: 9 }).injuries).toEqual({});
+    const c = g.cal ?? { day: calOf(g).day, start: calOf(g).start, slot: 0 };
+    const at = (d: number) => isInjured({ ...g, cal: { ...c, day: c.day + d } }, id);
+    expect([1, 6, 11, 12].map(at)).toEqual([true, true, true, false]);
+    expect(roundsLeft(g, id)).toBe(3);
+    expect(injuredSet({ ...g, cal: { ...c, day: c.day + 7 } }).has(id)).toBe(true);
+    expect(pruneInjuries({ ...g, cal: { ...c, day: c.day + 12 } }).injuries).toEqual({});
     expect(g.news[0].text).toMatch(/se lesionou/); // o seu clube é avisado
   });
   it('a escalação automática pula lesionados (e só usa um se faltar gente na linha)', () => {
@@ -169,8 +172,22 @@ describe('lesões — efeito numa temporada inteira', () => {
     const g = applyInjuries({ ...g0, round: 10 }, [{ playerId: id, clubId: 'flamengo', rounds, days, kind: 'ruptura de ligamento do joelho', severity: 'grave' }]);
     expect(g.injuries![id]).toMatchObject({ days: 150, severity: 'grave' });
     expect(g.news[0].text).toContain('5 meses'); expect(g.news[0].text).toContain('lesão grave');
-    const next = rolloverInjuries({ ...g, season: g.season + 1, round: 1 }, g.season, g.totalRounds);
+    const next = rolloverInjuries({ ...g, season: g.season + 1, round: 1, cal: { day: calOf(g).day + 100, start: calOf(g).start, slot: 0 } }, g.season, g.totalRounds);
     expect(next.injuries![id]).toBeDefined();
-    expect(roundsLeft(next, id)).toBeGreaterThan(0);
+    expect(daysLeft(next, id)).toBe(50);
+  });
+});
+
+describe('lesão conta em dias do calendário', () => {
+  it('15 dias: cai 1 por dia e cura exatamente no 15º dia, sem depender de rodadas', async () => {
+    const { remainingLabel } = await import('../src/engine/injuries');
+    const id = g0.teams[g0.userClubId].players[0].id;
+    let g = applyInjuries(g0, [{ playerId: id, clubId: g0.userClubId, rounds: 4, days: 15, kind: 'entorse no tornozelo' }]);
+    expect(daysLeft(g, id)).toBe(15);
+    expect(remainingLabel(g, id)).toBe('15 dias');
+    const bump = (x: GameState) => ({ ...x, cal: { ...calOf(x), day: calOf(x).day + 1 } });
+    for (let d = 1; d <= 14; d++) { g = bump(g); expect(daysLeft(g, id)).toBe(15 - d); expect(isInjured(g, id)).toBe(true); }
+    g = bump(g);
+    expect(daysLeft(g, id)).toBe(0); expect(isInjured(g, id)).toBe(false);
   });
 });

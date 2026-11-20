@@ -1,3 +1,4 @@
+import { calOf } from './calendar';
 import { autoLineup, spotFit, spotOf } from './squad';
 import { injuryDurationFactor } from './academy';
 import type { Rng } from './rng';
@@ -56,19 +57,23 @@ export function rollInjury(rng: Rng, age: number, severity?: 'leve' | 'grave'): 
   return { severity: sev, days, rounds, kind: list[Math.floor(rng() * list.length)] };
 }
 
-/** Quanto falta para o jogador voltar, em dias ou meses do jogo (para mostrar na tela). */
-export const remainingLabel = (g: Pick<GameState, 'injuries' | 'season' | 'round'>, playerId: string) => spanLabel(roundsLeft(g, playerId) * DAYS_PER_ROUND);
-
-/** Rodadas que faltam para o jogador voltar (0 = disponível). */
-export function roundsLeft(g: Pick<GameState, 'injuries' | 'season' | 'round'>, playerId: string): number {
+type InjG = Pick<GameState, 'injuries' | 'season' | 'round' | 'cal'>;
+/** Dias do calendário que faltam para o jogador voltar (0 = disponível). Cai 1 a cada dia que passa. Lesões antigas (só em rodadas) são convertidas. */
+export function daysLeft(g: InjG, playerId: string): number {
   const i = g.injuries?.[playerId];
   if (!i) return 0;
-  if (i.season > g.season) return Math.max(0, i.untilRound - g.round + 100); // (não ocorre: a virada converte para a temporada nova)
-  return i.season === g.season ? Math.max(0, i.untilRound - g.round) : 0;
+  if (i.untilDay !== undefined) return Math.max(0, i.untilDay - calOf(g).day);
+  if (i.season > g.season) return Math.max(0, i.untilRound - g.round + 100) * DAYS_PER_ROUND;
+  return i.season === g.season ? Math.max(0, i.untilRound - g.round) * DAYS_PER_ROUND : 0;
 }
-export const isInjured = (g: Pick<GameState, 'injuries' | 'season' | 'round'>, playerId: string) => roundsLeft(g, playerId) > 0;
+/** Quanto falta para o jogador voltar, em dias ou meses do jogo (para mostrar na tela). */
+export const remainingLabel = (g: InjG, playerId: string) => spanLabel(daysLeft(g, playerId));
+
+/** Rodadas (aproximadas) que faltam para o jogador voltar (0 = disponível). */
+export const roundsLeft = (g: InjG, playerId: string): number => Math.ceil(daysLeft(g, playerId) / DAYS_PER_ROUND);
+export const isInjured = (g: InjG, playerId: string) => daysLeft(g, playerId) > 0;
 /** Todos os jogadores indisponíveis agora (lesionados). */
-export function injuredSet(g: Pick<GameState, 'injuries' | 'season' | 'round'>): Set<string> {
+export function injuredSet(g: InjG): Set<string> {
   const out = new Set<string>();
   for (const id of Object.keys(g.injuries ?? {})) if (isInjured(g, id)) out.add(id);
   return out;
@@ -115,8 +120,9 @@ export function applyInjuries(g: GameState, hits: InjuryHit[], atRound: number =
       }
     }
     const cur = injuries[h.playerId];
-    if (cur && roundsLeft(g, h.playerId) >= h.rounds) continue; // já está fora por mais tempo
-    injuries[h.playerId] = { season: g.season, untilRound: atRound + 1 + h.rounds, kind: h.kind, rounds: h.rounds, clubId: h.clubId, ...(h.days ? { days: h.days } : {}), ...(h.severity ? { severity: h.severity } : {}) };
+    const days = h.days ?? h.rounds * DAYS_PER_ROUND;
+    if (cur && daysLeft(g, h.playerId) >= days) continue; // já está fora por mais tempo
+    injuries[h.playerId] = { season: g.season, untilRound: atRound + 1 + h.rounds, untilDay: calOf(g).day + days, kind: h.kind, rounds: h.rounds, clubId: h.clubId, ...(h.days ? { days: h.days } : {}), ...(h.severity ? { severity: h.severity } : {}) };
     if (h.clubId === g.userClubId && !g.unemployed) {
       const p = g.teams[h.clubId]?.players.find((x) => x.id === h.playerId);
       if (p) s = news(s, `🤕 ${p.name} se lesionou (${h.kind}): fora por ${spanLabel(h.days ?? h.rounds * DAYS_PER_ROUND)}${h.severity === 'grave' ? ' (lesão grave)' : ''}.`, h.severity === 'grave' || h.rounds >= 8 ? 'bad' : 'info');
@@ -130,7 +136,7 @@ export function pruneInjuries(g: GameState): GameState {
   if (!g.injuries) return g;
   const alive = new Set<string>();
   for (const t of Object.values(g.teams)) for (const p of t.players) alive.add(p.id);
-  const next = Object.fromEntries(Object.entries(g.injuries).filter(([id, i]) => alive.has(id) && (i.season > g.season || (i.season === g.season && i.untilRound > g.round))));
+  const next = Object.fromEntries(Object.entries(g.injuries).filter(([id]) => alive.has(id) && isInjured(g, id)));
   return Object.keys(next).length === Object.keys(g.injuries).length ? g : { ...g, injuries: next };
 }
 
@@ -139,6 +145,7 @@ export function rolloverInjuries(g: GameState, oldSeason: number, lastRound: num
   if (!g.injuries) return g;
   const next: Record<string, Injury> = {};
   for (const [id, i] of Object.entries(g.injuries)) {
+    if (i.untilDay !== undefined) { next[id] = { ...i, season: g.season }; continue; } // por dias: o calendário segue sozinho
     if (i.season !== oldSeason) { if (i.season >= g.season) next[id] = i; continue; }
     const left = i.untilRound - (lastRound + 1) - OFFSEASON_RECOVERY; // rodadas que faltavam depois do fim da temporada, menos o descanso
     if (left > 0) next[id] = { ...i, season: g.season, untilRound: 1 + left }; // g.season já é a temporada nova
