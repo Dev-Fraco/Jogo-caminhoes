@@ -16,7 +16,7 @@ import type { GameState, MatchResult, NewsItem } from './types';
 export function userPlaysNextSlot(g: GameState): boolean {
   if (g.unemployed || g.observer) return false;
   if (pendingEvent(g)) return true;                      // jogo seu de estadual, copa, continental ou Mundial
-  if (g.estadual?.due || g.mundial?.due) return false;   // etapa em que o seu clube não entra
+  if (g.estadual?.due || g.mundial?.due || g.superMundial?.due) return false;   // etapa em que o seu clube não entra
   if (g.round > g.totalRounds) return false;
   const div = userDivision(g);
   if (!div || div.format === 'outside') return false;    // clube que só disputa o estadual: as rodadas do campeonato não são dele

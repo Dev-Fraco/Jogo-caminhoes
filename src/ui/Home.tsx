@@ -6,6 +6,7 @@ import { estadualOfUser, estadualRanking, estadualSummary, stepLabel } from '../
 import { userInCup } from '../engine/cup';
 import { pendingEvent } from '../engine/events';
 import { CONTINENTALS, COMPS, mundialStepName, stepName, userIn } from '../engine/continental';
+import { superStepName } from '../engine/supermundial';
 import { clubOf } from '../engine/lookup';
 import type { GameState, MatchResult } from '../engine/types';
 import { PROMOTED_STRONG_CHANCE } from '../engine/ai';
@@ -77,11 +78,11 @@ export function Home({ game, onChange, last, over, onPlay, onSeeTables, onSeeRes
           <button className="primary" onClick={onNextSeason}>Próxima temporada</button>
         </div>
         <SalaryCard key={game.season} game={game} onChange={onChange} />
-        {[game.cup, game.lib, game.sula, game.ucl, game.mundial].some((c) => c?.championId) && (
+        {[game.cup, game.lib, game.sula, game.ucl, game.mundial, game.superMundial].some((c) => c?.championId) && (
           <section>
             <h3>Campeões das copas</h3>
             <ul className="list">
-              {[['🏆', game.cup], ['🌎', game.lib], ['🌴', game.sula], ['⭐', game.ucl], ['🌍', game.mundial]].map(([icon, c]) => { const k = c as { id: string; name: string; championId?: string } | undefined; return k?.championId ? <li key={k.id}><div className="row"><span className="grow">{icon as string} {k.name}</span><b>{name(k.championId)}</b></div></li> : null; })}
+              {[['🏆', game.cup], ['🌎', game.lib], ['🌴', game.sula], ['⭐', game.ucl], ['🌍', game.mundial], ['🌐', game.superMundial]].map(([icon, c]) => { const k = c as { id: string; name: string; championId?: string } | undefined; return k?.championId ? <li key={k.id}><div className="row"><span className="grow">{icon as string} {k.name}</span><b>{name(k.championId)}</b></div></li> : null; })}
             </ul>
           </section>
         )}
@@ -106,7 +107,7 @@ export function Home({ game, onChange, last, over, onPlay, onSeeTables, onSeeRes
 
   const ev = pendingEvent(game);
   const next = ev ? ev.match : fixturesOfRound(game, game.round, division.id).find((f) => f.homeId === game.userClubId || f.awayId === game.userClubId);
-  const shown = last.filter((r) => r.divisionId === division.id || [game.cup?.id, game.lib?.id, game.sula?.id, game.ucl?.id, game.mundial?.id].includes(r.divisionId));
+  const shown = last.filter((r) => r.divisionId === division.id || [game.cup?.id, game.lib?.id, game.sula?.id, game.ucl?.id, game.mundial?.id, game.superMundial?.id].includes(r.divisionId));
   const tableRows = division.format === 'outside' ? [] : (isGroups(division) ? userGroupRows(game, division) : undefined) ?? divisionTable(game, division.id);
   const myPos = tableRows.findIndex((r) => r.clubId === game.userClubId);
   const miniRows = [0, 1, 2].filter((i) => i < tableRows.length).map((i) => ({ r: tableRows[i], pos: i + 1 })).concat(myPos > 2 ? [{ r: tableRows[myPos], pos: myPos + 1 }] : []);
@@ -142,6 +143,7 @@ export function Home({ game, onChange, last, over, onPlay, onSeeTables, onSeeRes
         {isMatchDay(game) && !plays && <p className="cal-next" style={{ textAlign: 'center' }}>{mineDay === undefined ? 'Nesta data só jogam outros clubes e o seu não tem mais jogos marcados nesta temporada.' : `Nesta data só jogam outros clubes. Seu próximo jogo: ${formatDayShort(mineDay)}.`}</p>}
         {!ev && COMPS.map((k) => { const c = game[k], cfg = CONTINENTALS[k]; if (!c) return null; const mine = c.groups.some((gr) => gr.clubIds.includes(game.userClubId)); return mine || c.championId ? <small key={k} className="cup-line">{c.championId ? `${cfg.icon} ${c.name}: campeão ${name(c.championId)}` : userIn(game, k) ? `${cfg.icon} ${c.name}: ${stepName(k, c)} em breve` : `${cfg.icon} ${c.name}: seu clube foi eliminado`}</small> : null; })}
         {!ev && game.mundial && <small className="cup-line">{game.mundial.championId ? `🌍 ${game.mundial.name}: campeão ${name(game.mundial.championId)}` : `🌍 ${game.mundial.name}: ${mundialStepName(game.mundial)}`}</small>}
+        {!ev && game.superMundial && <small className="cup-line">{game.superMundial.championId ? `🌐 ${game.superMundial.name}: campeão ${name(game.superMundial.championId)}` : `🌐 ${game.superMundial.name}: ${superStepName(game.superMundial)}`}</small>}
         {game.cup && !ev && <small className="cup-line">{game.cup.championId ? `🏆 ${game.cup.name}: campeão ${name(game.cup.championId)}` : userInCup(game) ? `🏆 ${game.cup.name}: você está na ${game.cup.rounds[game.cup.roundIndex].name}` : `🏆 ${game.cup.name}: seu clube já foi eliminado`}</small>}
       </div>
       <div className="home2-actions">
@@ -172,7 +174,7 @@ export function Home({ game, onChange, last, over, onPlay, onSeeTables, onSeeRes
       <Newspaper game={game} />
       {shown.length > 0 && (
         <section>
-          <h3>{shown[0].divisionId === division.id ? `Resultados da rodada ${shown[0].round}` : `${[game.cup, game.lib, game.sula, game.ucl, game.mundial].find((c) => c?.id === shown[0].divisionId)?.name ?? 'Copa'} — resultados`}</h3>
+          <h3>{shown[0].divisionId === division.id ? `Resultados da rodada ${shown[0].round}` : `${[game.cup, game.lib, game.sula, game.ucl, game.mundial, game.superMundial].find((c) => c?.id === shown[0].divisionId)?.name ?? 'Copa'} — resultados`}</h3>
           <ul className="list">
             {shown.map((r) => {
               const key = `${r.round}-${r.homeId}`;

@@ -15,7 +15,7 @@ import type { ClubInfo, CupRound, CupTie, GameState, LibGroup, LibState, MatchRe
 import { penaltyTakers, shootoutKicks } from './cup';
 
 export type Comp = 'lib' | 'ucl' | 'sula';
-const M = 1_000_000;
+export const M = 1_000_000;
 
 interface Cfg {
   key: Comp; id: string; name: string; icon: string;
@@ -64,8 +64,8 @@ export const MUNDIAL_ID = 'mundial';
 const MUNDIAL_PRIZE = { semi: 25 * M, champion: 120 * M };
 
 const FOREIGN_PREFIX = /^(ar|bo|cl|co|ec|py|pe|uy|ve|en|es|it|de|fr|pt)-/;
-const country = (id: string) => (FOREIGN_PREFIX.test(id) ? id.slice(0, 2) : 'br');
-const shuffle = <T>(rng: Rng, list: T[]): T[] => {
+export const country = (id: string) => (FOREIGN_PREFIX.test(id) ? id.slice(0, 2) : 'br');
+export const shuffle = <T>(rng: Rng, list: T[]): T[] => {
   const a = [...list];
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
   return a;
@@ -115,7 +115,7 @@ export const stepName = (key: Comp, l: LibState) => CONTINENTALS[key].stepNames[
 export const userIn = (g: GameState, key: Comp) => { const l = g[key]; return !g.unemployed && !!l && l.alive.includes(g.userClubId) && !l.championId; };
 export const matchDue = (g: GameState, key: Comp) => !!g[key]?.due && userIn(g, key);
 
-const isMine = (g: GameState) => (m: { homeId: string; awayId: string }) => m.homeId === g.userClubId || m.awayId === g.userClubId;
+export const isMine = (g: GameState) => (m: { homeId: string; awayId: string }) => m.homeId === g.userClubId || m.awayId === g.userClubId;
 /** O jogo do seu clube na etapa atual. */
 export function userMatch(g: GameState, key: Comp): { homeId: string; awayId: string } | undefined {
   const l = g[key];
@@ -135,7 +135,7 @@ const lineupTeam = (g: GameState, id: string): TeamState => {
 };
 
 /** Simula um jogo e, se terminar empatado e for mata-mata, decide nos pênaltis. */
-function playTie(g: GameState, rng: Rng, t: CupTie, divisionId: string, round: number, results: MatchResult[]): CupTie {
+export function playTie(g: GameState, rng: Rng, t: CupTie, divisionId: string, round: number, results: MatchResult[]): CupTie {
   const factor = moraleFactor(g.morale.team);
   const mods = { home: t.homeId === g.userClubId ? factor : 1, away: t.awayId === g.userClubId ? factor : 1 };
   const out = simulateCupMatch(lineupTeam(g, t.homeId), lineupTeam(g, t.awayId), rng, mods, { home: clubOf(g, t.homeId).name, away: clubOf(g, t.awayId).name });
@@ -224,7 +224,7 @@ export function playContStep(g: GameState, key: Comp): { state: GameState; resul
   return { state: { ...g, budgets, [key]: next, scorers: addScorers(g, drainGoals()), news: [...news, ...g.news].slice(0, 80) }, results };
 }
 
-function playTieGroup(g: GameState, rng: Rng, m: { homeId: string; awayId: string }, divisionId: string, round: number, results: MatchResult[]) {
+export function playTieGroup(g: GameState, rng: Rng, m: { homeId: string; awayId: string }, divisionId: string, round: number, results: MatchResult[]) {
   const factor = moraleFactor(g.morale.team);
   const mods = { home: m.homeId === g.userClubId ? factor : 1, away: m.awayId === g.userClubId ? factor : 1 };
   const out = simulateMatch(lineupTeam(g, m.homeId), lineupTeam(g, m.awayId), rng, mods, { home: clubOf(g, m.homeId).name, away: clubOf(g, m.awayId).name });

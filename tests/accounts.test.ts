@@ -22,47 +22,37 @@ const withChip = (): GameState => {
 };
 
 describe('chip: número, preço e validade', () => {
-  it('custa R$ 2.000, vem com número (DD) 9XXXX-XXXX e vale 1 ano', () => {
+  it('custa R$ 2.000, vem com número (DD) 9XXXX-XXXX e nunca bloqueia', () => {
     const a = buyPhoneCash(start(), 'zap'); if (!a.ok) throw new Error();
     const cash = coachMoneyOf(a.state);
     const g = withChip();
     expect(coachMoneyOf(g)).toBe(cash - CHIP_PRICE);
     expect(chipNumberOf(g)).toMatch(/^\(\d{2}\) 9\d{4}-\d{4}$/);
-    expect(chipLeft(g)).toBe(365);
+    expect(chipLeft(g)).toBeUndefined();
     expect(phoneOf(g).notifications.some((n) => n.text.includes(chipNumberOf(g)!))).toBe(true);
   });
-  it('depois de 1 ano o chip bloqueia: os dados morrem e um chip novo traz outro número', () => {
+  it('o chip nunca bloqueia: passam-se anos e os dados continuam funcionando, sem avisos de bloqueio', () => {
     let g = toggleConn(withChip(), 'mobileData');
     g = { ...g, phone: { ...phoneOf(g), plan: { until: calOf(g).day + 9999 } } };
+    const num = chipNumberOf(g)!;
+    g = processDays(g, calOf(g).day, calOf(g).day + 800);
+    expect(chipBlocked(g)).toBe(false);
+    expect(chipOf(g)).toBeDefined();
+    expect(chipNumberOf(g)).toBe(num);
     expect(netState(g).kind).toBe('5g');
-    const old = chipNumberOf(g)!;
-    g = processDays(g, calOf(g).day, calOf(g).day + 366);
-    expect(chipBlocked(g)).toBe(true);
-    expect(chipOf(g)).toBeUndefined();
-    expect(netState(g)).toMatchObject({ speed: 'none', label: 'Chip bloqueado' });
-    expect(phoneOf(g).notifications.some((n) => /bloqueado/.test(n.text))).toBe(true);
-    expect(phoneOf(g).notifications.filter((n) => /bloqueado/.test(n.text)).length).toBe(1); // só avisa uma vez
-    const again = buyChip({ ...g, coachMoney: 50_000 }, 'morto'); if (!again.ok) throw new Error(again.error);
-    expect(chipBlocked(again.state)).toBe(false);
-    expect(chipNumberOf(again.state)).not.toBe(old);
-    expect(netState(again.state).kind).toBe('5g');
-  });
-  it('avisa antes de bloquear', () => {
-    let g = withChip();
-    g = processDays(g, calOf(g).day, calOf(g).day + 360);
-    expect(phoneOf(g).notifications.some((n) => /vai bloquear/.test(n.text))).toBe(true);
+    expect(phoneOf(g).notifications.some((n) => /bloquead|vai bloquear/.test(n.text))).toBe(false);
   });
 });
 
 describe('conta nos apps com código por SMS', () => {
-  it('app novo pede conta; sem chip (ou bloqueado) o código não chega', () => {
+  it('app novo pede conta; sem chip o código não chega', () => {
     const a = buyPhoneCash(start(), 'zap'); if (!a.ok) throw new Error();
     expect(needsAccount(a.state, 'banco')).toBe(true);
     expect(needsAccount(a.state, 'noticias')).toBe(false);
     expect(requestCode(a.state, 'banco', '(11) 91234-5678')).toMatchObject({ ok: false });
     const g = withChip();
-    const blocked = { ...g, cal: { ...calOf(g), day: calOf(g).day + 400 } };
-    expect(requestCode(blocked, 'banco', chipNumberOf(g)!)).toMatchObject({ ok: false });
+    const later = { ...g, cal: { ...calOf(g), day: calOf(g).day + 400 } };
+    expect(requestCode(later, 'banco', chipNumberOf(g)!)).toMatchObject({ ok: true }); // o chip não bloqueia mais
   });
   it('só o número do seu chip recebe o código; o código chega por SMS e libera o app', () => {
     let g = withChip();

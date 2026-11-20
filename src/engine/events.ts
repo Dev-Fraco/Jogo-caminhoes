@@ -6,10 +6,11 @@ import './dataplan';
 import { updateMorale } from './morale';
 import { COPA_DO_BRASIL, cupMatchDue, playCupRound, userCupTie } from './cup';
 import { CONTINENTALS, matchDue, mundialMatchDue, mundialStepName, mundialUserMatch, playContStep, playMundialStep, stepName, userMatch, type Comp } from './continental';
+import { playSuperStep, superMatchDue, superStepName, superUserMatch } from './supermundial';
 import { socialAfterMatch } from './social';
 import type { GameState, MatchResult } from './types';
 
-export type EventKind = 'estadual' | 'cup' | 'lib' | 'sula' | 'ucl' | 'mundial';
+export type EventKind = 'estadual' | 'cup' | 'lib' | 'sula' | 'ucl' | 'mundial' | 'super';
 export interface PendingEvent { kind: EventKind; /** id da competição (divisionId dos resultados) */ id: string; label: string; match: { homeId: string; awayId: string } }
 
 /** Jogo especial esperando o seu clube (copa nacional, Libertadores, Champions ou Mundial), se houver. */
@@ -21,12 +22,13 @@ export function pendingEvent(g: GameState): PendingEvent | undefined {
     if (l && matchDue(g, key)) { const m = userMatch(g, key); if (m) return { kind: key, id: l.id, label: `${CONTINENTALS[key].icon} ${l.name} · ${stepName(key, l)}`, match: m }; }
   }
   if (g.mundial && mundialMatchDue(g)) { const m = mundialUserMatch(g); if (m) return { kind: 'mundial', id: g.mundial.id, label: `🌍 ${g.mundial.name} · ${mundialStepName(g.mundial)}`, match: m }; }
+  if (g.superMundial && superMatchDue(g)) { const m = superUserMatch(g); if (m) return { kind: 'super', id: g.superMundial.id, label: `🌐 ${g.superMundial.name} · ${superStepName(g.superMundial)}`, match: m }; }
   return undefined;
 }
 
 /** Joga o evento pendente do seu clube. */
 export function playEvent(g: GameState, kind: EventKind): { state: GameState; results: MatchResult[] } {
-  const r = kind === 'estadual' ? playEstadualStep(g) : kind === 'cup' ? playCupRound(g) : kind === 'mundial' ? playMundialStep(g) : playContStep(g, kind);
+  const r = kind === 'estadual' ? playEstadualStep(g) : kind === 'cup' ? playCupRound(g) : kind === 'mundial' ? playMundialStep(g) : kind === 'super' ? playSuperStep(g) : playContStep(g, kind);
   const my = r.results.find((x) => x.homeId === g.userClubId || x.awayId === g.userClubId);
   if (my) r.state = pruneInjuries(applyInjuries(r.state, hitsFromEvents(my.events, my.homeId, my.awayId), g.round)); // lesões do seu jogo na copa/estadual/continental
   if (!my || g.unemployed) return r;

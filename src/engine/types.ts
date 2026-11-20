@@ -243,6 +243,20 @@ export interface CasinoState { balance: number; bets: CasinoBet[]; deposited: nu
 export interface MarketDeal { season: number; round: number; text: string }
 
 /** Mundial de Clubes: semifinais cruzadas entre os dois finalistas da Libertadores e da Champions, e final. */
+/** Super Mundial de Clubes: 32 clubes (Europa, América do Sul e convidados), 8 grupos de 4 (3 rodadas) e mata-mata (oitavas, quartas, semifinal e final). */
+export interface SuperState {
+  id: string;
+  name: string;
+  groups: LibGroup[];
+  ko: CupRound[];
+  /** 0–2 rodadas de grupos; 3 oitavas, 4 quartas, 5 semifinal, 6 final */
+  step: number;
+  due: boolean;
+  alive: string[];
+  /** Todos os classificados. */
+  entrants: string[];
+  championId?: string;
+}
 export interface MundialState {
   id: string;
   name: string;
@@ -300,6 +314,7 @@ export interface SeasonSummary {
   tables?: { id: string; rows: [string, number, number, number][] }[];
   uclChampionId?: string;
   mundialChampionId?: string;
+  superChampionId?: string;
   libChampionId?: string;
   cupChampionId?: string;
   season: number;
@@ -560,6 +575,8 @@ export interface GameState {
   /** Últimas transferências entre clubes (para o app Notícias). */
   market?: MarketDeal[];
   mundial?: MundialState;
+  /** Super Mundial de Clubes da temporada (32 clubes). */
+  superMundial?: SuperState;
   /** Dinheiro pessoal do treinador (R$) e quanto da folha ele paga (0/25/50/100). */
   coachMoney?: number;
   wageCover?: number;

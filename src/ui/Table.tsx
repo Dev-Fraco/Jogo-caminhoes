@@ -3,6 +3,7 @@ import { COMP_NAMES, shortCompName } from '../data/names';
 import { ClubBadge } from './ClubBadge';
 import { ScreenTitle } from './FmParts';
 import { COMPS, CONTINENTALS, groupTable, type Comp } from '../engine/continental';
+import { SUPER_STEPS } from '../engine/supermundial';
 import { clubOf } from '../engine/lookup';
 import { GROUP_ROUNDS, groupTables, isGroups, knockoutView } from '../engine/groups';
 import { estadualOfUser, estadualTable, playoffOf, stepLabel } from '../engine/estadual';
@@ -32,32 +33,52 @@ function formOf(game: GameState, divisionId: string, clubId: string): ('W' | 'D'
 export function Table({ game, initialView = 'div' }: { game: GameState; initialView?: 'div' | 'rounds' | 'hist' | 'scorers' }) {
   const mineIndex = userDivisionIndex(game);
   const [idx, setIdx] = useState(mineIndex);
-  const [view, setView] = useState<'div' | 'cup' | Comp | 'mundial' | 'rounds' | 'hist' | 'titles' | 'estadual' | 'scorers'>(initialView);
+  const [view, setView] = useState<'div' | 'cup' | Comp | 'mundial' | 'super' | 'rounds' | 'hist' | 'titles' | 'estadual' | 'scorers'>(initialView);
   const division = game.divisions[idx];
   const rows = divisionTable(game, division.id);
   const n = rows.length;
   const count = game.divisions.length;
   const slots = slotsOf(game);
   const brazil = game.leagueName === undefined;
+  const [menu, setMenu] = useState(false);
+  type Item = { key: string; label: string; on: boolean; go: () => void };
+  const mk = (key: string, label: string, v: typeof view, extra?: () => void): Item => ({ key, label, on: view === v, go: () => { extra?.(); setView(v); } });
+  const divItems: Item[] = game.divisions.map((d, i) => ({ key: d.id, label: `${d.name}${i === mineIndex ? ' ★' : ''}`, on: view === 'div' && i === idx, go: () => { setIdx(i); setView('div'); } }));
+  const cupItems: Item[] = [
+    ...(game.estadual ? [mk('estadual', '🏟️ Estadual', 'estadual')] : []),
+    ...(game.cup ? [mk('cup', '🏆 Copa', 'cup')] : []),
+    ...COMPS.filter((k) => game[k]).map((k) => mk(k, `${CONTINENTALS[k].icon} ${shortCompName(COMP_NAMES[k])}`, k)),
+    ...(game.mundial ? [mk('mundial', '🌍 Mundial', 'mundial')] : []),
+    ...(game.superMundial ? [mk('super', '🌐 Super Mundial', 'super')] : []),
+  ];
+  const infoItems: Item[] = [mk('rounds', '📋 Jogos', 'rounds'), mk('scorers', '⚽ Artilharia', 'scorers'), mk('hist', '🏅 Campeões', 'hist'), mk('titles', '🥇 Meus títulos', 'titles')];
+  const groupsOf = [{ title: 'Divisões', items: divItems }, { title: 'Copas e torneios', items: cupItems }, { title: 'Jogos e estatísticas', items: infoItems }];
+  const current = [...divItems, ...cupItems, ...infoItems].find((x) => x.on);
 
   return (
     <>
       <ScreenTitle icon="🏆" title="Competições" />
-      <div className="chips" role="tablist" aria-label="Divisão">
-        {game.divisions.map((d, i) => (
-          <button key={d.id} role="tab" aria-selected={view === 'div' && i === idx} className={view === 'div' && i === idx ? 'on' : ''} onClick={() => { setIdx(i); setView('div'); }}>
-            {d.name}{i === mineIndex ? ' ★' : ''}
-          </button>
-        ))}
-        <button role="tab" aria-selected={view === 'scorers'} className={view === 'scorers' ? 'on' : ''} onClick={() => setView('scorers')}>⚽ Artilharia</button>
-        <button role="tab" aria-selected={view === 'hist'} className={view === 'hist' ? 'on' : ''} onClick={() => setView('hist')}>🏅 Campeões</button>
-        <button role="tab" aria-selected={view === 'titles'} className={view === 'titles' ? 'on' : ''} onClick={() => setView('titles')}>🥇 Meus títulos</button>
-        <button role="tab" aria-selected={view === 'rounds'} className={view === 'rounds' ? 'on' : ''} onClick={() => setView('rounds')}>📋 Jogos</button>
-        {game.estadual && <button role="tab" aria-selected={view === 'estadual'} className={view === 'estadual' ? 'on' : ''} onClick={() => setView('estadual')}>🏟️ Estadual</button>}
-        {game.cup && <button role="tab" aria-selected={view === 'cup'} className={view === 'cup' ? 'on' : ''} onClick={() => setView('cup')}>🏆 Copa</button>}
-        {COMPS.map((k) => game[k] && <button key={k} role="tab" aria-selected={view === k} className={view === k ? 'on' : ''} onClick={() => setView(k)}>{CONTINENTALS[k].icon} {shortCompName(COMP_NAMES[k])}</button>)}
-        {game.mundial && <button role="tab" aria-selected={view === 'mundial'} className={view === 'mundial' ? 'on' : ''} onClick={() => setView('mundial')}>🌍 Mundial</button>}
+      <div className="cmp-bar">
+        <div className="cmp-cur" aria-live="polite"><small>Competição</small><b>{current?.label ?? ''}</b></div>
+        <button type="button" className="cmp-btn" aria-haspopup="dialog" aria-expanded={menu} aria-label="Ver todas as competições" onClick={() => setMenu(true)}>
+          <span aria-hidden="true">🏆</span><span className="cmp-btn-t">Todas</span>
+        </button>
       </div>
+      {menu && (
+        <div className="cmp-back" onMouseDown={(e) => { if (e.target === e.currentTarget) setMenu(false); }}>
+          <div className="cmp-sheet" role="dialog" aria-modal="true" aria-label="Todas as competições" tabIndex={-1} onKeyDown={(e) => { if (e.key === 'Escape') setMenu(false); }}>
+            <div className="cmp-head"><h3>Todas as competições</h3><button type="button" className="cmp-x" aria-label="Fechar" onClick={() => setMenu(false)}>✕</button></div>
+            {groupsOf.map((gr) => gr.items.length > 0 && (
+              <section key={gr.title}>
+                <h4>{gr.title}</h4>
+                <div className="cmp-grid">
+                  {gr.items.map((it) => <button key={it.key} type="button" className={it.on ? 'on' : ''} aria-pressed={it.on} onClick={() => { it.go(); setMenu(false); }}>{it.label}</button>)}
+                </div>
+              </section>
+            ))}
+          </div>
+        </div>
+      )}
       {view === 'scorers' && <ScorersView game={game} />}
       {view === 'rounds' && <RoundsView game={game} />}
       {view === 'estadual' && game.estadual && <EstadualView game={game} />}
@@ -66,6 +87,7 @@ export function Table({ game, initialView = 'div' }: { game: GameState; initialV
       {view === 'cup' && game.cup && <CupView game={game} />}
       {(view === 'lib' || view === 'sula' || view === 'ucl') && game[view] && <LibView game={game} comp={view} />}
       {view === 'mundial' && game.mundial && <MundialView game={game} />}
+      {view === 'super' && game.superMundial && <SuperView game={game} />}
       {view === 'div' && division.format === 'outside' && (
         <div className="card">
           <h2>Fora da pirâmide</h2>
@@ -365,5 +387,48 @@ function EstadualView({ game }: { game: GameState }) {
         </>
       )}
     </>
+  );
+}
+
+/** Super Mundial de Clubes: 8 grupos de 4 (o seu primeiro) e o mata-mata. */
+function SuperView({ game }: { game: GameState }) {
+  const sm = game.superMundial!;
+  const name = (id: string) => clubOf(game, id).name;
+  const groups = [...sm.groups].sort((a, b) => Number(b.clubIds.includes(game.userClubId)) - Number(a.clubIds.includes(game.userClubId)));
+  return (
+    <div className="cup-view">
+      {sm.championId && <p className="outcome">🏆 Campeão do Super Mundial: <b>{name(sm.championId)}</b></p>}
+      {!sm.championId && <p className="hint">{sm.entrants.length} clubes · {SUPER_STEPS[Math.min(sm.step, SUPER_STEPS.length - 1)]}</p>}
+      {[...sm.ko].reverse().map((r) => (
+        <section key={r.name}>
+          <h3>{r.name}</h3>
+          <ul className="list">
+            {r.ties.map((t) => (
+              <li key={t.homeId} className={t.homeId === game.userClubId || t.awayId === game.userClubId ? 'row mine' : 'row'}>
+                <span className="grow right">{name(t.homeId)}</span>
+                <b className="score">{t.winnerId ? `${t.homeGoals} - ${t.awayGoals}` : 'x'}</b>
+                <span className="grow">{name(t.awayId)}{t.pens ? <small> ({t.pens[0]}–{t.pens[1]} pên.)</small> : null}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+      <h3>Fase de grupos</h3>
+      {groups.map((gr) => (
+        <section key={gr.id}>
+          <h4>Grupo {gr.id.slice(-1)}</h4>
+          <div className="tb-wrap"><table className="tb">
+            <thead><tr><th>#</th><th className="l">Clube</th><th>PTS</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr></thead>
+            <tbody>{groupTable(game, gr).map((r, i) => (
+              <tr key={r.clubId} className={`${r.clubId === game.userClubId ? 'mine' : ''} ${i < 2 ? 'lib' : ''}`}>
+                <td><span className="pos">{i + 1}</span></td>
+                <td className="l"><div className="team"><ClubBadge club={clubOf(game, r.clubId)} size={22} /><span className="cname">{name(r.clubId)}</span></div></td>
+                <td><span className="pts">{r.points}</span></td><td className="sub">{r.played}</td><td className="sub">{r.won}</td><td className="sub">{r.drawn}</td><td className="sub">{r.lost}</td><td className="sub">{r.gd > 0 ? `+${r.gd}` : r.gd}</td>
+              </tr>
+            ))}</tbody>
+          </table></div>
+        </section>
+      ))}
+    </div>
   );
 }

@@ -33,7 +33,7 @@ function groupsOf(game: GameState, results: MatchResult[]): Group[] {
       out.push({ key: id, title: `${game.cup.name} · ${rd?.name ?? `Fase ${round}`}`, rows: rows.length ? rows : rs.map(rowOf), main: mine });
       continue;
     }
-    const comp = [game.lib, game.sula, game.ucl, game.mundial].find((c) => c?.id === id);
+    const comp = [game.lib, game.sula, game.ucl, game.mundial, game.superMundial].find((c) => c?.id === id);
     out.push({ key: id, title: `${comp?.name ?? 'Competição'} · jogo ${round}`, rows: rs.map(rowOf), main: mine });
   }
   return out.sort((a, b) => Number(b.main) - Number(a.main));

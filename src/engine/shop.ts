@@ -62,11 +62,15 @@ export function buyChip(g: GameState, id: ChipId): Buy {
   const number = newChipNumber(g);
   const until = calOf(g).day + YEAR_DAYS; // 1 ano de calendário
   const s = { ...g, coachMoney: coachMoneyOf(g) - c.price, phone: { ...p, chip: id, chipNumber: number, chipUntil: until, chipCount: (p.chipCount ?? 0) + 1 } };
-  return { ok: true, state: notifyPhone(s, 'config', `Chip ${c.name} instalado. Seu número: ${number}. Vale por 1 ano.`) };
+  return { ok: true, state: notifyPhone(s, 'config', `Chip ${c.name} instalado. Seu número: ${number}. Ele nunca bloqueia.`) };
 }
 
-/** Aviso diário: chip perto de bloquear (14 dias) e bloqueado. */
+/** O chip não bloqueia mais: não há avisos de vencimento. */
 export function chipDay(g: GameState): GameState {
+  return g;
+}
+/** (antigo) aviso de chip vencendo, mantido só como referência do formato. */
+export function legacyChipDay(g: GameState): GameState {
   const p = phoneOf(g);
   if (!p.chipUntil || !p.chip) return g;
   const left = (chipLeft(g) ?? 0);

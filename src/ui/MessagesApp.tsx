@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { answerMessage, absRound, claimGoal, goalDone, goalProgress, inboxOf, type Goal } from '../engine/inbox';
+import { answerMessage, absRound, claimGoal, goalDone, goalProgress, GOAL_SPECS, inboxOf, TIER_LABEL_GOAL, type Goal } from '../engine/inbox';
 import { smsOf } from '../engine/accounts';
 import type { GameState } from '../engine/types';
 
@@ -14,6 +14,7 @@ function GoalRow({ game, goal, onClaim }: { game: GameState; goal: Goal; onClaim
     <li className={`ms-goal ${goal.claimed ? 'claimed' : ''}`}>
       <span className="grow">
         <b>{goal.text}</b>
+        <span className={`ms-tier ${GOAL_SPECS[goal.kind]?.tier ?? 'medio'}`}>{TIER_LABEL_GOAL[GOAL_SPECS[goal.kind]?.tier ?? 'medio']}</span>
         <small>{goal.claimed ? 'Resgatada' : goal.expired ? 'Expirou' : `${prog.toLocaleString('pt-BR')}/${goal.target.toLocaleString('pt-BR')} · ${left > 0 ? `${left} ${left === 1 ? 'rodada' : 'rodadas'} restantes` : 'último prazo'}`}</small>
         {!goal.claimed && !goal.expired && <span className="ms-bar"><i style={{ width: `${(prog / goal.target) * 100}%` }} /></span>}
       </span>
@@ -28,7 +29,9 @@ export function MessagesApp({ game, onChange }: { game: GameState; onChange: (g:
   const inbox = inboxOf(game);
   const open = inbox.msgs.filter((m) => m.status === 'open');
   const old = inbox.msgs.filter((m) => m.status !== 'open').slice(0, 12);
-  const goals = inbox.goals.filter((x) => !x.expired || false).slice(0, 8);
+  const TIER_ORDER = { facil: 0, medio: 1, dificil: 2 } as const;
+  const ratio = (x: Goal) => Math.min(1, goalProgress(game, x) / Math.max(1, x.target));
+  const goals = inbox.goals.filter((x) => !x.expired && !x.claimed).sort((a, b) => Number(goalDone(game, b)) - Number(goalDone(game, a)) || TIER_ORDER[GOAL_SPECS[a.kind]?.tier ?? 'medio'] - TIER_ORDER[GOAL_SPECS[b.kind]?.tier ?? 'medio'] || ratio(b) - ratio(a));
   const todo = goals.filter((x) => !x.claimed && goalDone(game, x)).length;
   return (
     <div className="ph-app-screen ms">
@@ -75,7 +78,7 @@ export function MessagesApp({ game, onChange }: { game: GameState; onChange: (g:
       )}
       {tab === 'goals' && (
         <>
-          <p className="bk-sub">Cumpra metas e resgate o prêmio aqui no celular: o dinheiro cai na sua conta pessoal.</p>
+          <p className="bk-sub">São sempre 30 metas, todas diferentes. Cumpra e resgate o prêmio aqui no celular: o dinheiro cai na sua conta pessoal. Cada vez que você cumpre uma, a próxima versão dela fica mais difícil.</p>
           <ul className="ms-list">{goals.map((x) => <GoalRow key={x.id} game={game} goal={x} onClaim={() => onChange(claimGoal(game, x.id))} />)}</ul>
         </>
       )}

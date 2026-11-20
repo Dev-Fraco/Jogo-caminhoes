@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { brazilPyramid } from '../src/data/pyramid';
 import { newCareer, playNext } from '../src/engine/game';
-import { absRound, answerMessage, claimGoal, claimable, goalDone, inboxOf, inboxTick, openMessages, pendingCount, urgentMessages } from '../src/engine/inbox';
+import { GOAL_KINDS, GOAL_SPECS, GOALS_OPEN, goalProgress, absRound, answerMessage, claimGoal, claimable, goalDone, inboxOf, inboxTick, openMessages, pendingCount, urgentMessages } from '../src/engine/inbox';
 import { registerBank } from '../src/engine/bank';
 import { makeRng } from '../src/engine/rng';
 import type { GameState } from '../src/engine/types';
@@ -16,7 +16,7 @@ describe('mensagens e metas do celular', () => {
     const g = play(league(mk()), 12);
     const inbox = inboxOf(g);
     expect(inbox.msgs.length).toBeGreaterThan(0);
-    expect(inbox.goals.filter((x) => !x.claimed && !x.expired).length).toBe(3);
+    expect(inbox.goals.filter((x) => !x.claimed && !x.expired).length).toBe(30);
     expect(g.phone?.notifications.some((n) => n.app === 'mensagens')).toBe(true);
     expect(pendingCount(g)).toBeGreaterThan(0);
   });
@@ -49,7 +49,7 @@ describe('mensagens e metas do celular', () => {
   });
   it('metas: resgatar só quando cumpridas e paga na conta', () => {
     let g = play(league(mk(9)), 3);
-    expect(inboxOf(g).goals.length).toBe(3);
+    expect(inboxOf(g).goals.length).toBe(30);
     const goal = { id: 'G-test', kind: 'reply' as const, text: 'Responder 2 mensagens', target: 2, base: inboxOf(g).answered, startAbs: absRound(g), expires: absRound(g) + 8, reward: 50_000, claimed: false, expired: false };
     g = { ...g, inbox: { ...inboxOf(g), goals: [goal, ...inboxOf(g).goals] } };
     expect(claimGoal(g, goal.id)).toBe(g);
@@ -76,5 +76,25 @@ describe('mensagens e metas do celular', () => {
     g = play(g, 4);
     expect(g.bank!.boletos.some((b) => b.merchant === 'Cartão de crédito')).toBe(true);
     void inboxTick; void makeRng;
+  });
+
+  it('30 metas sempre abertas, todas diferentes, com recompensa bem menor e metas mais difíceis', () => {
+    let g = inboxTick(mk());
+    const open = () => inboxOf(g).goals.filter((x) => !x.claimed && !x.expired);
+    expect(GOAL_KINDS).toHaveLength(30);
+    expect(open()).toHaveLength(GOALS_OPEN);
+    expect(new Set(open().map((x) => x.kind)).size).toBe(30);
+    expect(new Set(open().map((x) => x.text)).size).toBe(30);
+    for (const x of open()) { expect(x.reward).toBeLessThan(60_000); expect(goalProgress(g, x)).toBeGreaterThanOrEqual(0); expect(x.target).toBeGreaterThan(0); }
+    expect(Math.max(...open().map((x) => GOAL_SPECS[x.kind].reward))).toBeLessThanOrEqual(34_000);
+    // cumprir uma meta: ela é substituída (continuam 30 diferentes) e a próxima versão fica mais difícil
+    const r = open().find((x) => x.kind === 'reply')!;
+    g = { ...g, inbox: { ...inboxOf(g), answered: inboxOf(g).answered + r.target } };
+    g = claimGoal(g, r.id);
+    expect(inboxOf(g).claims?.reply).toBe(1);
+    g = inboxTick(g);
+    expect(open()).toHaveLength(30); expect(new Set(open().map((x) => x.kind)).size).toBe(30);
+    const again = open().find((x) => x.kind === 'reply')!;
+    expect(again.target).toBeGreaterThan(r.target - 1);
   });
 });

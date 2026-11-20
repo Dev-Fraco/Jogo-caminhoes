@@ -329,3 +329,6 @@
 @keyframes fp-scan { from { background-position: 0 -10%; } to { background-position: 0 110%; } }
 @keyframes fp-pop { from { transform: scale(0); } to { transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .fp3d .fp-card, .fp3d .fp-gloss, .hold.holding .fp3d .fp-beam { animation: none; } }
+
+.ms-tier { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 999px; font: 700 10px var(--font-body); vertical-align: middle; background: rgba(255,255,255,.12); }
+.ms-tier.facil { background: rgba(94, 224, 138, .22); color: #8df0b0; } .ms-tier.medio { background: rgba(255, 210, 63, .2); color: #ffd23f; } .ms-tier.dificil { background: rgba(255, 110, 90, .22); color: #ff9c8a; }

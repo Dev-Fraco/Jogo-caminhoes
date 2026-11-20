@@ -206,12 +206,12 @@ export const CHIP_PRICE = 2_000;
 export const CHIPS: ChipInfo[] = [{ id: 'morto', name: 'Morto', price: CHIP_PRICE }, { id: 'escuro', name: 'Escuro', price: CHIP_PRICE }, { id: 'toim', name: 'Toim', price: CHIP_PRICE }];
 /** Chip em uso (null se bloqueado). Saves antigos (sem aparelho da loja) mantêm um chip que nunca bloqueia. */
 const rawChip = (g: Pick<GameState, 'phone'>): ChipInfo | undefined => { const p = phoneOf(g); return CHIPS.find((c) => c.id === (p.chip ?? (p.model || p.noPhone ? undefined : 'toim'))); };
-/** O chip vale 1 ano de calendário desde a compra; depois disso é bloqueado. */
-export const chipBlocked = (g: Pick<GameState, 'phone' | 'season' | 'round' | 'cal'>) => { const u = phoneOf(g).chipUntil; return !!rawChip(g) && u !== undefined && nowDay(g) >= asDay(u, g); };
+/** O chip NUNCA bloqueia mais (antes vencia em 1 ano). O campo chipUntil dos saves antigos é ignorado. */
+export const chipBlocked = (_g: Pick<GameState, 'phone' | 'season' | 'round' | 'cal'>) => false;
 export const chipOf = (g: Pick<GameState, 'phone' | 'season' | 'round' | 'cal'>): ChipInfo | undefined => (chipBlocked(g) ? undefined : rawChip(g));
 export const chipRaw = rawChip;
-/** Dias até o chip bloquear (undefined = nunca / sem chip). */
-export const chipLeft = (g: Pick<GameState, 'phone' | 'season' | 'round' | 'cal'>) => { const u = phoneOf(g).chipUntil; return u === undefined || !rawChip(g) ? undefined : Math.max(0, asDay(u, g) - nowDay(g)); };
+/** Dias até o chip bloquear: nunca (o chip não bloqueia). */
+export const chipLeft = (_g: Pick<GameState, 'phone' | 'season' | 'round' | 'cal'>): number | undefined => undefined;
 export const chipNumberOf = (g: Pick<GameState, 'phone'>) => phoneOf(g).chipNumber;
 
 /* ---------- NetFibra (Wi-Fi residencial) ---------- */
