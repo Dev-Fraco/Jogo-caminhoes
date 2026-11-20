@@ -3,6 +3,7 @@
 O jogo já tem o código dos anúncios (só no grátis, só no app da loja, nunca durante a partida). Hoje ele usa IDs de TESTE do Google: aparecem anúncios de teste e ninguém te paga. Para ganhar dinheiro é preciso trocar por IDs seus.
 
 ## Passo a passo
+O AdMob é um **site** (admob.google.com; funciona no navegador do celular) e também tem app para acompanhar os ganhos. Para criar app e bloco use o site. Os dois IDs aparecem lá: o ID do app em *Aplicativos > seu app > Configurações do app*; o ID do bloco em *Blocos de anúncios > seu bloco*.
 1. **Conta AdMob.** Entre em admob.google.com com a conta Google e aceite os termos. Preencha o perfil de pagamento (nome, endereço, dados fiscais/CPF) para receber; o pagamento só sai depois de passar o limite mínimo.
 2. **Criar o app no AdMob.** Aplicativos > Adicionar aplicativo > Android. Se o jogo ainda não está na Play, escolha "Não" em "o app está listado em uma loja" e dê o nome "Vida Real FC". Ao terminar, o AdMob mostra o **ID do app**, no formato `ca-app-pub-1234567890123456~1234567890` (tem um `~`).
 3. **Criar o bloco de anúncio.** Dentro do app: Blocos de anúncios > Adicionar bloco de anúncios > **Intersticial**. Nome: "Intersticial pausas". Copie o **ID do bloco**, no formato `ca-app-pub-1234567890123456/1234567890` (tem uma `/`).
