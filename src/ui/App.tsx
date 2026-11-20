@@ -42,6 +42,7 @@ import { LiveMatch } from './LiveMatch';
 import { PremiumGate } from './PremiumGate';
 import { recheckExtras, useExtras } from '../premium/usePremium';
 import { inTrial, isPremium, modsAllowed, setActiveGame } from '../premium/entitlement';
+import { reconcile } from '../premium/ledger';
 import { PlanScreen } from '../premium/ui/PlanScreen';
 import { PremiumPreview } from '../premium/ui/PremiumPreview';
 import { Screen as MenuFrame } from './Screen';
@@ -67,7 +68,7 @@ export function App() {
   const [game, setGame] = useState<GameState | null>(() => loadGame());
   const extras = useExtras();
   // temporada grátis: a carreira lembra onde começou; o portão dos extras acompanha se ainda está na temporada grátis
-  useEffect(() => { setGame((g) => (g && g.freeStart === undefined ? { ...g, freeStart: g.season } : g)); }, [game?.saveName]);
+  useEffect(() => { setGame((g) => (g ? reconcile(g) : g)); }, [game?.saveName, game?.seed]); // (o livro da temporada grátis manda: editar o save não devolve a temporada)
   const trial = game ? inTrial(game) : true;
   useEffect(() => { setActiveGame(game); recheckExtras(); }, [trial]); // eslint-disable-line react-hooks/exhaustive-deps
   // quando o pacote dos extras carrega, saves que ainda não têm as ligas do mundo ganham o estado delas
