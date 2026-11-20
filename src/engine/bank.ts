@@ -137,12 +137,12 @@ export const boletoTotal = (b: Boleto) => b.amount + b.fine;
 export const openBoletos = (g: Pick<GameState, 'bank'>) => (g.bank?.boletos ?? []).filter((b) => b.status !== 'paid');
 
 /** Paga o boleto sem pedir senha (pagamento automático autorizado pelo jogador ao pular temporadas). */
-function settleBoleto(g: GameState, id: string): Result<{ tx: BankTx; boleto: Boleto }> {
+function settleBoleto(g: GameState, id: string, auto = false): Result<{ tx: BankTx; boleto: Boleto }> {
   const b = g.bank?.boletos.find((x) => x.id === id);
   if (!hasBank(g) || !b || b.status === 'paid') return { ok: false, error: 'Boleto não encontrado.' };
   const total = boletoTotal(b);
   if (balanceOf(g) < total) return { ok: false, error: 'Saldo insuficiente.' };
-  const { bank, tx } = addTx(g.bank!, g, 'boleto', `Boleto pago — ${b.merchant}`, b.description, -total);
+  const { bank, tx } = addTx(g.bank!, g, 'boleto', auto ? `Débito automático — ${b.merchant}` : `Boleto pago — ${b.merchant}`, b.description, -total);
   const paid: Boleto = { ...b, status: 'paid', paidTxId: tx.id };
   let s: GameState = { ...g, coachMoney: balanceOf(g) - total, bank: { ...bank, boletos: bank.boletos.map((x) => (x.id === id ? paid : x)) } };
   s = applyPurpose(s, total, b.purpose);
@@ -166,6 +166,18 @@ export function autoPayBoletos(g: GameState): GameState {
 /** A cada rodada: avisa boletos que vencem em até 2 rodadas e aplica multa nos vencidos. */
 export function tickBoletos(g: GameState): GameState {
   g = autoPayBoletos(g);
+  // débito automático: no dia (rodada) do vencimento o boleto é pago sozinho com o saldo; sem saldo, ele segue em aberto e vence com multa
+  if (autoDebitOn(g)) {
+    const nowAbs = abs(g.season, g.round);
+    for (const b of g.bank!.boletos.filter((x) => x.status !== 'paid' && abs(x.dueSeason, x.dueRound) <= nowAbs)) {
+      const r = settleBoleto(g, b.id, true);
+      if (r.ok) g = notifyPhone(r.state, 'banco', `Débito automático: boleto de ${b.merchant} (${brl(boletoTotal(b))}) pago.`);
+      else if (!b.notified) {
+        g = { ...g, bank: { ...g.bank!, boletos: g.bank!.boletos.map((x) => (x.id === b.id ? { ...x, notified: true } : x)) } };
+        g = notifyPhone(g, 'banco', `Débito automático recusado: saldo insuficiente para o boleto de ${b.merchant}.`);
+      }
+    }
+  }
   if (!g.bank || !g.bank.boletos.some((b) => b.status !== 'paid')) return g;
   const now = abs(g.season, g.round);
   let s = g;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { balanceOf, boletoTotal, checkPassword, clubCharge, createBoleto, createCharge, creditAccount, hasBank, myPixKey, openBoletos, payBoleto, payPix, quotePix, registerBank, registerPurpose, tickBoletos } from '../src/engine/bank';
+import { balanceOf, boletoTotal, checkPassword, clubCharge, createBoleto, createCharge, creditAccount, hasBank, myPixKey, openBoletos, payBoleto, payPix, quotePix, registerBank, registerPurpose, setAutoDebit, tickBoletos } from '../src/engine/bank';
 import { phoneOf } from '../src/engine/phone';
 import { makeCareer } from './helpers';
 import type { GameState } from '../src/engine/types';
@@ -70,8 +70,28 @@ describe('banco', () => {
     const r = registerBank(state, 'Carlos', 'segredo1', 'segredo1');
     expect(r.ok && r.state.bank!.charges.length).toBe(1); // cobrança feita antes continua valendo
   });
-  it('boletos: notificam perto do vencimento, ganham multa de 5% quando vencidos e são pagos com senha', () => {
+  it('débito automático: o boleto é pago sozinho no dia do vencimento (se há saldo); sem saldo, segue em aberto e vence com multa', () => {
     let g = withBank();
+    const cash = balanceOf(g);
+    g = createBoleto(g, { merchant: 'Concessionária', description: 'Parcela 1/12', amount: 10_000, dueInRounds: 3, purpose: { type: 'teste-boleto' } });
+    const due = g.bank!.boletos[0];
+    g = tickBoletos({ ...g, round: g.round + 1 });
+    expect(openBoletos(g).length).toBe(1); // ainda não venceu: nada sai da conta
+    g = tickBoletos({ ...g, round: due.dueRound });
+    expect(openBoletos(g).length).toBe(0); expect(balanceOf(g)).toBe(cash - 10_000);
+    expect(g.bank!.txs[0].title).toMatch(/Débito automático/);
+    expect(phoneOf(g).notifications.some((n) => /Débito automático: boleto/.test(n.text))).toBe(true);
+    // sem saldo: recusa uma vez e o boleto vence com multa
+    let h = createBoleto({ ...withBank(), coachMoney: 100 }, { merchant: 'X', description: 'y', amount: 10_000, dueInRounds: 1, purpose: { type: 'teste-boleto' } });
+    const d2 = h.bank!.boletos[0];
+    h = tickBoletos({ ...h, round: d2.dueRound });
+    expect(openBoletos(h).length).toBe(1);
+    expect(phoneOf(h).notifications.some((n) => /Débito automático recusado/.test(n.text))).toBe(true);
+    h = tickBoletos({ ...h, round: d2.dueRound + 1 });
+    expect(h.bank!.boletos[0].status).toBe('late');
+  });
+  it('boletos: notificam perto do vencimento, ganham multa de 5% quando vencidos e são pagos com senha', () => {
+    let g = setAutoDebit(withBank(), false); // (com o débito automático ligado o boleto é pago sozinho no vencimento)
     g = createBoleto(g, { merchant: 'Concessionária', description: 'Parcela 1/12', amount: 10_000, dueInRounds: 3, purpose: { type: 'teste-boleto' } });
     expect(phoneOf(g).notifications[0].app).toBe('banco');
     expect(openBoletos(g).length).toBe(1);
