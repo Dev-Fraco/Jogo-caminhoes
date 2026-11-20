@@ -1,3 +1,4 @@
+import { CareerPanel } from './CareerPanel';
 import { balanceOf } from '../engine/bank';
 import { coachLevel, jobsOf } from '../engine/jobs';
 import { clubQuality, coachMonthly, coachOverallInt, salaryRange, TIER_LABEL } from '../engine/coachpay';
@@ -16,7 +17,7 @@ const KIND: Record<CoachTitle['kind'], { icon: string; label: string }> = {
 const ovrText = (o: number) => (o >= 85 ? 'Lenda do banco de reservas.' : o >= 70 ? 'Treinador de elite.' : o >= 50 ? 'Treinador respeitado.' : o >= 30 ? 'Em construção.' : 'Começando do zero.');
 
 /** Perfil do treinador: nível, clube atual, passagens, títulos e números da carreira (tudo vindo do jogo). */
-export function CoachProfile({ game, onNext }: { game: GameState; onNext: (t: 'finance' | 'table' | 'home') => void }) {
+export function CoachProfile({ game, onNext, onChange }: { game: GameState; onNext: (t: 'finance' | 'table' | 'home') => void; onChange?: (g: GameState) => void }) {
   const c = game.coach;
   const nat = NATIONALITIES.find((n) => n.id === c.nationality);
   const rep = REPUTATIONS.find((r) => r.id === c.reputation);
@@ -93,6 +94,7 @@ export function CoachProfile({ game, onNext }: { game: GameState; onNext: (t: 'f
         <div className="row"><span className="grow">Prestígio (bens)</span><b>{prestigeScore(game)} / 10</b></div>
         <div className="chips"><button className="btn" onClick={() => onNext('finance')}>💰 Finanças</button><button className="btn" onClick={() => onNext('table')}>🏆 Competições</button></div>
       </section>
+      {onChange && <CareerPanel game={game} onChange={onChange} />}
     </>
   );
 }

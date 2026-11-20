@@ -1,4 +1,5 @@
-import { marketBadge } from './MarketDeals';
+import { Newspaper } from './Newspaper';
+import { SalaryCard } from './SalaryCard';
 import { useState } from 'react';
 import { fixturesOfRound, leagueNameOf, seasonOutcome, slotsOf, userDivision } from '../engine/game';
 import { estadualOfUser, estadualRanking, estadualSummary, stepLabel } from '../engine/estadual';
@@ -6,41 +7,19 @@ import { userInCup } from '../engine/cup';
 import { pendingEvent } from '../engine/events';
 import { CONTINENTALS, COMPS, mundialStepName, stepName, userIn } from '../engine/continental';
 import { clubOf } from '../engine/lookup';
-import { moodLabel } from '../engine/morale';
 import type { GameState, MatchResult } from '../engine/types';
 import { PROMOTED_STRONG_CHANCE } from '../engine/ai';
-import { declineOffer, offerClub, resign } from '../engine/jobs';
-import { acceptAnyOffer } from '../engine/abroad';
 import { firingWarning } from '../engine/game';
 import { ClubBadge } from './ClubBadge';
-import { isInjured, remainingLabel, roundsLeft } from '../engine/injuries';
-import { stadiumOf } from '../engine/stadium';
 import { nextUserMatchDay, userPlaysNextSlot } from '../engine/advance';
 import { calOf, daysToMatch, formatDayLong, formatDayShort, isMatchDay, matchTimeOf, nextMatchDay } from '../engine/calendar';
-import { SalaryCard } from './SalaryCard';
-import { FmCard, Jersey, ScreenTitle, StatStrip, SubTabs } from './FmParts';
-import { transferFeed } from '../engine/news';
+import { ScreenTitle } from './FmParts';
 import { divisionTable } from '../engine/game';
 import { isGroups, userGroupRows } from '../engine/groups';
-import { brl } from './Stadium';
-import { EXPECTATION_LABEL, formatBudget } from '../newgame/format';
 
 interface Props {
   game: GameState; onChange: (g: GameState) => void; last: MatchResult[]; over: boolean;
   onPlay: () => void; onSeeTables: () => void; onSeeResults: () => void; onNextSeason: () => void; onEditLineup: () => void; onAdvance: () => void; onAdvanceToMatch: () => void; onTab: (t: 'squad' | 'table' | 'transfers' | 'profile') => void; onNews: () => void; onSeeHist: () => void; onSeeOffers: () => void;
-}
-
-function Meter({ label, value, note }: { label: string; value: number; note?: string }) {
-  const tone = value >= 60 ? 'good' : value >= 40 ? 'mid' : 'bad';
-  return (
-    <div className="mo">
-      <div className="mo-head"><span>{label}</span><b>{moodLabel(value)} <em>{value}</em></b></div>
-      <div className="mo-bar" role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={value} aria-valuetext={`${moodLabel(value)}, ${value} de 100`}>
-        <i className={tone} style={{ width: `${value}%` }} />
-      </div>
-      {note && <small>{note}</small>}
-    </div>
-  );
 }
 
 /** Resultado do estadual (para quem joga fora da pirâmide). */
@@ -70,11 +49,9 @@ function EstadualNotice({ game, onChange }: { game: GameState; onChange: (g: Gam
 }
 
 /** Início: próxima partida, escalação, humor (equipe, dirigentes e torcida), propostas e resultados da rodada. */
-export function Home({ game, onChange, last, over, onPlay, onSeeTables, onSeeResults, onNextSeason, onEditLineup, onSeeOffers, onTab, onNews, onSeeHist, onAdvance, onAdvanceToMatch }: Props) {
+export function Home({ game, onChange, last, over, onPlay, onSeeTables, onSeeResults, onNextSeason, onEditLineup, onAdvance, onAdvanceToMatch }: Props) {
   const name = (id: string) => clubOf(game, id).name;
   const [open, setOpen] = useState<string | null>(null);
-  const [askLeave, setAskLeave] = useState(false);
-  const [askJob, setAskJob] = useState<string | null>(null);
   const division = userDivision(game);
 
   if (over) {
@@ -130,17 +107,10 @@ export function Home({ game, onChange, last, over, onPlay, onSeeTables, onSeeRes
   const ev = pendingEvent(game);
   const next = ev ? ev.match : fixturesOfRound(game, game.round, division.id).find((f) => f.homeId === game.userClubId || f.awayId === game.userClubId);
   const shown = last.filter((r) => r.divisionId === division.id || [game.cup?.id, game.lib?.id, game.sula?.id, game.ucl?.id, game.mundial?.id].includes(r.divisionId));
-  const expectation = game.clubs[game.userClubId].boardExpectation;
-  const m = game.morale;
-  const recent = game.results.filter((r) => r.homeId === game.userClubId || r.awayId === game.userClubId).slice(-3).reverse();
   const tableRows = division.format === 'outside' ? [] : (isGroups(division) ? userGroupRows(game, division) : undefined) ?? divisionTable(game, division.id);
   const myPos = tableRows.findIndex((r) => r.clubId === game.userClubId);
   const miniRows = [0, 1, 2].filter((i) => i < tableRows.length).map((i) => ({ r: tableRows[i], pos: i + 1 })).concat(myPos > 2 ? [{ r: tableRows[myPos], pos: myPos + 1 }] : []);
-  const feed = transferFeed(game, 3);
-  const gate = stadiumOf(game).log[0];
-  const gateNow = gate && gate.season === game.season && gate.round === game.round - 1 && last.length > 0 ? gate : undefined; // jogo em casa que acabou de acontecer
 
-  const hurt = game.teams[game.userClubId]?.players.filter((p) => isInjured(game, p.id)).sort((a, b) => roundsLeft(game, b.id) - roundsLeft(game, a.id)) ?? [];
   const rawLabel = (ev ? ev.label.replace(/^\S+\s/, '') : game.estadual?.due ? `${estadualOfUser(game)?.comp.name ?? 'Estadual'} · ${stepLabel(game.estadual, game.estadual.step)}` : `${division.name} · Rodada ${Math.min(game.round, game.totalRounds)} de ${game.totalRounds}`);
   const cut = rawLabel.lastIndexOf(' · ');
   const compTitle = cut > 0 ? rawLabel.slice(0, cut) : rawLabel, compSub = cut > 0 ? rawLabel.slice(cut + 3) : '';
@@ -174,7 +144,6 @@ export function Home({ game, onChange, last, over, onPlay, onSeeTables, onSeeRes
         {!ev && game.mundial && <small className="cup-line">{game.mundial.championId ? `🌍 ${game.mundial.name}: campeão ${name(game.mundial.championId)}` : `🌍 ${game.mundial.name}: ${mundialStepName(game.mundial)}`}</small>}
         {game.cup && !ev && <small className="cup-line">{game.cup.championId ? `🏆 ${game.cup.name}: campeão ${name(game.cup.championId)}` : userInCup(game) ? `🏆 ${game.cup.name}: você está na ${game.cup.rounds[game.cup.roundIndex].name}` : `🏆 ${game.cup.name}: seu clube já foi eliminado`}</small>}
       </div>
-      {hurt.length > 0 && <button className="mk-card home2-hurt" onClick={() => onTab('squad')}>🤕 <b>{hurt.length} {hurt.length === 1 ? 'lesionado' : 'lesionados'}</b> · {hurt.slice(0, 3).map((p) => `${p.name} (${remainingLabel(game, p.id)})`).join(', ')}{hurt.length > 3 ? '…' : ''}</button>}
       <div className="home2-actions">
         {isMatchDay(game)
           ? (plays || over
@@ -184,18 +153,9 @@ export function Home({ game, onChange, last, over, onPlay, onSeeTables, onSeeRes
         <button className="btn home2-lineup" onClick={onEditLineup}><span aria-hidden="true">📋</span> Editar escalação</button>
       </div>
       {!isMatchDay(game) && <button className="btn home2-wide" onClick={onAdvanceToMatch}>⏩ {plays ? 'Ir até o dia do jogo' : mineDay === undefined ? 'Avançar até o fim da temporada' : 'Ir até o seu próximo jogo'}</button>}
-      <section className="fm-hero">
-        <Jersey club={game.clubs[game.userClubId]} />
-        <div className="fm-hero-r">
-          <h2>ELENCO</h2>
-          <StatStrip game={game} compact />
-          <button className="primary fm-wide" onClick={() => onTab('squad')}>👥 Ver meu elenco <i aria-hidden="true">›</i></button>
-        </div>
-      </section>
       {tableRows.length > 0 && (
         <section className="fm-panel">
-          <ScreenTitle icon="🏆" title="Competições" right={<span className="fm-chip">{division.name}</span>} />
-          <SubTabs items={[{ icon: '☰', label: 'Tabela', on: true, onClick: onSeeTables }, { icon: '⚽', label: 'Jogos', onClick: onSeeResults }, { icon: '🏅', label: 'Campeões', onClick: onSeeHist }]} />
+          <ScreenTitle icon="🏆" title="Classificação" right={<span className="fm-chip">{division.name}</span>} />
           <table className="fm-mini">
             <thead><tr><th>Pos</th><th className="l">Clube</th><th>Pts</th><th>J</th><th>V</th><th>E</th><th>D</th></tr></thead>
             <tbody>
@@ -209,76 +169,7 @@ export function Home({ game, onChange, last, over, onPlay, onSeeTables, onSeeRes
           <button className="primary fm-wide" onClick={onSeeTables}>📊 Ver tabela completa <i aria-hidden="true">›</i></button>
         </section>
       )}
-      <section className="fm-panel">
-        <ScreenTitle icon="🔁" title="Transferências" />
-        <SubTabs items={[{ icon: '🛒', label: 'Mercado', on: true, onClick: () => onTab('transfers') }, { icon: '📄', label: `Propostas${marketBadge(game) ? ` (${marketBadge(game)})` : ''}`, onClick: onSeeOffers }, { icon: '📰', label: 'Notícias', onClick: onNews }]} />
-        <ul className="fm-feed">
-          {feed.length === 0 && <li className="fm-empty">Nenhuma transferência ainda. Os clubes negociam durante a temporada.</li>}
-          {feed.map((n, i) => <li key={i} className={n.mine ? 'mine' : ''}><span aria-hidden="true">{n.mine ? '⭐' : '🔁'}</span><span>{n.text}</span></li>)}
-        </ul>
-        <button className="primary fm-wide" onClick={() => onTab('transfers')}>🔎 Abrir mercado <i aria-hidden="true">›</i></button>
-      </section>
-      {recent.length > 0 && (
-        <FmCard icon="🏆" title="Últimos jogos" action="Ver tabela" onAction={() => onTab('table')}>
-          <ul className="fm-games">
-            {recent.map((r, i) => (
-              <li key={i}><span className="fm-team"><ClubBadge club={clubOf(game, r.homeId)} size={30} /><small>{name(r.homeId)}</small></span><b className="fm-score">{r.homeGoals} - {r.awayGoals}</b><span className="fm-team"><ClubBadge club={clubOf(game, r.awayId)} size={30} /><small>{name(r.awayId)}</small></span></li>
-            ))}
-          </ul>
-        </FmCard>
-      )}
-
-      {marketBadge(game) > 0 && (
-        <button className="home-offers" onClick={onSeeOffers}>
-          📨 Você tem <b>{marketBadge(game)}</b> {marketBadge(game) === 1 ? 'assunto' : 'assuntos'} no mercado (propostas e pedidos de jogadores) <span>Ver propostas ›</span>
-        </button>
-      )}
-
-      {(game.jobOffers ?? []).length > 0 && (
-        <section>
-          <h3>Propostas de emprego</h3>
-          <ul className="un-list">
-            {(game.jobOffers ?? []).map((o) => {
-              const c = offerClub(game, o);
-              return (
-                <li key={o.clubId} className="un-offer">
-                  <ClubBadge club={c} size={40} />
-                  <div className="grow"><b>{c.name}</b><small>{o.foreign ? `🌍 ${o.foreign.countryName} · ${o.foreign.leagueName} · ` : ''}Reputação {'★'.repeat(c.reputation)} · meta: {EXPECTATION_LABEL[c.boardExpectation]}</small></div>
-                  {askJob === o.clubId ? (
-                    <div className="un-btns"><button className="btn main" onClick={() => { const r = acceptAnyOffer(game, o.clubId); if (r.ok) onChange(r.state); setAskJob(null); }}>Confirmar saída</button><button className="btn" onClick={() => setAskJob(null)}>Voltar</button></div>
-                  ) : (
-                    <div className="un-btns"><button className="btn main" onClick={() => setAskJob(o.clubId)}>Aceitar</button><button className="btn" onClick={() => onChange(declineOffer(game, o.clubId))}>Recusar</button></div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
-
-      <section>
-        <h3>Moral</h3>
-        <div className="card mo-card">
-          <Meter label="Equipe" value={m.team} note="Influencia o desempenho do time em campo." />
-          <Meter label="Dirigentes" value={m.board} note={`Meta da diretoria: ${EXPECTATION_LABEL[expectation]}.`} />
-          <Meter label="Torcida" value={m.fans} note="Reage aos resultados, principalmente em casa." />
-        </div>
-      </section>
-
-      {game.news.length > 0 && (
-        <section>
-          <h3>Notícias</h3>
-          <div className="card">
-            <ul className="news">
-              {game.news.slice(0, 5).map((n, i) => <li key={i} className={n.tone}>{n.text}<small>Temporada {n.season} · rodada {n.round}</small></li>)}
-            </ul>
-          </div>
-        </section>
-      )}
-
-      {gateNow && (
-        <div className="card center st-last">🏟️ Público: <b>{gateNow.attendance.toLocaleString('pt-BR')}</b> de {gateNow.capacity.toLocaleString('pt-BR')} · ingresso {brl(gateNow.price)} · renda <b>{formatBudget(gateNow.revenue)}</b></div>
-      )}
+      <Newspaper game={game} />
       {shown.length > 0 && (
         <section>
           <h3>{shown[0].divisionId === division.id ? `Resultados da rodada ${shown[0].round}` : `${[game.cup, game.lib, game.sula, game.ucl, game.mundial].find((c) => c?.id === shown[0].divisionId)?.name ?? 'Copa'} — resultados`}</h3>
@@ -288,10 +179,10 @@ export function Home({ game, onChange, last, over, onPlay, onSeeTables, onSeeRes
               const mine = r.homeId === game.userClubId || r.awayId === game.userClubId;
               return (
                 <li key={key}>
-                  <button className={`row ${mine ? 'mine' : ''}`} onClick={() => mine && setOpen(open === key ? null : key)}>
-                    <span className="grow right">{name(r.homeId)}</span>
+                  <button className={`row res-row ${mine ? 'mine' : ''}`} onClick={() => mine && setOpen(open === key ? null : key)}>
+                    <span className="res-team r"><span className="res-name">{name(r.homeId)}</span><ClubBadge club={clubOf(game, r.homeId)} size={28} /></span>
                     <b className="score">{r.homeGoals} - {r.awayGoals}</b>
-                    <span className="grow">{name(r.awayId)}</span>
+                    <span className="res-team"><ClubBadge club={clubOf(game, r.awayId)} size={28} /><span className="res-name">{name(r.awayId)}</span></span>
                   </button>
                   {open === key && (
                     <ul className="events">
@@ -305,16 +196,6 @@ export function Home({ game, onChange, last, over, onPlay, onSeeTables, onSeeRes
           </ul>
         </section>
       )}
-      <section>
-        <h3>Carreira</h3>
-        {!askLeave ? <button className="btn" onClick={() => setAskLeave(true)}>🧳 Pedir demissão</button> : (
-          <div className="skip-ask" role="alert">
-            <p>Pedir demissão do {game.clubs[game.userClubId].name}? Você fica sem clube e sem indenização, mas pode receber propostas de outros clubes.</p>
-            <button className="primary" onClick={() => { setAskLeave(false); onChange(resign(game)); }}>Sim, pedir demissão</button>
-            <button className="btn" onClick={() => setAskLeave(false)}>Cancelar</button>
-          </div>
-        )}
-      </section>
     </>
   );
 }
