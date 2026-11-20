@@ -28,6 +28,8 @@ import { inboxTick } from './inbox';
 import './shop';
 import { processDays } from './daily';
 import { ensureYouth, youthSeason, youthTick } from './youth';
+import { foreignSalesTick } from './forsales';
+import { ensureWorld, worldStartSeason, worldTick } from './wleagues';
 import { youthSeasonEnd, youthStartSeason, youthSync } from './ycomp';
 import { fibraTick } from './netfibra';
 import { settleSalary } from './salary';
@@ -113,8 +115,8 @@ export function newCareer(input: CareerInput, seed = Date.now() % 2147483647): G
     clubs, budgets, transfers: [], morale: { ...MORALE_START }, transferList: [], loanList: [], offers: [], loans: [], news: [], divisions, teams, fixtures, results: [], history: [],
   };
   // a carreira já nasce completa (contratos, treinadores, base, objetivos): carregar o save depois não muda nada
-  if (!input.cup) return youthStartSeason(ensureYouth(stampPayTier(ensureAiState(freezeGoals(createContinentals(career))))));
-  return youthStartSeason(ensureYouth(stampPayTier(ensureAiState(freezeGoals(createContinentals({ ...career, cup: createCup(career), estadual: createEstaduais(input.outside ? { id: input.outside.id, uf: input.outside.uf ?? 'SP' } : undefined) }))))));
+  if (!input.cup) return ensureWorld(youthStartSeason(ensureYouth(stampPayTier(ensureAiState(freezeGoals(createContinentals(career)))))));
+  return ensureWorld(youthStartSeason(ensureYouth(stampPayTier(ensureAiState(freezeGoals(createContinentals({ ...career, cup: createCup(career), estadual: createEstaduais(input.outside ? { id: input.outside.id, uf: input.outside.uf ?? 'SP' } : undefined) })))))));
 }
 
 export const isSeasonOver = (g: GameState) => g.round > g.totalRounds && !g.mundial?.due;
@@ -196,6 +198,8 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
   state = mundialAfterLeagueRound(contAfterLeagueRound(cupAfterLeagueRound(state)));
   // propostas dos outros clubes pelos jogadores listados
   state = generateOffers(state, rng);
+  state = foreignSalesTick(state, makeRng(g.seed * 43 + g.season * 13 + g.round * 3)); // propostas de clubes de outros países pelos jogadores à venda
+  state = worldTick(state); // as ligas do mundo jogam a parte delas da rodada
   // meio da temporada: janela pequena de transferências da IA
   if (state.round === Math.floor(state.totalRounds / 2) + 1) state = aiPromoteYouth(aiRenewals(ensureAiYouth(state, rng), rng, 'meio'), rng, 1); // renovações antecipadas e base (o mercado da IA corre todo dia, na janela)
   return { state, results };
@@ -379,7 +383,7 @@ function startNextSeasonCore(g: GameState, calNew: ReturnType<typeof newSeasonCa
   result = reputationDrift(result);                                          // reputação dos clubes: sobe devagar, só no fim da temporada
   const after = seasonEndOffers(reason ? fire(result, reason) : result, out.userPosition, promotedU);
   const started = after.unemployed ? after : postContractOffer(payTierNotice(after)); // início da temporada: aviso de nova divisão e proposta de contrato (uma vez por temporada)
-  return youthStartSeason(ensureAiState(prunePlayerMaps(started))); // (as competições da base da temporada nova) clubes que entraram na pirâmide e o clube que você deixou ficam completos
+  return worldStartSeason(youthStartSeason(ensureAiState(prunePlayerMaps(started)))); // (as competições da base da temporada nova) clubes que entraram na pirâmide e o clube que você deixou ficam completos
 }
 
 /** Aviso antes de virar a temporada: o treinador será demitido? (motivo ou null) */

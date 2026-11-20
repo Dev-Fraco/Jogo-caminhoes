@@ -383,3 +383,16 @@ select option { background: #35322e; color: var(--ink); }
 .np-empty { margin: 8px 0 0; font: italic 14px Georgia, serif; text-align: center; }
 @media (max-width: 380px) { .np-cols { column-count: 1; } }
 .np .np-name::before { content: none; }
+
+/* Mundo */
+.wd-card { padding: 0; overflow: hidden; }
+.wd-head { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 14px; background: none; border: 0; color: inherit; text-align: left; cursor: pointer; min-height: 56px; }
+.wd-head.static { cursor: default; }
+.wd-head small { display: block; color: var(--muted); }
+.wd-flag { font-size: 24px; }
+.wd-body { padding: 0 12px 12px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.wd-body > * { min-width: 0; }
+.wd-nav { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
+.wd-nav .btn.on { background: var(--gold); color: var(--gold-ink); }
+.wd-list { margin: 0; }
+.wd-table td, .wd-table th { padding: 5px 4px; }

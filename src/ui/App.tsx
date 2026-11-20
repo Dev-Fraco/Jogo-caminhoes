@@ -38,6 +38,7 @@ import { unreadCount } from '../engine/phone';
 import { absRound, pendingCount, urgentMessages } from '../engine/inbox';
 import { Lineup } from './Lineup';
 import { LiveMatch } from './LiveMatch';
+import { WorldScreen } from './WorldScreen';
 import { MatchChoice, type MatchMode } from './MatchChoice';
 import { MatchSim } from './MatchSim';
 import { healUserLineup, injuredSet } from '../engine/injuries';
@@ -50,7 +51,7 @@ import { Table } from './Table';
 import { Transfers } from './Transfers';
 import { SideMenu, type MenuTarget } from './SideMenu';
 
-type Tab = 'home' | 'calendar' | 'squad' | 'table' | 'transfers' | 'lineup' | 'finance' | 'stadium' | 'shop' | 'profile' | 'youth'; // 'lineup' é uma tela dentro do Início
+type Tab = 'home' | 'world' | 'calendar' | 'squad' | 'table' | 'transfers' | 'lineup' | 'finance' | 'stadium' | 'shop' | 'profile' | 'youth'; // 'lineup' é uma tela dentro do Início
 /** Telas do app: menu inicial, uma das 8 opções (placeholder) ou a partida em andamento. */
 type Screen = 'menu' | MenuOptionId | 'game' | 'hall';
 
@@ -210,6 +211,7 @@ export function App() {
           {!live && !game.unemployed && tab === 'home' && <Home game={game} onChange={setGame} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onSeeTables={() => { setTableView('div'); setTab('table'); }} onSeeResults={() => { setTableView('rounds'); setTab('table'); }} onEditLineup={() => setTab('lineup')} onTab={(t) => setTab(t)} onNews={() => setPhoneOpen(true)} onSeeHist={() => { setTableView('hist'); setTab('table'); }} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} onAdvance={() => runAdvance(false)} onAdvanceToMatch={() => runAdvance(true)} />}
           {!live && !game.unemployed && tab === 'youth' && <YouthScreen game={game} onChange={setGame} />}
           {!live && tab === 'profile' && <CoachProfile game={game} onNext={(t) => setTab(t)} onChange={setGame} />}
+          {!live && tab === 'world' && <WorldScreen game={game} onChange={setGame} onBack={() => setTab('home')} />}
           {!live && tab === 'shop' && <ShopScreen game={game} onChange={setGame} onOpenPhone={() => setPhoneOpen(true)} />}
           {!live && !game.unemployed && tab === 'calendar' && <CalendarScreen game={game} onBack={() => setTab('home')} />}
           {!live && !game.unemployed && tab === 'stadium' && <Stadium game={game} onChange={setGame} onBack={() => setTab('home')} />}

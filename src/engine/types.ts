@@ -520,6 +520,10 @@ export interface GameState {
   titles?: CoachTitle[];
   /** Jogadores de clubes de outras ligas que saíram (out) ou chegaram (in) — esses elencos vêm dos dados do jogo. */
   foreignDeals?: Record<string, { out: string[]; in: Player[] }>;
+  /** Ligas do mundo (todas as divisões de fora da sua pirâmide), simuladas junto com o seu campeonato. */
+  world?: WorldState;
+  /** Propostas de clubes de outros países pelos seus jogadores à venda. */
+  foreignSales?: ForeignSale[];
   /** Rodadas de negociação por jogador (limite de tentativas por rodada). */
   talks?: Record<string, { season: number; round: number; tries: number }>;
   firedInfo?: { clubId: string; season: number; round: number; reason: string; resigned?: boolean };
@@ -577,3 +581,21 @@ export interface GameState {
   /** Clubes de outros países que disputam a Libertadores (ficam fora do campeonato e do mercado). */
   foreign?: { clubs: Record<string, ClubInfo>; teams: Record<string, TeamState> };
 }
+
+/** Ligas do mundo: só o que precisa ser guardado (os jogos são sorteados com a força de cada clube no começo da temporada). */
+export interface WorldState {
+  season: number;
+  /** Clubes de cada divisão nesta temporada (muda com acessos e rebaixamentos). */
+  members: Record<string, string[]>;
+  /** Força de cada clube (média dos 11 melhores) no começo da temporada. */
+  str: Record<string, number>;
+  /** Resultados por divisão, em lista compacta: [rodada, índice do mandante, índice do visitante, gols do mandante, gols do visitante, ...]. */
+  res: Record<string, number[]>;
+  /** Quantas rodadas de cada divisão já foram jogadas. */
+  played: Record<string, number>;
+  /** Campeões das últimas temporadas. */
+  champs: { season: number; div: string; club: string }[];
+}
+
+/** Proposta de um clube de outro país por um jogador seu (pagamento à vista). */
+export interface ForeignSale { id: string; clubId: string; playerId: string; fee: number; wage: number; years: number; season: number; round: number; /** vale até esta rodada */ expires: number; countered?: boolean }

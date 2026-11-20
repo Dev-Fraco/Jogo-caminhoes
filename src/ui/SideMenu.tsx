@@ -8,14 +8,14 @@ import { ownsPhone } from '../engine/phone';
 import { GameIcon, MENU_ICON } from './gameIcons';
 import { coachOverallInt } from '../engine/coachpay';
 
-export type MenuTarget = 'home' | 'lineup' | 'squad' | 'youth' | 'table' | 'scorers' | 'hist' | 'calendar' | 'transfers' | 'finance' | 'stadium' | 'profile' | 'shop' | 'phone' | 'exit';
+export type MenuTarget = 'home' | 'lineup' | 'squad' | 'youth' | 'table' | 'scorers' | 'hist' | 'calendar' | 'transfers' | 'world' | 'finance' | 'stadium' | 'profile' | 'shop' | 'phone' | 'exit';
 interface Item { id: MenuTarget; icon: string; label: string; hint?: string; needsClub?: boolean }
 const SECTIONS: { title: string; items: Item[] }[] = [
   { title: 'Meu clube', items: [
     { id: 'home', icon: '🏠', label: 'Início' }, { id: 'lineup', icon: '📋', label: 'Escalação', needsClub: true }, { id: 'squad', icon: '👕', label: 'Elenco', needsClub: true }, { id: 'youth', icon: '🌱', label: 'Categorias de base', needsClub: true },
   ] },
   { title: 'Competições', items: [
-    { id: 'table', icon: '📊', label: 'Tabelas e jogos' }, { id: 'scorers', icon: '⚽', label: 'Artilharia' }, { id: 'hist', icon: '🏆', label: 'Campeões' }, { id: 'calendar', icon: '🗓️', label: 'Calendário', needsClub: true },
+    { id: 'table', icon: '📊', label: 'Tabelas e jogos' }, { id: 'world', icon: '🌍', label: 'Mundo' }, { id: 'scorers', icon: '⚽', label: 'Artilharia' }, { id: 'hist', icon: '🏆', label: 'Campeões' }, { id: 'calendar', icon: '🗓️', label: 'Calendário', needsClub: true },
   ] },
   { title: 'Mercado', items: [{ id: 'transfers', icon: '🔁', label: 'Transferências', needsClub: true }] },
   { title: 'Gestão', items: [

@@ -14,7 +14,7 @@ import { FREE_AGENT_MAX, mayBeFree } from './freeagents';
 import { logContract } from './contractwatch';
 import { autoLineup, randomName } from './squad';
 import { divisionIndexOf, MAX_SQUAD, MIN_BY_POS, MIN_SQUAD, playerValue } from './transfers';
-import type { GameState, NewsItem, Player, Position, TeamState } from './types';
+import type { ClubInfo, GameState, NewsItem, Player, Position, TeamState } from './types';
 
 /* ---------- diretório de clubes (da sua liga e do mundo) ---------- */
 
@@ -54,6 +54,13 @@ export function directory(g: GameState): DirClub[] {
   }));
   for (const f of foreignIndex().values()) if (!g.teams[f.id]) { const { data: d, ...rest } = f; out.push({ ...rest, badge: d.badge }); }
   return out;
+}
+
+/** Ficha de qualquer clube do mundo (para mostrar nome e escudo): da sua pirâmide, de fora (Libertadores/Champions) ou de outras ligas. */
+export function clubInfoOf(g: GameState, id: string): ClubInfo | undefined {
+  const own = g.clubs[id] ?? g.foreign?.clubs[id]; if (own) return own;
+  const f = foreignIndex().get(id); if (!f) return undefined;
+  return { id, name: f.name, shortName: f.shortName, badge: f.badge, primaryColor: f.primaryColor, secondaryColor: f.secondaryColor, stadium: f.data.stadium, city: f.data.city, reputation: f.reputation, boardExpectation: f.data.boardExpectation };
 }
 
 export const dirClub = (g: GameState, id: string): DirClub | undefined => directory(g).find((c) => c.id === id);

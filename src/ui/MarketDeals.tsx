@@ -12,6 +12,8 @@ import { SPOT_SHORT, type Deal, type DealClause, type DealState, type GameState,
 import { transferBlock, windowInfo, windowLabel } from '../engine/windows';
 import { formatBudget } from '../newgame/format';
 import { ClubBadge } from './ClubBadge';
+import { acceptForeignSale, counterForeignSale, openSales, refuseForeignSale } from '../engine/forsales';
+import { clubInfoOf, dirClub } from '../engine/market';
 
 const STATE_LABEL: Record<DealState, string> = {
   enviada: 'Enviada', recebida: 'Recebida', 'em-analise': 'Em análise', contraproposta: 'Contraproposta', aguardando: 'Aguardando resposta',
@@ -188,8 +190,32 @@ function DealCard({ game, d, onChange, notify }: { game: GameState; d: Deal; onC
 export function DealsPanel({ game, onChange, notify }: { game: GameState; onChange: (g: GameState) => void; notify: (t: string, e?: boolean) => void }) {
   const list = dealsForUser(game);
   const incoming = list.filter((d) => d.sellerId === game.userClubId), out = list.filter((d) => d.buyerId === game.userClubId);
+  const sales = openSales(game);
+  const doSale = (fn: () => { state: GameState; ok: boolean; text: string }) => { const r = fn(); onChange(r.state); notify(r.text, !r.ok); };
   return (
     <>
+      {sales.length > 0 && (
+        <section>
+          <h3>Propostas de clubes do exterior ({sales.length})</h3>
+          <ul className="tf-list">
+            {sales.map((o) => {
+              const p = game.teams[game.userClubId].players.find((x) => x.id === o.playerId), c = clubInfoOf(game, o.clubId), d = dirClub(game, o.clubId);
+              if (!p || !c) return null;
+              return (
+                <li key={o.id} className="card tf-deal">
+                  <div className="row"><ClubBadge club={c} size={36} /><div className="grow"><b>{c.name}</b><small>{d ? `${d.flag} ${d.countryName} · ${d.divisionName}` : ''}</small></div><b>{formatBudget(o.fee)}</b></div>
+                  <p className="hint" style={{ margin: '4px 0' }}>Quer <b>{p.name}</b> ({p.pos}, overall {p.strength}, {p.age} anos). Pagamento à vista; salário no clube: {formatBudget(o.wage)} por ano, {o.years} {o.years === 1 ? 'ano' : 'anos'}. Vale até a rodada {o.expires}.</p>
+                  <div className="un-btns">
+                    <button className="btn main" onClick={() => doSale(() => acceptForeignSale(game, o.id))}>Aceitar e vender</button>
+                    <button className="btn" disabled={!!o.countered} onClick={() => doSale(() => counterForeignSale(game, o.id))}>{o.countered ? 'Já pediu mais' : 'Pedir 15% a mais'}</button>
+                    <button className="btn" onClick={() => onChange(refuseForeignSale(game, o.id))}>Recusar</button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
       <section>
         <h3>Propostas recebidas ({incoming.length})</h3>
         {incoming.length === 0 ? <div className="card"><p className="hint" style={{ margin: 0 }}>Nenhuma proposta pelos seus jogadores agora. Clubes que precisam da posição fazem propostas durante a janela, principalmente por quem está na lista de transferência.</p></div> : <ul className="tf-list">{incoming.map((d) => <DealCard key={d.id} game={game} d={d} onChange={onChange} notify={notify} />)}</ul>}
@@ -300,7 +326,7 @@ export function AgentsList({ game, onPropose }: { game: GameState; onPropose: (i
 }
 
 /** Quantas coisas esperam por você no mercado (para o selo do menu). */
-export const marketBadge = (g: GameState) => g.offers.length + dealsWaitingUser(g).length + myRequests(g).length;
+export const marketBadge = (g: GameState) => g.offers.length + dealsWaitingUser(g).length + myRequests(g).length + openSales(g).length;
 export type { Player };
 
 const CONTRACT_STATE: Record<string, string> = { 'ultimo-ano': 'último ano', 'vencido': 'vencido', 'vence-em-2-anos': 'vence em 2 anos', ok: 'em dia', 'sem-contrato': 'sem contrato' };
