@@ -47,13 +47,13 @@ type Rep = ClubData['reputation'];
 const MI = 1_000_000;
 
 /** Linha da tabela de dados: id, nome, sigla, cor 1, cor 2, estádio, cidade, orçamento (R$ mi), meta, reputação. */
-type Row = [string, string, string, string, string, string, string, number, BoardExpectation, Rep];
+export type Row = [string, string, string, string, string, string, string, number, BoardExpectation, Rep];
 
 /** Força-base do elenco por reputação; cada divisão abaixo da Série A desconta um pouco. */
 const BASE_STRENGTH: Record<Rep, number> = { 5: 82, 4: 75, 3: 69, 2: 64, 1: 59 };
 const SQUAD_SEED = 2026;
 
-function build(rows: Row[], tierOffset: number): ClubData[] {
+export function build(rows: Row[], tierOffset: number): ClubData[] {
   return rows.map(([id, name, shortName, primaryColor, secondaryColor, stadium, city, budgetMi, boardExpectation, reputation]) => ({
     id, name, shortName, badge: `assets/badges/${id}.png`, primaryColor, secondaryColor, stadium, city,
     budget: Math.round(budgetMi * MI), boardExpectation, reputation,

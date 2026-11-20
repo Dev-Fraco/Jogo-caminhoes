@@ -5,21 +5,60 @@ import { addScorers, clearGoals, drainGoals } from './scorers';
 import { makeRng } from './rng';
 import { buildFixtures } from './schedule';
 import { teamRatings } from './squad';
-import { COMPS, country, groupTable, isMine, M, playTie, playTieGroup, shuffle } from './continental';
-import type { CupRound, CupTie, GameState, LibGroup, LibState, MatchResult, NewsItem, SuperState } from './types';
+import { COMPS, country, groupTable, isMine, M, playTie, playTieGroup, shuffle, toClubInfo } from './continental';
+import { CLUBS_DATA, type ClubData } from '../data/clubs';
+import { OTHER_CLUBS, otherClub } from '../data/otherworld';
+import { teamFromPlayers } from './squad';
+import type { CupRound, CupTie, GameState, LibGroup, LibState, MatchResult, NewsItem, OtherCups, SuperState } from './types';
 
 /* =====================================================================
-   SUPER MUNDIAL DE CLUBES: depois da última rodada e das copas continentais, os 32 melhores clubes do mundo se enfrentam:
-   14 da Europa, 10 da Libertadores, 4 da Sul-Americana e 4 convidados (os mais fortes que sobraram).
-   8 grupos de 4 (3 rodadas, todos contra todos) e mata-mata: oitavas, quartas, semifinal e final. Prêmios bem maiores que os do Mundial.
+   SUPER MUNDIAL DE CLUBES (a cada 4 anos, como a versão real): 16 clubes, os últimos 4 campeões da Libertadores, os últimos 4 da Champions
+   e os últimos 4 das copas da África e da Arábia. 4 grupos de 4 (3 rodadas, todos contra todos) e mata-mata: quartas, semifinal e final.
+   Prêmios bem maiores que os do Mundial.
    ===================================================================== */
 
 export const SUPER_ID = 'super';
-export const SUPER_STEPS = ['Grupos · rodada 1', 'Grupos · rodada 2', 'Grupos · rodada 3', 'Oitavas de final', 'Quartas de final', 'Semifinal', 'Final'];
-export const SUPER_SIZE = 32;
-/** Quantos clubes vêm de cada competição (o resto são convidados). */
-export const SUPER_QUOTA = { ucl: 14, lib: 10, sula: 4 } as const;
-export const SUPER_PRIZE = { win: 4 * M, draw: 1.5 * M, qualified: 15 * M, ko: [20 * M, 35 * M, 60 * M, 250 * M], runnerUp: 100 * M };
+export const SUPER_STEPS = ['Grupos · rodada 1', 'Grupos · rodada 2', 'Grupos · rodada 3', 'Quartas de final', 'Semifinal', 'Final'];
+export const SUPER_SIZE = 16;
+/** O Super Mundial acontece a cada 4 anos (temporadas 2026, 2030, 2034...), como a versão real. */
+export const SUPER_EVERY = 4;
+export const isSuperYear = (season: number) => season % SUPER_EVERY === 2;
+/** Os últimos 4 campeões de cada competição vão ao torneio. */
+export const SUPER_PER_COMP = 4;
+export const SUPER_PRIZE = { win: 4 * M, draw: 1.5 * M, qualified: 20 * M, ko: [35 * M, 60 * M, 250 * M], runnerUp: 100 * M };
+
+/* ---- Copas da África e da Arábia (nos bastidores) ---- */
+const ovrCache = new Map<string, number>();
+const ovrOf = (c: ClubData) => { let v = ovrCache.get(c.id); if (v === undefined) { v = teamRatings(teamFromPlayers(c.id, c.squad)).overall; ovrCache.set(c.id, v); } return v; };
+
+/** Todo fim de temporada as copas da África e da Arábia têm campeão e vice (sorteio ponderado pela força dos clubes). */
+export function otherCupsAfterLeagueRound(g: GameState): GameState {
+  if (g.round - 1 !== g.totalRounds) return g;
+  const cur: OtherCups = g.otherCups ?? { africa: [], arab: [] };
+  if (cur.africa.some((e) => e.season === g.season) && cur.arab.some((e) => e.season === g.season)) return g;
+  const next: OtherCups = { africa: [...cur.africa], arab: [...cur.arab] };
+  const news: NewsItem[] = [];
+  for (const key of ['africa', 'arab'] as const) {
+    if (next[key].some((e) => e.season === g.season)) continue;
+    const rng = makeRng(g.seed * 211 + g.season * 37 + (key === 'africa' ? 5 : 9));
+    const pool = [...OTHER_CLUBS[key]];
+    const draw = (list: ClubData[]) => { const w = list.map((c) => Math.exp((ovrOf(c) - 60) / 4)); let r = rng() * w.reduce((a, b) => a + b, 0); for (let i = 0; i < list.length; i++) { r -= w[i]; if (r <= 0) return list[i]; } return list[list.length - 1]; };
+    const champ = draw(pool);
+    const vice = draw(pool.filter((c) => c.id !== champ.id));
+    next[key] = [...next[key], { season: g.season, championId: champ.id, runnerUpId: vice.id }].slice(-12);
+    news.push({ season: g.season, round: g.round, text: `🌍 ${COMP_NAMES[key]}: ${champ.name} é campeão (vice: ${vice.name}).`, tone: 'info' });
+  }
+  return { ...g, otherCups: next, news: [...news, ...g.news].slice(0, 80) };
+}
+
+/** Garante que o time do clube existe no estado (clubes de outras temporadas e da África/Arábia entram em `foreign`). */
+function ensureTeam(g: GameState, id: string): GameState | undefined {
+  if (g.teams[id] || g.foreign?.teams[id]) return g;
+  const c = otherClub(id) ?? Object.values(CLUBS_DATA).flat().find((x) => x.id === id);
+  if (!c) return undefined;
+  const foreign = g.foreign ?? { clubs: {}, teams: {} };
+  return { ...g, foreign: { clubs: { ...foreign.clubs, [id]: toClubInfo(c) }, teams: { ...foreign.teams, [id]: teamFromPlayers(id, c.squad) } } };
+}
 
 /** Até onde o clube foi na competição continental (maior = mais longe). */
 function reach(g: GameState, l: LibState, id: string): number {
@@ -33,26 +72,37 @@ function reach(g: GameState, l: LibState, id: string): number {
   return 10 + (row?.points ?? 0);
 }
 
-/** Os 32 classificados, na ordem de força. */
-export function superEntrants(g: GameState): string[] {
-  const ovr = (id: string) => teamRatings(teamOf(g, id)).overall;
+/** Os 16 classificados: os últimos 4 campeões da Libertadores, da Champions, da África e da Arábia (o que faltar é completado pelos melhores da edição atual). */
+export function superEntrants(g0: GameState): { ids: string[]; state: GameState } {
+  let g = g0;
   const taken = new Set<string>();
   const out: string[] = [];
-  const rest: string[] = [];
-  for (const key of COMPS) {
-    const l = g[key];
-    if (!l) continue;
-    const ids = l.groups.flatMap((x) => x.clubIds);
-    const ranked = [...ids].sort((a, b) => reach(g, l, b) - reach(g, l, a) || ovr(b) - ovr(a));
-    const n = SUPER_QUOTA[key];
+  const take = (id: string | undefined): boolean => {
+    if (!id || taken.has(id)) return false;
+    const s = ensureTeam(g, id);
+    if (!s) return false;
+    g = s; taken.add(id); out.push(id); return true;
+  };
+  const ovr = (id: string) => teamRatings(teamOf(g, id)).overall;
+  for (const key of ['lib', 'ucl'] as const) {
+    const champKey = key === 'lib' ? 'libChampionId' : 'uclChampionId';
+    const past = [g[key]?.championId, ...[...g.history].reverse().map((h) => h[champKey])];
     let got = 0;
-    for (const id of ranked) {
-      if (taken.has(id)) continue;
-      if (got < n) { taken.add(id); out.push(id); got++; } else rest.push(id);
+    for (const id of past) { if (got >= SUPER_PER_COMP) break; if (take(id)) got++; }
+    const l = g[key];
+    if (l && got < SUPER_PER_COMP) { // sem história suficiente (carreira nova): os melhores da edição atual completam
+      const ranked = l.groups.flatMap((x) => x.clubIds).filter((id) => !taken.has(id)).sort((a, b) => reach(g, l, b) - reach(g, l, a) || ovr(b) - ovr(a));
+      for (const id of ranked) { if (got >= SUPER_PER_COMP) break; if (take(id)) got++; }
     }
   }
-  for (const id of [...new Set(rest)].filter((x) => !taken.has(x)).sort((a, b) => ovr(b) - ovr(a))) { if (out.length >= SUPER_SIZE) break; out.push(id); taken.add(id); }
-  return out.slice(0, SUPER_SIZE);
+  for (const key of ['africa', 'arab'] as const) {
+    const eds = [...(g.otherCups?.[key] ?? [])].reverse();
+    let got = 0;
+    for (const e of eds) { if (got >= SUPER_PER_COMP) break; if (take(e.championId)) got++; }
+    const rest = [...OTHER_CLUBS[key]].sort((a, b) => ovrOf(b) - ovrOf(a));
+    for (const c of rest) { if (got >= SUPER_PER_COMP) break; if (take(c.id)) got++; }
+  }
+  return { ids: out, state: g };
 }
 
 const userIn = (g: GameState) => !g.unemployed && !!g.superMundial && g.superMundial.alive.includes(g.userClubId) && !g.superMundial.championId;
@@ -67,10 +117,10 @@ export function superUserMatch(g: GameState): { homeId: string; awayId: string }
 export const superStepName = (s: SuperState) => SUPER_STEPS[Math.min(s.step, SUPER_STEPS.length - 1)];
 
 /** Monta o torneio com os classificados: potes por força, sem dois clubes do mesmo país no grupo quando dá. */
-export function createSuper(g: GameState): SuperState | undefined {
-  const ids = superEntrants(g);
+export function createSuper(g0: GameState): { sm: SuperState; state: GameState } | undefined {
+  const { ids, state: g } = superEntrants(g0);
   const n = Math.floor(ids.length / 4) * 4;
-  if (n < 16) return undefined;
+  if (n < 8) return undefined;
   const entrants = ids.slice(0, n);
   const ovr = (id: string) => teamRatings(teamOf(g, id)).overall;
   const sorted = [...entrants].sort((a, b) => ovr(b) - ovr(a));
@@ -88,18 +138,20 @@ export function createSuper(g: GameState): SuperState | undefined {
     const gid = `SG${'ABCDEFGH'[i]}`;
     return { id: gid, clubIds, matches: buildFixtures(clubIds, gid).fixtures.filter((f) => f.round <= 3).map((f) => ({ round: f.round, homeId: f.homeId, awayId: f.awayId })) };
   });
-  return { id: SUPER_ID, name: COMP_NAMES.supermundial, groups, ko: [], step: 0, due: true, alive: entrants, entrants };
+  return { state: g, sm: { id: SUPER_ID, name: COMP_NAMES.supermundial, groups, ko: [], step: 0, due: true, alive: entrants, entrants } };
 }
 
 /** Depois da última rodada (e do Mundial): monta o Super Mundial. Se o seu clube não está nele, é simulado na hora. */
 export function superAfterLeagueRound(g: GameState): GameState {
-  if (g.superMundial || g.round - 1 !== g.totalRounds) return g;
+  g = otherCupsAfterLeagueRound(g);
+  if (g.superMundial || g.round - 1 !== g.totalRounds || !isSuperYear(g.season)) return g;
   if (COMPS.some((k) => g[k] && !g[k]!.championId)) return g; // as copas continentais precisam ter terminado
-  const sm = createSuper(g);
-  if (!sm) return g;
-  let s: GameState = { ...g, superMundial: sm };
+  const made = createSuper(g);
+  if (!made) return g;
+  const sm = made.sm;
+  let s: GameState = { ...made.state, superMundial: sm };
   const you = !s.unemployed && sm.alive.includes(s.userClubId);
-  if (you) s = { ...s, news: [{ season: s.season, round: s.round, text: `🌐 ${sm.name}: seu clube está entre os 32 melhores do mundo!`, tone: 'good' as const }, ...s.news].slice(0, 80) };
+  if (you) s = { ...s, news: [{ season: s.season, round: s.round, text: `🌐 ${sm.name}: seu clube está entre os 16 melhores do mundo!`, tone: 'good' as const }, ...s.news].slice(0, 80) };
   while (s.superMundial?.due && !userIn(s)) s = playSuperStep(s).state;
   return s;
 }

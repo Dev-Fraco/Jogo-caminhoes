@@ -243,13 +243,13 @@ export interface CasinoState { balance: number; bets: CasinoBet[]; deposited: nu
 export interface MarketDeal { season: number; round: number; text: string }
 
 /** Mundial de Clubes: semifinais cruzadas entre os dois finalistas da Libertadores e da Champions, e final. */
-/** Super Mundial de Clubes: 32 clubes (Europa, América do Sul e convidados), 8 grupos de 4 (3 rodadas) e mata-mata (oitavas, quartas, semifinal e final). */
+/** Super Mundial de Clubes (a cada 4 anos): 16 clubes, 4 grupos de 4 (3 rodadas) e mata-mata (quartas, semifinal e final). */
 export interface SuperState {
   id: string;
   name: string;
   groups: LibGroup[];
   ko: CupRound[];
-  /** 0–2 rodadas de grupos; 3 oitavas, 4 quartas, 5 semifinal, 6 final */
+  /** 0–2 rodadas de grupos; 3 quartas, 4 semifinal, 5 final */
   step: number;
   due: boolean;
   alive: string[];
@@ -257,6 +257,9 @@ export interface SuperState {
   entrants: string[];
   championId?: string;
 }
+/** Copas dos Campeões da África e Árabe (disputadas nos bastidores, um campeão por temporada). */
+export interface OtherEdition { season: number; championId: string; runnerUpId: string }
+export interface OtherCups { africa: OtherEdition[]; arab: OtherEdition[] }
 export interface MundialState {
   id: string;
   name: string;
@@ -577,6 +580,8 @@ export interface GameState {
   mundial?: MundialState;
   /** Super Mundial de Clubes da temporada (32 clubes). */
   superMundial?: SuperState;
+  /** Campeões da África e da Arábia (os últimos 4 de cada um vão ao Super Mundial). */
+  otherCups?: OtherCups;
   /** Dinheiro pessoal do treinador (R$) e quanto da folha ele paga (0/25/50/100). */
   coachMoney?: number;
   wageCover?: number;

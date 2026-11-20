@@ -3,7 +3,9 @@ import { COMP_NAMES, shortCompName } from '../data/names';
 import { ClubBadge } from './ClubBadge';
 import { ScreenTitle } from './FmParts';
 import { COMPS, CONTINENTALS, groupTable, type Comp } from '../engine/continental';
-import { SUPER_STEPS } from '../engine/supermundial';
+import { isSuperYear, SUPER_EVERY, SUPER_STEPS } from '../engine/supermundial';
+import { otherClub } from '../data/otherworld';
+import { COMP_NAMES as NAMES } from '../data/names';
 import { clubOf } from '../engine/lookup';
 import { GROUP_ROUNDS, groupTables, isGroups, knockoutView } from '../engine/groups';
 import { estadualOfUser, estadualTable, playoffOf, stepLabel } from '../engine/estadual';
@@ -33,7 +35,7 @@ function formOf(game: GameState, divisionId: string, clubId: string): ('W' | 'D'
 export function Table({ game, initialView = 'div' }: { game: GameState; initialView?: 'div' | 'rounds' | 'hist' | 'scorers' }) {
   const mineIndex = userDivisionIndex(game);
   const [idx, setIdx] = useState(mineIndex);
-  const [view, setView] = useState<'div' | 'cup' | Comp | 'mundial' | 'super' | 'rounds' | 'hist' | 'titles' | 'estadual' | 'scorers'>(initialView);
+  const [view, setView] = useState<'div' | 'cup' | Comp | 'mundial' | 'super' | 'outras' | 'rounds' | 'hist' | 'titles' | 'estadual' | 'scorers'>(initialView);
   const division = game.divisions[idx];
   const rows = divisionTable(game, division.id);
   const n = rows.length;
@@ -50,6 +52,7 @@ export function Table({ game, initialView = 'div' }: { game: GameState; initialV
     ...COMPS.filter((k) => game[k]).map((k) => mk(k, `${CONTINENTALS[k].icon} ${shortCompName(COMP_NAMES[k])}`, k)),
     ...(game.mundial ? [mk('mundial', '🌍 Mundial', 'mundial')] : []),
     ...(game.superMundial ? [mk('super', '🌐 Super Mundial', 'super')] : []),
+    mk('outras', '🌍 África e Arábia', 'outras'),
   ];
   const infoItems: Item[] = [mk('rounds', '📋 Jogos', 'rounds'), mk('scorers', '⚽ Artilharia', 'scorers'), mk('hist', '🏅 Campeões', 'hist'), mk('titles', '🥇 Meus títulos', 'titles')];
   const groupsOf = [{ title: 'Divisões', items: divItems }, { title: 'Copas e torneios', items: cupItems }, { title: 'Jogos e estatísticas', items: infoItems }];
@@ -88,6 +91,7 @@ export function Table({ game, initialView = 'div' }: { game: GameState; initialV
       {(view === 'lib' || view === 'sula' || view === 'ucl') && game[view] && <LibView game={game} comp={view} />}
       {view === 'mundial' && game.mundial && <MundialView game={game} />}
       {view === 'super' && game.superMundial && <SuperView game={game} />}
+      {view === 'outras' && <OtherCupsView game={game} />}
       {view === 'div' && division.format === 'outside' && (
         <div className="card">
           <h2>Fora da pirâmide</h2>
@@ -427,6 +431,25 @@ function SuperView({ game }: { game: GameState }) {
               </tr>
             ))}</tbody>
           </table></div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+/** Copas dos Campeões da África e Árabe (nos bastidores) e quando é o próximo Super Mundial. */
+function OtherCupsView({ game }: { game: GameState }) {
+  let next = game.season; while (!isSuperYear(next) || (next === game.season && game.superMundial?.championId)) next++;
+  const nm = (id: string) => otherClub(id)?.name ?? id;
+  const lists = [['africa', '🌍', game.otherCups?.africa ?? []], ['arab', '🌙', game.otherCups?.arab ?? []]] as const;
+  return (
+    <div className="cup-view">
+      <p className="hint">🌐 O Super Mundial de Clubes acontece a cada {SUPER_EVERY} anos. Próxima edição: <b>temporada {next}</b>. Vão os últimos 4 campeões da Libertadores, da Champions, da África e da Arábia.</p>
+      {lists.map(([key, icon, eds]) => (
+        <section key={key}>
+          <h3>{icon} {NAMES[key]}</h3>
+          {eds.length === 0 && <p className="hint">A primeira edição termina no fim desta temporada.</p>}
+          <ul className="list">{[...eds].reverse().map((e) => <li key={e.season} className="row"><b>{e.season}</b><span className="grow">🏆 {nm(e.championId)}<small> · vice {nm(e.runnerUpId)}</small></span></li>)}</ul>
         </section>
       ))}
     </div>

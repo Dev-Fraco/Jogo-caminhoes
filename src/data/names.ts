@@ -3,12 +3,12 @@ import { WORLD_DATA } from './world';
 /* =====================================================================
    Nomes das competições. O jogo vem com nomes fictícios (copas, ligas e mundial); pacotes (mods) instalados pelo jogador podem trazer
    os nomes reais, com a chave de cada competição:
-     "cup", "lib", "sula", "ucl", "mundial", "supermundial"  (copa nacional, 3 copas continentais e o mundial)
+     "cup", "lib", "sula", "ucl", "mundial", "supermundial", "africa", "arab"  (copa nacional, 3 copas continentais e o mundial)
      id de uma liga (ex.: "premier-league")  → nome da liga;   id de uma divisão (ex.: "premier") → nome local da divisão (alias).
    ===================================================================== */
 
 export const COMP_DEFAULTS = {
-  cup: 'Copa Nacional', lib: 'Copa dos Campeões da América', sula: 'Copa das Américas', ucl: 'Copa Europeia de Elite', mundial: 'Mundial dos Campeões', supermundial: 'Super Mundial de Clubes',
+  cup: 'Copa Nacional', lib: 'Copa dos Campeões da América', sula: 'Copa das Américas', ucl: 'Copa Europeia de Elite', mundial: 'Mundial dos Campeões', supermundial: 'Super Mundial de Clubes', africa: 'Copa dos Campeões da África', arab: 'Copa dos Campeões Árabes',
 } as const;
 export type CompKey = keyof typeof COMP_DEFAULTS;
 /** Nomes em vigor (os campos mudam quando um pacote com competições é ligado). */

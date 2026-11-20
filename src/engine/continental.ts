@@ -64,7 +64,7 @@ export const MUNDIAL_ID = 'mundial';
 const MUNDIAL_PRIZE = { semi: 25 * M, champion: 120 * M };
 
 const FOREIGN_PREFIX = /^(ar|bo|cl|co|ec|py|pe|uy|ve|en|es|it|de|fr|pt)-/;
-export const country = (id: string) => (FOREIGN_PREFIX.test(id) ? id.slice(0, 2) : 'br');
+export const country = (id: string) => (/^(afr|ara)-/.test(id) ? id.slice(0, 3) : FOREIGN_PREFIX.test(id) ? id.slice(0, 2) : 'br');
 export const shuffle = <T>(rng: Rng, list: T[]): T[] => {
   const a = [...list];
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
