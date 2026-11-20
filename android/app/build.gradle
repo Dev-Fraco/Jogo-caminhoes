@@ -26,11 +26,24 @@ android {
             keyPassword 'android'
         }
     }
+    // Chave de PUBLICAÇÃO (loja): vem de variáveis de ambiente do CI (segredos do GitHub); nunca fica no repositório.
+    // Sem elas, o AAB de release sai sem assinatura (como antes).
+    if (System.getenv('RELEASE_KEYSTORE')) {
+        signingConfigs {
+            release {
+                storeFile file(System.getenv('RELEASE_KEYSTORE'))
+                storePassword System.getenv('RELEASE_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('RELEASE_KEY_ALIAS')
+                keyPassword System.getenv('RELEASE_KEY_PASSWORD')
+            }
+        }
+    }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
+            if (System.getenv('RELEASE_KEYSTORE')) { signingConfig signingConfigs.release }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

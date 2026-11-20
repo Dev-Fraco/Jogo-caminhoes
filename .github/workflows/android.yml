@@ -37,6 +37,20 @@ jobs:
         if: ${{ inputs.store }}
         run: node scripts/split-premium.mjs
       - run: npx cap sync android
+      - name: Chave de assinatura da loja (segredos do GitHub)
+        if: ${{ inputs.store }}
+        env:
+          KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "RELEASE_KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+            echo "RELEASE_KEYSTORE_PASSWORD=${{ secrets.RELEASE_KEYSTORE_PASSWORD }}" >> "$GITHUB_ENV"
+            echo "RELEASE_KEY_ALIAS=${{ secrets.RELEASE_KEY_ALIAS }}" >> "$GITHUB_ENV"
+            echo "RELEASE_KEY_PASSWORD=${{ secrets.RELEASE_KEY_PASSWORD }}" >> "$GITHUB_ENV"
+          else
+            echo "Sem segredo RELEASE_KEYSTORE_B64: o AAB da loja sai sem assinatura."
+          fi
       - name: APK de teste (debug)
         run: cd android && ./gradlew assembleDebug
       - name: AAB (release, sem assinatura)
@@ -47,7 +61,8 @@ jobs:
           path: |
             android/app/build/outputs/apk/debug/*.apk
             android/app/build/outputs/bundle/release/*.aab
-      - name: Publicar APK na Release do GitHub
+      - name: Publicar APK na Release do GitHub (só builds de teste; o build da loja NUNCA vai para a Release pública)
+        if: ${{ !inputs.store }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

@@ -41,7 +41,8 @@ import { Lineup } from './Lineup';
 import { LiveMatch } from './LiveMatch';
 import { PremiumGate } from './PremiumGate';
 import { recheckExtras, useExtras } from '../premium/usePremium';
-import { inTrial, isPremium, modsAllowed, setActiveGame } from '../premium/entitlement';
+import { inTrial, isPremium, limitedAt, modsAllowed, setActiveGame } from '../premium/entitlement';
+import { billingAvailable } from '../premium/billing';
 import { reconcile } from '../premium/ledger';
 import { maybeShowAd } from '../premium/ads';
 import { PlanScreen } from '../premium/ui/PlanScreen';
@@ -64,6 +65,10 @@ import { SideMenu, type MenuTarget } from './SideMenu';
 type Tab = 'home' | 'world' | 'calendar' | 'squad' | 'table' | 'transfers' | 'lineup' | 'finance' | 'stadium' | 'shop' | 'profile' | 'youth'; // 'lineup' é uma tela dentro do Início
 /** Telas do app: menu inicial, uma das 8 opções (placeholder) ou a partida em andamento. */
 type Screen = 'menu' | MenuOptionId | 'game' | 'hall' | 'plano';
+
+const OFFER_KEY = 'vr-offer-seen';
+const offerSeen = (seed: number): boolean => { try { return (localStorage.getItem(OFFER_KEY) ?? '').split(',').includes(String(seed)); } catch { return true; } };
+const markOffer = (seed: number): void => { try { localStorage.setItem(OFFER_KEY, [...(localStorage.getItem(OFFER_KEY) ?? '').split(',').filter(Boolean).slice(-50), String(seed)].join(',')); } catch { /* sem armazenamento */ } };
 
 export function App() {
   const [game, setGame] = useState<GameState | null>(() => loadGame());
@@ -198,7 +203,13 @@ export function App() {
   // seu time com as mudanças táticas já feitas (formação e escalação); serve para a tela de formação e para os bonecos
   const liveUserTeam = (() => { const t = healUserLineup(game, true).teams[game.userClubId]; const last = tactics[tactics.length - 1]; const st = [...tactics].reverse().find((x) => x.stance)?.stance; return t && last ? { ...t, formation: last.formation, lineup: last.lineup, ...(st ? { stance: st } : {}) } : t; })();
   const liveFormation = (side: 'home' | 'away') => { const id = side === 'home' ? liveResult?.homeId : liveResult?.awayId; return id === game.userClubId && liveUserTeam ? liveUserTeam.formation : teamOf(game, id ?? game.userClubId).formation; };
-  const nextSeason = async () => { setLast([]); const pack = await loadSeasonPack(); setGame(pack.startNextSeason(game)); void maybeShowAd('season'); }; // (o pacote da 2ª temporada em diante carrega sob demanda)
+  const nextSeason = async () => {
+    setLast([]);
+    // fim da temporada grátis: a próxima já é limitada; mostra a oferta do Premium (em vez de anúncio) uma vez por carreira
+    const offer = billingAvailable() && limitedAt(game, game.season + 1) && !offerSeen(game.seed);
+    const pack = await loadSeasonPack(); setGame(pack.startNextSeason(game));
+    if (offer) { markOffer(game.seed); window.dispatchEvent(new Event('vr-open-plans')); } else void maybeShowAd('season');
+  }; // (o pacote da 2ª temporada em diante carrega sob demanda)
 
   return (
     <>
