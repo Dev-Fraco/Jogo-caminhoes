@@ -1,4 +1,4 @@
-import { regionalDueAny } from './regional';
+import { regionalDueAny } from './hooks';
 import { calOf, daysToMatch, isMatchDay } from './calendar';
 import { advanceToMatchDays } from './daily';
 import { pendingEvent } from './events';

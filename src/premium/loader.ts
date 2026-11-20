@@ -30,3 +30,15 @@ export async function loadScene3D(): Promise<typeof import('../ui/pitch3d/three/
   if (!(await gate())) throw new Error('premium-required');
   return import('../ui/pitch3d/three/scene');
 }
+
+let extrasLoading: Promise<void> | null = null;
+/** Carrega (uma vez) o pacote dos extras (mundo, copas especiais, Super Mundial) e ativa os recursos no jogo. */
+export function loadExtras(): Promise<void> {
+  if (!extrasLoading) {
+    extrasLoading = (async () => {
+      if (!(await gate())) { extrasLoading = null; throw new Error('premium-required'); }
+      (await import('./extras')).installExtras();
+    })();
+  }
+  return extrasLoading;
+}

@@ -3,7 +3,7 @@ import { ensureAiContracts } from './aicontracts';
 import { freezeGoals } from './aigoals';
 import { ensureAiYouth, ensureAiYouthCoaches } from './aiyouth';
 import { ensureCategoryState, seedCategories } from './youth';
-import { ensureWorld, worldTick } from './wleagues';
+import { hooks } from './hooks';
 import { createYouthComps, youthSync } from './ycomp';
 import { ensureMarketState, ensureYouthLoanState } from './aistate';
 import { computeTable } from './table';
@@ -69,7 +69,7 @@ export const STEPS: MigrationStep[] = [
   { id: 'treinadores-base-ia', label: 'treinadores e academias das categorias de base dos clubes', run: (g) => (g.aiYouth ? ensureAiYouthCoaches(g) : g) },
   { id: 'categorias-base', label: 'categorias de base (identidade e histórico dos jovens)', run: (g) => ensureCategoryState(g) },
   { id: 'base-15', label: 'base com 15 atletas em cada categoria (Sub-13, Sub-15, Sub-17 e Sub-21)', run: (g) => (!g.youth || g.youth.seeded || g.unemployed || g.observer ? g : { ...g, youth: seedCategories(g, g.youth) }) },
-  { id: 'mundo', label: 'ligas do mundo (resultados e tabelas de todas as divisões)', run: (g) => (g.world || g.observer ? g : worldTick(ensureWorld(g))) },
+  { id: 'mundo', label: 'ligas do mundo (resultados e tabelas de todas as divisões)', run: (g) => (g.world || g.observer ? g : hooks.worldTick(hooks.ensureWorld(g))) },
   { id: 'competicoes-base', label: 'competições das categorias de base', run: (g) => { if ((g.ycomps && g.ycompsClub === g.userClubId) || g.unemployed || g.observer) return g; const r = youthSync(createYouthComps(g)); return { ...r, news: g.news }; } }, // (as notícias que nascem ao montar as competições não entram no save antigo: nada do que ele já tinha muda)
   { id: 'jovens-emprestimos', label: 'potencial dos jovens, minutos jogados e empréstimos', run: (g) => ensureYouthLoanState(g) },
 ];

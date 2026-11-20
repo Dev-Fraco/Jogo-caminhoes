@@ -11,8 +11,7 @@ import { aiLineup, matchImportance, updateLoad } from './rotation';
 import { aiPromoteYouth, ensureAiYouth, trackApps } from './aiyouth';
 import { aiCoachTick } from './aicoaches';
 import { contAfterLeagueRound, createContinentals, mundialAfterLeagueRound, playContStep, playMundialStep } from './continental';
-import { playSuperStep, superAfterLeagueRound } from './supermundial';
-import { createRegionals, playRegionalStep, regionalAfterLeagueRound, REGIONAL_KEYS } from './regional';
+import { hooks, REGIONAL_KEYS } from './hooks';
 import { pendingEvent, playEvent } from './events';
 import { tickContracts } from './assets';
 import { advanceKnockout, finalStandings, groupFixtures, isGroups, userGroupRows, withGroups } from './groups';
@@ -27,8 +26,6 @@ import { inboxTick } from './inbox';
 import './shop';
 import { processDays } from './daily';
 import { ensureYouth, youthTick } from './youth';
-import { foreignSalesTick } from './forsales';
-import { ensureWorld, worldTick } from './wleagues';
 import { youthStartSeason, youthSync } from './ycomp';
 import { fibraTick } from './netfibra';
 import { afterMatch, calOf, nextMatchDay } from './calendar';
@@ -111,8 +108,8 @@ export function newCareer(input: CareerInput, seed = Date.now() % 2147483647): G
     clubs, budgets, transfers: [], morale: { ...MORALE_START }, transferList: [], loanList: [], offers: [], loans: [], news: [], divisions, teams, fixtures, results: [], history: [],
   };
   // a carreira já nasce completa (contratos, treinadores, base, objetivos): carregar o save depois não muda nada
-  if (!input.cup) return ensureWorld(youthStartSeason(ensureYouth(stampPayTier(ensureAiState(freezeGoals(createContinentals(career)))))));
-  return ensureWorld(youthStartSeason(ensureYouth(stampPayTier(ensureAiState(freezeGoals(createRegionals(createContinentals({ ...career, cup: createCup(career), estadual: createEstaduais(input.outside ? { id: input.outside.id, uf: input.outside.uf ?? 'SP' } : undefined) }))))))));
+  if (!input.cup) return hooks.ensureWorld(youthStartSeason(ensureYouth(stampPayTier(ensureAiState(freezeGoals(createContinentals(career)))))));
+  return hooks.ensureWorld(youthStartSeason(ensureYouth(stampPayTier(ensureAiState(freezeGoals(hooks.createRegionals(createContinentals({ ...career, cup: createCup(career), estadual: createEstaduais(input.outside ? { id: input.outside.id, uf: input.outside.uf ?? 'SP' } : undefined) }))))))));
 }
 
 export const isSeasonOver = (g: GameState) => g.round > g.totalRounds && !g.mundial?.due && !g.superMundial?.due && !REGIONAL_KEYS.some((k) => g.regionais?.[k]?.due);
@@ -126,7 +123,7 @@ export function fixturesOfRound(g: GameState, round: number, divisionId?: string
 
 /** Joga a próxima rodada em TODAS as divisões. Retorna o novo estado e os resultados da rodada. */
 export function playRound(g: GameState): { state: GameState; results: MatchResult[] } {
-  if (g.round > g.totalRounds) return g.mundial?.due ? playMundialStep(g) : g.superMundial?.due ? playSuperStep(g) : (() => { const k = REGIONAL_KEYS.find((x) => g.regionais?.[x]?.due); return k ? playRegionalStep(g, k) : { state: g, results: [] as MatchResult[] }; })(); // só falta o Mundial / Super Mundial / copas regionais
+  if (g.round > g.totalRounds) return g.mundial?.due ? playMundialStep(g) : g.superMundial?.due ? hooks.playSuperStep(g) : (() => { const k = REGIONAL_KEYS.find((x) => g.regionais?.[x]?.due); return k ? hooks.playRegionalStep(g, k) : { state: g, results: [] as MatchResult[] }; })(); // só falta o Mundial / Super Mundial / copas regionais
   for (let i = 0; g.estadual?.due && i < 40; i++) g = playEstadualStep(g).state; // estaduais pendentes (antes do campeonato): simulados automaticamente
   if (g.cup?.due) g = playCupRound(g).state; // fases pendentes das copas: simuladas automaticamente
   for (const key of ['lib', 'sula', 'ucl'] as const) if (g[key]?.due) g = playContStep(g, key).state;
@@ -191,11 +188,11 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
   state = youthTick(fibraTick(inboxTick(state))); // mensagens, metas, fatura e plano de dados do celular
   state = boardTick(state, makeRng(g.seed * 19 + g.season * 7 + g.round)); // diretoria (demissão) ou, sem clube, propostas de emprego
   if (state.round >= 8 && state.round < state.totalRounds && state.round % 4 === 0) state = aiCoachTick(state, makeRng(g.seed * 53 + g.season * 17 + g.round)); // diretorias da IA avaliam os treinadores
-  state = superAfterLeagueRound(mundialAfterLeagueRound(regionalAfterLeagueRound(contAfterLeagueRound(cupAfterLeagueRound(state)))));
+  state = hooks.superAfterLeagueRound(mundialAfterLeagueRound(hooks.regionalAfterLeagueRound(contAfterLeagueRound(cupAfterLeagueRound(state)))));
   // propostas dos outros clubes pelos jogadores listados
   state = generateOffers(state, rng);
-  state = foreignSalesTick(state, makeRng(g.seed * 43 + g.season * 13 + g.round * 3)); // propostas de clubes de outros países pelos jogadores à venda
-  state = worldTick(state); // as ligas do mundo jogam a parte delas da rodada
+  state = hooks.foreignSalesTick(state, makeRng(g.seed * 43 + g.season * 13 + g.round * 3)); // propostas de clubes de outros países pelos jogadores à venda
+  state = hooks.worldTick(state); // as ligas do mundo jogam a parte delas da rodada
   // meio da temporada: janela pequena de transferências da IA
   if (state.round === Math.floor(state.totalRounds / 2) + 1) state = aiPromoteYouth(aiRenewals(ensureAiYouth(state, rng), rng, 'meio'), rng, 1); // renovações antecipadas e base (o mercado da IA corre todo dia, na janela)
   return { state, results };
@@ -228,8 +225,8 @@ function playNextRaw(g: GameState) {
   if (ev) return playEvent(g, ev.kind);
   if (g.estadual?.due) return playEstadualStep(g); // rodada dos estaduais sem jogo seu
   if (g.mundial?.due) return playMundialStep(g); // o seu clube não joga: avança sozinho
-  if (g.superMundial?.due) return playSuperStep(g);
-  { const k = REGIONAL_KEYS.find((x) => g.regionais?.[x]?.due); if (k) return playRegionalStep(g, k); }
+  if (g.superMundial?.due) return hooks.playSuperStep(g);
+  { const k = REGIONAL_KEYS.find((x) => g.regionais?.[x]?.due); if (k) return hooks.playRegionalStep(g, k); }
   return playRound(g);
 }
 

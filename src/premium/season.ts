@@ -11,7 +11,7 @@ import { settleLoanPurchases } from '../engine/loandeals';
 import { clauseSeasonEnd } from '../engine/dealpay';
 import { aiCoachSeasonEnd } from '../engine/aicoaches';
 import { createContinentals } from '../engine/continental';
-import { createRegionals, REGIONAL_KEYS } from '../engine/regional';
+import { hooks, REGIONAL_KEYS } from '../engine/hooks';
 import { withGroups } from '../engine/groups';
 import { adoptClub, estadualOfUser, estadualTable, nextEstaduais, serieDQualifiers } from '../engine/estadual';
 import { fire, seasonEndFiring, seasonEndOffers, seasonPoints } from '../engine/jobs';
@@ -19,7 +19,6 @@ import { anyClubName, expireContracts } from '../engine/market';
 import { managed } from '../engine/lookup';
 import { processDays } from '../engine/daily';
 import { youthSeason } from '../engine/youth';
-import { worldStartSeason } from '../engine/wleagues';
 import { youthSeasonEnd, youthStartSeason } from '../engine/ycomp';
 import { settleSalary } from '../engine/salary';
 import { calOf, newSeasonCalendar } from '../engine/calendar';
@@ -107,7 +106,7 @@ function startNextSeasonCore(g: GameState, calNew: ReturnType<typeof newSeasonCa
   const rng = makeRng(g.seed * 977 + g.season * 31 + 5);
   const { state, promotion } = offseason(next, rng, { promoted: arrivals('promoted', -1), relegated: arrivals('relegated', 1) });
   const cupped: GameState = g.cup ? { ...state, cup: createCup(state), estadual: g.estadual ? nextEstaduais(g, g.estadual) : undefined } : state;
-  const withCup: GameState = createRegionals(createContinentals({ ...cupped, mundial: undefined, superMundial: undefined }, moves[0].table.map((r) => r.clubId), g.cup?.championId), g);
+  const withCup: GameState = hooks.createRegionals(createContinentals({ ...cupped, mundial: undefined, superMundial: undefined }, moves[0].table.map((r) => r.clubId), g.cup?.championId), g);
   const cal = calNew;
   let result: GameState = freezeGoals(youthSeason({ ...withCup, cal, history: withCup.history.map((h, i) => (i === withCup.history.length - 1 ? { ...h, promotion } : h)) }));
   result = { ...result, apps: {} }; // a evolução desta temporada já usou os minutos jogados: a contagem recomeça
@@ -119,7 +118,7 @@ function startNextSeasonCore(g: GameState, calNew: ReturnType<typeof newSeasonCa
   result = reputationDrift(result);                                          // reputação dos clubes: sobe devagar, só no fim da temporada
   const after = seasonEndOffers(reason ? fire(result, reason) : result, out.userPosition, promotedU);
   const started = after.unemployed ? after : postContractOffer(payTierNotice(after)); // início da temporada: aviso de nova divisão e proposta de contrato (uma vez por temporada)
-  return worldStartSeason(youthStartSeason(ensureAiState(prunePlayerMaps(started)))); // (as competições da base da temporada nova) clubes que entraram na pirâmide e o clube que você deixou ficam completos
+  return hooks.worldStartSeason(youthStartSeason(ensureAiState(prunePlayerMaps(started)))); // (as competições da base da temporada nova) clubes que entraram na pirâmide e o clube que você deixou ficam completos
 }
 
 /** Pula de 1 a 5 temporadas: simula tudo (campeonatos, copas, Mundial) e termina no fim da última temporada pulada. Com `autoPay`, boletos são pagos sozinhos. */

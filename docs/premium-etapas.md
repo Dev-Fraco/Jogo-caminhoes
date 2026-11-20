@@ -14,7 +14,7 @@ Realidade da segurança (sem servidor)
 
 Etapas
 1. [FEITA] Fronteira do Premium no código: `src/premium/` (virada de temporada em `season.ts`; `loader.ts` com o portão `setPremiumGate`; 3D passa pelo carregador). Teste garante que o código grátis só chega ao pacote pelo carregador. Nenhuma trava ainda (portão sempre aberto).
-2. Mover para o pacote os módulos que só existem do Mundo/copas especiais em diante (mundo, vendas ao exterior, copas regionais, Super Mundial) com telas de prévia no lugar.
+2. [FEITA] Extras no pacote: ligas do mundo, vendas ao exterior, Copa do Nordeste, Copa Verde e Super Mundial saíram do código base e entram por ganchos (`src/engine/hooks.ts`); `src/premium/extras.ts` os instala sob demanda (`loadExtras`). Sem o pacote essas telas mostram a prévia com cadeado (`PremiumPreview`) e o jogo segue normal (as copas somem, a temporada não trava). Nos testes o pacote é instalado por `tests/setup.ts`.
 3. Modo grátis: contador da 1ª temporada, "só a liga do clube" depois dela, partida em 2D, telas de prévia com cadeado e fim de temporada com oferta.
 4. Cobrança: Play Billing (semanal, mensal, compra única), restauração, verificação da assinatura recebida localmente e estado do Premium só em memória (nunca no save).
 5. Entrega do pacote: Play Asset Delivery (plugin Android nativo), com o app original apenas.

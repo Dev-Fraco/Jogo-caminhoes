@@ -7,6 +7,7 @@ import { unreadCount } from '../engine/phone';
 import { ownsPhone } from '../engine/phone';
 import { GameIcon, MENU_ICON } from './gameIcons';
 import { coachOverallInt } from '../engine/coachpay';
+import { useExtras } from '../premium/usePremium';
 
 export type MenuTarget = 'home' | 'lineup' | 'squad' | 'youth' | 'table' | 'scorers' | 'hist' | 'calendar' | 'transfers' | 'world' | 'finance' | 'stadium' | 'profile' | 'shop' | 'phone' | 'exit';
 interface Item { id: MenuTarget; icon: string; label: string; hint?: string; needsClub?: boolean }
@@ -27,6 +28,7 @@ const SECTIONS: { title: string; items: Item[] }[] = [
 /** Menu lateral: todas as telas do jogo agrupadas, com a tela atual marcada e os avisos (propostas e pendências do celular). */
 export function SideMenu({ game, open, current, locked, onClose, onGo }: { game: GameState; open: boolean; current: MenuTarget; locked: boolean; onClose: () => void; onGo: (t: MenuTarget) => void }) {
   const ref = useRef<HTMLElement>(null);
+  const extras = useExtras();
   useEffect(() => {
     if (!open) return;
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -54,7 +56,7 @@ export function SideMenu({ game, open, current, locked, onClose, onGo }: { game:
                 const b = badge(it.id);
                 return (
                   <button key={it.id} className={it.id === current ? 'sm-on' : ''} disabled={off && it.id !== 'exit'} aria-current={it.id === current ? 'page' : undefined} onClick={() => { onClose(); onGo(it.id); }}>
-                    <span className="sm-ic" aria-hidden="true">{MENU_ICON[it.id] ? <GameIcon name={MENU_ICON[it.id]} /> : it.icon}</span><span className="sm-lb">{it.label}</span>
+                    <span className="sm-ic" aria-hidden="true">{MENU_ICON[it.id] ? <GameIcon name={MENU_ICON[it.id]} /> : it.icon}</span><span className="sm-lb">{it.label}{it.id === 'world' && extras === 'off' ? <em className="lock-tag" title="Recurso Premium">🔒</em> : null}</span>
                     {b > 0 && <i className="sm-badge" aria-label={`${b} pendências`}>{b}</i>}
                   </button>
                 );

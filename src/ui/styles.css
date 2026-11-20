@@ -426,3 +426,9 @@ select option { background: #35322e; color: var(--ink); }
 .cmp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; }
 .cmp-grid button { padding: 10px 8px; border-radius: 10px; border: 1px solid #514d46; background: rgba(31, 30, 27, .9); color: #fff; font: 700 13px var(--font-body); text-align: left; cursor: pointer; }
 .cmp-grid button.on { background: linear-gradient(180deg, #ffd23d, #f0b90b); color: #101820; border-color: #ffe88a; }
+
+/* Recursos Premium: prévia com cadeado */
+.prem-preview { display: grid; gap: 8px; text-align: center; justify-items: center; }
+.prem-preview .prem-lock { font-size: 38px; }
+.prem-preview h3 { margin: 0; } .prem-preview ul { text-align: left; margin: 0; padding-left: 18px; }
+.lock-tag { margin-left: 4px; font-size: 11px; opacity: .85; }

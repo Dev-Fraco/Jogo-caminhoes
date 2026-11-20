@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, useEffect, useState } from 'react';
 import { pyramidOf, slotsOfLeague } from '../data/pyramid';
 import { getLeague } from '../data/world';
 import { audio } from '../audio/audio';
@@ -39,7 +39,10 @@ import { unreadCount } from '../engine/phone';
 import { absRound, pendingCount, urgentMessages } from '../engine/inbox';
 import { Lineup } from './Lineup';
 import { LiveMatch } from './LiveMatch';
-import { WorldScreen } from './WorldScreen';
+import { PremiumGate } from './PremiumGate';
+import { useExtras } from '../premium/usePremium';
+import { hooks } from '../engine/hooks';
+const WorldScreen = lazy(() => import('./WorldScreen').then((m) => ({ default: m.WorldScreen }))); // (recurso Premium, carregado sob demanda)
 import { MatchChoice, type MatchMode } from './MatchChoice';
 import { MatchSim } from './MatchSim';
 import { healUserLineup, injuredSet } from '../engine/injuries';
@@ -58,6 +61,9 @@ type Screen = 'menu' | MenuOptionId | 'game' | 'hall';
 
 export function App() {
   const [game, setGame] = useState<GameState | null>(() => loadGame());
+  const extras = useExtras();
+  // quando o pacote dos extras carrega, saves que ainda não têm as ligas do mundo ganham o estado delas
+  useEffect(() => { if (extras === 'on') setGame((g) => (g && !g.world && !g.observer ? hooks.worldTick(hooks.ensureWorld(g)) : g)); }, [extras]);
   const [screen, setScreen] = useState<Screen>('menu');
   const [tab, setTab] = useState<Tab>('home');
   const [phoneOpen, setPhoneOpen] = useState(false);
@@ -212,7 +218,7 @@ export function App() {
           {!live && !game.unemployed && tab === 'home' && <Home game={game} onChange={setGame} last={last} over={isSeasonOver(game)} onPlay={play} onNextSeason={nextSeason} onSeeTables={() => { setTableView('div'); setTab('table'); }} onSeeResults={() => { setTableView('rounds'); setTab('table'); }} onEditLineup={() => setTab('lineup')} onTab={(t) => setTab(t)} onNews={() => setPhoneOpen(true)} onSeeHist={() => { setTableView('hist'); setTab('table'); }} onSeeOffers={() => { setTfView('offers'); setTab('transfers'); }} onAdvance={() => runAdvance(false)} onAdvanceToMatch={() => runAdvance(true)} />}
           {!live && !game.unemployed && tab === 'youth' && <YouthScreen game={game} onChange={setGame} />}
           {!live && tab === 'profile' && <CoachProfile game={game} onNext={(t) => setTab(t)} onChange={setGame} />}
-          {!live && tab === 'world' && <WorldScreen game={game} onChange={setGame} onBack={() => setTab('home')} />}
+          {!live && tab === 'world' && <PremiumGate feature="world" onBack={() => setTab('home')}><WorldScreen game={game} onChange={setGame} onBack={() => setTab('home')} /></PremiumGate>}
           {!live && tab === 'shop' && <ShopScreen game={game} onChange={setGame} onOpenPhone={() => setPhoneOpen(true)} />}
           {!live && !game.unemployed && tab === 'calendar' && <CalendarScreen game={game} onBack={() => setTab('home')} />}
           {!live && !game.unemployed && tab === 'stadium' && <Stadium game={game} onChange={setGame} onBack={() => setTab('home')} />}

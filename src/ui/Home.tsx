@@ -6,7 +6,7 @@ import { estadualOfUser, estadualRanking, estadualSummary, stepLabel } from '../
 import { userInCup } from '../engine/cup';
 import { pendingEvent } from '../engine/events';
 import { CONTINENTALS, COMPS, mundialStepName, stepName, userIn } from '../engine/continental';
-import { superStepName } from '../engine/supermundial';
+import { hooks } from '../engine/hooks';
 import { clubOf } from '../engine/lookup';
 import type { GameState, MatchResult } from '../engine/types';
 import { PROMOTED_STRONG_CHANCE } from '../engine/ai';
@@ -143,7 +143,7 @@ export function Home({ game, onChange, last, over, onPlay, onSeeTables, onSeeRes
         {isMatchDay(game) && !plays && <p className="cal-next" style={{ textAlign: 'center' }}>{mineDay === undefined ? 'Nesta data só jogam outros clubes e o seu não tem mais jogos marcados nesta temporada.' : `Nesta data só jogam outros clubes. Seu próximo jogo: ${formatDayShort(mineDay)}.`}</p>}
         {!ev && COMPS.map((k) => { const c = game[k], cfg = CONTINENTALS[k]; if (!c) return null; const mine = c.groups.some((gr) => gr.clubIds.includes(game.userClubId)); return mine || c.championId ? <small key={k} className="cup-line">{c.championId ? `${cfg.icon} ${c.name}: campeão ${name(c.championId)}` : userIn(game, k) ? `${cfg.icon} ${c.name}: ${stepName(k, c)} em breve` : `${cfg.icon} ${c.name}: seu clube foi eliminado`}</small> : null; })}
         {!ev && game.mundial && <small className="cup-line">{game.mundial.championId ? `🌍 ${game.mundial.name}: campeão ${name(game.mundial.championId)}` : `🌍 ${game.mundial.name}: ${mundialStepName(game.mundial)}`}</small>}
-        {!ev && game.superMundial && <small className="cup-line">{game.superMundial.championId ? `🌐 ${game.superMundial.name}: campeão ${name(game.superMundial.championId)}` : `🌐 ${game.superMundial.name}: ${superStepName(game.superMundial)}`}</small>}
+        {!ev && game.superMundial && <small className="cup-line">{game.superMundial.championId ? `🌐 ${game.superMundial.name}: campeão ${name(game.superMundial.championId)}` : `🌐 ${game.superMundial.name}: ${(hooks.superStepName(game.superMundial) || 'em andamento')}`}</small>}
         {game.cup && !ev && <small className="cup-line">{game.cup.championId ? `🏆 ${game.cup.name}: campeão ${name(game.cup.championId)}` : userInCup(game) ? `🏆 ${game.cup.name}: você está na ${game.cup.rounds[game.cup.roundIndex].name}` : `🏆 ${game.cup.name}: seu clube já foi eliminado`}</small>}
       </div>
       <div className="home2-actions">
