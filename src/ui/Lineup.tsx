@@ -4,7 +4,16 @@ import { teamRatings } from '../engine/squad';
 import { FORMATIONS, SPOT_LABEL, SPOT_SHORT, type FormationId, type GameState, type Player, type Position } from '../engine/types';
 import { spotOf } from '../engine/squad';
 import { isInjured, remainingLabel } from '../engine/injuries';
-import { badgeColors } from './badge';
+import { kitOf } from '../data/kit';
+import { Shirt } from './Shirt';
+
+/** Número da camisa pela função na formação (1 goleiro, 2 lateral direito, 3 e 4 zagueiros, 5 volante...): o motor não guarda número. */
+const SHIRT_BY_SPOT: Record<string, number[]> = { GK: [1], LD: [2], LE: [6], ZAG: [3, 4, 13], MC: [5, 8, 15, 18], MD: [7], ME: [11], PD: [7], PE: [11], CA: [9, 10, 19] };
+export function shirtNumbers(starters: Player[]): Map<string, number> {
+  const used = new Map<string, number>(); const out = new Map<string, number>();
+  for (const p of starters) { const sp = spotOf(p); const k = used.get(sp) ?? 0; used.set(sp, k + 1); const l = SHIRT_BY_SPOT[sp]; out.set(p.id, l?.[k] ?? (k + 2 + (l ? 10 : 0))); }
+  return out;
+}
 
 const POS_ONE: Record<Position, string> = { GK: 'Goleiro', DEF: 'Defensor', MID: 'Meio-campista', ATT: 'Atacante' };
 const ROW_Y: Record<Position, number> = { GK: 88, DEF: 68, MID: 44, ATT: 18 };
@@ -82,12 +91,13 @@ export function Lineup({ game, onChange, onBack }: { game: GameState; onChange: 
   const [openId, setOpenId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const opener = useRef<HTMLElement | null>(null);
-  const { bg, fg } = badgeColors(club);
+  const kit = kitOf(game.userClubId, club);
 
   const starters = team.lineup.map((id) => team.players.find((p) => p.id === id)!).filter(Boolean);
   const bench = team.players.filter((p) => !team.lineup.includes(p.id)).sort((a, b) => b.strength - a.strength);
   const open = team.players.find((p) => p.id === openId) ?? null;
   const layout = pitchLayout(starters);
+  const nums = shirtNumbers(starters);
   const close = () => { setOpenId(null); opener.current?.focus(); };
   const openFor = (p: Player, el: HTMLElement) => { opener.current = el; setNotice(null); setOpenId(p.id); };
 
@@ -113,12 +123,13 @@ export function Lineup({ game, onChange, onBack }: { game: GameState; onChange: 
 
       <div role="status" aria-live="polite">{notice && <p className="tf-notice">{notice}</p>}</div>
 
-      <div className="pitch" role="group" aria-label={`Escalação em ${team.formation}`}>
+      <div className="pitch lu-pitch" role="group" aria-label={`Escalação em ${team.formation}`}>
         <span className="pl-mid" /><span className="pl-circle" /><span className="pl-box top" /><span className="pl-box bottom" />
         {layout.map(({ player: p, x, y }) => (
-          <button key={p.id} className="pp" style={{ left: `${x}%`, top: `${y}%`, '--pp-bg': bg, '--pp-fg': fg } as React.CSSProperties}
-            aria-label={`${p.name}, ${SPOT_LABEL[spotOf(p)]}, overall ${p.strength}. Trocar jogador`} onClick={(e) => openFor(p, e.currentTarget)}>
-            <span className="pp-c">{p.strength}</span>
+          <button key={p.id} className="pp" style={{ left: `${x}%`, top: `${y}%` }}
+            aria-label={`${p.name}, ${SPOT_LABEL[spotOf(p)]}, camisa ${nums.get(p.id)}, overall ${p.strength}. Trocar jogador`} onClick={(e) => openFor(p, e.currentTarget)}>
+            <span className="pp-ovr">{p.strength}</span>
+            <Shirt kit={kit} number={nums.get(p.id) ?? 0} className="pp-shirt" />
             <span className="pp-n">{isInjured(game, p.id) ? '🤕 ' : ''}{shortName(p.name)}<small className="pp-s">{SPOT_SHORT[spotOf(p)]}</small></span>
           </button>
         ))}

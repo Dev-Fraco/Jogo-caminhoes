@@ -1,12 +1,13 @@
 import { CLUBS_DATA, dedupeShorts } from './clubs';
 import { COMP_KEYS, competitionIds, setCompetitionSource } from './names';
+import { parseKit, type Kit } from './kit';
 import { resetEstadualCache } from './estaduais_clubs';
 
 /** Mods da Comunidade: pacotes de dados (JSON) que o jogador importa para trocar nomes, cores e estádios dos clubes. Valem para as próximas carreiras. */
 /** Máximo de clubes por pacote. */
 export const MAX_MOD_CLUBS = 5000;
 
-export interface ClubPatch { id: string; name?: string; shortName?: string; primaryColor?: string; secondaryColor?: string; stadium?: string; city?: string }
+export interface ClubPatch { id: string; name?: string; shortName?: string; primaryColor?: string; secondaryColor?: string; stadium?: string; city?: string; /** uniforme da camisa */ kit?: Kit }
 export interface Mod { id: string; name: string; author?: string; version?: string; enabled: boolean; clubs: ClubPatch[]; /** nomes de competições (copas, ligas e divisões) por chave */ competitions?: Record<string, string> }
 
 const KEY = 'vr-mods-v1';
@@ -22,7 +23,9 @@ export function saveMods(mods: Mod[]): boolean {
 
 export const modTemplate = () => JSON.stringify({
   name: 'Meu pacote', author: 'Seu nome', version: '1.0',
-  clubs: [{ id: 'flamengo', name: 'Meu Time', shortName: 'MTI', primaryColor: '#c52613', secondaryColor: '#111111', stadium: 'Meu Estádio', city: 'Minha Cidade' }],
+  clubs: [{ id: 'flamengo', name: 'Meu Time', shortName: 'MTI', primaryColor: '#c52613', secondaryColor: '#111111', stadium: 'Meu Estádio', city: 'Minha Cidade',
+    // uniforme (opcional). pattern: solid, stripes, hoops, half, sash ou checks. Também aceita "image": "data:image/png;base64,..." com a imagem da camisa
+    kit: { pattern: 'stripes', base: '#c52613', accent: '#111111', sleeves: '#c52613', collar: '#111111', number: '#ffffff' } }],
 }, null, 2);
 
 export type ParseResult = { ok: true; mod: Mod } | { ok: false; error: string };
@@ -50,6 +53,7 @@ export function parseMod(text: string): ParseResult {
       if ((f === 'primaryColor' || f === 'secondaryColor') && !HEX.test(v)) return { ok: false, error: `Cor inválida em ${c.id}.${f}: use #RRGGBB.` };
       (patch as unknown as Record<string, string>)[f] = v.trim();
     }
+    if (c.kit !== undefined) { const k = parseKit(c.kit); if (!k.ok) return { ok: false, error: `${c.id}: ${k.error}` }; patch.kit = k.kit; }
     clubs.push(patch);
   }
   let competitions: Record<string, string> | undefined;
@@ -65,18 +69,22 @@ export function parseMod(text: string): ParseResult {
   return { ok: true, mod: { id, ...(competitions ? { competitions } : {}), name: r.name.trim().slice(0, 40), author: typeof r.author === 'string' ? r.author.slice(0, 40) : undefined, version: typeof r.version === 'string' ? r.version.slice(0, 12) : undefined, enabled: true, clubs } };
 }
 
-const ORIGINAL = new Map<string, Required<Omit<ClubPatch, 'id'>>>();
+const ORIGINAL = new Map<string, Required<Omit<ClubPatch, 'id' | 'kit'>>>();
+const ORIG_KIT = new Map<string, Kit | undefined>();
 
 /** Aplica os pacotes ligados sobre os dados do jogo (os originais são guardados e voltam quando o pacote é desligado). */
 export function applyMods(mods: Mod[]): void {
   const all = new Map(Object.values(CLUBS_DATA).flat().map((c) => [c.id, c]));
   for (const [id, o] of ORIGINAL) Object.assign(all.get(id)!, o);
+  for (const [id, k] of ORIG_KIT) { const c = all.get(id); if (c) { if (k) c.kit = k; else delete c.kit; } }
+  ORIG_KIT.clear();
   for (const m of mods.filter((x) => x.enabled)) {
     for (const p of m.clubs) {
       const c = all.get(p.id);
       if (!c) continue;
       if (!ORIGINAL.has(c.id)) ORIGINAL.set(c.id, { name: c.name, shortName: c.shortName, primaryColor: c.primaryColor, secondaryColor: c.secondaryColor, stadium: c.stadium, city: c.city });
       for (const f of FIELDS) if (p[f]) (c as unknown as Record<string, string>)[f] = p[f]!;
+      if (p.kit) { if (!ORIG_KIT.has(c.id)) ORIG_KIT.set(c.id, c.kit); c.kit = p.kit; }
     }
   }
   dedupeShorts(new Set(ORIGINAL.keys()));

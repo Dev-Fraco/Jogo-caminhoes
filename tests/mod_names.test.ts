@@ -58,3 +58,24 @@ describe('pacote de elencos com posição em "_posicao" e escudos por arquivo', 
     expect(com.report.badges).toBe(1); expect(com.report.missingBadges).toBeUndefined();
   });
 });
+
+describe('uniformes por mod', () => {
+  const id = A[0].id;
+  it('aceita kit válido, aplica e desliga devolve o original', () => {
+    const r = parseMod(JSON.stringify({ name: 'u', clubs: [{ id, kit: { pattern: 'stripes', base: '#112233', accent: '#ffffff', number: '#000000' } }] }));
+    if (!r.ok) throw new Error(r.error);
+    expect(A[0].kit).toBeUndefined();
+    applyMods([r.mod]);
+    expect(A[0].kit?.pattern).toBe('stripes');
+    applyMods([]);
+    expect(A[0].kit).toBeUndefined();
+  });
+  it('rejeita desenho, cor e imagem inválidos', () => {
+    const bad = (kit: unknown) => parseMod(JSON.stringify({ name: 'u', clubs: [{ id, kit }] })).ok;
+    expect(bad({ pattern: 'xadrez', base: '#112233' })).toBe(false);
+    expect(bad({ pattern: 'solid', base: 'azul' })).toBe(false);
+    expect(bad({ pattern: 'solid' })).toBe(false);
+    expect(bad({ pattern: 'solid', base: '#112233', image: 'http://x/y.png' })).toBe(false);
+    expect(bad({ pattern: 'solid', base: '#112233', image: 'data:image/png;base64,iVBORw0KGgo=' })).toBe(true);
+  });
+});

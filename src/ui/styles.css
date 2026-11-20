@@ -396,3 +396,11 @@ select option { background: #35322e; color: var(--ink); }
 .wd-nav .btn.on { background: var(--gold); color: var(--gold-ink); }
 .wd-list { margin: 0; }
 .wd-table td, .wd-table th { padding: 5px 4px; }
+
+/* Escalação: campo maior e camisas do clube no lugar das bolinhas */
+.pitch.lu-pitch { max-width: 560px; aspect-ratio: 3 / 4.3; border-radius: 12px; }
+.lu-pitch .pp-shirt { width: clamp(46px, 13vw, 62px); height: clamp(46px, 13vw, 62px); display: block; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .55)); transition: transform .15s ease; }
+.lu-pitch .pp:hover .pp-shirt { transform: scale(1.1); }
+.pp-ovr { min-width: 26px; padding: 0 5px; border-radius: 9px; background: #ffd23f; color: #101820; font: 800 13px/18px var(--font-head); text-align: center; box-shadow: 0 2px 5px rgba(0, 0, 0, .5); }
+.lu-pitch .pp { gap: 1px; }
+.lu-pitch .pp-n { max-width: 88px; margin-top: 1px; }

@@ -28,6 +28,8 @@ export interface ClubData {
   secondaryColor: string;
   stadium: string;
   city: string;
+  /** Uniforme da camisa (vem de mods da comunidade; sem ele a camisa é lisa na cor principal). */
+  kit?: import('./kit').Kit;
   /** Orçamento em reais (R$). */
   budget: number;
   boardExpectation: BoardExpectation;
