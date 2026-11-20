@@ -10,7 +10,7 @@ export function PremiumPreview({ feature, onBack }: { feature: FeatureId; onBack
       <p>{f.text}</p>
       <ul>{f.bullets.map((b) => <li key={b}>{b}</li>)}</ul>
       <p className="hint">Este recurso faz parte do <b>Premium</b>.</p>
-      <button className="primary" disabled title="A assinatura chega numa próxima etapa">Conhecer o Premium (em breve)</button>
+      <button className="primary" onClick={() => window.dispatchEvent(new CustomEvent('vr-open-plans'))}>Ver o Premium</button>
       {onBack && <button className="btn" onClick={onBack}>Voltar</button>}
     </section>
   );

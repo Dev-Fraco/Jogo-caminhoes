@@ -3,7 +3,7 @@
 Decisões já tomadas
 - Venda pela Google Play (cobrança pela loja). Planos: semanal R$ 3,90 · mensal R$ 9,99 · compra única R$ 29,99 (vale para sempre).
 - Grátis: todas as ligas na 1ª temporada; depois só a liga do clube; com anúncios. Premium: sem anúncios.
-- Exclusivo Premium: outras ligas e copas, Mundo, copas especiais, selo/visual do perfil. (A partida em 3D foi REMOVIDA do jogo: 'Assistir partida' é o campo 2D com narração.)
+- Exclusivo Premium: mods da comunidade, outras ligas e copas, Mundo, copas especiais, selo/visual do perfil. (A partida em 3D foi REMOVIDA do jogo: 'Assistir partida' é o campo 2D com narração.)
 - Sem servidor próprio. Repositório privado e web completa fora do ar antes do lançamento (decisão do dono, a fazer só quando ele mandar).
 - Compra confirmada pela Play Billing; pacote Premium entregue pelo Play Asset Delivery (só para o app original instalado pela Play).
 
@@ -21,3 +21,5 @@ Etapas
 6. Save assinado/embaralhado + contador da temporada grátis em "Jogos salvos" da conta Google.
 7. Anúncios (AdMob) só no grátis, fora das partidas.
 8. Lançamento: chave de release, app novo na Play, repositório privado, web fora do ar, releases antigas removidas.
+
+Tela de planos (feita): `src/premium/ui/PlanChoice.tsx`. Mostra a comparação Grátis x Premium (só o que existe de fato), os três planos e o rodapé legal da Play. No grátis, aparece uma vez por sessão antes de Novo Jogo/Continuar e também pelo botão "Ver o Premium" das telas com cadeado. A opção Mods fica trancada no grátis (menu com a marca Premium, prévia no lugar da tela, mods e pacotes de elencos não são aplicados). O botão de assinar fica indisponível até a etapa 4 (Play Billing). Se o dono enviar uma imagem/arte, ela entra no topo da tela.

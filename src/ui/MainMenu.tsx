@@ -1,6 +1,7 @@
 import type { CSSProperties, KeyboardEvent } from 'react';
 import { APP_VERSION, COMMUNITY_LINK } from '../version';
 import { HomeIcon } from './HomeIcons';
+import { isPremium } from '../premium/entitlement';
 import './menu.css';
 import './home.css';
 
@@ -88,7 +89,7 @@ export function MainMenu({ onSelect, hasSave = true }: Props) {
       <div className="hm-sub" role="navigation" aria-label="Mais opções" onKeyDown={onKeyDown}>
         {rest.map((o) => (
           <button key={o.id} className="hm-small" onClick={() => onSelect(o.id)}>
-            <span className="hm-ico"><HomeIcon id={o.id} /></span><span>{o.label}</span>
+            <span className="hm-ico"><HomeIcon id={o.id} /></span><span>{o.label}</span>{o.id === 'mods' && !isPremium() ? <small className="hm-lock">Premium</small> : null}
           </button>
         ))}
       </div>

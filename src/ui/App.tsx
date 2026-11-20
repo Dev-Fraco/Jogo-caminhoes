@@ -1,4 +1,4 @@
-import { lazy, useEffect, useState } from 'react';
+import { lazy, useEffect, useRef, useState } from 'react';
 import { pyramidOf, slotsOfLeague } from '../data/pyramid';
 import { getLeague } from '../data/world';
 import { audio } from '../audio/audio';
@@ -41,7 +41,10 @@ import { Lineup } from './Lineup';
 import { LiveMatch } from './LiveMatch';
 import { PremiumGate } from './PremiumGate';
 import { recheckExtras, useExtras } from '../premium/usePremium';
-import { inTrial, setActiveGame } from '../premium/entitlement';
+import { inTrial, isPremium, modsAllowed, setActiveGame } from '../premium/entitlement';
+import { PlanChoice } from '../premium/ui/PlanChoice';
+import { PremiumPreview } from '../premium/ui/PremiumPreview';
+import { Screen as MenuFrame } from './Screen';
 import { hooks } from '../engine/hooks';
 const WorldScreen = lazy(() => import('./WorldScreen').then((m) => ({ default: m.WorldScreen }))); // (recurso Premium, carregado sob demanda)
 import { MatchChoice, type MatchMode } from './MatchChoice';
@@ -58,7 +61,7 @@ import { SideMenu, type MenuTarget } from './SideMenu';
 
 type Tab = 'home' | 'world' | 'calendar' | 'squad' | 'table' | 'transfers' | 'lineup' | 'finance' | 'stadium' | 'shop' | 'profile' | 'youth'; // 'lineup' é uma tela dentro do Início
 /** Telas do app: menu inicial, uma das 8 opções (placeholder) ou a partida em andamento. */
-type Screen = 'menu' | MenuOptionId | 'game' | 'hall';
+type Screen = 'menu' | MenuOptionId | 'game' | 'hall' | 'plano';
 
 export function App() {
   const [game, setGame] = useState<GameState | null>(() => loadGame());
@@ -70,6 +73,11 @@ export function App() {
   // quando o pacote dos extras carrega, saves que ainda não têm as ligas do mundo ganham o estado delas
   useEffect(() => { if (extras === 'on') setGame((g) => (g && !g.world && !g.observer ? hooks.worldTick(hooks.ensureWorld(g)) : g)); }, [extras]);
   const [screen, setScreen] = useState<Screen>('menu');
+  // versão grátis: antes de entrar no jogo, a tela de planos mostra o que cada versão tem (uma vez por sessão)
+  const planSeen = useRef((() => { try { return isPremium() || sessionStorage.getItem('vr-plan-seen') === '1'; } catch { return isPremium(); } })());
+  const planNext = useRef<MenuOptionId | null>(null);
+  const [plansOpen, setPlansOpen] = useState(false);
+  useEffect(() => { const open = () => setPlansOpen(true); window.addEventListener('vr-open-plans', open); return () => window.removeEventListener('vr-open-plans', open); }, []);
   const [tab, setTab] = useState<Tab>('home');
   const [phoneOpen, setPhoneOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -130,11 +138,14 @@ export function App() {
   // Menu inicial. Só "Novo Jogo" e "Continuar" reaproveitam o que já existia (escolha de clube / carreira salva);
   // as outras 6 opções são placeholders até serem desenvolvidas uma a uma.
   const select = (id: MenuOptionId) => {
+    if (!planSeen.current && (id === 'novo-jogo' || id === 'continuar')) { planNext.current = id; setScreen('plano'); return; } // (só no grátis) antes de jogar, mostra o que cada versão tem
     if (id === 'continuar' && game) { setTab('home'); setScreen('game'); return; }
     if (id === 'salao-campeoes') { setScreen('hall'); return; }
     setScreen(id);
   };
 
+  if (plansOpen) return <PlanChoice onFree={() => setPlansOpen(false)} />;
+  if (screen === 'plano') return <PlanChoice onFree={() => { planSeen.current = true; try { sessionStorage.setItem('vr-plan-seen', '1'); } catch { /* sem armazenamento */ } const id = planNext.current; planNext.current = null; if (id) select(id); else setScreen('menu'); }} />;
   if (screen === 'menu') return <MainMenu onSelect={select} hasSave={!!game} />;
 
   if (screen === 'novo-jogo') return <NewGame onBack={toMenu} onStart={startCareer} hasSave={!!game} />;
@@ -143,7 +154,7 @@ export function App() {
   const bg = <div className="app-bg" aria-hidden="true"><Backdrop /></div>;
 
   if (screen === 'carregar-jogo') return <LoadGame onBack={toMenu} onLoaded={() => { setGame(loadGame()); autosave.checkNotice(); setLast([]); setTab('home'); setScreen('game'); }} />;
-  if (screen === 'mods') return <Mods onBack={toMenu} />;
+  if (screen === 'mods') return modsAllowed() ? <Mods onBack={toMenu} /> : <MenuFrame title="Mods da Comunidade" onBack={toMenu}><PremiumPreview feature="mods" /></MenuFrame>;
   if (screen === 'creditos') return <Credits onBack={toMenu} />;
   if (screen === 'hall') return <HallScreen onBack={toMenu} />;
   if (screen === 'sair') return <ExitScreen onBack={toMenu} />;

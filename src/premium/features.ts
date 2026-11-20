@@ -1,6 +1,7 @@
 /** Recursos Premium, com o texto das telas de prévia (cadeado). */
-export type FeatureId = 'leagues' | 'world' | 'nordeste' | 'verde' | 'super' | 'africa' | 'foreign';
+export type FeatureId = 'mods' | 'leagues' | 'world' | 'nordeste' | 'verde' | 'super' | 'africa' | 'foreign';
 export const FEATURES: Record<FeatureId, { icon: string; title: string; text: string; bullets: string[] }> = {
+  mods: { icon: '', title: 'Mods da comunidade', text: 'Instale pacotes criados pela comunidade: nomes, escudos, uniformes, elencos e competições.', bullets: ['Pacotes de clubes, elencos e escudos', 'Uniformes e nomes de competições', 'Incluído no Premium'] },
   leagues: { icon: '🏆', title: 'Outras ligas e copas', text: 'Depois da temporada grátis, o jogo grátis fica só com a liga do seu clube. O Premium libera tudo de volta.', bullets: ['Todas as divisões do campeonato e a classificação delas', 'Copa nacional, estaduais e copas continentais', 'Mundial de clubes', 'Sem anúncios'] },
   world: { icon: '🌍', title: 'Mundo', text: 'Acompanhe as ligas do mundo inteiro: resultados e tabelas de todas as divisões, rodada a rodada.', bullets: ['Brasil, América do Sul e Europa', 'Tabelas e resultados ao vivo', 'Vender e comprar jogadores no exterior'] },
   nordeste: { icon: '🌵', title: 'Copa do Nordeste', text: 'Os 4 melhores de cada estado do Nordeste, em 6 grupos e mata-mata, com prêmios em dinheiro.', bullets: ['36 clubes de 9 estados', 'Grupos, oitavas, quartas, semifinal e final', 'Prêmio de até R$ 12 milhões'] },

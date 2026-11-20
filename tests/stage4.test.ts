@@ -56,29 +56,29 @@ describe('pular de 1 a 5 anos', () => {
 });
 
 describe('simular anos sem treinador', () => {
-  it('mundo de observador: todos os clubes da IA, sem propostas de emprego nem demissão', () => {
+  it('mundo de observador: todos os clubes da IA, sem propostas de emprego nem demissão', async () => {
     const w = newObserverWorld('BR', 'brasileirao', 5);
     expect(w.observer).toBe(true);
     expect(w.unemployed).toBe(true);
-    const n = simulateOneYear(w);
+    const n = await simulateOneYear(w);
     expect(n.history.length).toBe(1);
     expect(n.season).toBe(2027);
     expect(n.jobOffers ?? []).toEqual([]);
     expect(n.firedInfo).toBeUndefined();
     expect(Object.keys(n.teams).length).toBeGreaterThanOrEqual(156); // + clubes de estadual que subiram à Série D
   });
-  it('simula vários anos em qualquer liga, com campeões e tabelas guardados', () => {
+  it('simula vários anos em qualquer liga, com campeões e tabelas guardados', async () => {
     expect(simLeagues().length).toBe(16);
     for (const [c, l] of [['AR', 'liga-profesional'], ['EN', 'premier-league'], ['CL', 'primera-chile']]) {
       let w = newObserverWorld(c, l, 9);
-      for (let i = 0; i < 3; i++) w = simulateOneYear(w);
+      for (let i = 0; i < 3; i++) w = await simulateOneYear(w);
       expect(w.history.length).toBe(3);
       expect(w.history.every((h) => h.tables![0].rows.length === w.divisions[0].clubIds.length)).toBe(true);
     }
   });
-  it('salão de campeões: uma entrada por temporada, com nomes de clubes e copas', () => {
+  it('salão de campeões: uma entrada por temporada, com nomes de clubes e copas', async () => {
     let w = newObserverWorld('BR', 'brasileirao', 6);
-    w = simulateOneYear(simulateOneYear(w));
+    w = await simulateOneYear(await simulateOneYear(w));
     const e = entriesOf(w);
     expect(e.length).toBe(2);
     expect(e[0]).toMatchObject({ mode: 'simulacao', season: 2026 });

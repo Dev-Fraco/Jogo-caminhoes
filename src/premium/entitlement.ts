@@ -21,6 +21,9 @@ export const isPremium = (): boolean => premium && !preview;
 export const isFreePreview = (): boolean => preview;
 export function setFreePreview(on: boolean): void { preview = on; try { localStorage.setItem(KEY, on ? '1' : '0'); } catch { /* sem armazenamento */ } }
 
+/** Mods e pacotes de elencos/escudos fazem parte do Premium. */
+export const modsAllowed = (): boolean => isPremium();
+
 /** Quantas temporadas da carreira já terminaram (a 1ª é a grátis). */
 export const seasonsPlayed = (g: Pick<GameState, 'season' | 'freeStart'>): number => Math.max(0, g.season - (g.freeStart ?? g.season));
 /** A carreira ainda está na temporada grátis (tudo liberado)? */
