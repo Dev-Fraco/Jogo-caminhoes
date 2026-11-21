@@ -8,6 +8,7 @@ import com.android.billingclient.api.BillingClient;
 import com.android.billingclient.api.BillingClientStateListener;
 import com.android.billingclient.api.BillingFlowParams;
 import com.android.billingclient.api.BillingResult;
+import com.android.billingclient.api.PendingPurchasesParams;
 import com.android.billingclient.api.ProductDetails;
 import com.android.billingclient.api.Purchase;
 import com.android.billingclient.api.PurchasesUpdatedListener;
@@ -44,7 +45,7 @@ public class PlayBillingPlugin extends Plugin implements PurchasesUpdatedListene
 
     @Override
     public void load() {
-        client = BillingClient.newBuilder(getContext()).setListener(this).enablePendingPurchases().build();
+        client = BillingClient.newBuilder(getContext()).setListener(this).enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build()).build();
     }
 
     private void connect(final Runnable ready, final PluginCall call) {
@@ -168,7 +169,8 @@ public class PlayBillingPlugin extends Plugin implements PurchasesUpdatedListene
                 QueryProductDetailsParams params = QueryProductDetailsParams.newBuilder()
                         .setProductList(Collections.singletonList(QueryProductDetailsParams.Product.newBuilder().setProductId(productId).setProductType(type).build()))
                         .build();
-                client.queryProductDetailsAsync(params, (result, details) -> {
+                client.queryProductDetailsAsync(params, (result, detailsResult) -> {
+                    List<ProductDetails> details = detailsResult == null ? null : detailsResult.getProductDetailsList();
                     if (result.getResponseCode() != BillingClient.BillingResponseCode.OK || details == null || details.isEmpty()) {
                         call.reject("product-unavailable");
                         return;

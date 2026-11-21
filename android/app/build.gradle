@@ -62,7 +62,7 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
-    implementation "com.android.billingclient:billing:7.1.1" // cobrança do Premium (Play Billing)
+    implementation "com.android.billingclient:billing:8.0.0" // cobrança do Premium (Play Billing)
     implementation "com.google.android.gms:play-services-auth-blockstore:16.4.0" // livro da temporada grátis (Block Store)
     implementation "com.google.android.gms:play-services-ads:23.6.0" // anúncios da versão grátis (AdMob)
     implementation "com.google.android.ump:user-messaging-platform:3.1.0" // consentimento de privacidade (LGPD/GDPR)
