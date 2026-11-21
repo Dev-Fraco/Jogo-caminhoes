@@ -20,7 +20,6 @@ export const STORE_APPS: PhoneApp[] = [
   { id: 'corretor', name: 'Corretor de Imóveis', icon: '🏠', blurb: 'Casas para comprar e alugar.', category: 'Compras', size: '36 MB', rating: 4.2 },
   { id: 'internetchip', name: 'Internet de Chip', icon: '📲', blurb: 'Plano mensal de internet ilimitada.', category: 'Telefonia', size: '12 MB', rating: 4.1 },
   { id: 'netfibra', name: 'NetFibra', icon: '🛜', blurb: 'Internet Wi-Fi de 1 GB para a sua casa.', category: 'Telefonia', size: '15 MB', rating: 4.3 },
-  { id: 'cassino', name: 'Cassino', icon: '🎰', blurb: 'Aposte no vermelho, preto ou azul.', category: 'Jogos', size: '60 MB', rating: 3.9 },
 ];
 export const APPS: PhoneApp[] = [...SYSTEM_APPS, ...STORE_APPS];
 export const appById = (id: string) => APPS.find((a) => a.id === id);

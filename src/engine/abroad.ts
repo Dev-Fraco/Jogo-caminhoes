@@ -20,7 +20,7 @@ export function hireAbroad(g: GameState, offer: JobOffer): GameState {
     news: [note],
     coachPoints: g.coachPoints, coachMoney: g.coachMoney, wageCover: 0, titles: g.titles, inflation: g.inflation, autoPay: g.autoPay,
     jobs: [...spells, { clubId: f.club.id, fromSeason: g.season }],
-    phone: g.phone, bank: g.bank, assets: g.assets, casino: g.casino, inbox: g.inbox,
+    phone: g.phone, bank: g.bank, assets: g.assets, inbox: g.inbox,
     social: g.social ? { ...g.social, lastMatch: undefined } : g.social,
   };
 }

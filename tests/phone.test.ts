@@ -23,8 +23,8 @@ describe('celular', () => {
   it('vem só com Loja, Mensagens e Configurações; a loja instala e remove os 9 apps', () => {
     let g = makeCareer();
     expect(installedApps(g).map((a) => a.id)).toEqual(['loja', 'mensagens', 'config']);
-    expect(STORE_APPS.map((a) => a.name)).toEqual(expect.arrayContaining(['LinstaGrã', 'TikiTeko', 'Cassino', 'Concessionária', 'Corretor de Imóveis', 'Notícias', 'Banco', 'Internet de Chip', 'NetFibra']));
-    expect(STORE_APPS.length).toBe(9);
+    expect(STORE_APPS.map((a) => a.name)).toEqual(expect.arrayContaining(['LinstaGrã', 'TikiTeko', 'Concessionária', 'Corretor de Imóveis', 'Notícias', 'Banco', 'Internet de Chip', 'NetFibra']));
+    expect(STORE_APPS.length).toBe(8);
     g = installApp(g, 'banco');
     expect(isInstalled(g, 'banco')).toBe(true);
     expect(installApp(g, 'banco')).toBe(g);

@@ -140,6 +140,21 @@ export function isValidSave(g: unknown): g is GameState {
   return !!s && ((s.version as number) === 2 || (s.version as number) === 3 || (s.version as number) === 4 || s.version === SAVE_VERSION) && !!s.divisions && !!s.teams && !!s.clubs && !!s.userClubId && typeof s.round === 'number';
 }
 
+/**
+ * O Cassino do celular foi removido do jogo. Saves antigos: o saldo que estava no Cassino volta para o dinheiro do treinador,
+ * o app sai do celular e o histórico de apostas é descartado.
+ */
+export function retireCasino(g: GameState): GameState {
+  const old = g as GameState & { casino?: { balance?: number } };
+  const hasApp = !!g.phone?.installed.includes('cassino');
+  if (!old.casino && !hasApp) return g;
+  const { casino, ...rest } = old;
+  const back = Math.max(0, Math.round(casino?.balance ?? 0));
+  const next: GameState = { ...(rest as GameState), coachMoney: (g.coachMoney ?? 0) + back };
+  if (hasApp && g.phone) next.phone = { ...g.phone, installed: g.phone.installed.filter((id) => id !== 'cassino') };
+  return next;
+}
+
 /** Completa saves antigos (v2 a v4) com os campos novos: orçamentos, histórico, humor, listas, propostas e empréstimos. */
 export function migrateSave(g: GameState): GameState {
   if ((g.version as number) === SAVE_VERSION) return g;

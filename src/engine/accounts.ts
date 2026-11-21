@@ -3,7 +3,7 @@ import { makeRng } from './rng';
 import type { GameState } from './types';
 
 /** Apps que pedem uma conta: o número do chip recebe um código por SMS para liberar o app. */
-export const ACCOUNT_APPS = ['banco', 'linstagra', 'tikiteko', 'cassino', 'concessionaria', 'corretor', 'internetchip', 'netfibra'];
+export const ACCOUNT_APPS = ['banco', 'linstagra', 'tikiteko', 'concessionaria', 'corretor', 'internetchip', 'netfibra'];
 const isLegacy = (g: Pick<GameState, 'phone'>) => { const p = phoneOf(g); return !p.model && !p.noPhone; }; // saves de antes da loja: contas já existiam
 export const isVerified = (g: Pick<GameState, 'phone'>, app: string) => !ACCOUNT_APPS.includes(app) || isLegacy(g) || (phoneOf(g).verified ?? []).includes(app);
 export const needsAccount = (g: Pick<GameState, 'phone'>, app: string) => !isVerified(g, app);

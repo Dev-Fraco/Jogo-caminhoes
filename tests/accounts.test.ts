@@ -69,7 +69,6 @@ describe('conta nos apps com código por SMS', () => {
     const c = confirmCode(g, 'banco', sms.code!);
     if (!c.ok) throw new Error(c.error);
     expect(isVerified(c.state, 'banco')).toBe(true);
-    expect(isVerified(c.state, 'cassino')).toBe(false);
   });
   it('saves antigos têm todas as contas liberadas', () => {
     const g = newCareer({ saveName: 't', coach: { name: 'A B', nationality: 'BR', reputation: 'pro' }, difficulty: 'normal', mode: 'career', season: 2026, userClubId: 'palmeiras', divisions: brazilPyramid() }, 6);

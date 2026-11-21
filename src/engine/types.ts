@@ -236,10 +236,6 @@ export interface SocialProfile { followers: number; history: { season: number; r
 /** Redes sociais do treinador. */
 export interface SocialState { linstagra: SocialProfile; tikiteko: SocialProfile; lastMatch?: { season: number; round: number; result: 'win' | 'draw' | 'loss'; streak: number } }
 
-export type CasinoColor = 'azul' | 'preto' | 'vermelho';
-export interface CasinoBet { id: string; color: CasinoColor; drawn: CasinoColor; stake: number; payout: number; season: number; round: number }
-/** Saldo do Cassino (separado do banco) e histórico de apostas. */
-export interface CasinoState { balance: number; bets: CasinoBet[]; deposited: number; wagered: number; won: number }
 export interface MarketDeal { season: number; round: number; text: string }
 
 /** Mundial de Clubes: semifinais cruzadas entre os dois finalistas da Libertadores e da Champions, e final. */
@@ -548,7 +544,6 @@ export interface GameState {
   bank?: BankState;
   assets?: AssetsState;
   social?: SocialState;
-  casino?: CasinoState;
   /** Sem clube (demitido ou pediu demissão): o clube antigo passa a ser controlado pela IA. */
   unemployed?: boolean;
   /** Inflação acumulada (índice de preços, 1,00 no início da carreira) e a taxa de cada ano. */

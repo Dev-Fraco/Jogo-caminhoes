@@ -7,7 +7,6 @@ import { appsUsed, connOf, downloadMs, INSTALL_MS, modelOf, needsInternet, netSt
 import { changePin, checkPin, clearNotifications, hasPin, installApp, installedApps, isInstalled, markAllRead, phoneOf, PIN_LENGTH, registerPin, STORE_APPS, uninstallApp, updatePhoneSettings, WALLPAPERS, appById } from '../engine/phone';
 import type { GameState } from '../engine/types';
 import { BankApp } from './BankApp';
-import { CasinoApp } from './CasinoApp';
 import { DealerApp } from './DealerApp';
 import { NewsApp } from './NewsApp';
 import { MessagesApp } from './MessagesApp';
@@ -154,14 +153,13 @@ export function Phone({ game, onChange, onClose }: Props) {
               {screen === 'banco' && <BankApp game={game} onChange={onChange} onHome={() => setScreen('home')} />}
               {screen === 'concessionaria' && <DealerApp game={game} onChange={onChange} onOpenApp={go} onHome={() => setScreen('home')} />}
               {screen === 'corretor' && <RealtorApp game={game} onChange={onChange} onOpenApp={go} onHome={() => setScreen('home')} />}
-              {screen === 'cassino' && <CasinoApp game={game} onChange={onChange} onOpenApp={go} />}
               {screen === 'noticias' && <NewsApp game={game} />}
               {screen === 'calc' && <CalcApp />}
               {screen === 'netfibra' && <NetFibraApp game={game} onChange={onChange} onOpenApp={go} />}
               {screen === 'internetchip' && <ChipApp game={game} onChange={onChange} onOpenApp={go} />}
               {screen === 'mensagens' && <MessagesApp game={game} onChange={onChange} />}
               {(screen === 'linstagra' || screen === 'tikiteko') && <SocialApp app={screen} game={game} onChange={onChange} onHome={() => setScreen('home')} />}
-              {!['home', 'loja', 'config', 'banco', 'concessionaria', 'corretor', 'linstagra', 'tikiteko', 'cassino', 'noticias', 'mensagens', 'calc', 'boot', 'nonet', 'internetchip', 'netfibra'].includes(screen) && <SoonApp id={screen} />}
+              {!['home', 'loja', 'config', 'banco', 'concessionaria', 'corretor', 'linstagra', 'tikiteko', 'noticias', 'mensagens', 'calc', 'boot', 'nonet', 'internetchip', 'netfibra'].includes(screen) && <SoonApp id={screen} />}
               </>}
               <button className="ph-homebar" onClick={() => setScreen('home')} aria-label="Início do celular" />
             </>

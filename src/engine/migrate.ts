@@ -11,7 +11,7 @@ import { compactScorers } from './scorers';
 import { payTierOf, startingOverall } from './coachpay';
 import { makeRng } from './rng';
 import { SAVE_SCHEMA } from './schema';
-import { migrateSave, withSpotsAll } from './save';
+import { migrateSave, retireCasino, withSpotsAll } from './save';
 import type { GameState, Player } from './types';
 
 /* =====================================================================
@@ -57,6 +57,7 @@ const rngFor = (s: GameState, tag: number) => makeRng(s.seed * 67 + s.season * 1
 
 /** Os passos, na ordem. Todos só completam o que falta. */
 export const STEPS: MigrationStep[] = [
+  { id: 'cassino-removido', label: 'Cassino do celular removido (o saldo volta para a sua conta)', run: (g) => retireCasino(g) },
   { id: 'formato-antigo', label: 'formato antigo (orçamentos, humor, listas, propostas)', run: (g) => ((g.version as number) === 5 ? g : migrateSave(g)) },
   { id: 'funcoes', label: 'funções dos jogadores (lateral, ponta, centroavante...)', run: (g) => (Object.values(g.teams).every((t) => t.players.every((p) => p.spot)) && (!g.foreign || Object.values(g.foreign.teams).every((t) => t.players.every((p) => p.spot))) ? g : withSpotsAll(g)) },
   { id: 'contratos-ia', label: 'contratos dos jogadores dos clubes da IA', run: (g) => ensureAiContracts(g) },
