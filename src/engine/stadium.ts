@@ -7,14 +7,16 @@ import type { GameState } from './types';
 export interface GateRecord { season: number; round: number; opponentId: string; attendance: number; capacity: number; price: number; revenue: number; comp?: string }
 export interface StadiumState {
   capacity: number;
-  /** Nível de conforto/estrutura (0–5): gramado, cadeiras, camarotes. */
+  /** Nível de conforto/estrutura (0–25): gramado, cadeiras, camarotes, setores premium. */
   comfort: number;
   /** Preço do ingresso (R$) escolhido pelo treinador; ausente = preço justo. */
   price?: number;
   log: GateRecord[];
 }
 
-export const MAX_COMFORT = 5;
+export const MAX_COMFORT = 25;
+/** Quanto cada nível de conforto valoriza o ingresso (preço justo) e atrai mais torcida (procura). */
+const PRICE_PER_LEVEL = 0.07, DEMAND_PER_LEVEL = 0.03;
 export const MAX_CAPACITY = 80_000;
 export const LOG_MAX = 40;
 /** Ocupação típica a preço justo, torcida normal. */
@@ -42,13 +44,13 @@ const comfortOf = (g: GameState, id: string) => (id === g.userClubId ? stadiumOf
 export function fairPrice(g: GameState, id: string = g.userClubId): number {
   const cap = capacityOf(g, id);
   const base = gateOf({ ...g, morale: { ...g.morale, fans: 60 } }, id) / (cap * BASE_FILL);
-  return Math.max(5, Math.round(base * (1 + 0.06 * comfortOf(g, id))));
+  return Math.max(5, Math.round(base * (1 + PRICE_PER_LEVEL * comfortOf(g, id))));
 }
 
 /** Procura potencial (torcedores que viriam a preço justo): depende da torcida, do rival e do conforto. */
 export function demandAt(g: GameState, id: string, opponentId: string): number {
   const fans = id === g.userClubId ? g.morale.fans : 60;
-  const fill = BASE_FILL * (0.55 + fans / 133) * (0.9 + 0.05 * rep(g, opponentId)) * (1 + 0.03 * comfortOf(g, id));
+  const fill = BASE_FILL * (0.55 + fans / 133) * (0.9 + 0.05 * rep(g, opponentId)) * (1 + DEMAND_PER_LEVEL * comfortOf(g, id));
   return capacityOf(g, id) * fill;
 }
 
@@ -109,10 +111,12 @@ export function playHomeGate(g: GameState, opponentId: string, comp = ''): { sta
 
 // ---- melhorias ----
 export const capacityStep = (g: GameState) => Math.max(1_000, Math.round((stadiumOf(g).capacity * 0.1) / 500) * 500); // cada obra soma ~10%
-export const expandCost = (g: GameState) => Math.round((capacityStep(g) * inflate(g, 1_800)) / 10_000) * 10_000;
+/** Arquibancada: R$ 450 por lugar novo (antes R$ 1.800). */
+export const expandCost = (g: GameState) => Math.round((capacityStep(g) * inflate(g, 450)) / 10_000) * 10_000;
+/** Modernização: 25 etapas, cada uma bem mais barata que antes (e um pouco mais cara a cada nível). Cada etapa valoriza o ingresso em 7% e atrai mais torcida. */
 export const comfortCost = (g: GameState) => {
   const st = stadiumOf(g);
-  return Math.round((0.06 * baseIncome(divisionIndexOf(g, g.userClubId), rep(g, g.userClubId), priceIndex(g)) * (st.comfort + 1)) / 10_000) * 10_000;
+  return Math.max(10_000, Math.round((0.018 * baseIncome(divisionIndexOf(g, g.userClubId), rep(g, g.userClubId), priceIndex(g)) * (1 + 0.1 * st.comfort)) / 10_000) * 10_000);
 };
 
 export type UpgradeKind = 'capacity' | 'comfort';

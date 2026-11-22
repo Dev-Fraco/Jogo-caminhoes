@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { brazilPyramid } from '../src/data/pyramid';
 import { newCareer, playNext } from '../src/engine/game';
-import { gateOf } from '../src/engine/finance';
-import { attendanceAt, bestPrice, BOYCOTT, canUpgrade, fairPrice, setTicketPrice, stadiumOf, ticketPriceOf, upgradeStadium } from '../src/engine/stadium';
+import { baseIncome, gateOf } from '../src/engine/finance';
+import { inflate, priceIndex } from '../src/engine/economy';
+import { divisionIndexOf } from '../src/engine/transfers';
+import { attendanceAt, bestPrice, BOYCOTT, canUpgrade, capacityStep, comfortCost, expandCost, fairPrice, MAX_COMFORT, setTicketPrice, stadiumOf, ticketPriceOf, upgradeStadium } from '../src/engine/stadium';
 import type { GameState } from '../src/engine/types';
 
 const mk = (club = 'palmeiras', seed = 3): GameState => newCareer({ saveName: 't', coach: { name: 'A B', nationality: 'BR', reputation: 'pro' }, difficulty: 'normal', mode: 'career', season: 2026, userClubId: club, divisions: brazilPyramid(), cup: true }, seed);
@@ -66,7 +68,25 @@ describe('estádio', () => {
     const broke = { ...g, budgets: { ...g.budgets, [g.userClubId]: 0 } };
     expect(canUpgrade(broke, 'capacity').ok).toBe(false);
     expect(upgradeStadium(broke, 'capacity')).toBe(broke);
-    let m = g; for (let i = 0; i < 8; i++) m = upgradeStadium({ ...m, budgets: { ...m.budgets, [m.userClubId]: 1e12 } }, 'comfort');
-    expect(stadiumOf(m).comfort).toBe(5);
+    let m = g; for (let i = 0; i < 40; i++) m = upgradeStadium({ ...m, budgets: { ...m.budgets, [m.userClubId]: 1e12 } }, 'comfort');
+    expect(stadiumOf(m).comfort).toBe(MAX_COMFORT); // 25 etapas
+  });
+  it('preços menores: modernização em 25 etapas baratas e arquibancada a R$ 450 por lugar; cada etapa valoriza muito o ingresso', () => {
+    const g = mk();
+    expect(MAX_COMFORT).toBe(25);
+    const baseline = baseIncome(divisionIndexOf(g, g.userClubId), g.clubs[g.userClubId].reputation, priceIndex(g));
+    expect(comfortCost(g)).toBeLessThanOrEqual(Math.round(0.02 * baseline / 10_000) * 10_000 + 10_000); // ~1,8% da receita-base por etapa (era 6% a 30%)
+    expect(expandCost(g)).toBeLessThanOrEqual(Math.round((capacityStep(g) * inflate(g, 450)) / 10_000) * 10_000);
+    // cada etapa aumenta o preço justo em ~7% e a procura; no nível máximo a bilheteria é várias vezes maior
+    const p0 = fairPrice(g);
+    const g10 = { ...g, stadium: { ...stadiumOf(g), comfort: 10 } }, g25 = { ...g, stadium: { ...stadiumOf(g), comfort: 25 } };
+    expect(fairPrice(g10) / p0).toBeGreaterThan(1.6);
+    expect(fairPrice(g25) / p0).toBeGreaterThan(2.6);
+    const rev = (x: typeof g) => { const price = fairPrice(x); return price * attendanceAt(x, Object.keys(x.teams).find((id) => id !== x.userClubId)!, price); };
+    expect(rev(g25) / rev(g)).toBeGreaterThan(2.5);
+    // custo cresce de leve a cada nível, mas o total das 25 etapas fica perto de 1 receita-base
+    let cost = 0, m = g;
+    for (let i = 0; i < 25; i++) { cost += comfortCost(m); m = upgradeStadium({ ...m, budgets: { ...m.budgets, [m.userClubId]: 1e12 } }, 'comfort'); }
+    expect(cost).toBeLessThan(1.3 * baseline);
   });
 });
