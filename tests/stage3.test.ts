@@ -5,7 +5,7 @@ import { CLUBS_DATA, getClubs } from '../src/data/clubs';
 import { brazilPyramid } from '../src/data/pyramid';
 import { getDivision } from '../src/data/world';
 import { generateSquad } from '../src/engine/squad';
-import { SERIE_D_SLOTS, estadualOfUser, estadualTable, serieDQualifiers } from '../src/engine/estadual';
+import { SERIE_D_SLOTS, estadualRanking, estadualOfUser, estadualTable, serieDQualifiers } from '../src/engine/estadual';
 import { isSeasonOver, newCareer, playNext, seasonOutcome, userDivision } from '../src/engine/game';
 import { createEstaduais } from '../src/engine/estadual';
 import { createContinentals } from '../src/engine/continental';
@@ -102,13 +102,18 @@ describe('carreira fora da pirâmide', () => {
 describe('estaduais → Série D', () => {
   const advance = (g: GameState) => { while (g.estadual?.due) g = keep(playNext(g).state); return g; };
 
-  it('os melhores clubes só-estadual (fora da pirâmide, 2 primeiros) sobem; os 8 piores da D saem; a D continua com 96', () => {
+  it('o MELHOR clube sem divisão de cada estado sobe (mesmo que seja o 3º ou pior colocado); os 8 piores da D saem; a D continua com 96', () => {
     let g = advance(start(custom(), 7));
     const quals = serieDQualifiers(g);
     expect(quals.length).toBeGreaterThan(0);
     expect(quals.length).toBeLessThanOrEqual(SERIE_D_SLOTS);
     const pyramid = new Set(g.divisions.filter((d) => d.format !== 'outside').flatMap((d) => d.clubIds));
     for (const id of quals) expect(pyramid.has(id)).toBe(false);
+    // cada clube que sobe é o 1º sem divisão do ranking do seu estadual (os com divisão, à frente dele, não contam)
+    for (const id of quals) {
+      const comp = g.estadual!.comps.find((c) => estadualRanking(g, c.divisions[0]).includes(id))!;
+      expect(estadualRanking(g, comp.divisions[0]).find((x) => !pyramid.has(x))).toBe(id);
+    }
     g = season(g);
     const dBefore = g.divisions[3].clubIds;
     const out = seasonOutcome(g);

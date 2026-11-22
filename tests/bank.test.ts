@@ -80,7 +80,7 @@ describe('banco', () => {
     g = tickBoletos({ ...g, round: due.dueRound });
     expect(openBoletos(g).length).toBe(0); expect(balanceOf(g)).toBe(cash - 10_000);
     expect(g.bank!.txs[0].title).toMatch(/Débito automático/);
-    expect(phoneOf(g).notifications.some((n) => /Débito automático: boleto/.test(n.text))).toBe(true);
+    expect(phoneOf(g).notifications.some((n) => /Débito automático|boleto/i.test(n.text))).toBe(false); // com saldo, o banco não notifica: pago sozinho
     // sem saldo: recusa uma vez e o boleto vence com multa
     let h = createBoleto({ ...withBank(), coachMoney: 100 }, { merchant: 'X', description: 'y', amount: 10_000, dueInRounds: 1, purpose: { type: 'teste-boleto' } });
     const d2 = h.bank!.boletos[0];

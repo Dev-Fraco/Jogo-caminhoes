@@ -269,8 +269,9 @@ export const SERIE_D_SLOTS = 8;
 const ratingOf = (g: GameState, id: string) => (g.teams[id] ? teamRatings(g.teams[id]).overall : (estadualClub(id)?.rating ?? 40));
 
 /**
- * Clubes que sobem dos estaduais para a Série D: em cada estado, o melhor colocado da Série A estadual que não esteja na pirâmide
- * (se terminou entre os 2 primeiros). Entram os 8 de maior força; o clube do jogador, se for um deles, sempre entra.
+ * Clubes que sobem dos estaduais para a Série D: em cada estado, o MELHOR colocado da Série A estadual que não esteja na pirâmide
+ * (sem divisão nacional), em qualquer posição: se o 1º e o 2º já têm divisão, o 3º sem divisão é quem sobe. Como a Série D tem 8 vagas,
+ * entram os 8 de maior força entre esses; o clube do jogador, se for um deles, sempre entra.
  */
 export function serieDQualifiers(g: GameState): string[] {
   if (!g.estadual?.done) return [];
@@ -279,7 +280,7 @@ export function serieDQualifiers(g: GameState): string[] {
   for (const c of g.estadual.comps) {
     const rows = estadualRanking(g, c.divisions[0]);
     const i = rows.findIndex((id) => !pyramid.has(id));
-    if (i >= 0 && i < 2) cands.push(rows[i]);
+    if (i >= 0) cands.push(rows[i]);
   }
   const mine = cands.includes(g.userClubId) && !g.unemployed ? g.userClubId : undefined;
   const picked = cands.filter((id) => id !== mine).sort((a, b) => ratingOf(g, b) - ratingOf(g, a)).slice(0, SERIE_D_SLOTS - (mine ? 1 : 0));

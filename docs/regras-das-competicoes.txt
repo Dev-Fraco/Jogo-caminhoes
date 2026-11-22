@@ -1,0 +1,33 @@
+REGRAS DAS COMPETIÇÕES DE FUTEBOL
+Base de referência para o jogo Vida Real FC — temporada 2026
+1. Campeonatos Brasileiros
+Série A: 20 clubes; pontos corridos em turno e returno (38 rodadas). Campeão é quem somar mais pontos. Os 4 últimos são rebaixados para a Série B.
+Série B: 20 clubes; 38 rodadas. 1º e 2º sobem diretamente. 3º x 6º e 4º x 5º disputam playoffs de ida e volta pelas outras 2 vagas. Os 4 últimos caem para a Série C.
+Série C: 20 clubes. Primeira fase em pontos corridos; os melhores avançam à fase decisiva em grupos. Os 4 clubes que conquistam o acesso sobem para a Série B; os 4 últimos da primeira fase caem para a Série D.
+Série D: 96 clubes em 2026, divididos em 16 grupos de 6 na primeira fase. Os 4 melhores de cada grupo avançam ao mata-mata. Os 6 clubes que conquistam o acesso sobem para a Série C.
+2. Vagas continentais — referência 2026
+Libertadores pelo Brasileirão: 1º ao 4º lugar vão para a fase de grupos; 5º lugar vai para a fase preliminar.
+Sul-Americana pelo Brasileirão: os 6 melhores colocados que não estejam classificados para a Libertadores.
+Copa do Brasil: campeão garante vaga na fase de grupos da Libertadores e vice-campeão na fase preliminar. Se houver clubes já classificados por outro caminho, as vagas podem ser repassadas conforme o regulamento.
+Atenção: as vagas podem descer na tabela quando um clube já classificado conquista outra vaga. Libertadores e Sul-Americana devem ser recalculadas após considerar Copa do Brasil e títulos continentais.
+3. Campeonatos estaduais
+Cada estado organiza seu próprio campeonato, com participantes e formato definidos pela federação estadual.
+O formato pode ter grupos, pontos corridos, semifinais e finais. Não existe uma regra única para todos os estados.
+Os estaduais também podem distribuir vagas para a Copa do Brasil e para a Série D, conforme os critérios da CBF e da federação.
+4. Copas regionais
+Copa do Nordeste: participação de clubes dos estados nordestinos, conforme critérios e vagas do regulamento da edição. O campeão de 2026 garante vaga na terceira fase da Copa do Brasil seguinte.
+Copa Verde: reúne clubes das regiões Norte e Centro-Oeste e participantes definidos pelo regulamento anual.
+Copa Sul-Sudeste: reúne clubes das regiões Sul e Sudeste, conforme critérios e vagas definidos para a edição.
+5. Classificação para a Série D
+A Série D é destinada a clubes que não estejam nas Séries A, B ou C.
+As vagas são conquistadas principalmente pelo desempenho nos campeonatos estaduais ou em torneios seletivos autorizados.
+A quantidade de vagas por estado e os critérios de escolha variam conforme o regulamento da CBF e as regras de cada federação.
+6. Regras gerais para o Vida Real FC
+Vitória vale 3 pontos; empate vale 1 ponto; derrota vale 0.
+Em pontos corridos, a classificação é ordenada por pontos e pelos critérios de desempate definidos no regulamento da competição.
+As vagas de acesso, rebaixamento e torneios continentais devem ser processadas ao fim de cada competição.
+Quando um clube obtiver vaga por mais de um caminho, a vaga excedente deve ser repassada ao próximo clube elegível, respeitando o regulamento específico.
+As vagas estaduais e regionais não devem ser fixadas como iguais para todos os estados: precisam ser configuráveis por temporada.
+Observação importante
+Este arquivo é um resumo de referência para estruturar o jogo, não substitui os regulamentos oficiais completos. As regras de 2026 podem mudar nas temporadas seguintes. Em especial, vagas estaduais, regionais e critérios de desempate devem ser configuráveis por competição e temporada.
+Referências principais: regulamentos e comunicados oficiais da CBF para as competições de 2026.

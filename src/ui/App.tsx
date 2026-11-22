@@ -79,6 +79,8 @@ export function App() {
   useEffect(() => { setActiveGame(game); recheckExtras(); }, [trial]); // eslint-disable-line react-hooks/exhaustive-deps
   // quando o pacote dos extras carrega, saves que ainda não têm as ligas do mundo ganham o estado delas
   useEffect(() => { if (extras === 'on') setGame((g) => (g && !g.world && !g.observer ? hooks.worldTick(hooks.ensureWorld(g)) : g)); }, [extras]);
+  // Premium liberado no começo de uma temporada: as copas regionais (Nordeste e Verde) nascem junto da temporada, então entram agora (no meio da temporada, só na próxima)
+  useEffect(() => { if (extras === 'on') setGame((g) => (g && !g.regionais && !g.observer && !g.unemployed && g.cup && g.round <= 1 ? hooks.createRegionals(g) : g)); }, [extras]);
   const [screen, setScreen] = useState<Screen>('menu');
   // versão grátis: antes de entrar no jogo, a tela de planos mostra o que cada versão tem (uma vez por sessão)
   const planSeen = useRef((() => { try { return isPremium() || sessionStorage.getItem('vr-plan-seen') === '1'; } catch { return isPremium(); } })());

@@ -130,7 +130,10 @@ export function createBoleto(g: GameState, b: { merchant: string; description: s
   const id = `B${bank.seq}`;
   const boleto: Boleto = { id, code: boletoCode(id, b.amount), merchant: b.merchant, description: b.description, amount: Math.round(b.amount), dueSeason, dueRound, status: 'open', fine: 0, notified: false, purpose: b.purpose };
   const s = { ...g, bank: { ...bank, seq: bank.seq + 1, boletos: [boleto, ...bank.boletos] } };
-  return notifyPhone(s, 'banco', `Novo boleto de ${brl(boleto.amount)} (${b.merchant}). Vence na rodada ${dueRound}.`);
+  // com o pagamento automático ligado e saldo para pagar, o banco não incomoda: o boleto sai sozinho no vencimento (e aparece no extrato)
+  if (autoDebitOn(s) && balanceOf(s) >= boleto.amount) return s;
+  const aviso = autoDebitOn(s) ? ` Saldo insuficiente hoje para o pagamento automático.` : '';
+  return notifyPhone(s, 'banco', `Novo boleto de ${brl(boleto.amount)} (${b.merchant}). Vence na rodada ${dueRound}.${aviso}`);
 }
 
 export const boletoTotal = (b: Boleto) => b.amount + b.fine;
@@ -171,7 +174,7 @@ export function tickBoletos(g: GameState): GameState {
     const nowAbs = abs(g.season, g.round);
     for (const b of g.bank!.boletos.filter((x) => x.status !== 'paid' && abs(x.dueSeason, x.dueRound) <= nowAbs)) {
       const r = settleBoleto(g, b.id, true);
-      if (r.ok) g = notifyPhone(r.state, 'banco', `Débito automático: boleto de ${b.merchant} (${brl(boletoTotal(b))}) pago.`);
+      if (r.ok) g = r.state; // pago sozinho, sem notificação (fica no extrato)
       else if (!b.notified) {
         g = { ...g, bank: { ...g.bank!, boletos: g.bank!.boletos.map((x) => (x.id === b.id ? { ...x, notified: true } : x)) } };
         g = notifyPhone(g, 'banco', `Débito automático recusado: saldo insuficiente para o boleto de ${b.merchant}.`);
@@ -189,7 +192,8 @@ export function tickBoletos(g: GameState): GameState {
       s = notifyPhone(s, 'banco', `Boleto de ${b.merchant} vencido! Multa de ${brl(late.fine)} aplicada.`);
       return late;
     }
-    if (!b.notified && now <= due && due - now <= 2 && due - now >= 0) {
+    // perto do vencimento só avisa se o pagamento automático não vai dar conta (desligado ou sem saldo)
+    if (!b.notified && now <= due && due - now <= 2 && due - now >= 0 && (!autoDebitOn(s) || balanceOf(s) < boletoTotal(b))) {
       s = notifyPhone(s, 'banco', `O boleto de ${b.merchant} (${brl(b.amount)}) vence na rodada ${b.dueRound}.`);
       return { ...b, notified: true };
     }
