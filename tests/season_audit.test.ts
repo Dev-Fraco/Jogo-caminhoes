@@ -1,5 +1,7 @@
 import { startNextSeason } from '../src/premium/season';
 import { startNextSeason } from '../src/premium/season';
+import { serieDFlow } from '../src/engine/phases';
+import { serieDQualifiers } from '../src/engine/estadual';
 import { describe, expect, it } from 'vitest';
 import { pyramidOf, slotsOfLeague } from '../src/data/pyramid';
 import { WORLD_DATA } from '../src/data/world';
@@ -29,18 +31,20 @@ export function auditTurn(before: GameState, after: GameState): string[] {
   if (last.season !== before.season || !last.tables?.length || last.divisions?.some((d) => !d.championId)) p.push('resumo da temporada incompleto');
   const pyr = before.divisions.filter((d) => d.format !== 'outside');
   const pyrA = after.divisions.filter((d) => d.format !== 'outside');
-  pyr.forEach((d, i) => { if (pyrA[i].clubIds.length !== d.clubIds.length) p.push(`${d.id}: tamanho mudou ${d.clubIds.length} → ${pyrA[i].clubIds.length}`); });
+  pyr.forEach((d, i) => { if (d.id !== 'serie-c' && pyrA[i].clubIds.length !== d.clubIds.length) p.push(`${d.id}: tamanho mudou ${d.clubIds.length} → ${pyrA[i].clubIds.length}`); });
   const all = pyrA.flatMap((d) => d.clubIds);
   if (new Set(all).size !== all.length) p.push('clube repetido nas divisões novas');
   // promovidos e rebaixados trocaram de divisão
   last.divisions?.forEach((m, i) => {
     for (const id of m.promoted) if (i > 0 && !pyrA[i - 1].clubIds.includes(id)) p.push(`promovido ${id} não subiu`);
     for (const id of m.relegated) if (i < pyrA.length - 1 && !pyrA[i + 1].clubIds.includes(id)) p.push(`rebaixado ${id} não desceu`);
-    if (i > 0 && m.promoted.length !== (before.slots ?? 4)) p.push(`${m.id}: ${m.promoted.length} promovidos`);
+    const wantUp = m.id === 'serie-d' ? serieDFlow(before.season, serieDQualifiers(before).length).promoted : (before.slots ?? 4);
+    if (i > 0 && m.promoted.length !== wantUp) p.push(`${m.id}: ${m.promoted.length} promovidos, esperado ${wantUp}`);
   });
   // calendário novo coerente
   const maxRound = Math.max(...after.fixtures.map((f) => f.round));
-  if (after.totalRounds !== maxRound) p.push(`totalRounds ${after.totalRounds} ≠ maior rodada do calendário ${maxRound}`);
+  const extra = after.divisions.some((d) => d.id === 'serie-b') ? 2 : 0; // playoffs de acesso da Série B (ida e volta)
+  if (after.totalRounds !== maxRound + extra) p.push(`totalRounds ${after.totalRounds} ≠ maior rodada do calendário ${maxRound}`);
   const nf = after.fixtures.filter((f) => f.divisionId && !f.ko);
   const keys = new Set(nf.map((f) => `${f.divisionId}:${f.round}:${f.homeId}:${f.awayId}`));
   if (keys.size !== nf.length) p.push('calendário novo com partida duplicada');

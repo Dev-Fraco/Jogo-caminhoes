@@ -25,9 +25,9 @@ describe('ETAPA 7 — o universo da IA não congela (carreira em 5 temporadas)',
       const before = g;
       const e = simulateToEnd(g);
       // todos os clubes das divisões nacionais jogaram a temporada inteira
-      for (const d of e.divisions.filter((x) => x.format !== 'outside' && x.format !== 'groups')) {
+      for (const d of e.divisions.filter((x) => x.format !== 'outside' && x.format !== 'groups' && x.id !== 'serie-c')) { // (a Série C tem fases: conferida em phases.test.ts)
         const n = d.clubIds.length;
-        for (const id of d.clubIds) if (e.results.filter((r) => r.divisionId === d.id && (r.homeId === id || r.awayId === id)).length !== 2 * (n - 1)) problems.push(`T${e.season}: ${id} não jogou todas as partidas`);
+        for (const id of d.clubIds) if (e.results.filter((r) => r.divisionId === d.id && !r.tie && (r.homeId === id || r.awayId === id)).length !== 2 * (n - 1)) problems.push(`T${e.season}: ${id} não jogou todas as partidas`);
       }
       // artilharia: existe em todas as divisões, soma bate com os gols das partidas, e os artilheiros são de clubes da IA também
       const sc = Object.values(e.scorers ?? {});
@@ -74,7 +74,7 @@ describe('ETAPA 7 — o universo da IA não congela (carreira em 5 temporadas)',
       if (e.results.length <= r0 && t === 0) problems.push('nenhuma partida simulada sem o jogador');
       for (const d of e.divisions.filter((x) => x.format !== 'outside' && x.format !== 'groups')) {
         const n = d.clubIds.length;
-        if (e.results.filter((r) => r.divisionId === d.id).length !== n * (n - 1)) problems.push(`T${e.season}: ${d.id} incompleta`);
+        if (d.id !== 'serie-c' && e.results.filter((r) => r.divisionId === d.id && !r.tie).length !== n * (n - 1)) problems.push(`T${e.season}: ${d.id} incompleta`);
       }
       if (!e.cup?.championId) problems.push(`T${e.season}: copa sem campeão`);
       g = startNextSeason(e);

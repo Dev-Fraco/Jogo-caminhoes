@@ -1,5 +1,7 @@
 import { startNextSeason } from '../src/premium/season';
 import { startNextSeason } from '../src/premium/season';
+import { serieDFlow } from '../src/engine/phases';
+import { serieDQualifiers } from '../src/engine/estadual';
 import { describe, expect, it } from 'vitest';
 import { aiWindow, AI_MAX_SQUAD, developPlayer, PROMOTED_STRONG_CHANCE, SQUAD_TARGET } from '../src/engine/ai';
 import { isSeasonOver, playRound, seasonMoves } from '../src/engine/game';
@@ -65,7 +67,7 @@ describe('virada de temporada com a IA', () => {
     expect(next.news.some((n) => n.text.includes('anuncia') || n.text.includes('contrata'))).toBe(true);
     expect(next.news.filter((n) => n.text.includes('sobe')).length).toBeGreaterThanOrEqual(8);
     expect(next.news.length).toBeLessThanOrEqual(80);
-    expect(next.history[0].promotion).toHaveLength(12); // 4 que sobem de B, de C e de D
+    expect(next.history[0].promotion).toHaveLength(8 + serieDFlow(end.season, serieDQualifiers(end).length).promoted); // 4 que sobem da B e da C, mais os da D
   });
   it('é determinístico', () => {
     expect(JSON.stringify(startNextSeason(end).news)).toBe(JSON.stringify(next.news));

@@ -112,6 +112,10 @@ export interface MatchResult {
   awayId: string;
   homeGoals: number;
   awayGoals: number;
+  /** Confronto de ida e volta a que o jogo pertence (e qual jogo é). */
+  tie?: string;
+  leg?: 1 | 2;
+  phase?: string;
   /** Pênaltis (mata-mata empatado). */
   pens?: [number, number];
   /** Cobranças dos pênaltis, na ordem (só no jogo do seu clube): quem bateu e se fez o gol. */
@@ -130,6 +134,10 @@ export interface Fixture {
   awayId: string;
   /** Jogo eliminatório (empate vai para os pênaltis). */
   ko?: boolean;
+  /** Confronto de ida e volta: identificador do confronto, qual jogo (1 = ida, 2 = volta) e nome da fase. */
+  tie?: string;
+  leg?: 1 | 2;
+  phase?: string;
 }
 
 export interface TableRow {

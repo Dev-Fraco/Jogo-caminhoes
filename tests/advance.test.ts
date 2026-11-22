@@ -39,7 +39,7 @@ describe('avanço do calendário até o próximo jogo do seu clube', () => {
     expect(isSeasonOver(g)).toBe(true);
     const end = g;
     expect(auditSeasonEnd(end)).toEqual([]);                                       // todas as partidas geradas, jogadas e somando certo
-    for (const d of end.divisions.filter((x) => x.format !== 'outside' && x.format !== 'groups')) expect(end.results.filter((r) => r.divisionId === d.id).length).toBe(d.clubIds.length * (d.clubIds.length - 1));
+    for (const d of end.divisions.filter((x) => x.format !== 'outside' && x.format !== 'groups' && x.id !== 'serie-c')) expect(end.results.filter((r) => r.divisionId === d.id && !r.tie).length).toBe(d.clubIds.length * (d.clubIds.length - 1));
     expect(end.cup?.championId).toBeTruthy(); expect(end.estadual?.done).toBe(true);
   }, 300_000);
   it('o avanço automático dá exatamente o mesmo resultado que simular data por data: resultados, classificações, caixas e salários preservados', () => {

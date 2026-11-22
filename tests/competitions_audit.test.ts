@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { brazilPyramid } from '../src/data/pyramid';
 import { divisionTable, newCareer, simulateToEnd } from '../src/engine/game';
 import { estadualTable, estadualChampions, playoffOf, hasPlayoff } from '../src/engine/estadual';
-import { finalStandings } from '../src/engine/groups';
+import { kindOf, leagueTable, rulesFor, serieBStanding, serieCStanding, serieDFlow, serieDStanding } from '../src/engine/phases';
+import { serieDQualifiers } from '../src/engine/estadual';
 import { groupTable } from '../src/engine/continental';
 import { newObserverWorld, simLeagues } from '../src/engine/sim';
 import type { GameState, TableRow } from '../src/engine/types';
@@ -17,21 +18,32 @@ function auditStandings(e: GameState, next: GameState): string[] {
   const p: string[] = [];
   const divs = e.divisions.filter((d) => d.format !== 'outside');
   const rank = (d: GameState['divisions'][number]): { order: string[]; up: string[] } => {
-    if (d.format === 'groups') { const f = finalStandings(e, d); return { order: f.table.map((r) => r.clubId), up: f.promoted }; }
-    const t = divisionTable(e, d.id); p.push(...tieOrder(t).map((x) => `${d.id}: ${x}`)); return { order: t.map((r) => r.clubId), up: [] };
+    const k = kindOf(d);
+    if (d.format === 'groups') { const f = serieDStanding(e, d); return { order: f.table.map((r) => r.clubId), up: f.promoted }; }
+    if (k === 'C') return { order: leagueTable(e, d).map((r) => r.clubId), up: serieCStanding(e, d).promoted }; // caem os últimos da 1ª fase; sobem os 2 melhores de cada quadrangular
+    const t = divisionTable(e, d.id); p.push(...tieOrder(t).map((x) => `${d.id}: ${x}`));
+    return { order: t.map((r) => r.clubId), up: k === 'B' ? serieBStanding(e, d).promoted : [] }; // Série B: 1º, 2º e os vencedores dos playoffs
   };
   const ranks = divs.map(rank);
+  const flow = serieDFlow(e.season, serieDQualifiers(e).length);
   for (let i = 0; i + 1 < divs.length; i++) {
     const U = divs[i], L = divs[i + 1];
     const nu = next.divisions.find((d) => d.id === U.id)!, nl = next.divisions.find((d) => d.id === L.id)!;
-    if (nu.clubIds.length !== U.clubIds.length || nl.clubIds.length !== L.clubIds.length) p.push(`${U.id}/${L.id}: tamanho da divisão mudou (${U.clubIds.length}→${nu.clubIds.length}, ${L.clubIds.length}→${nl.clubIds.length})`);
+    const cd = kindOf(U) === 'C' && L.format === 'groups'; // Série C ↔ D: caem 2 e sobem 6 (a C cresce); a D segue com 96
+    if ((kindOf(U) !== 'C' && nu.clubIds.length !== U.clubIds.length) || (kindOf(L) !== 'C' && nl.clubIds.length !== L.clubIds.length)) p.push(`${U.id}/${L.id}: tamanho da divisão mudou (${U.clubIds.length}→${nu.clubIds.length}, ${L.clubIds.length}→${nl.clubIds.length})`);
     const down = U.clubIds.filter((id) => nl.clubIds.includes(id)), up = L.clubIds.filter((id) => nu.clubIds.includes(id));
-    if (down.length !== up.length) p.push(`${U.id}/${L.id}: ${down.length} rebaixados e ${up.length} promovidos`);
+    if (cd) {
+      if (down.length !== rulesFor(e.season).cRelegated) p.push(`${U.id}/${L.id}: ${down.length} rebaixados, esperado ${rulesFor(e.season).cRelegated}`);
+      if (up.length !== flow.promoted) p.push(`${U.id}/${L.id}: ${up.length} promovidos, esperado ${flow.promoted}`);
+      if (nl.clubIds.length !== 96) p.push(`${L.id}: ${nl.clubIds.length} clubes, esperado 96`);
+    } else if (down.length !== up.length) p.push(`${U.id}/${L.id}: ${down.length} rebaixados e ${up.length} promovidos`);
     if (!down.length) p.push(`${U.id}/${L.id}: ninguém rebaixado`);
     const k = down.length;
     const bottom = ranks[i].order.slice(-k), top = (ranks[i + 1].up.length ? ranks[i + 1].up : ranks[i + 1].order.slice(0, k));
     if ([...down].sort().join() !== [...bottom].sort().join()) p.push(`${U.id}: rebaixados ${down.join(',')} não são os últimos colocados ${bottom.join(',')}`);
-    if (k === top.length && [...up].sort().join() !== [...top].sort().join()) p.push(`${L.id}: promovidos ${up.join(',')} não são os melhores colocados ${top.join(',')}`);
+    const want = cd ? top.slice(0, flow.promoted) : top;
+    if (!cd && up.length !== top.length) p.push(`${L.id}: ${up.length} promovidos, esperado ${top.length}`);
+    if (cd || k === top.length) if ([...up].sort().join() !== [...want].sort().join()) p.push(`${L.id}: promovidos ${up.join(',')} não são os melhores colocados ${want.join(',')}`);
   }
   return p;
 }

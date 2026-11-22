@@ -10,8 +10,8 @@ describe('pular temporada', () => {
     expect(isSeasonOver(g)).toBe(true);
     expect(g.round).toBe(g.totalRounds + 1);
     for (const d of g.divisions) {
-      if (d.format === 'groups') continue; // a Série D tem grupos e mata-mata (testada em groups.test.ts)
-      expect(g.results.filter((r) => r.divisionId === d.id).length).toBe(d.clubIds.length * (d.clubIds.length - 1));
+      if (d.format === 'groups' || d.id === 'serie-c') continue; // Séries C e D têm fases (testadas em groups.test.ts e phases.test.ts)
+      expect(g.results.filter((r) => r.divisionId === d.id && !r.tie).length).toBe(d.clubIds.length * (d.clubIds.length - 1));
       expect(divisionTable(g, d.id).every((r) => r.played === (d.clubIds.length - 1) * 2)).toBe(true);
     }
     expect(g.lib?.championId).toBeTruthy();

@@ -14,7 +14,8 @@ import { contAfterLeagueRound, createContinentals, mundialAfterLeagueRound, play
 import { hooks, REGIONAL_KEYS } from './hooks';
 import { pendingEvent, playEvent } from './events';
 import { tickContracts } from './assets';
-import { advanceKnockout, finalStandings, groupFixtures, isGroups, userGroupRows, withGroups } from './groups';
+import { groupFixtures, isGroups, userGroupRows, withGroups } from './groups';
+import { advancePhases, kindOf, leagueTable, rulesFor, serieBStanding, serieCFixtures, serieCStanding, serieCTotalRounds, serieDFlow, serieDStanding } from './phases';
 import { createEstaduais, estadualChampions, playEstadualStep, serieDQualifiers } from './estadual';
 import { boardTick, seasonEndFiring } from './jobs';
 import { managed } from './lookup';
@@ -74,9 +75,10 @@ export function buildSeason(divisions: DivisionState[]): { fixtures: Fixture[]; 
   let totalRounds = 0;
   for (const d of divisions) {
     if (isGroups(d)) { fixtures.push(...groupFixtures(d)); totalRounds = Math.max(totalRounds, 10); continue; }
+    if (kindOf(d) === 'C') { fixtures.push(...serieCFixtures(d)); totalRounds = Math.max(totalRounds, serieCTotalRounds(d)); continue; } // 1ª fase em turno único; quadrangulares e final entram depois
     const f = buildFixtures(d.clubIds, d.id);
     fixtures.push(...f.fixtures);
-    totalRounds = Math.max(totalRounds, f.totalRounds);
+    totalRounds = Math.max(totalRounds, f.totalRounds + (kindOf(d) === 'B' ? 2 : 0)); // Série B: mais 2 rodadas (ida e volta) dos playoffs de acesso
   }
   return { fixtures, totalRounds };
 }
@@ -151,11 +153,14 @@ export function playRound(g: GameState): { state: GameState; results: MatchResul
     for (const e of out.events) if (e.type === 'goal' && !e.annulled && e.player && e.side !== 'none') goalLog.push({ clubId: e.side === 'home' ? f.homeId : f.awayId, name: e.player, comp: f.divisionId });
     const mine = f.homeId === g.userClubId || f.awayId === g.userClubId;
     // jogo eliminatório empatado: pênaltis
-    const sk = f.ko && out.homeGoals === out.awayGoals ? shootoutKicks(rng, teamRatings(teams[f.homeId]).gk, teamRatings(teams[f.awayId]).gk, penaltyTakers(teams[f.homeId]), penaltyTakers(teams[f.awayId])) : undefined;
+    // jogo eliminatório: pênaltis se empatar (confronto de ida e volta: só na volta, se o agregado terminar empatado)
+    const leg1 = f.tie && f.leg === 2 ? g.results.find((r) => r.divisionId === f.divisionId && r.tie === f.tie && r.leg === 1) : undefined;
+    const tiedNow = f.tie ? f.leg === 2 && !!leg1 && out.homeGoals + leg1.awayGoals === out.awayGoals + leg1.homeGoals : out.homeGoals === out.awayGoals;
+    const sk = f.ko && tiedNow ? shootoutKicks(rng, teamRatings(teams[f.homeId]).gk, teamRatings(teams[f.awayId]).gk, penaltyTakers(teams[f.homeId]), penaltyTakers(teams[f.awayId])) : undefined;
     const pens = sk?.score;
-    return { divisionId: f.divisionId, round: f.round, homeId: f.homeId, awayId: f.awayId, homeGoals: out.homeGoals, awayGoals: out.awayGoals, ...(pens ? { pens } : {}), ...(sk && mine ? { penKicks: { home: sk.home, away: sk.away } } : {}), events: mine ? out.events : [] };
+    return { divisionId: f.divisionId, round: f.round, homeId: f.homeId, awayId: f.awayId, homeGoals: out.homeGoals, awayGoals: out.awayGoals, ...(f.tie ? { tie: f.tie, leg: f.leg, phase: f.phase } : {}), ...(pens ? { pens } : {}), ...(sk && mine ? { penKicks: { home: sk.home, away: sk.away } } : {}), events: mine ? out.events : [] };
   });
-  let state: GameState = advanceKnockout({ ...g, teams, round: g.round + 1, results: [...g.results, ...results], load: updateLoad(g, played), scorers: addScorers(g, goalLog) });
+  let state: GameState = advancePhases({ ...g, teams, round: g.round + 1, results: [...g.results, ...results], load: updateLoad(g, played), scorers: addScorers(g, goalLog) });
   state = pruneInjuries(applyInjuries(state, hits, g.round)); // lesões da rodada (valem a partir da próxima) e limpeza das vencidas
   // titulares da rodada: contam para bônus por jogos e para a obrigação de compra dos emprestados
   const started = new Set<string>();
@@ -242,7 +247,9 @@ export const resultsOfDivision = (g: GameState, divisionId: string) => g.results
 /** Classificação atual de uma divisão. */
 export function divisionTable(g: GameState, divisionId: string): TableRow[] {
   const d = g.divisions.find((x) => x.id === divisionId)!;
-  if (isGroups(d)) return finalStandings(g, d).table; // Série D: campeão, vice, semifinalistas… e quem caiu antes
+  if (isGroups(d)) return serieDStanding(g, d).table; // Série D: campeão, vice, semifinalistas… e quem caiu antes
+  if (kindOf(d) === 'C') return serieCStanding(g, d).table; // Série C: 1ª fase; depois quadrangulares e final
+  if (kindOf(d) === 'B') return leagueTable(g, d); // Série B: só as 38 rodadas (os playoffs ficam à parte)
   return computeTable(d.clubIds.map((id) => ({ id, name: g.clubs[id].name })), resultsOfDivision(g, divisionId));
 }
 
@@ -253,10 +260,14 @@ export function seasonMoves(g: GameState): DivisionMoves[] {
   const last = g.divisions.filter((d) => d.format !== 'outside').length - 1;
   const slots = slotsOf(g);
   const quals = serieDQualifiers(g); // clubes de estadual que sobem à Série D
+  const rules = rulesFor(g.season);
+  const flow = serieDFlow(g.season, quals.length);
   return g.divisions.map((d, i) => {
     const table = divisionTable(g, d.id);
     if (d.format === 'outside') return { divisionId: d.id, table, promoted: quals.filter((id) => d.clubIds.includes(id)), relegated: [] };
-    if (isGroups(d)) return { divisionId: d.id, table, promoted: finalStandings(g, d).promoted, relegated: quals.length ? table.slice(-quals.length).map((r) => r.clubId) : [] }; // os piores da D voltam para os estaduais
+    if (isGroups(d)) return { divisionId: d.id, table, promoted: serieDStanding(g, d).promoted.slice(0, flow.promoted), relegated: flow.relegated ? table.slice(-flow.relegated).map((r) => r.clubId) : [] }; // os piores da D voltam para os estaduais
+    if (kindOf(d) === 'B') return { divisionId: d.id, table, promoted: serieBStanding(g, d).promoted, relegated: i < last ? table.slice(-slots).map((r) => r.clubId) : [] };
+    if (kindOf(d) === 'C') return { divisionId: d.id, table, promoted: serieCStanding(g, d).promoted, relegated: i < last ? leagueTable(g, d).slice(-rules.cRelegated).map((r) => r.clubId) : [] }; // caem os últimos da 1ª fase
     return {
       divisionId: d.id, table,
       promoted: i > 0 ? table.slice(0, slots).map((r) => r.clubId) : [],

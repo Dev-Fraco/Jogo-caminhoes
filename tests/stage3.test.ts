@@ -5,6 +5,7 @@ import { CLUBS_DATA, getClubs } from '../src/data/clubs';
 import { brazilPyramid } from '../src/data/pyramid';
 import { getDivision } from '../src/data/world';
 import { generateSquad } from '../src/engine/squad';
+import { serieDFlow } from '../src/engine/phases';
 import { SERIE_D_SLOTS, estadualRanking, estadualOfUser, estadualTable, serieDQualifiers } from '../src/engine/estadual';
 import { isSeasonOver, newCareer, playNext, seasonOutcome, userDivision } from '../src/engine/game';
 import { createEstaduais } from '../src/engine/estadual';
@@ -118,7 +119,7 @@ describe('estaduais → Série D', () => {
     const dBefore = g.divisions[3].clubIds;
     const out = seasonOutcome(g);
     const rel = out.moves[3].relegated;
-    expect(rel.length).toBe(quals.length);
+    expect(rel.length).toBe(serieDFlow(g.season, quals.length).relegated); // sobem 6 da D e caem 2 da C: a D só devolve aos estaduais o que fecha a conta de 96
     const n = startNextSeason(g);
     expect(n.divisions[3].clubIds.length).toBe(96);
     for (const id of quals) { expect(n.divisions[3].clubIds).toContain(id); expect(n.teams[id].players.length).toBeGreaterThanOrEqual(18); expect(n.clubs[id].name).toBeTruthy(); expect(n.budgets[id]).toBeGreaterThan(0); }

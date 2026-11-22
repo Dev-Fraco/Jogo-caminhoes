@@ -119,7 +119,7 @@ describe('contratação', () => {
     let g = makeCareer('flamengo', 5);
     g = buyPlayer(g, pick(g, 'palmeiras').id).state;
     g = playSeason(g);
-    expect(g.results).toHaveLength(3 * 380 + 16 * 30 + 31);
+    expect(g.results).toHaveLength(380 + 380 + 4 + 190 + 24 + 2 + 480 + 130);
     expect(startNextSeason(g).teams.flamengo.players.length).toBeLessThanOrEqual(25); // veteranos podem se aposentar
   });
 });

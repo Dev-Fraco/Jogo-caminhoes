@@ -1,6 +1,6 @@
 import { divisionTable, isSeasonOver } from '../src/engine/game';
 import { estadualChampions } from '../src/engine/estadual';
-import { finalStandings } from '../src/engine/groups';
+import { kindOf, serieCStanding, serieDStanding } from '../src/engine/phases';
 import type { GameState } from '../src/engine/types';
 
 /** Problemas encontrados numa temporada que acabou de terminar (antes da virada). */
@@ -21,22 +21,35 @@ export function auditSeasonEnd(g: GameState): string[] {
     const res = g.results.filter((r) => r.divisionId === d.id);
     if (new Set(res.map((r) => `${r.round}:${r.homeId}:${r.awayId}`)).size !== res.length) p.push(`${d.id}: resultado duplicado`);
     if (d.format === 'groups') {
-      try { const fs = finalStandings(g, d); if (!fs.championId) p.push(`${d.id}: sem campeão`); } catch (e) { p.push(`${d.id}: mata-mata não resolve (${(e as Error).message})`); }
+      try { const fs = serieDStanding(g, d); if (!fs.championId) p.push(`${d.id}: sem campeão`); if (fs.promoted.length !== 6) p.push(`${d.id}: ${fs.promoted.length} acessos, esperado 6`); } catch (e) { p.push(`${d.id}: mata-mata não resolve (${(e as Error).message})`); }
       continue;
     }
     const n = d.clubIds.length;
-    if (res.length !== n * (n - 1)) p.push(`${d.id}: ${res.length} resultados, esperado ${n * (n - 1)}`);
-    if (fx.length !== n * (n - 1)) p.push(`${d.id}: ${fx.length} jogos no calendário, esperado ${n * (n - 1)}`);
-    const pairs = new Set(res.map((r) => `${r.homeId}>${r.awayId}`));
-    if (pairs.size !== n * (n - 1)) p.push(`${d.id}: confrontos repetidos ou faltando`);
+    const kind = kindOf(d);
+    // pontos corridos: Séries A e B (ida e volta, 38 rodadas) e a 1ª fase da C (turno único); os playoffs/quadrangulares/final são conferidos à parte
+    const maxRound = kind === 'C' ? n - 1 : kind === 'B' ? 38 : Number.MAX_SAFE_INTEGER;
+    const league = res.filter((r) => !r.tie && r.round <= maxRound);
+    const leagueFx = fx.filter((f) => !f.tie && f.round <= maxRound);
+    const want = kind === 'C' ? (n * (n - 1)) / 2 : n * (n - 1);
+    if (league.length !== want) p.push(`${d.id}: ${league.length} resultados, esperado ${want}`);
+    if (leagueFx.length !== want) p.push(`${d.id}: ${leagueFx.length} jogos no calendário, esperado ${want}`);
+    const pairs = new Set(league.map((r) => `${r.homeId}>${r.awayId}`));
+    if (pairs.size !== want) p.push(`${d.id}: confrontos repetidos ou faltando`);
+    if (kind === 'B' && res.filter((r) => r.tie).length !== 4) p.push(`${d.id}: ${res.filter((r) => r.tie).length} jogos de playoff, esperado 4`);
+    if (kind === 'C') {
+      if (res.filter((r) => !r.tie && r.round > n - 1).length !== 24) p.push(`${d.id}: quadrangulares incompletos`);
+      if (res.filter((r) => r.tie).length !== 2) p.push(`${d.id}: final incompleta`);
+      if (serieCStanding(g, d).promoted.length !== 4) p.push(`${d.id}: acessos errados`);
+    }
     const t = divisionTable(g, d.id);
     if (t.length !== n) p.push(`${d.id}: tabela com ${t.length} linhas`);
-    if (t.some((r) => r.played !== 2 * (n - 1))) p.push(`${d.id}: clube com jogos faltando na tabela`);
+    if (kind !== 'C' && t.some((r) => r.played !== 2 * (n - 1))) p.push(`${d.id}: clube com jogos faltando na tabela`);
+    if (kind === 'C') continue; // (a tabela final da C é por fase: pontos e ordem conferidos nos testes de fases)
     const gf = t.reduce((a, r) => a + r.gf, 0), ga = t.reduce((a, r) => a + r.ga, 0);
     if (gf !== ga) p.push(`${d.id}: gols pró e contra não fecham`);
     const pts = t.reduce((a, r) => a + r.points, 0);
-    const draws = res.filter((r) => r.homeGoals === r.awayGoals).length;
-    if (pts !== 3 * (res.length - draws) + 2 * draws) p.push(`${d.id}: pontos não fecham`);
+    const draws = league.filter((r) => r.homeGoals === r.awayGoals).length;
+    if (pts !== 3 * (league.length - draws) + 2 * draws) p.push(`${d.id}: pontos não fecham`);
     if (t.some((r, i) => i > 0 && (r.points > t[i - 1].points))) p.push(`${d.id}: tabela fora de ordem`);
   }
   if (g.cup && (g.cup.due || !g.cup.championId)) p.push('copa não terminou');

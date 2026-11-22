@@ -1,5 +1,6 @@
 import { startNextSeason } from '../src/premium/season';
-import { startNextSeason } from '../src/premium/season';
+import { leagueTable, serieBStanding, serieCStanding, serieDFlow, serieDStanding } from '../src/engine/phases';
+import { serieDQualifiers } from '../src/engine/estadual';
 import { describe, expect, it } from 'vitest';
 import { CLUBS_DATA } from '../src/data/clubs';
 import { parsePack } from '../src/data/pack';
@@ -57,17 +58,18 @@ describe('carreira no Campeonato Brasileiro', () => {
     expect(new Set(g.divisions.flatMap((d) => d.clubIds)).size).toBe(156);
     expect(Object.keys(g.teams)).toHaveLength(156);
     expect(userDivision(g).id).toBe('serie-c');
-    expect(g.totalRounds).toBe(38);
-    expect(g.fixtures).toHaveLength(3 * 380 + 16 * 30); // Série D: 16 grupos de 6, 10 rodadas (o mata-mata é marcado depois)
+    expect(g.totalRounds).toBe(40); // 38 rodadas + 2 dos playoffs de acesso da Série B (ida e volta)
+    expect(g.fixtures).toHaveLength(2 * 380 + 190 + 16 * 30); // A e B: 380; Série C: 1ª fase em turno único (190); Série D: 16 grupos de 6, 10 rodadas (as demais fases são marcadas depois)
     expect(g.version).toBe(5);
   });
   it('rejeita clube que não existe', () => expect(() => makeCareer('nao-existe')).toThrow());
 
   it('joga 38 rodadas em todas as divisões; tabelas consistentes e determinísticas; eventos só nos jogos do jogador', () => {
     const a = playSeason(makeCareer('palmeiras')), b = playSeason(makeCareer('palmeiras'));
-    expect(a.results).toHaveLength(3 * 380 + 16 * 30 + 31); // + 31 jogos do mata-mata da Série D
+    // A e B: 380 (+4 dos playoffs da B); C: 190 + 24 dos quadrangulares + 2 da final; D: 480 + 130 do mata-mata de ida e volta
+    expect(a.results).toHaveLength(380 + 380 + 4 + 190 + 24 + 2 + 480 + 130);
     expect(JSON.stringify(a.results.map((r) => [r.homeGoals, r.awayGoals]))).toBe(JSON.stringify(b.results.map((r) => [r.homeGoals, r.awayGoals])));
-    for (const d of a.divisions.slice(0, 3)) {
+    for (const d of a.divisions.slice(0, 2)) {
       const t = divisionTable(a, d.id);
       expect(t.every((r) => r.played === 38)).toBe(true);
       expect(t.reduce((s, r) => s + r.gf, 0)).toBe(t.reduce((s, r) => s + r.ga, 0));
@@ -84,34 +86,34 @@ describe('acesso e rebaixamento', () => {
     expect(startNextSeason(g)).toBe(g);
   });
 
-  it('sobem os 4 primeiros e descem os 4 últimos entre divisões vizinhas; 20 clubes em cada divisão', () => {
+  it('A↔B: 4 sobem e 4 descem; B↔C: sobem 1º, 2º e os 2 vencedores dos playoffs; C↔D: caem 2, sobem 6 (a Série C cresce) e a D segue com 96', () => {
     const end = playSeason(makeCareer('palmeiras'));
     const tables = Object.fromEntries(end.divisions.map((d) => [d.id, divisionTable(end, d.id).map((r) => r.clubId)]));
     const next = startNextSeason(end);
     const ids = (id: string) => new Set(next.divisions.find((d) => d.id === id)!.clubIds);
-
+    const flow = serieDFlow(end.season, serieDQualifiers(end).length);
     expect(PROMOTION_SLOTS).toBe(4); expect(RELEGATION_SLOTS).toBe(4);
     expect(next.season).toBe(2027);
-    expect(next.divisions.map((d) => d.clubIds.length)).toEqual([20, 20, 20, 96]);
-    expect(new Set(next.divisions.flatMap((d) => d.clubIds)).size).toBe(156);
+    expect(next.divisions.map((d) => d.clubIds.length)).toEqual([20, 20, 20 - 4 + 4 - 2 + flow.promoted, 96]);
+    expect(new Set(next.divisions.flatMap((d) => d.clubIds)).size).toBe(next.divisions.reduce((a, d) => a + d.clubIds.length, 0));
 
-    // Série A: perdeu os 4 últimos, ganhou os 4 primeiros da B
+    // Série A: perdeu os 4 últimos, ganhou os 4 que subiram da B (1º, 2º e os 2 vencedores dos playoffs)
     for (const c of tables['serie-a'].slice(-4)) { expect(ids('serie-a').has(c)).toBe(false); expect(ids('serie-b').has(c)).toBe(true); }
-    for (const c of tables['serie-b'].slice(0, 4)) expect(ids('serie-a').has(c)).toBe(true);
+    for (const c of serieBStanding(end, end.divisions[1]).promoted) expect(ids('serie-a').has(c)).toBe(true);
     // B ↔ C
     for (const c of tables['serie-b'].slice(-4)) expect(ids('serie-c').has(c)).toBe(true);
-    for (const c of tables['serie-c'].slice(0, 4)) expect(ids('serie-b').has(c)).toBe(true);
-    // C ↔ D
-    for (const c of tables['serie-c'].slice(-4)) expect(ids('serie-d').has(c)).toBe(true);
-    for (const c of tables['serie-d'].slice(0, 4)) expect(ids('serie-c').has(c)).toBe(true);
+    for (const c of serieCStanding(end, end.divisions[2]).promoted) expect(ids('serie-b').has(c)).toBe(true);
+    // C ↔ D: caem os 2 últimos da 1ª fase; sobem os que a regra manda
+    for (const c of leagueTable(end, end.divisions[2]).slice(-2).map((r) => r.clubId)) expect(ids('serie-d').has(c)).toBe(true);
+    for (const c of serieDStanding(end, end.divisions[3]).promoted.slice(0, flow.promoted)) expect(ids('serie-c').has(c)).toBe(true);
     // quem ficou no meio continua onde estava
     for (const c of tables['serie-a'].slice(0, 16)) expect(ids('serie-a').has(c)).toBe(true);
-    for (const c of tables['serie-d'].slice(4)) expect(ids('serie-d').has(c)).toBe(true); // semifinalistas sobem; os outros 92 ficam
 
-    // nova temporada limpa: rodada 1, sem resultados, calendário novo, histórico guardado
-    expect(next.round).toBe(1); expect(next.results).toHaveLength(0); expect(next.fixtures).toHaveLength(3 * 380 + 16 * 30);
+    // nova temporada limpa: rodada 1, sem resultados, calendário novo (C em turno único), histórico guardado
+    const nC = next.divisions[2].clubIds.length;
+    expect(next.round).toBe(1); expect(next.results).toHaveLength(0); expect(next.fixtures).toHaveLength(2 * 380 + (nC * (nC - 1)) / 2 + 16 * 30);
     expect(next.history).toHaveLength(1);
-    expect(next.history[0].divisions.map((d) => d.championId)).toEqual(Object.values(tables).map((t) => t[0]));
+    expect(next.history[0].divisions.map((d) => d.championId)).toEqual(end.divisions.map((d) => (d.id === 'serie-c' ? serieCStanding(end, d).championId : d.id === 'serie-d' ? serieDStanding(end, d).championId : tables[d.id][0])));
   });
 
   it('o resultado do clube do jogador (sobe, desce ou fica) bate com a classificação e com a divisão seguinte', () => {

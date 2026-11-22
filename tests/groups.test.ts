@@ -1,7 +1,8 @@
 import { startNextSeason } from '../src/premium/season';
-import { startNextSeason } from '../src/premium/season';
 import { describe, expect, it } from 'vitest';
-import { GROUP_COUNT, GROUP_ROUNDS, GROUP_SIZE, KO_FIRST_ROUND, KO_LAST_ROUND, finalStandings, groupTables, knockoutView } from '../src/engine/groups';
+import { GROUP_COUNT, GROUP_ROUNDS, GROUP_SIZE, groupTables } from '../src/engine/groups';
+import { D_LAST_ROUND, phaseViews, serieDFlow, serieDStanding, tieOutcome } from '../src/engine/phases';
+import { serieDQualifiers } from '../src/engine/estadual';
 import { teamRatings } from '../src/engine/squad';
 import { isSeasonOver, playNext, playRound, seasonOutcome } from '../src/engine/game';
 import { makeCareer } from './helpers';
@@ -34,49 +35,65 @@ describe('Série D em grupos', () => {
     expect(res.length).toBe(16 * 30);
     for (const r of res) expect(D(g).groups!.some((grp) => grp.includes(r.homeId) && grp.includes(r.awayId))).toBe(true);
   });
-  it('mata-mata: 32 → 16 → 8 → 4 → 2 → 1; quem empata vai aos pênaltis; os 2 primeiros de cada grupo se classificam', () => {
+  it('mata-mata de ida e volta: 64 → 32 → 16 → 8 → 4; os 4 primeiros de cada grupo se classificam; pênaltis só se o agregado empatar', () => {
     let g = play(makeCareer('palmeiras', 5), GROUP_ROUNDS);
     const tabs = groupTables(g, D(g));
-    g = playRound(g).state;
-    const ko = knockoutView(g, D(g));
-    expect(ko[0].ties.length).toBe(16);
-    const firsts = new Set(tabs.flatMap((t) => [t.rows[0].clubId, t.rows[1].clubId]));
-    for (const t of ko[0].ties) { expect(firsts.has(t.homeId)).toBe(true); expect(firsts.has(t.awayId)).toBe(true); }
-    expect(ko[0].ties.every((t) => t.result)).toBe(true);
+    g = playRound(g).state; // rodada 11: ida da 1ª fase
+    const first = phaseViews(g, D(g))[0];
+    expect(first.name).toBe('1ª fase (64 clubes)');
+    expect(first.ties.length).toBe(32);
+    const top4 = new Set(tabs.flatMap((t) => t.rows.slice(0, 4).map((r) => r.clubId)));
+    expect(top4.size).toBe(64);
+    for (const t of first.ties) { expect(top4.has(t.aId)).toBe(true); expect(top4.has(t.bId)).toBe(true); }
     g = play(g);
-    const full = knockoutView(g, D(g));
-    expect(full.map((v) => v.ties.length)).toEqual([16, 8, 4, 2, 1]);
-    expect(full.map((v) => v.round)).toEqual([11, 12, 13, 14, 15]);
-    for (const v of full) for (const t of v.ties) expect(t.winnerId).toBeTruthy();
-    const draws = g.results.filter((r) => r.divisionId === 'serie-d' && r.round >= KO_FIRST_ROUND && r.homeGoals === r.awayGoals);
-    expect(draws.every((r) => r.pens && r.pens[0] !== r.pens[1])).toBe(true);
-    // cada fase só tem vencedores da anterior
-    for (let i = 1; i < full.length; i++) {
-      const prev = new Set(full[i - 1].ties.map((t) => t.winnerId));
-      for (const t of full[i].ties) { expect(prev.has(t.homeId)).toBe(true); expect(prev.has(t.awayId)).toBe(true); }
+    const views = phaseViews(g, D(g));
+    expect(views.map((v) => v.ties.length)).toEqual([32, 16, 8, 4, 2, 2, 1]); // fases, quartas, semifinais, playoffs de acesso e final
+    expect(views.map((v) => v.name)).toEqual(['1ª fase (64 clubes)', '2ª fase (32 clubes)', 'Oitavas de final', 'Quartas de final', 'Playoff de acesso', 'Semifinal', 'Final']);
+    for (const v of views) for (const t of v.ties) { expect(t.done).toBe(true); expect(t.legs.length).toBe(2); expect(t.winnerId).toBeTruthy(); }
+    // a volta decide: pênaltis só quando o agregado termina empatado
+    for (const v of views) for (const t of v.ties) {
+      const volta = t.legs[1];
+      if (t.aGoals === t.bGoals) expect(volta.pens && volta.pens[0] !== volta.pens[1]).toBeTruthy(); else expect(volta.pens).toBeUndefined();
+      expect(t.legs[0].pens).toBeUndefined();
     }
-    expect(KO_LAST_ROUND).toBe(15);
+    // cada fase só tem vencedores da anterior
+    const byName = (n: string) => views.find((v) => v.name === n)!;
+    const order = ['1ª fase (64 clubes)', '2ª fase (32 clubes)', 'Oitavas de final', 'Quartas de final'];
+    for (let i = 1; i < order.length; i++) {
+      const prev = new Set(byName(order[i - 1]).ties.map((t) => t.winnerId));
+      for (const t of byName(order[i]).ties) { expect(prev.has(t.aId)).toBe(true); expect(prev.has(t.bId)).toBe(true); }
+    }
+    // semifinais com os 4 vencedores das quartas; playoffs de acesso com os 4 eliminados nas quartas
+    const qfWin = new Set(byName('Quartas de final').ties.map((t) => t.winnerId));
+    const qfLose = new Set(byName('Quartas de final').ties.map((t) => (t.winnerId === t.aId ? t.bId : t.aId)));
+    for (const t of byName('Semifinal').ties) { expect(qfWin.has(t.aId)).toBe(true); expect(qfWin.has(t.bId)).toBe(true); }
+    for (const t of byName('Playoff de acesso').ties) { expect(qfLose.has(t.aId)).toBe(true); expect(qfLose.has(t.bId)).toBe(true); }
+    expect(g.results.some((r) => r.divisionId === 'serie-d' && r.round > D_LAST_ROUND)).toBe(false);
   });
-  it('campeão da D, 4 semifinalistas sobem para a Série C, os 4 últimos da C descem, nada cai da D', () => {
+  it('6 acessos: os 4 vencedores das quartas + os 2 vencedores dos playoffs; campeão = vencedor da final', () => {
     const end = play(makeCareer('palmeiras', 5));
-    const f = finalStandings(end, D(end));
-    const final = knockoutView(end, D(end)).at(-1)!.ties[0];
-    expect(f.championId).toBe(final.winnerId);
-    expect(f.promoted.length).toBe(4);
-    const semi = knockoutView(end, D(end)).find((v) => v.round === 14)!.ties.flatMap((t) => [t.homeId, t.awayId]);
-    expect([...f.promoted].sort()).toEqual([...semi].sort());
-    expect(f.table.length).toBe(96);
-    expect(f.table[0].clubId).toBe(f.championId);
-    const cTable = end.divisions[2];
+    const st = serieDStanding(end, D(end));
+    const views = phaseViews(end, D(end));
+    const qf = views.find((v) => v.name === 'Quartas de final')!.ties.map((t) => t.winnerId!);
+    const po = views.find((v) => v.name === 'Playoff de acesso')!.ties.map((t) => t.winnerId!);
+    expect(st.promoted.length).toBe(6);
+    expect([...st.promoted].sort()).toEqual([...qf, ...po].sort());
+    expect(st.championId).toBe(views.find((v) => v.name === 'Final')!.ties[0].winnerId);
+    expect(st.table.length).toBe(96);
+    expect(st.table[0].clubId).toBe(st.championId);
+    expect(tieOutcome(end, 'serie-d', 'D-F-0')?.done).toBe(true);
+  });
+  it('virada: sobem da D os que a regra manda, a Série D segue com 96 e nada se perde', () => {
+    const end = play(makeCareer('palmeiras', 5));
+    const st = serieDStanding(end, D(end));
+    const flow = serieDFlow(end.season, serieDQualifiers(end).length);
     const next = startNextSeason(end);
     const idsD = new Set(next.divisions[3].clubIds), idsC = new Set(next.divisions[2].clubIds);
-    for (const id of f.promoted) { expect(idsC.has(id)).toBe(true); expect(idsD.has(id)).toBe(false); }
+    for (const id of st.promoted.slice(0, flow.promoted)) { expect(idsC.has(id)).toBe(true); expect(idsD.has(id)).toBe(false); }
     expect(next.divisions[3].clubIds.length).toBe(96);
     expect(next.divisions[3].groups!.flat().length).toBe(96);
     expect(next.divisions[3].groups).not.toEqual(end.divisions[3].groups);
-    expect(cTable.clubIds.length).toBe(20);
-    expect(next.history[0].divisions[3].championId).toBe(f.championId);
-    expect(next.history[0].divisions[3].promoted).toEqual(f.promoted);
+    expect(next.history[0].divisions[3].championId).toBe(st.championId);
     expect(next.history[0].tables![3].rows.length).toBe(96);
   });
   it('quem joga a Série D e é eliminado fica sem jogos nas rodadas finais, sem travar o jogo', () => {
@@ -88,7 +105,7 @@ describe('Série D em grupos', () => {
     expect(['promoted', 'stay']).toContain(out.movement); // da D não se cai
     const mine = g.results.filter((r) => r.divisionId === 'serie-d' && (r.homeId === 'csa' || r.awayId === 'csa'));
     expect(mine.length).toBeGreaterThanOrEqual(10);
-    expect(mine.length).toBeLessThanOrEqual(15);
+    expect(mine.length).toBeLessThanOrEqual(D_LAST_ROUND);
   });
   it('várias temporadas seguidas mantêm 96 clubes na Série D e os grupos refeitos a cada ano', () => {
     let g = makeCareer('flamengo', 4);

@@ -15,7 +15,8 @@ const ExtraSuper = lazy(() => premiumChunk(() => import('./ExtraViews'))().then(
 const ExtraOther = lazy(() => premiumChunk(() => import('./ExtraViews'))().then((m) => ({ default: m.OtherCupsView })));
 const REGIONAL_ICON = { nordeste: '🌵', verde: '🌳' } as const;
 import { clubOf } from '../engine/lookup';
-import { GROUP_ROUNDS, groupTables, isGroups, knockoutView } from '../engine/groups';
+import { GROUP_ROUNDS, groupTables, isGroups } from '../engine/groups';
+import { kindOf, phaseViews, rulesFor, serieCGroupTables, type TieOutcome } from '../engine/phases';
 import { estadualOfUser, estadualTable, playoffOf, stepLabel } from '../engine/estadual';
 import { HistoryView, TrophyRoom } from './HistoryView';
 import { ScorersView } from './Scorers';
@@ -139,8 +140,9 @@ export function Table({ game, initialView = 'div' }: { game: GameState; initialV
       <p className="legend">
         {idx === 0 && brazil && <><i className="k lib" /> {COMP_NAMES.lib} <i className="k sul" /> {COMP_NAMES.sula} </>}
         {idx > 0 && <><i className="k acc" /> Acesso (sobem {slots}) </>}
-        {idx < count - 1 && <><i className="k rel" /> Rebaixamento (descem {slots})</>}
+        {idx < count - 1 && <><i className="k rel" /> Rebaixamento (descem {kindOf(division) === 'C' ? rulesFor(game.season).cRelegated : slots})</>}
       </p>
+      <PhasesBlock game={game} division={division} />
       </>}
     </>
   );
@@ -268,14 +270,54 @@ function RoundsView({ game }: { game: GameState }) {
   );
 }
 
+/** Confrontos de ida e volta de uma fase: placar agregado, jogos e pênaltis. */
+function TiesBlock({ game, name, ties }: { game: GameState; name: string; ties: TieOutcome[] }) {
+  const n = (id: string) => game.clubs[id].name;
+  return (
+    <section className="cup-view">
+      <h3>{name}</h3>
+      <ul className="list">
+        {ties.map((t) => (
+          <li key={t.tie} className={t.aId === game.userClubId || t.bId === game.userClubId ? 'row mine' : 'row'}>
+            <span className="grow right">{n(t.aId)}</span>
+            <b className="score">{t.legs.length ? `${t.aGoals} - ${t.bGoals}` : 'x'}</b>
+            <span className="grow">{n(t.bId)}{t.done && t.aGoals === t.bGoals && t.legs[t.legs.length - 1]?.pens ? <small> (pên.)</small> : null}<small style={{ display: 'block', opacity: 0.7 }}>{t.legs.length ? `Ida ${t.legs[0].homeGoals}-${t.legs[0].awayGoals}${t.legs[1] ? ` · Volta ${t.legs[1].homeGoals}-${t.legs[1].awayGoals}` : ''}` : 'ida e volta'}</small></span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** Fases da Série B (playoffs de acesso) e da Série C (quadrangulares e final), abaixo da tabela. */
+function PhasesBlock({ game, division }: { game: GameState; division: GameState['divisions'][number] }) {
+  const k = kindOf(division);
+  if (k !== 'B' && k !== 'C') return null;
+  const quads = k === 'C' ? serieCGroupTables(game, division) : [];
+  const views = phaseViews(game, division);
+  const n = (id: string) => game.clubs[id].name;
+  return (
+    <>
+      {k === 'B' && views.length === 0 && <p className="hint">Do 3º ao 6º lugar: playoffs de ida e volta (3º x 6º e 4º x 5º) pelas outras 2 vagas de acesso. O 1º e o 2º sobem direto; os 4 últimos caem para a Série C.</p>}
+      {k === 'C' && quads.length === 0 && <p className="hint">1ª fase em turno único: os 8 primeiros vão aos quadrangulares (os 2 melhores de cada um sobem para a Série B) e os 2 últimos caem para a Série D.</p>}
+      {quads.map((q) => (
+        <section key={q.name} className="cup-view">
+          <h3>{q.name}</h3>
+          <ul className="list">{q.rows.map((r, i) => <li key={r.clubId} className={r.clubId === game.userClubId ? 'row mine' : 'row'}><b>{i + 1}</b><span className="grow">{n(r.clubId)}</span><b className="score">{r.points} pts</b></li>)}</ul>
+        </section>
+      ))}
+      {views.map((v) => <TiesBlock key={v.name} game={game} name={v.name} ties={v.ties} />)}
+    </>
+  );
+}
+
 /** Série D: 16 grupos de 6 (os 2 primeiros avançam) e o mata-mata até a final. Os 4 semifinalistas sobem. */
 function GroupsView({ game }: { game: GameState }) {
   const d = game.divisions.find(isGroups)!;
   const tabs = groupTables(game, d);
   const mine = Math.max(0, tabs.findIndex((t) => t.rows.some((r) => r.clubId === game.userClubId)));
   const [sel, setSel] = useState<number | 'ko'>(game.round > GROUP_ROUNDS ? 'ko' : mine);
-  const ko = knockoutView(game, d);
-  const name = (id: string) => game.clubs[id].name;
+  const ko = phaseViews(game, d);
   return (
     <>
       <div className="chips" role="tablist" aria-label="Grupos da Série D">
@@ -284,21 +326,8 @@ function GroupsView({ game }: { game: GameState }) {
       </div>
       {sel === 'ko' ? (
         <div className="cup-view">
-          {ko.length === 0 && <p className="hint">O mata-mata começa depois da rodada {GROUP_ROUNDS}, com os 2 primeiros de cada grupo (32 clubes). Os 4 semifinalistas sobem para a Série C.</p>}
-          {[...ko].reverse().map((v) => (
-            <section key={v.name}>
-              <h3>{v.name}</h3>
-              <ul className="list">
-                {v.ties.map((t) => (
-                  <li key={t.homeId} className={t.homeId === game.userClubId || t.awayId === game.userClubId ? 'row mine' : 'row'}>
-                    <span className="grow right">{name(t.homeId)}</span>
-                    <b className="score">{t.result ? `${t.result.homeGoals} - ${t.result.awayGoals}` : 'x'}</b>
-                    <span className="grow">{name(t.awayId)}{t.result?.pens ? <small> ({t.result.pens[0]}–{t.result.pens[1]} pên.)</small> : null}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
+          {ko.length === 0 && <p className="hint">O mata-mata (ida e volta) começa depois da rodada {GROUP_ROUNDS}, com os 4 primeiros de cada grupo (64 clubes). Os 4 vencedores das quartas sobem para a Série C; os 4 eliminados nas quartas disputam mais 2 vagas em playoffs (6 acessos no total).</p>}
+          {[...ko].reverse().map((v) => <TiesBlock key={v.name} game={game} name={v.name} ties={v.ties} />)}
         </div>
       ) : (
         <>
