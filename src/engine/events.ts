@@ -10,7 +10,7 @@ import { hooks, REGIONAL_KEYS } from './hooks';
 import { socialAfterMatch } from './social';
 import type { GameState, MatchResult } from './types';
 
-export type EventKind = 'estadual' | 'cup' | 'lib' | 'sula' | 'ucl' | 'mundial' | 'super' | 'nordeste' | 'verde';
+export type EventKind = 'estadual' | 'cup' | 'lib' | 'sula' | 'ucl' | 'mundial' | 'super' | 'nordeste' | 'verde' | 'sulsudeste';
 export interface PendingEvent { kind: EventKind; /** id da competição (divisionId dos resultados) */ id: string; label: string; match: { homeId: string; awayId: string } }
 
 /** Jogo especial esperando o seu clube (copa nacional, Libertadores, Champions ou Mundial), se houver. */
@@ -29,7 +29,7 @@ export function pendingEvent(g: GameState): PendingEvent | undefined {
 
 /** Joga o evento pendente do seu clube. */
 export function playEvent(g: GameState, kind: EventKind): { state: GameState; results: MatchResult[] } {
-  const r = kind === 'estadual' ? playEstadualStep(g) : kind === 'cup' ? playCupRound(g) : kind === 'mundial' ? playMundialStep(g) : kind === 'super' ? hooks.playSuperStep(g) : kind === 'nordeste' || kind === 'verde' ? hooks.playRegionalStep(g, kind) : playContStep(g, kind);
+  const r = kind === 'estadual' ? playEstadualStep(g) : kind === 'cup' ? playCupRound(g) : kind === 'mundial' ? playMundialStep(g) : kind === 'super' ? hooks.playSuperStep(g) : kind === 'nordeste' || kind === 'verde' || kind === 'sulsudeste' ? hooks.playRegionalStep(g, kind) : playContStep(g, kind);
   const my = r.results.find((x) => x.homeId === g.userClubId || x.awayId === g.userClubId);
   if (my) r.state = pruneInjuries(applyInjuries(r.state, hitsFromEvents(my.events, my.homeId, my.awayId), g.round)); // lesões do seu jogo na copa/estadual/continental
   if (!my || g.unemployed) return r;

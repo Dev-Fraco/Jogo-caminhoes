@@ -50,7 +50,7 @@ export const installHooks = (h: Partial<ExtrasHooks>): void => { Object.assign(h
 export const resetHooks = (): void => { Object.assign(hooks, DEFAULTS); };
 
 /** As duas copas regionais (lista fixa e leve; o conteúdo delas vem do pacote). */
-export const REGIONAL_KEYS: RegionalKey[] = ['nordeste', 'verde'];
+export const REGIONAL_KEYS: RegionalKey[] = ['nordeste', 'verde', 'sulsudeste'];
 export const regionalDueAny = (g: GameState): boolean => REGIONAL_KEYS.some((k) => g.regionais?.[k]?.due);
 
 /** Propostas de clubes do exterior abertas agora (só leitura do estado; quem aceita/recusa é o pacote). */

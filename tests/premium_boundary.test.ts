@@ -67,6 +67,6 @@ describe('jogo grátis (sem o pacote dos extras)', () => {
   it('com o pacote, tudo volta: mundo, copas regionais e Super Mundial', () => {
     installExtras();
     const g = career();
-    expect(g.world).toBeTruthy(); expect(Object.keys(g.regionais ?? {}).length).toBe(2);
+    expect(g.world).toBeTruthy(); expect(Object.keys(g.regionais ?? {}).length).toBe(3); // Nordeste, Verde e Sul-Sudeste
   });
 });

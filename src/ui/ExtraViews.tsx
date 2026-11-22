@@ -2,15 +2,15 @@ import { COMP_NAMES as NAMES } from '../data/names';
 import { otherClub } from '../data/otherworld';
 import { groupTable } from '../engine/continental';
 import { clubOf } from '../engine/lookup';
-import { regionalStepName } from '../engine/regional';
+import { regionalGroupTable, regionalStepName } from '../engine/regional';
 import { isSuperYear, SUPER_EVERY, SUPER_STEPS } from '../engine/supermundial';
-import type { GameState } from '../engine/types';
+import type { GameState, RegionalKey } from '../engine/types';
 import { ClubBadge } from './ClubBadge';
 
 /* Telas dos extras Premium (Copa do Nordeste, Copa Verde, Super Mundial e copas da África/Arábia): carregadas sob demanda. */
 
 /** Grupos (o seu primeiro) e mata-mata de uma competição com fase de grupos. */
-export function GroupsKoView({ game, groups: gs, ko, championId, champLabel, subtitle }: { game: GameState; groups: { id: string; clubIds: string[]; matches: { round: number; homeId: string; awayId: string; homeGoals?: number; awayGoals?: number }[] }[]; ko: { name: string; ties: { homeId: string; awayId: string; homeGoals?: number; awayGoals?: number; pens?: [number, number]; winnerId?: string }[] }[]; championId?: string; champLabel: string; subtitle: string }) {
+export function GroupsKoView({ game, groups: gs, ko, championId, champLabel, subtitle, tableOf }: { tableOf?: (gr: { id: string }) => ReturnType<typeof groupTable>; game: GameState; groups: { id: string; clubIds: string[]; matches: { round: number; homeId: string; awayId: string; homeGoals?: number; awayGoals?: number }[] }[]; ko: { name: string; ties: { homeId: string; awayId: string; homeGoals?: number; awayGoals?: number; pens?: [number, number]; winnerId?: string }[] }[]; championId?: string; champLabel: string; subtitle: string }) {
   const name = (id: string) => clubOf(game, id).name;
   const groups = [...gs].sort((a, b) => Number(b.clubIds.includes(game.userClubId)) - Number(a.clubIds.includes(game.userClubId)));
   return (
@@ -37,7 +37,7 @@ export function GroupsKoView({ game, groups: gs, ko, championId, champLabel, sub
           <h4>Grupo {gr.id.slice(-1)}</h4>
           <div className="tb-wrap"><table className="tb">
             <thead><tr><th>#</th><th className="l">Clube</th><th>PTS</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr></thead>
-            <tbody>{groupTable(game, gr).map((r, i) => (
+            <tbody>{(tableOf ? tableOf(gr) : groupTable(game, gr)).map((r, i) => (
               <tr key={r.clubId} className={`${r.clubId === game.userClubId ? 'mine' : ''} ${i < 2 ? 'lib' : ''}`}>
                 <td><span className="pos">{i + 1}</span></td>
                 <td className="l"><div className="team"><ClubBadge club={clubOf(game, r.clubId)} size={22} /><span className="cname">{name(r.clubId)}</span></div></td>
@@ -58,9 +58,11 @@ export function SuperView({ game }: { game: GameState }) {
 }
 
 /** Copa do Nordeste e Copa Verde. */
-export function RegionalView({ game, k }: { game: GameState; k: 'nordeste' | 'verde' }) {
+export function RegionalView({ game, k }: { game: GameState; k: RegionalKey }) {
   const r = game.regionais![k]!;
-  return <GroupsKoView game={game} groups={r.groups} ko={r.ko} championId={r.championId} champLabel={`Campeão da ${r.name}`} subtitle={`${r.entrants.length} clubes · ${regionalStepName(k, r)} · os 4 melhores de cada estado do ${k === 'nordeste' ? 'Nordeste' : 'Norte, Centro-Oeste e ES (2 por estado)'}`} />;
+  const about = k === 'nordeste' ? '4 grupos de 5; os 2 primeiros de cada vão às quartas' : k === 'verde' ? 'Copa Norte e Copa Centro-Oeste (2 grupos de 6 cada); os campeões dos blocos decidem o título' : '2 grupos de 6 que se enfrentam; os 2 primeiros de cada vão à semifinal';
+  const fases = k === 'verde' && r.blocChampions?.length ? ` · campeões dos blocos: ${r.blocChampions.map((id) => clubOf(game, id).name).join(' e ')}` : '';
+  return <GroupsKoView game={game} groups={r.groups} ko={r.ko} championId={r.championId} champLabel={`Campeão da ${r.name}`} subtitle={`${r.entrants.length} clubes · ${regionalStepName(k, r)} · ${about}${fases}`} tableOf={(gr) => regionalGroupTable(game, r, r.groups.findIndex((x) => x.id === gr.id))} />;
 }
 
 /** Copas dos Campeões da África e Árabe (nos bastidores) e quando é o próximo Super Mundial. */

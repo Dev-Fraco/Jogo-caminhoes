@@ -24,6 +24,7 @@ import { youthSeasonEnd, youthStartSeason } from '../engine/ycomp';
 import { settleSalary } from '../engine/salary';
 import { calOf, newSeasonCalendar } from '../engine/calendar';
 import { createCup } from '../engine/cup';
+import { serieDStanding } from '../engine/phases';
 import { rolloverInjuries } from '../engine/injuries';
 import { makeRng } from '../engine/rng';
 import { returnLoans } from '../engine/roster';
@@ -33,6 +34,9 @@ import { baseIncome } from '../engine/finance';
 import { nextInflation, priceIndex, seasonIncome } from '../engine/economy';
 
 import { buildSeason, isSeasonOver, seasonOutcome, seasonSummary, simulateToEnd } from '../engine/game';
+
+/** Vice-campeão da Copa do Brasil (perdeu a final). */
+const cupVice = (g: GameState): string | undefined => { const f = g.cup?.rounds[g.cup.rounds.length - 1]?.ties[0]; return f?.winnerId ? (f.winnerId === f.homeId ? f.awayId : f.homeId) : undefined; };
 
 /** Encerra a temporada: aplica acesso e rebaixamento, guarda o resumo e monta o calendário da próxima. */
 export function startNextSeason(g: GameState): GameState {
@@ -106,8 +110,11 @@ function startNextSeasonCore(g: GameState, calNew: ReturnType<typeof newSeasonCa
   const arrivals = (list: 'promoted' | 'relegated', delta: number) => moves.flatMap((m, i) => m[list].map((clubId) => ({ clubId, to: i + delta })));
   const rng = makeRng(g.seed * 977 + g.season * 31 + 5);
   const { state, promotion } = offseason(next, rng, { promoted: arrivals('promoted', -1), relegated: arrivals('relegated', 1) });
-  const cupped: GameState = g.cup ? { ...state, cup: createCup(state), estadual: g.estadual ? nextEstaduais(g, g.estadual) : undefined } : state;
-  const withCup: GameState = hooks.createRegionals(createContinentals({ ...cupped, mundial: undefined, superMundial: undefined }, moves[0].table.map((r) => r.clubId), g.cup?.championId), g);
+  // vagas na Copa do Brasil: campeão da Série D e das copas regionais (Nordeste, os 2 blocos da Verde e Sul-Sudeste)
+  const dChamp = g.divisions.find((d) => d.format === 'groups'); const guests = [...(dChamp ? [serieDStanding(g, dChamp).championId] : []), g.regionais?.nordeste?.championId, ...(g.regionais?.verde?.blocChampions ?? []), g.regionais?.sulsudeste?.championId].filter((x): x is string => !!x);
+  let withGuests = state; for (const id of guests) withGuests = adoptClub(withGuests, id);
+  const cupped: GameState = g.cup ? { ...withGuests, cup: createCup(withGuests, guests), estadual: g.estadual ? nextEstaduais(g, g.estadual) : undefined } : state;
+  const withCup: GameState = hooks.createRegionals(createContinentals({ ...cupped, mundial: undefined, superMundial: undefined }, moves[0].table.map((r) => r.clubId), g.cup?.championId, { vice: cupVice(g), holders: ([g.lib?.championId, g.sula?.championId].filter((x): x is string => !!x)) }), g);
   const cal = calNew;
   const league = limitedAt(g, g.season + 1) ? onlyClubLeague(withCup) : withCup; // jogador do grátis depois da 1ª temporada: só a liga do clube
   let result: GameState = freezeGoals(youthSeason({ ...league, cal, history: withCup.history.map((h, i) => (i === withCup.history.length - 1 ? { ...h, promotion } : h)) }));

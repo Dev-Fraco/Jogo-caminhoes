@@ -276,8 +276,10 @@ export interface RegionalState {
   alive: string[];
   entrants: string[];
   championId?: string;
+  /** Copa Verde: os campeões da Copa Norte e da Copa Centro-Oeste (os dois têm vaga na Copa do Brasil). */
+  blocChampions?: string[];
 }
-export type RegionalKey = 'nordeste' | 'verde';
+export type RegionalKey = 'nordeste' | 'verde' | 'sulsudeste';
 /** Copas dos Campeões da África e Árabe (disputadas nos bastidores, um campeão por temporada). */
 export interface OtherEdition { season: number; championId: string; runnerUpId: string }
 export interface OtherCups { africa: OtherEdition[]; arab: OtherEdition[] }
@@ -341,6 +343,7 @@ export interface SeasonSummary {
   superChampionId?: string;
   nordesteChampionId?: string;
   verdeChampionId?: string;
+  sulsudesteChampionId?: string;
   libChampionId?: string;
   cupChampionId?: string;
   season: number;

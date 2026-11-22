@@ -78,11 +78,11 @@ export function Home({ game, onChange, last, over, onPlay, onSeeTables, onSeeRes
           <button className="primary" onClick={onNextSeason}>Próxima temporada</button>
         </div>
         <SalaryCard key={game.season} game={game} onChange={onChange} />
-        {[game.cup, game.lib, game.sula, game.ucl, game.mundial, game.superMundial, game.regionais?.nordeste, game.regionais?.verde].some((c) => c?.championId) && (
+        {[game.cup, game.lib, game.sula, game.ucl, game.mundial, game.superMundial, game.regionais?.nordeste, game.regionais?.verde, game.regionais?.sulsudeste].some((c) => c?.championId) && (
           <section>
             <h3>Campeões das copas</h3>
             <ul className="list">
-              {[['🏆', game.cup], ['🌎', game.lib], ['🌴', game.sula], ['⭐', game.ucl], ['🌍', game.mundial], ['🌐', game.superMundial], ['🌵', game.regionais?.nordeste], ['🌳', game.regionais?.verde]].map(([icon, c]) => { const k = c as { id: string; name: string; championId?: string } | undefined; return k?.championId ? <li key={k.id}><div className="row"><span className="grow">{icon as string} {k.name}</span><b>{name(k.championId)}</b></div></li> : null; })}
+              {[['🏆', game.cup], ['🌎', game.lib], ['🌴', game.sula], ['⭐', game.ucl], ['🌍', game.mundial], ['🌐', game.superMundial], ['🌵', game.regionais?.nordeste], ['🌳', game.regionais?.verde], ['🌲', game.regionais?.sulsudeste]].map(([icon, c]) => { const k = c as { id: string; name: string; championId?: string } | undefined; return k?.championId ? <li key={k.id}><div className="row"><span className="grow">{icon as string} {k.name}</span><b>{name(k.championId)}</b></div></li> : null; })}
             </ul>
           </section>
         )}
@@ -107,7 +107,7 @@ export function Home({ game, onChange, last, over, onPlay, onSeeTables, onSeeRes
 
   const ev = pendingEvent(game);
   const next = ev ? ev.match : fixturesOfRound(game, game.round, division.id).find((f) => f.homeId === game.userClubId || f.awayId === game.userClubId);
-  const shown = last.filter((r) => r.divisionId === division.id || [game.cup?.id, game.lib?.id, game.sula?.id, game.ucl?.id, game.mundial?.id, game.superMundial?.id, game.regionais?.nordeste?.id, game.regionais?.verde?.id].includes(r.divisionId));
+  const shown = last.filter((r) => r.divisionId === division.id || [game.cup?.id, game.lib?.id, game.sula?.id, game.ucl?.id, game.mundial?.id, game.superMundial?.id, game.regionais?.nordeste?.id, game.regionais?.verde?.id, game.regionais?.sulsudeste?.id].includes(r.divisionId));
   const tableRows = division.format === 'outside' ? [] : (isGroups(division) ? userGroupRows(game, division) : undefined) ?? divisionTable(game, division.id);
   const myPos = tableRows.findIndex((r) => r.clubId === game.userClubId);
   const miniRows = [0, 1, 2].filter((i) => i < tableRows.length).map((i) => ({ r: tableRows[i], pos: i + 1 })).concat(myPos > 2 ? [{ r: tableRows[myPos], pos: myPos + 1 }] : []);
@@ -174,7 +174,7 @@ export function Home({ game, onChange, last, over, onPlay, onSeeTables, onSeeRes
       <Newspaper game={game} />
       {shown.length > 0 && (
         <section>
-          <h3>{shown[0].divisionId === division.id ? `Resultados da rodada ${shown[0].round}` : `${[game.cup, game.lib, game.sula, game.ucl, game.mundial, game.superMundial, game.regionais?.nordeste, game.regionais?.verde].find((c) => c?.id === shown[0].divisionId)?.name ?? 'Copa'} — resultados`}</h3>
+          <h3>{shown[0].divisionId === division.id ? `Resultados da rodada ${shown[0].round}` : `${[game.cup, game.lib, game.sula, game.ucl, game.mundial, game.superMundial, game.regionais?.nordeste, game.regionais?.verde, game.regionais?.sulsudeste].find((c) => c?.id === shown[0].divisionId)?.name ?? 'Copa'} — resultados`}</h3>
           <ul className="list">
             {shown.map((r) => {
               const key = `${r.round}-${r.homeId}`;

@@ -13,7 +13,7 @@ import type { FeatureId } from '../premium/features';
 const ExtraRegional = lazy(() => premiumChunk(() => import('./ExtraViews'))().then((m) => ({ default: m.RegionalView })));
 const ExtraSuper = lazy(() => premiumChunk(() => import('./ExtraViews'))().then((m) => ({ default: m.SuperView })));
 const ExtraOther = lazy(() => premiumChunk(() => import('./ExtraViews'))().then((m) => ({ default: m.OtherCupsView })));
-const REGIONAL_ICON = { nordeste: '🌵', verde: '🌳' } as const;
+const REGIONAL_ICON = { nordeste: '🌵', verde: '🌳', sulsudeste: '🌲' } as const;
 import { clubOf } from '../engine/lookup';
 import { GROUP_ROUNDS, groupTables, isGroups } from '../engine/groups';
 import { kindOf, phaseViews, rulesFor, serieCGroupTables, type TieOutcome } from '../engine/phases';
@@ -44,7 +44,7 @@ function formOf(game: GameState, divisionId: string, clubId: string): ('W' | 'D'
 export function Table({ game, initialView = 'div' }: { game: GameState; initialView?: 'div' | 'rounds' | 'hist' | 'scorers' }) {
   const mineIndex = userDivisionIndex(game);
   const [idx, setIdx] = useState(mineIndex);
-  const [view, setView] = useState<'div' | 'cup' | Comp | 'mundial' | 'super' | 'copas' | 'nordeste' | 'verde' | 'outras' | 'rounds' | 'hist' | 'titles' | 'estadual' | 'scorers'>(initialView);
+  const [view, setView] = useState<'div' | 'cup' | Comp | 'mundial' | 'super' | 'copas' | 'nordeste' | 'verde' | 'sulsudeste' | 'outras' | 'rounds' | 'hist' | 'titles' | 'estadual' | 'scorers'>(initialView);
   const division = game.divisions[idx];
   const rows = divisionTable(game, division.id);
   const n = rows.length;
@@ -104,7 +104,7 @@ export function Table({ game, initialView = 'div' }: { game: GameState; initialV
       {(view === 'lib' || view === 'sula' || view === 'ucl') && game[view] && <LibView game={game} comp={view} />}
       {view === 'mundial' && game.mundial && <MundialView game={game} />}
       {view === 'super' && <PremiumGate feature="super">{game.superMundial ? <ExtraSuper game={game} /> : <p className="hint">O Super Mundial acontece a cada 4 anos, no fim da temporada (2026, 2030...).</p>}</PremiumGate>}
-      {(view === 'nordeste' || view === 'verde') && <PremiumGate feature={view as FeatureId}>{game.regionais?.[view] ? <ExtraRegional game={game} k={view} /> : <p className="hint">Esta copa começa na próxima temporada.</p>}</PremiumGate>}
+      {(view === 'nordeste' || view === 'verde' || view === 'sulsudeste') && <PremiumGate feature={view as FeatureId}>{game.regionais?.[view] ? <ExtraRegional game={game} k={view} /> : <p className="hint">Esta copa começa na próxima temporada.</p>}</PremiumGate>}
       {view === 'outras' && <PremiumGate feature="africa"><ExtraOther game={game} /></PremiumGate>}
       {view === 'copas' && <PremiumPreview feature="leagues" onBack={() => setView('div')} />}
       {view === 'div' && limited && idx !== mineIndex && <PremiumPreview feature="leagues" onBack={() => setIdx(mineIndex)} />}

@@ -24,7 +24,7 @@ describe('Copa do Brasil', () => {
   });
   it('a fase abre depois da rodada marcada e o jogo do seu clube vem antes da próxima rodada', () => {
     let g = career();
-    for (let i = 0; i < CUP_DATES[0]; i++) { expect(cupMatchDue(g)).toBe(false); g = playNext(g).state; }
+    while (g.round <= CUP_DATES[0]) { expect(cupMatchDue(g)).toBe(false); g = playNext(g).state; } // (as copas regionais podem ter jogos antes: a rodada só avança depois deles)
     expect(cupMatchDue(g)).toBe(true);
     const round = g.round;
     expect(userCupTie(g)).toBeTruthy();

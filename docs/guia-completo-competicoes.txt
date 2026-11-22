@@ -1,0 +1,142 @@
+GUIA COMPLETO DE COMPETIÇÕES
+Regras, formatos, acessos, rebaixamentos e classificação continental — Vida Real FC
+Documento de referência para configurar o calendário e os campeonatos do Vida Real FC. A referência principal é a estrutura oficial de 2026. Alguns regulamentos mudam de uma temporada para outra; por isso, o jogo deve permitir editar número de clubes, vagas e formatos por temporada.
+1. Como funcionam os pontos corridos
+Vitória vale 3 pontos, empate vale 1 e derrota vale 0. Em turno e returno, cada clube enfrenta os demais duas vezes, uma em casa e outra fora. Em turno único, enfrenta cada adversário uma vez. A classificação considera primeiro os pontos e depois os critérios de desempate definidos no regulamento (normalmente vitórias, saldo de gols, gols marcados e confronto direto). No mata-mata, os confrontos podem ser em jogo único ou ida e volta; empate no agregado é resolvido conforme o regulamento, geralmente por pênaltis.
+2. Série A — classificação continental e rebaixamento
+Na referência oficial de 2026, a Série A tem 20 clubes em pontos corridos, com 38 rodadas. Os quatro últimos colocados (17º ao 20º) caem para a Série B.
+Posição / critério
+Destino-base 2026
+1º ao 4º
+Libertadores — fase de grupos
+5º
+Libertadores — fase preliminar
+6º em diante
+A classificação para a Sul-Americana é dada aos 6 clubes mais bem colocados que não estejam classificados para a Libertadores.
+17º ao 20º
+Rebaixamento para a Série B
+2.1 Entendendo G4, G5, G6, G7 e vagas extras
+Atenção: não se deve programar uma regra fixa dizendo que todo ano o G4 vai direto e o G5-G6 vão à pré-Libertadores. No regulamento brasileiro de 2026, a distribuição-base pelo Brasileirão é 4 vagas diretas (1º ao 4º) e 1 vaga preliminar (5º). As vagas da Copa do Brasil e dos campeões continentais podem fazer a classificação avançar para posições seguintes.
+Copa do Brasil: em 2026, campeão e vice recebem vagas na Libertadores (campeão na fase de grupos; vice na fase preliminar).
+Se o campeão da Copa do Brasil já tiver garantido vaga na Libertadores pelo Brasileirão ou por título continental, a vaga direta da Copa do Brasil é redirecionada ao vice, conforme o regulamento. A vaga preliminar que o vice ocuparia pode voltar para o clube mais bem colocado do Brasileirão ainda não classificado.
+Campeão da Libertadores: garante vaga na fase de grupos da edição seguinte. Se já estiver classificado pelo Brasileirão, a vaga adicional pode ser redistribuída conforme o regulamento da Conmebol e da CBF.
+Campeão da Sul-Americana: também garante vaga na fase de grupos da Libertadores seguinte. Se já estiver classificado por outra via, a redistribuição depende do regulamento aplicável.
+Portanto, pode surgir G6, G7, G8 ou até mais posições contempladas em temporadas com várias sobreposições. Mas não é simplesmente somar uma vaga por título: é preciso retirar os clubes já classificados e repassar cada vaga na ordem prevista no regulamento.
+2.2 Exemplo didático para o jogo
+Comece atribuindo as vagas-base da Série A (1º-4º fase de grupos; 5º preliminar). Depois, processe os campeões da Copa do Brasil, Libertadores e Sul-Americana. Marque cada clube como classificado e sua fase de entrada. Quando uma vaga for ocupada por um clube que já está classificado, repasse-a ao próximo clube elegível da Série A. Só depois de concluir todas as sobreposições, distribua a Sul-Americana aos seis melhores clubes que não tenham vaga na Libertadores.
+3. Série B — acesso por playoffs
+Em 2026, são 20 clubes em pontos corridos, com 38 rodadas. Os dois primeiros sobem diretamente para a Série A. Do 3º ao 6º lugar, os clubes disputam duas eliminatórias de ida e volta: 3º x 6º e 4º x 5º. Os vencedores conquistam as outras duas vagas de acesso. Os quatro últimos (17º ao 20º) caem para a Série C.
+Colocação
+Resultado
+1º e 2º
+Acesso direto à Série A
+3º x 6º / 4º x 5º
+Playoffs ida e volta; os dois vencedores sobem
+17º ao 20º
+Rebaixados para a Série C
+4. Série C — formato 2026
+Em 2026, a Série C tem 20 clubes. A primeira fase é um grupo único, em turno único, com 19 rodadas. Os oito primeiros avançam para a segunda fase. Os dois últimos da primeira fase (19º e 20º) caem para a Série D.
+Na segunda fase, os oito classificados são divididos em dois quadrangulares, com jogos de ida e volta (seis rodadas por clube). Um grupo reúne os times que terminaram em 1º, 4º, 5º e 8º; o outro reúne 2º, 3º, 6º e 7º. Os dois primeiros de cada grupo sobem para a Série B. Os líderes dos dois grupos fazem a final para definir o campeão.
+Fase / colocação
+Regra
+1ª fase — 1º ao 8º
+Avançam aos quadrangulares
+1ª fase — 19º e 20º
+Caem para a Série D
+Quadrangulares — 1º e 2º de cada grupo
+Quatro clubes sobem para a Série B
+Líderes dos quadrangulares
+Disputam a final da Série C
+Mudança futura importante: a CBF prevê 24 clubes na Série C em 2027 e 28 clubes em 2028. Para o Vida Real FC, deixe o tamanho da divisão e o número de rebaixados configuráveis por temporada.
+5. Série D — formato 2026 e seis acessos
+Em 2026, a Série D tem 96 clubes, divididos em 16 grupos de seis. Na primeira fase, cada clube joga contra os outros cinco do grupo em turno e returno: dez partidas. Os quatro primeiros de cada grupo avançam ao mata-mata.
+O mata-mata é disputado em ida e volta. Os clubes avançam pelas fases eliminatórias até as quartas de final. Os quatro vencedores das quartas (semifinalistas) garantem acesso à Série C. Os quatro clubes derrotados nas quartas disputam playoffs entre si, também em ida e volta, pelas duas vagas restantes. Assim, são seis acessos no total.
+Etapa
+Regra
+Primeira fase
+16 grupos de 6; turno e returno; 10 jogos
+Classificação
+Os 4 primeiros de cada grupo avançam (64 clubes)
+Mata-mata
+Confrontos de ida e volta
+Quartas de final
+Os 4 vencedores sobem para a Série C
+Playoffs de acesso
+Os 4 eliminados nas quartas disputam 2 vagas; os 2 vencedores sobem
+Total de acessos
+6 clubes para a Série C
+Os clubes que chegam à terceira fase garantem participação na Série D da temporada seguinte, conforme o regulamento de 2026. O campeão da Série D também recebe vaga na terceira fase da Copa do Brasil seguinte.
+6. Campeonatos estaduais — organização por região
+Cada federação estadual organiza seu campeonato. Não existe um formato nacional único: número de clubes, grupos, rodadas, semifinais, finais e critérios de desempate variam. Para o jogo, cada estado deve ter sua própria competição, calendário e regulamento.
+Região
+Estados
+Norte
+Acre (AC), Amapá (AP), Amazonas (AM), Pará (PA), Rondônia (RO), Roraima (RR) e Tocantins (TO).
+Nordeste
+Alagoas (AL), Bahia (BA), Ceará (CE), Maranhão (MA), Paraíba (PB), Pernambuco (PE), Piauí (PI), Rio Grande do Norte (RN) e Sergipe (SE).
+Centro-Oeste
+Distrito Federal (DF), Goiás (GO), Mato Grosso (MT) e Mato Grosso do Sul (MS).
+Sudeste
+Espírito Santo (ES), Minas Gerais (MG), Rio de Janeiro (RJ) e São Paulo (SP).
+Sul
+Paraná (PR), Rio Grande do Sul (RS) e Santa Catarina (SC).
+6.1 Como o estadual deve funcionar no Vida Real FC
+Cada estado pode ter primeira divisão e, se desejado, divisões inferiores com acesso e rebaixamento estaduais.
+O formato da primeira divisão pode ser configurado: grupo único, grupos regionalizados, turno único, ida e volta, mata-mata ou combinação desses modelos.
+O jogo deve definir antes da temporada quais posições avançam às fases finais e quais clubes caem para a divisão estadual inferior.
+As vagas nacionais e regionais devem ser atribuídas apenas a clubes elegíveis, respeitando as regras da CBF e da competição. Um clube já presente nas Séries A, B ou C não deve ocupar uma vaga destinada à Série D.
+A quantidade de vagas para a Série D varia conforme o Ranking Nacional das Federações e os critérios anuais da CBF; não dê o mesmo número de vagas automaticamente a todos os estados.
+Para a Copa do Brasil, a classificação também segue critérios nacionais e estaduais definidos pela CBF. Não presuma que apenas o campeão estadual se classifica.
+7. Copa do Nordeste
+É a competição regional dos clubes dos nove estados do Nordeste: AL, BA, CE, MA, PB, PE, PI, RN e SE. A lista de participantes e o método de entrada são definidos no regulamento de cada edição pela CBF e pelas federações.
+Na edição de 2026, são 20 clubes, divididos em quatro grupos de cinco. O regulamento específico define os cruzamentos, a classificação e as fases eliminatórias. Para o jogo, implemente grupos e mata-mata como dados configuráveis, sem fixar que todos os anos terão necessariamente o mesmo número de participantes ou o mesmo cruzamento.
+O campeão da Copa do Nordeste de 2026 garante vaga na terceira fase da Copa do Brasil de 2027. A vaga deve ser aplicada à edição seguinte, não à Copa do Brasil já em andamento.
+8. Copa Verde — Copa Norte e Copa Centro-Oeste
+Em 2026, a Copa Verde reúne 24 clubes das regiões Norte e Centro-Oeste, além do Espírito Santo. A competição é organizada em dois blocos: Copa Norte e Copa Centro-Oeste, cada um com 12 participantes.
+Cada bloco tem dois grupos de seis. Os clubes jogam dentro do grupo em turno único; os quatro melhores de cada grupo avançam às quartas de final. A partir daí, há mata-mata. Os campeões da Copa Norte e da Copa Centro-Oeste se enfrentam para definir o campeão da Copa Verde.
+Os campeões da Copa Norte e da Copa Centro-Oeste garantem vaga na terceira fase da Copa do Brasil seguinte. O jogo deve tratar as duas vagas como classificações regionais distintas, mesmo que a decisão final defina o campeão geral da Copa Verde.
+9. Copa Sul-Sudeste
+Competição regional criada para clubes dos estados do Sul e Sudeste. Na edição inaugural de 2026, são 12 clubes: dois representantes de cada uma das seis federações estaduais envolvidas (ES, MG, PR, RJ, RS e SP), conforme critérios de ranking.
+Os 12 clubes são divididos em dois grupos de seis e enfrentam os clubes do outro grupo em turno único, totalizando seis partidas por equipe. Os dois melhores de cada grupo avançam às semifinais; depois há final, ambas em ida e volta. O campeão garante vaga na terceira fase da Copa do Brasil de 2027. A quantidade de clubes e o formato devem ser ajustáveis por temporada.
+10. Como distribuir vagas sem duplicar clubes
+Primeiro, finalize a Série A e registre a classificação final.
+Depois, registre os campeões e vice-campeões da Copa do Brasil e os campeões da Libertadores e da Sul-Americana.
+Atribua a cada clube sua vaga e a fase de entrada. Um clube pode ter mais de um caminho de classificação, mas não deve consumir duas vagas brasileiras simultaneamente.
+Quando uma vaga for repassada, escolha o próximo clube elegível segundo a ordem do regulamento. Não repasse automaticamente para um clube já classificado.
+Após fechar todas as vagas da Libertadores, distribua a Sul-Americana aos seis melhores colocados da Série A que não tenham sido classificados para a Libertadores, conforme o regulamento de 2026.
+Por fim, processe acessos e rebaixamentos das Séries A, B, C e D e as vagas estaduais/regionais para a temporada seguinte.
+11. Resumo geral para programação
+Competição
+Formato / clubes
+Acesso / classificação / queda
+Série A
+20 clubes; 38 rodadas
+1º-4º Libertadores grupos; 5º preliminar (base 2026); 6 melhores elegíveis para Sul-Americana; 17º-20º caem
+Série B
+20 clubes; 38 rodadas
+1º-2º sobem; 3º-6º playoffs por 2 vagas; 17º-20º caem
+Série C 2026
+20 clubes; 19 rodadas + quadrangulares
+8 avançam; 4 sobem; 19º-20º caem
+Série D 2026
+96 clubes; 16 grupos de 6
+64 avançam; 4 acessos via quartas + 2 via playoffs = 6 acessos
+Copa do Nordeste 2026
+20 clubes; 4 grupos de 5
+Campeão vai à 3ª fase da Copa do Brasil seguinte
+Copa Verde 2026
+24 clubes; Copa Norte + Centro-Oeste
+Campeões dos dois blocos vão à 3ª fase da Copa do Brasil seguinte
+Copa Sul-Sudeste 2026
+12 clubes; 2 grupos de 6
+Campeão vai à 3ª fase da Copa do Brasil seguinte
+12. Observações para manter o jogo realista
+Este guia descreve a estrutura de referência de 2026, não todos os artigos dos regulamentos oficiais. Os formatos podem mudar nos anos seguintes — por exemplo, a Série C passa a ter 24 clubes em 2027. No código, mantenha arquivos de configuração por temporada para: quantidade de participantes, grupos, rodadas, critérios de desempate, vagas continentais, vagas de Copa do Brasil, acessos, rebaixamentos e regras de elegibilidade.
+Fontes oficiais e consulta
+CBF — Regulamento da Série A 2026: https://stcbfsiteprdimgbrs.blob.core.windows.net/img-site/cdn/REC_Brasileiro_Serie_A_2026_c984f8cf05.pdf
+CBF — Série B 2026: https://www.cbf.com.br/futebol-brasileiro/noticias/competicoes-ranking/a/cbf-divulga-documentos-tecnicos-do-brasileirao-serie-b-de-2026
+CBF — Série C 2026: https://www.cbf.com.br/futebol-brasileiro/noticias/detalhes/competicoes-campeonato-brasileiro-serie-b/cbf-publica-documentos-tecnicos-da-serie-c-de-2026
+CBF — Série D 2026: https://www.cbf.com.br/futebol-brasileiro/noticias/BotafogoxGr%C3%AAmio/826731/cbf-publica-documentos-tecnicos-da-nova-serie-d
+CBF — Copa do Nordeste 2026: https://www.cbf.com.br/futebol-brasileiro/noticias/noticias-copa-nordeste/a/confira-os-documentos-tecnicos-da-copa-do-nordeste-de-2026
+CBF — Copa Verde 2026: https://www.cbf.com.br/futebol-brasileiro/noticias/campeonato-brasileiro/Corinthians-x-Internacional/copa-verde-2026
+CBF — Copa Sul-Sudeste 2026: https://www.cbf.com.br/futebol-brasileiro/noticias/noticias/a/entenda-como-sera-o-sorteio-da-copa-sul-sudeste

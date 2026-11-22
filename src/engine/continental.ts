@@ -76,12 +76,21 @@ export const toClubInfo = (c: ClubData): ClubInfo => ({ id: c.id, name: c.name, 
 const topOf = (div: string, n: number, skip = 0): ClubData[] => [...(CLUBS_DATA[div] ?? [])].sort((a, b) => b.reputation - a.reputation || b.budget - a.budget).slice(skip, skip + n);
 
 /** Cria as duas competições continentais da temporada. Os clubes do seu país vêm da sua liga (campeão da copa nacional primeiro, depois a classificação); os demais, dos maiores de cada país. */
-export function createContinentals(g: GameState, ranking?: string[], cupChampion?: string): GameState {
+/**
+ * Vagas do seu país (regras 2026): campeões continentais do ano anterior, campeão da Copa do Brasil, 1º ao 4º da Série A (fase de grupos),
+ * e a vaga preliminar para o vice da Copa do Brasil (ou, se ele já estiver classificado, o próximo da tabela). Quem já tem vaga por outro caminho
+ * não ocupa duas: a vaga passa ao próximo elegível. A Sul-Americana fica com os 6 seguintes que não estão na Libertadores.
+ */
+export function domesticOrder(ranking: string[], cupChampion?: string, extra?: { vice?: string; holders?: string[] }): string[] {
+  return [...(extra?.holders ?? []), ...(cupChampion ? [cupChampion] : []), ...ranking.slice(0, 4), ...(extra?.vice ? [extra.vice] : []), ...ranking].filter((id, i, a) => a.indexOf(id) === i);
+}
+
+export function createContinentals(g: GameState, ranking?: string[], cupChampion?: string, extra?: { vice?: string; holders?: string[] }): GameState {
   const home = g.divisions[0].id;
   const foreign: NonNullable<GameState['foreign']> = { clubs: {}, teams: {} };
   const out: GameState = { ...g, foreign };
   const byStrength = [...g.divisions[0].clubIds].sort((a, b) => teamRatings(g.teams[b]).overall - teamRatings(g.teams[a]).overall);
-  const domestic = [...(cupChampion ? [cupChampion] : []), ...(ranking ?? byStrength)].filter((id, i, a) => a.indexOf(id) === i && g.teams[id]);
+  const domestic = domesticOrder(ranking ?? byStrength, cupChampion, extra).filter((id) => g.teams[id]);
   for (const key of COMPS) {
     const cfg = CONTINENTALS[key];
     const ids: string[] = [];

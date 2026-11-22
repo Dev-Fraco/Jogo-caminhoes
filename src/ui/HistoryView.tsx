@@ -24,6 +24,7 @@ export function HistoryView({ game }: { game: GameState }) {
     h.mundialChampionId && ['🌍', COMP_NAMES.mundial, h.mundialChampionId],
     h.nordesteChampionId && ['🌵', COMP_NAMES.nordeste, h.nordesteChampionId],
     h.verdeChampionId && ['🌳', COMP_NAMES.verde, h.verdeChampionId],
+    h.sulsudesteChampionId && ['🌲', COMP_NAMES.sulsudeste, h.sulsudesteChampionId],
     h.superChampionId && ['🌐', COMP_NAMES.supermundial, h.superChampionId],
   ].filter(Boolean) as [string, string, string][];
 

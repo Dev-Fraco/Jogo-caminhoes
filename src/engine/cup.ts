@@ -31,15 +31,23 @@ const pair = (rng: Rng, ids: string[]): CupTie[] => {
 };
 
 /** Monta a Copa do Brasil: todos da Série A, B e C + os melhores da D, até 64 clubes (o seu clube sempre entra). 1ª fase: forte x fraco, mando do menor. */
-export function createCup(g: Pick<GameState, 'divisions' | 'teams' | 'userClubId' | 'seed' | 'season'>): CupState {
+export function createCup(g: Pick<GameState, 'divisions' | 'teams' | 'userClubId' | 'seed' | 'season'>, guests: string[] = []): CupState {
   const rng = makeRng(g.seed * 31 + g.season * 7 + 11);
   const ovr = (id: string) => teamRatings(g.teams[id]).overall;
-  const tiered = g.divisions.map((d, i) => [...d.clubIds].sort((a, b) => ovr(b) - ovr(a)).map((id) => ({ id, tier: i })));
+  // a Série C passou a ter 24 e 28 clubes: a copa continua com os 20 melhores dela (e os melhores da D completam os 64)
+  const tiered = g.divisions.map((d, i) => [...d.clubIds].sort((a, b) => ovr(b) - ovr(a)).slice(0, d.id === 'serie-c' ? 20 : d.clubIds.length).map((id) => ({ id, tier: i })));
   let list = tiered.flat();
   if (list.length > CUP_SIZE) {
     let keep = list.slice(0, CUP_SIZE);
     if (!keep.some((c) => c.id === g.userClubId)) keep = [...keep.slice(0, CUP_SIZE - 1), list.find((c) => c.id === g.userClubId)!];
     list = keep;
+  }
+  // vaga garantida na Copa do Brasil: campeão da Série D, da Copa do Nordeste, dos dois blocos da Copa Verde e da Copa Sul-Sudeste (entram no lugar dos últimos da lista)
+  for (const id of guests) {
+    if (!g.teams[id] || list.some((c) => c.id === id)) continue;
+    let k = list.length - 1;
+    while (k > 0 && (list[k].id === g.userClubId || guests.includes(list[k].id))) k--;
+    list[k] = { id, tier: g.divisions.length };
   }
   list.sort((a, b) => a.tier - b.tier || ovr(b.id) - ovr(a.id));
   const half = list.length / 2;

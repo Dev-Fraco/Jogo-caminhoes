@@ -300,7 +300,7 @@ export function seasonOutcome(g: GameState): SeasonOutcome {
 export function seasonSummary(g: GameState, out: SeasonOutcome = seasonOutcome(g)): SeasonSummary {
   const moves = out.moves;
   return {
-    season: g.season, estadualChampions: g.estadual?.done ? estadualChampions(g) : undefined, tables: moves.map((m) => ({ id: m.divisionId, rows: m.table.map((r) => [r.clubId, r.points, r.played, r.gd] as [string, number, number, number]) })), cupChampionId: g.cup?.championId, libChampionId: g.lib?.championId, sulaChampionId: g.sula?.championId, uclChampionId: g.ucl?.championId, mundialChampionId: g.mundial?.championId, superChampionId: g.superMundial?.championId, nordesteChampionId: g.regionais?.nordeste?.championId, verdeChampionId: g.regionais?.verde?.championId, userDivisionId: out.userDivisionId, userPosition: out.userPosition,
+    season: g.season, estadualChampions: g.estadual?.done ? estadualChampions(g) : undefined, tables: moves.map((m) => ({ id: m.divisionId, rows: m.table.map((r) => [r.clubId, r.points, r.played, r.gd] as [string, number, number, number]) })), cupChampionId: g.cup?.championId, libChampionId: g.lib?.championId, sulaChampionId: g.sula?.championId, uclChampionId: g.ucl?.championId, mundialChampionId: g.mundial?.championId, superChampionId: g.superMundial?.championId, nordesteChampionId: g.regionais?.nordeste?.championId, verdeChampionId: g.regionais?.verde?.championId, sulsudesteChampionId: g.regionais?.sulsudeste?.championId, userDivisionId: out.userDivisionId, userPosition: out.userPosition,
     divisions: moves.map((m) => ({ id: m.divisionId, championId: m.table[0].clubId, promoted: m.promoted, relegated: m.relegated })),
     topScorers: topScorersOf(g),
   };
