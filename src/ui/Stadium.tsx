@@ -6,6 +6,7 @@ import {
 } from '../engine/stadium';
 import type { GameState } from '../engine/types';
 import { formatBudget } from '../newgame/format';
+import { fanBase, fanRanking, formatFans } from '../engine/fans';
 import { ScreenTitle } from './FmParts';
 
 export const brl = (v: number) => `R$ ${v.toLocaleString('pt-BR')}`;
@@ -40,6 +41,7 @@ export function Stadium({ game, onChange }: Props) {
   const [priceTxt, setPriceTxt] = useState<string | null>(null);
   const commitPrice = () => { if (priceTxt !== null) { const v = Number(priceTxt.replace(/\D/g, '')); if (v > 0) onChange(setTicketPrice(game, v)); setPriceTxt(null); } };
   const preset = (v: number) => price === v;
+  const fans = fanBase(game), rank = fanRanking(game, 5);
 
   return (
     <>
@@ -54,6 +56,18 @@ export function Stadium({ game, onChange }: Props) {
           <small>Conforto: {comfortPct}% | Renda: + {formatBudget(att * price)}/jogo</small>
         </div>
       </div>
+
+      <section className="mk-sec">
+        <h3><span aria-hidden="true">👥</span> Torcida do clube</h3>
+        <div className="card mk-card" data-testid="torcida">
+          <p style={{ margin: 0, fontSize: 22 }}><b>{formatFans(fans)}</b> <small>de torcedores</small></p>
+          <small>{rank.position}ª maior torcida entre os {rank.total} clubes do campeonato · humor da torcida: {Math.round(game.morale.fans)}%</small>
+          <ul className="list" style={{ marginTop: 8 }}>
+            {rank.top.map((r, i) => <li key={r.clubId} className={r.clubId === id ? 'row mine' : 'row'}><b>{i + 1}</b><span className="grow">{game.clubs[r.clubId].name}</span><b className="score">{formatFans(r.fans)}</b></li>)}
+          </ul>
+          <small>A torcida cresce com títulos e com o humor da torcida (resultados e ingresso justo); cair de divisão a encolhe só um pouco.</small>
+        </div>
+      </section>
 
       <section className="mk-sec">
         <h3><span aria-hidden="true">🎟️</span> Preço do ingresso</h3>
