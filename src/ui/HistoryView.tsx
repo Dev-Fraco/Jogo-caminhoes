@@ -2,6 +2,7 @@ import { COMP_NAMES } from '../data/names';
 import { clubOf } from '../engine/lookup';
 import { ClubBadge } from './ClubBadge';
 import { useState } from 'react';
+import { Trophy } from './Trophy';
 import { isSeasonOver, seasonSummary } from '../engine/game';
 import { anyClubName } from '../engine/market';
 import type { GameState, SeasonSummary } from '../engine/types';
@@ -17,16 +18,16 @@ export function HistoryView({ game }: { game: GameState }) {
   if (list.length === 0) return <div className="card center"><p className="hint">Nenhuma temporada encerrada ainda. Os campeões aparecem aqui quando cada temporada terminar.</p></div>;
 
   const cups = (h: SeasonSummary) => [
-    h.cupChampionId && ['🏆', game.cup?.name ?? COMP_NAMES.cup, h.cupChampionId],
-    h.libChampionId && ['🌎', COMP_NAMES.lib, h.libChampionId],
-    h.sulaChampionId && ['🌴', COMP_NAMES.sula, h.sulaChampionId],
-    h.uclChampionId && ['⭐', COMP_NAMES.ucl, h.uclChampionId],
-    h.mundialChampionId && ['🌍', COMP_NAMES.mundial, h.mundialChampionId],
-    h.nordesteChampionId && ['🌵', COMP_NAMES.nordeste, h.nordesteChampionId],
-    h.verdeChampionId && ['🌳', COMP_NAMES.verde, h.verdeChampionId],
-    h.sulsudesteChampionId && ['🌲', COMP_NAMES.sulsudeste, h.sulsudesteChampionId],
-    h.superChampionId && ['🌐', COMP_NAMES.supermundial, h.superChampionId],
-  ].filter(Boolean) as [string, string, string][];
+    h.cupChampionId && ['🏆', game.cup?.name ?? COMP_NAMES.cup, h.cupChampionId, 'cup'],
+    h.libChampionId && ['🌎', COMP_NAMES.lib, h.libChampionId, 'lib'],
+    h.sulaChampionId && ['🌴', COMP_NAMES.sula, h.sulaChampionId, 'sula'],
+    h.uclChampionId && ['⭐', COMP_NAMES.ucl, h.uclChampionId, 'ucl'],
+    h.mundialChampionId && ['🌍', COMP_NAMES.mundial, h.mundialChampionId, 'mundial'],
+    h.nordesteChampionId && ['🌵', COMP_NAMES.nordeste, h.nordesteChampionId, 'nordeste'],
+    h.verdeChampionId && ['🌳', COMP_NAMES.verde, h.verdeChampionId, 'verde'],
+    h.sulsudesteChampionId && ['🌲', COMP_NAMES.sulsudeste, h.sulsudesteChampionId, 'sulsudeste'],
+    h.superChampionId && ['🌐', COMP_NAMES.supermundial, h.superChampionId, 'supermundial'],
+  ].filter(Boolean) as [string, string, string, string][];
 
   return (
     <div className="hv">
@@ -40,7 +41,7 @@ export function HistoryView({ game }: { game: GameState }) {
             </button>
             <ul className="hv-champs">
               {h.divisions.map((d, i) => <li key={d.id}><span>{game.divisions[i]?.name ?? d.id}</span><b>🏆 {name(d.championId)}</b></li>)}
-              {cups(h).map(([icon, n, id]) => <li key={n} className="cup"><span>{icon} {n}</span><b>{name(id)}</b></li>)}
+              {cups(h).map(([icon, n, id, key]) => <li key={n} className="cup"><span><Trophy k={key} fallback={icon} /> {n}</span><b>{name(id)}</b></li>)}
             </ul>
             {isOpen && h.estadualChampions && (
               <details className="hv-est">

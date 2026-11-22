@@ -2,13 +2,14 @@ import { CLUBS_DATA, dedupeShorts } from './clubs';
 import { COMP_KEYS, competitionIds, setCompetitionSource } from './names';
 import { parseKit, type Kit } from './kit';
 import { resetEstadualCache } from './estaduais_clubs';
+import { parseTrophies, setTrophies } from './trophies';
 
 /** Mods da Comunidade: pacotes de dados (JSON) que o jogador importa para trocar nomes, cores e estádios dos clubes. Valem para as próximas carreiras. */
 /** Máximo de clubes por pacote. */
 export const MAX_MOD_CLUBS = 5000;
 
 export interface ClubPatch { id: string; name?: string; shortName?: string; primaryColor?: string; secondaryColor?: string; stadium?: string; city?: string; /** uniforme da camisa */ kit?: Kit }
-export interface Mod { id: string; name: string; author?: string; version?: string; enabled: boolean; clubs: ClubPatch[]; /** nomes de competições (copas, ligas e divisões) por chave */ competitions?: Record<string, string> }
+export interface Mod { id: string; /** imagens dos troféus das competições (data URI), por chave */ trophies?: Record<string, string>; name: string; author?: string; version?: string; enabled: boolean; clubs: ClubPatch[]; /** nomes de competições (copas, ligas e divisões) por chave */ competitions?: Record<string, string> }
 
 const KEY = 'vr-mods-v1';
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -38,7 +39,11 @@ export function parseMod(text: string): ParseResult {
   if (!r || typeof r !== 'object' || typeof r.name !== 'string' || !r.name.trim()) return { ok: false, error: 'O pacote precisa de um "name".' };
   const rawComp = (raw as { competitions?: unknown }).competitions;
   const hasComp = !!rawComp && typeof rawComp === 'object' && !Array.isArray(rawComp) && Object.keys(rawComp as object).length > 0;
-  if (!hasComp && (!Array.isArray(r.clubs) || r.clubs.length === 0)) return { ok: false, error: 'O pacote precisa de uma lista "clubs" com pelo menos 1 clube (ou de "competitions").' };
+  const rawTroph = (raw as { trophies?: unknown }).trophies;
+  const tr = rawTroph === undefined ? undefined : parseTrophies(rawTroph);
+  if (tr && !tr.ok) return { ok: false, error: tr.error };
+  const hasTroph = !!tr && tr.ok && Object.keys(tr.trophies).length > 0;
+  if (!hasComp && !hasTroph && (!Array.isArray(r.clubs) || r.clubs.length === 0)) return { ok: false, error: 'O pacote precisa de uma lista "clubs" com pelo menos 1 clube (ou de "competitions" ou "trophies").' };
   const clubList: unknown[] = Array.isArray(r.clubs) ? r.clubs : [];
   if (clubList.length > MAX_MOD_CLUBS) return { ok: false, error: `Pacote grande demais (máximo de ${MAX_MOD_CLUBS.toLocaleString('pt-BR')} clubes).` };
   const known = new Set(Object.values(CLUBS_DATA).flat().map((c) => c.id));
@@ -66,7 +71,7 @@ export function parseMod(text: string): ParseResult {
     }
   }
   const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
-  return { ok: true, mod: { id, ...(competitions ? { competitions } : {}), name: r.name.trim().slice(0, 40), author: typeof r.author === 'string' ? r.author.slice(0, 40) : undefined, version: typeof r.version === 'string' ? r.version.slice(0, 12) : undefined, enabled: true, clubs } };
+  return { ok: true, mod: { id, ...(competitions ? { competitions } : {}), ...(hasTroph && tr && tr.ok ? { trophies: tr.trophies } : {}), name: r.name.trim().slice(0, 40), author: typeof r.author === 'string' ? r.author.slice(0, 40) : undefined, version: typeof r.version === 'string' ? r.version.slice(0, 12) : undefined, enabled: true, clubs } };
 }
 
 const ORIGINAL = new Map<string, Required<Omit<ClubPatch, 'id' | 'kit'>>>();
@@ -91,5 +96,8 @@ export function applyMods(mods: Mod[]): void {
   const comp: Record<string, string> = {};
   for (const m of mods.filter((x) => x.enabled)) Object.assign(comp, m.competitions ?? {});
   setCompetitionSource('mods', comp);
+  const tro: Record<string, string> = {};
+  for (const m of mods.filter((x) => x.enabled)) Object.assign(tro, m.trophies ?? {});
+  setTrophies(tro); // troféus das competições dos mods ligados
   resetEstadualCache();
 }

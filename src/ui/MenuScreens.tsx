@@ -7,6 +7,7 @@ import { isValidSave, listAutoCopies, listOriginals, readRawSave, restoreAutoCop
 import { SCHEMA_NOTE } from '../engine/migrate';
 import type { GameState } from '../engine/types';
 import { createBackup, deleteBackup, listBackups, restoreBackup, MAX_BACKUPS, type Backup } from '../settings/backups';
+import { Trophy } from './Trophy';
 import { APP_VERSION, COMMUNITY_LINK, COMMUNITY_URL } from '../version';
 import { Screen } from './Screen';
 
@@ -314,7 +315,7 @@ export function HallScreen({ onBack }: { onBack: () => void }) {
               <b className="hv-head" style={{ display: 'block' }}>Temporada {e.season}</b>
               <ul className="hv-champs">
                 {e.divisions.map((d, i) => <li key={i}><span>{d.name}</span><b>🏆 {d.champion}</b></li>)}
-                {e.cups.map((c, i) => <li key={`c${i}`} className="cup"><span>{c.icon} {c.name}</span><b>{c.champion}</b></li>)}
+                {e.cups.map((c, i) => <li key={`c${i}`} className="cup"><span><Trophy k={c.key} fallback={c.icon} /> {c.name}</span><b>{c.champion}</b></li>)}
               </ul>
               {e.states && e.states.length > 0 && <details className="hv-est"><summary>🏟️ Estaduais ({e.states.length})</summary><ul className="hv-champs">{e.states.map((s, i) => <li key={i}><span>{s.name}</span><b>{s.champion}</b></li>)}</ul></details>}
             </div>

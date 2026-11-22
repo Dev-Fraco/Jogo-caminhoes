@@ -5,7 +5,7 @@ import type { GameState } from './types';
 /** Salão de campeões: guarda os campeões de todas as ligas e copas, de todas as carreiras e simulações (fica no aparelho, fora dos saves). */
 export interface HallEntry {
   key: string; mode: 'carreira' | 'simulacao'; world: string; league: string; season: number;
-  states?: { name: string; champion: string }[]; divisions: { name: string; champion: string }[]; cups: { icon: string; name: string; champion: string }[];
+  states?: { name: string; champion: string }[]; divisions: { name: string; champion: string }[]; cups: { icon: string; name: string; champion: string; /** chave da competição (para o troféu do mod) */ key?: string }[];
 }
 
 const KEY = 'vr-hall-v1';
@@ -26,15 +26,15 @@ export function entriesOf(g: GameState): HallEntry[] {
     states: h.estadualChampions?.map((c) => ({ name: c.name.replace('Campeonato ', ''), champion: c.divisions.map((d) => anyClubName(g, d.championId)).join(' / ') })),
     divisions: h.divisions.map((d, i) => ({ name: g.divisions[i]?.name ?? d.id, champion: anyClubName(g, d.championId) })),
     cups: [
-      ...(h.cupChampionId ? [{ icon: '🏆', name: g.cup?.name ?? COMP_NAMES.cup, champion: anyClubName(g, h.cupChampionId) }] : []),
-      ...(h.libChampionId ? [{ icon: '🌎', name: COMP_NAMES.lib, champion: anyClubName(g, h.libChampionId) }] : []),
-      ...(h.sulaChampionId ? [{ icon: '🌴', name: COMP_NAMES.sula, champion: anyClubName(g, h.sulaChampionId) }] : []),
-      ...(h.uclChampionId ? [{ icon: '⭐', name: COMP_NAMES.ucl, champion: anyClubName(g, h.uclChampionId) }] : []),
-      ...(h.mundialChampionId ? [{ icon: '🌍', name: COMP_NAMES.mundial, champion: anyClubName(g, h.mundialChampionId) }] : []),
-      ...(h.nordesteChampionId ? [{ icon: '🌵', name: COMP_NAMES.nordeste, champion: anyClubName(g, h.nordesteChampionId) }] : []),
-      ...(h.sulsudesteChampionId ? [{ icon: '🌲', name: COMP_NAMES.sulsudeste, champion: anyClubName(g, h.sulsudesteChampionId) }] : []),
-      ...(h.verdeChampionId ? [{ icon: '🌳', name: COMP_NAMES.verde, champion: anyClubName(g, h.verdeChampionId) }] : []),
-      ...(h.superChampionId ? [{ icon: '🌐', name: COMP_NAMES.supermundial, champion: anyClubName(g, h.superChampionId) }] : []),
+      ...(h.cupChampionId ? [{ icon: '🏆', key: 'cup', name: g.cup?.name ?? COMP_NAMES.cup, champion: anyClubName(g, h.cupChampionId) }] : []),
+      ...(h.libChampionId ? [{ icon: '🌎', key: 'lib', name: COMP_NAMES.lib, champion: anyClubName(g, h.libChampionId) }] : []),
+      ...(h.sulaChampionId ? [{ icon: '🌴', key: 'sula', name: COMP_NAMES.sula, champion: anyClubName(g, h.sulaChampionId) }] : []),
+      ...(h.uclChampionId ? [{ icon: '⭐', key: 'ucl', name: COMP_NAMES.ucl, champion: anyClubName(g, h.uclChampionId) }] : []),
+      ...(h.mundialChampionId ? [{ icon: '🌍', key: 'mundial', name: COMP_NAMES.mundial, champion: anyClubName(g, h.mundialChampionId) }] : []),
+      ...(h.nordesteChampionId ? [{ icon: '🌵', key: 'nordeste', name: COMP_NAMES.nordeste, champion: anyClubName(g, h.nordesteChampionId) }] : []),
+      ...(h.sulsudesteChampionId ? [{ icon: '🌲', key: 'sulsudeste', name: COMP_NAMES.sulsudeste, champion: anyClubName(g, h.sulsudesteChampionId) }] : []),
+      ...(h.verdeChampionId ? [{ icon: '🌳', key: 'verde', name: COMP_NAMES.verde, champion: anyClubName(g, h.verdeChampionId) }] : []),
+      ...(h.superChampionId ? [{ icon: '🌐', key: 'supermundial', name: COMP_NAMES.supermundial, champion: anyClubName(g, h.superChampionId) }] : []),
     ],
   }));
 }

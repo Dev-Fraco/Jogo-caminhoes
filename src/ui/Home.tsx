@@ -17,6 +17,7 @@ import { calOf, daysToMatch, formatDayLong, formatDayShort, isMatchDay, matchTim
 import { ScreenTitle } from './FmParts';
 import { divisionTable } from '../engine/game';
 import { isGroups, userGroupRows } from '../engine/groups';
+import { Trophy } from './Trophy';
 
 interface Props {
   game: GameState; onChange: (g: GameState) => void; last: MatchResult[]; over: boolean;
@@ -82,7 +83,7 @@ export function Home({ game, onChange, last, over, onPlay, onSeeTables, onSeeRes
           <section>
             <h3>Campeões das copas</h3>
             <ul className="list">
-              {[['🏆', game.cup], ['🌎', game.lib], ['🌴', game.sula], ['⭐', game.ucl], ['🌍', game.mundial], ['🌐', game.superMundial], ['🌵', game.regionais?.nordeste], ['🌳', game.regionais?.verde], ['🌲', game.regionais?.sulsudeste]].map(([icon, c]) => { const k = c as { id: string; name: string; championId?: string } | undefined; return k?.championId ? <li key={k.id}><div className="row"><span className="grow">{icon as string} {k.name}</span><b>{name(k.championId)}</b></div></li> : null; })}
+              {[['🏆', game.cup, 'cup'], ['🌎', game.lib, 'lib'], ['🌴', game.sula, 'sula'], ['⭐', game.ucl, 'ucl'], ['🌍', game.mundial, 'mundial'], ['🌐', game.superMundial, 'supermundial'], ['🌵', game.regionais?.nordeste, 'nordeste'], ['🌳', game.regionais?.verde, 'verde'], ['🌲', game.regionais?.sulsudeste, 'sulsudeste']].map(([icon, c, tk]) => { const k = c as { id: string; name: string; championId?: string } | undefined; return k?.championId ? <li key={k.id}><div className="row"><span className="grow"><Trophy k={tk as string} fallback={icon as string} /> {k.name}</span><b>{name(k.championId)}</b></div></li> : null; })}
             </ul>
           </section>
         )}
