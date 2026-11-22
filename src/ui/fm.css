@@ -709,7 +709,10 @@ button.home-tile { width: 100%; font: inherit; color: inherit; text-align: cente
 .hm-ico { width: 22px; height: 22px; flex: none; color: #ffd23d; display: grid; place-items: center; } .hm-ico svg { width: 100%; height: 100%; }
 .hm-feats { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 0; pointer-events: none; user-select: none; }
 .hm-feats li { padding: 0 10px; font: 600 11px/1 var(--font-head); text-transform: uppercase; color: #e9e8e7; border-left: 2px solid #ffd23d; } .hm-feats li:first-child { border-left: 0; }
-.hm-foot { margin: 12px 0 0; text-align: center; font: 600 12px var(--font-head); color: #ceccc8; }
+.hm-foot { margin: 12px 0 0; text-align: center; font: 600 12px var(--font-head); color: #ceccc8; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.hm-foot-msg { opacity: .9; }
+.hm-foot-link { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 999px; background: #229ed9; color: #fff; text-decoration: none; font: 800 13px var(--font-head); letter-spacing: .02em; box-shadow: 0 2px 10px rgba(34,158,217,.35); }
+.hm-foot-link:active { transform: translateY(1px); }
 .menu-bg::after { display: none; }
 
 /* Botão do celular no topo e aviso de moradia */

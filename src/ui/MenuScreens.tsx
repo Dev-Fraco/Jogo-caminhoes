@@ -7,7 +7,7 @@ import { isValidSave, listAutoCopies, listOriginals, readRawSave, restoreAutoCop
 import { SCHEMA_NOTE } from '../engine/migrate';
 import type { GameState } from '../engine/types';
 import { createBackup, deleteBackup, listBackups, restoreBackup, MAX_BACKUPS, type Backup } from '../settings/backups';
-import { APP_VERSION, COMMUNITY_LINK } from '../version';
+import { APP_VERSION, COMMUNITY_LINK, COMMUNITY_URL } from '../version';
 import { Screen } from './Screen';
 
 /* ---------------- Carregar Jogo ---------------- */
@@ -192,7 +192,7 @@ export function Mods({ onBack }: { onBack: () => void }) {
     <Screen title="Mods da Comunidade" onBack={onBack}>
       <div className="card">
         <p style={{ margin: 0 }}>Pacotes de dados criados por você ou pela comunidade. Cada pacote troca <b>nomes, siglas, cores, estádios e cidades</b> dos clubes (até <b>5.000 clubes</b> por pacote). As mudanças valem para as <b>próximas carreiras</b> (carreiras em andamento não mudam).</p>
-        <p className="hint">Comunidade: {COMMUNITY_LINK} · v{APP_VERSION}</p>
+        <p className="hint">Baixe mods no <a href={COMMUNITY_URL} target="_blank" rel="noopener noreferrer">grupo do Telegram</a> · v{APP_VERSION}</p>
       </div>
       <section>
         <h3>Pacotes instalados</h3>
@@ -251,7 +251,7 @@ export function Credits({ onBack }: { onBack: () => void }) {
           <p>Nomes, escudos e dados reais <b>não fazem parte do jogo</b>. Eles só aparecem se <b>você</b> instalar um pacote da comunidade (Mods da Comunidade). Os direitos de nomes, escudos e marcas pertencem aos seus respectivos donos.</p>
           <p><b>Sobre os mods:</b> o Vida Real FC <b>não se responsabiliza por nenhum mod</b> criado, publicado ou compartilhado dentro da comunidade. Os mods são feitos por terceiros: o jogo não os cria, não os revisa e não garante o seu conteúdo, funcionamento ou origem. Qualquer problema com um mod (direitos autorais, uso de nomes e imagens, conteúdo impróprio ou dados do jogo) é de responsabilidade do autor do mod e de quem o instala.</p>
           <p>Instale apenas mods de fontes em que você confia. Instalar e usar um mod é uma escolha sua, por sua conta e risco.</p>
-          <p>Comunidade: {COMMUNITY_LINK}</p>
+          <p>Comunidade: <a href={COMMUNITY_URL} target="_blank" rel="noopener noreferrer">{COMMUNITY_LINK}</a></p>
         </div>
       </section>
     </Screen>

@@ -1,5 +1,5 @@
 import type { CSSProperties, KeyboardEvent } from 'react';
-import { APP_VERSION, COMMUNITY_LINK } from '../version';
+import { APP_VERSION, COMMUNITY_URL } from '../version';
 import { HomeIcon } from './HomeIcons';
 import { isPremium } from '../premium/entitlement';
 import './menu.css';
@@ -98,7 +98,10 @@ export function MainMenu({ onSelect, hasSave = true }: Props) {
       <ul className="hm-feats" aria-label="Recursos do jogo">
         {FEATURES.map((f) => <li key={f.id}>{f.label}</li>)}
       </ul>
-      <p className="hm-foot"><span aria-hidden="true">💬</span> {COMMUNITY_LINK}</p>
+      <p className="hm-foot">
+        <span className="hm-foot-msg">Baixe os mods da comunidade no nosso grupo do Telegram</span>
+        <a className="hm-foot-link" href={COMMUNITY_URL} target="_blank" rel="noopener noreferrer"><span aria-hidden="true">✈️</span> Entrar no grupo do Telegram</a>
+      </p>
     </div>
   );
 }
