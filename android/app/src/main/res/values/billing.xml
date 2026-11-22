@@ -2,5 +2,5 @@
 <resources>
     <!-- Chave pública de licenciamento do Play Console (Configuração do app > Licenciamento), em base64, numa linha só.
          Vazia: só builds de depuração aceitam compras (builds de loja recusam). -->
-    <string name="play_public_key" translatable="false"></string>
+    <string name="play_public_key" translatable="false">MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzZZuLrzQ/QoA1Z4Kew/8rEZWfoFNxoIgpIfavnngWAwhTTTpf9wxroDr3ro2QUpCbSebRnUmurHorxSfqDqC+16Y44WyrYcuYYvGx9dSAEOOJkWcyHwHa7DZVPw0FAOjqirVVbALD4CTDguoT7GLWWxSwIqvHzDUjISuUWf4ZJ3NwHWYzMvlXjSNti8uYzxWh7R+Ih1TOZs9Dpzub3eXgY0NeSNM2mJCZ0jUxg3zaZWIB+NRMXz5dqPkY+/dfFD9Cy+7SY5BE+QkafOqiqCWpmOtFvDo7S4SdC9BM/lzaCAZRJQR815u60mGT6TeYSDg8Z+BvjqFxEydHytpIu4CUQIDAQAB</string>
 </resources>
