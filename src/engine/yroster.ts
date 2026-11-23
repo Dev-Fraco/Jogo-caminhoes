@@ -97,6 +97,7 @@ export function rosterOf(g: GameState, clubId: string, cat: CategoryId, frac: nu
   const key = `${clubId}|${cat}|${g.season}|${bucket(frac)}|${q.level}|${q.coach}|${q.scout}|${q.fac.centro},${q.fac.fisica},${q.fac.medico},${q.fac.alojamento},${q.fac.campos}|${movesSig(g)}`;
   const hit = CACHE.get(key);
   if (hit) return hit;
+  frac = bucket(frac) / 20;                                           // o cache é por faixa de `frac`: calcula sempre no ponto da faixa (senão o resultado dependeria de quem chamou primeiro)
   const out: Player[] = [];
   for (let age = def.minAge; age <= def.maxAge; age++) {
     const born = g.season - age;

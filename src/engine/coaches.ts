@@ -237,6 +237,7 @@ export function evaluateCoaches(g: GameState, y: YouthState): { g: GameState; y:
     const exp = (c.season?.expected ?? 0) / Math.max(1, players.length);
     let talent = 0;
     for (const p of players) if (p.potential >= 80) talent += (p.exact - (p.base ?? p.exact)) >= exp * 1.1 ? 0.1 : -0.1;
+    talent *= Math.min(1, 15 / Math.max(1, players.length)); // com 200 jovens por categoria, o bônus dos talentos vale como com 15 (não explode)
     // desempenho do seu clube nas competições da categoria na temporada que acabou (Etapa 5): bons resultados ajudam, maus pesam (até ±0,2)
     const cmpList = (s.yhist ?? []).filter((h) => h.season === g.season - 1 && h.cat === cat && h.r !== undefined).map((h) => h.r!);
     const cmp = cmpList.length ? cmpList.reduce((t, x) => t + x, 0) / cmpList.length : undefined;

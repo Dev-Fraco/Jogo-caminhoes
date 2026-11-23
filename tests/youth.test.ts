@@ -15,7 +15,7 @@ describe('categorias de base', () => {
   it('a primeira safra traz jovens de 12 anos com overall 5 e potencial', () => {
     const g = ensureYouth(mk());
     const y = youthOf(g);
-    expect(y.prospects.length).toBe(4);
+    expect(y.prospects.length).toBe(90); // safra anual de 90 a 100 jovens (a Sub-13 tem 200 vagas)
     for (const p of y.prospects) {
       expect(p.player.age).toBe(12);
       expect(p.player.strength).toBe(5);
@@ -49,7 +49,7 @@ describe('categorias de base', () => {
   it('dispensar tira da base', () => {
     const g = ensureYouth(mk());
     const id = youthOf(g).prospects[1].player.id;
-    expect(youthOf(releaseProspect(g, id)).prospects.length).toBe(3);
+    expect(youthOf(releaseProspect(g, id)).prospects.length).toBe(89);
     expect(releaseProspect(g, 'x')).toBe(g);
   });
   it('academia: melhorar custa caixa, aumenta a safra e tem limite', () => {

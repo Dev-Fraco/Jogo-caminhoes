@@ -1,5 +1,7 @@
 import { logSpend, spend } from './academy';
-import { inflate } from './economy';
+import { inflate, priceIndex } from './economy';
+import { baseIncome } from './finance';
+import { divisionIndexOf } from './transfers';
 import { hashString, clamp } from './rng';
 import type { GameState, NewsItem, Player } from './types';
 import { categoriesOf, homeCategory } from './categories';
@@ -38,7 +40,15 @@ export function personalityBoost(p: Pick<Prospect, 'player' | 'mot'>): number {
 
 export type ContractStatus = 'ativo' | 'vencendo' | 'vencido' | 'sem contrato';
 /** Salário anual justo do jovem (idade, overall e potencial). */
-export const fairWage = (g: GameState, p: Prospect): number => Math.round(inflate(g, 4_000 + (p.player.age - 11) * 2_500 + p.player.strength * 250 + p.potential * 120) / 100) * 100;
+/** Com 200 jovens por categoria, a maioria recebe só uma bolsa de formação: criança custa pouco, o Sub-21 já custa mais. */
+const AGE_WAGE = (age: number) => (age <= 14 ? 0.036 : age <= 16 ? 0.075 : 0.135);
+/** A bolsa também acompanha o porte do clube (receita-base): clube pequeno não paga o que o gigante paga (a folha da base fica perto de 4% da receita). */
+const clubWageScale = (g: GameState): number => {
+  const inc = baseIncome(divisionIndexOf(g, g.userClubId), g.clubs[g.userClubId]?.reputation ?? 1, priceIndex(g));
+  const ref = baseIncome(0, 5, priceIndex(g));
+  return Math.min(1, Math.max(0.03, inc / ref));
+};
+export const fairWage = (g: GameState, p: Prospect): number => Math.max(100, Math.round((inflate(g, 4_000 + (p.player.age - 11) * 2_500 + p.player.strength * 250 + p.potential * 120) * AGE_WAGE(p.player.age) * clubWageScale(g)) / 100) * 100);
 export const contractStatus = (g: GameState, p: Prospect): ContractStatus => { const c = p.player.contract; return !c ? 'sem contrato' : c.until < g.season ? 'vencido' : c.until === g.season ? 'vencendo' : 'ativo'; };
 export const yearsLeft = (g: GameState, p: Prospect): number => (p.player.contract ? Math.max(0, p.player.contract.until - g.season + 1) : 0);
 export const payroll = (y: { prospects: Prospect[] }): number => y.prospects.reduce((t, p) => t + (p.loanedTo ? 0 : p.player.contract?.wage ?? 0), 0);

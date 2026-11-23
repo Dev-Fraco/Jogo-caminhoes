@@ -29,9 +29,9 @@ describe('a base começa com 15 atletas em cada categoria', () => {
     expect(avg(18, 21)).toBeGreaterThan(avg(14, 15)); expect(avg(14, 15)).toBeGreaterThan(avg(12, 13));
   });
 
-  it('todos os clubes da IA também têm pelo menos 15 atletas em cada categoria', () => {
+  it('todos os clubes da IA também têm pelo menos 15 atletas em cada categoria (o seu tem 200)', () => {
     const g = makeCareer('palmeiras', 9); const ids = Object.keys(g.clubs).filter((i) => i !== g.userClubId).slice(0, 40);
-    for (const id of ids) for (const c of CATEGORIES) expect(rosterOf(g, id, c.id, 0).length, `${id} ${c.id}`).toBeGreaterThanOrEqual(SEED_PER_CATEGORY);
+    for (const id of ids) for (const c of CATEGORIES) expect(rosterOf(g, id, c.id, 0).length, `${id} ${c.id}`).toBeGreaterThanOrEqual(15); // (clubes da IA seguem com ao menos 15 por categoria)
   });
 
   it('save antigo (sem a base completa): completa só o que falta, não mexe em ninguém que já existia e não repete', () => {

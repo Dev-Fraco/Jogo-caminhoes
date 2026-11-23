@@ -25,7 +25,9 @@ const star = (n: number) => '★'.repeat(n) + '☆'.repeat(5 - n);
 /** Categorias de base: Sub-13, Sub-15, Sub-17 e Sub-21 (faixas de idade sobre a mesma lista de jovens); promova a partir dos 16 anos. */
 export function YouthScreen({ game, onChange }: { game: GameState; onChange: (g: GameState) => void }) {
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
-  const [cat, setCat] = useState<CategoryId>('sub13');
+  const [cat, setCatRaw] = useState<CategoryId>('sub13');
+  const [shown, setShown] = useState(50); // 200 jovens por categoria: a lista mostra 50 por vez
+  const setCat = (c: CategoryId) => { setCatRaw(c); setShown(50); };
   const [open, setOpen] = useState<string | null>(null);
   const [view, setView] = useState<'jovens' | 'treinadores' | 'academia' | 'competicoes' | 'mercado'>('jovens');
   useEffect(() => { if (!game.youth && !game.unemployed) onChange(ensureYouth(game)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -66,8 +68,9 @@ export function YouthScreen({ game, onChange }: { game: GameState; onChange: (g:
         {(() => { const c = y.coaches?.[cat]; return <p className="hint yt-rule">🧑‍🏫 Treinador do {categoryDef(cat).label}: {c ? <><b>{c.name}</b> <span className="stars">{starsOf(c.rating)}★</span></> : <b>vaga aberta</b>} — quem decide o treino é ele; veja a aba Treinadores.</p>; })()}
         {list.length === 0 && <p className="hint">Nenhum jovem no {categoryDef(cat).label} agora. {cat === 'sub13' ? 'A próxima safra chega no início da temporada.' : 'Os jovens sobem de categoria conforme a idade, a cada temporada.'}</p>}
         <ul className="yt-grid">
-          {list.map((p) => <YouthCard key={p.player.id} game={game} y={y} p={p} open={open === p.player.id} onOpen={() => setOpen(open === p.player.id ? null : p.player.id)} onPromote={() => promote(p.player.id)} onRelease={() => { const r = releaseWithContract(game, p.player.id); if (!r.ok) { setMsg({ text: r.error, ok: false }); audio.sfx('error'); return; } onChange(r.state); }} onLoan={() => setView('mercado')} />)}
+          {list.slice(0, shown).map((p) => <YouthCard key={p.player.id} game={game} y={y} p={p} open={open === p.player.id} onOpen={() => setOpen(open === p.player.id ? null : p.player.id)} onPromote={() => promote(p.player.id)} onRelease={() => { const r = releaseWithContract(game, p.player.id); if (!r.ok) { setMsg({ text: r.error, ok: false }); audio.sfx('error'); return; } onChange(r.state); }} onLoan={() => setView('mercado')} />)}
         </ul>
+        {list.length > shown && <button className="btn" onClick={() => setShown(shown + 50)}>Mostrar mais ({list.length - shown} restantes)</button>}
       </section>
 
       {decide.length > 0 && (

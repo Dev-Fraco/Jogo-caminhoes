@@ -64,7 +64,8 @@ export const facilityCostTable = (g: GameState, f: FacilityId): number[] => { co
 /** Velocidade do treino pela academia geral (0,90 no nível 0 a 1,20 no 20). */
 export const academySpeed = (level: number): number => 0.9 + 0.015 * clamp(level, 0, MAX_ACADEMY_LEVEL);
 /** Jovens novos por safra (4 a 10) e bônus no potencial sorteado. */
-export const intakeCount = (level: number): number => 4 + Math.floor(clamp(level, 0, MAX_ACADEMY_LEVEL) / 3);
+/** Safra anual: ~100 jovens de 12 anos (repõe a categoria Sub-13, que tem 200 vagas). */
+export const intakeCount = (level: number): number => 90 + Math.floor(clamp(level, 0, MAX_ACADEMY_LEVEL) / 2);
 export const potentialBonus = (level: number): number => clamp(level, 0, MAX_ACADEMY_LEVEL) * 0.375;
 /** A evolução só desacelera quando faltam menos pontos que isto para o potencial: academia melhor mantém a velocidade cheia até mais perto do teto (10 pts no nível 0, 5 no 20). */
 export const gapWindow = (level: number): number => 10 - 0.25 * clamp(level, 0, MAX_ACADEMY_LEVEL);
@@ -88,7 +89,12 @@ export function coachSpecBonus(y: Pick<YouthState, 'fac'>, spec: string): number
 }
 /** Dedicação do jovem com o alojamento (o limite sobe de 1,3 para 1,6). */
 export const dedicationWith = (base: number, y: Pick<YouthState, 'fac'>): number => Math.min(1.6, base * (1 + 0.012 * (facLevel(y, 'alojamento') - 1)));
-export const youthCapacity = (y: Pick<YouthState, 'fac'>): number => 80 + 2 * (facLevel(y, 'alojamento') - 1);
+/** Vagas em cada categoria de base (Sub-13, Sub-15, Sub-17 e Sub-21). */
+export const CATEGORY_CAPACITY = 200;
+/** Vagas em cada categoria: 200 e mais 2 por nível de alojamento. */
+export const categoryCapacity = (y: Pick<YouthState, 'fac'>): number => CATEGORY_CAPACITY + 2 * (facLevel(y, 'alojamento') - 1);
+/** Vagas na base toda (4 categorias). */
+export const youthCapacity = (y: Pick<YouthState, 'fac'>): number => 4 * categoryCapacity(y);
 /** Centro médico: multiplicador da duração de uma lesão (leve: −2%/nível; grave: −0,8%/nível). */
 export const injuryDurationFactor = (y: Pick<YouthState, 'fac'> | undefined, severity: 'leve' | 'media' | 'grave' | undefined): number => {
   const l = (y ? facLevel(y, 'medico') : 1) - 1;

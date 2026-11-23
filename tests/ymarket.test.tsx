@@ -310,7 +310,7 @@ describe('insatisfação, personalidade e disciplina', () => {
     for (let i = 0; i < 200; i++) for (const mot of [10, 60, 95]) { const b = personalityBoost({ player: { id: `p${i}` } as Player, mot }); expect(Math.abs(b)).toBeLessThanOrEqual(0.08); }
   });
   it('a insatisfação cresce aos poucos (sem queda instantânea) e só depois de muito tempo vira pedido; ninguém sai sozinho', () => {
-    let g = withProspects({ ...base(), round: 5 }, [{ ...prospect(base(), 'u1', 18, 30, 60), player: { ...prospect(base(), 'u1', 18, 30, 60).player, contract: { wage: 6_000, from: 2025, until: 2030 } } }, prospect(base(), 'u2', 12, 5, 60, 1)]);
+    let g = withProspects({ ...base(), round: 5 }, [{ ...prospect(base(), 'u1', 18, 30, 60), player: { ...prospect(base(), 'u1', 18, 30, 60).player, contract: { wage: 300, from: 2025, until: 2030 } } }, prospect(base(), 'u2', 12, 5, 60, 1)]);
     // 'u1': 18 anos, fraco, mal pago, sem perspectiva
     g = { ...g, ycomps: [], youth: { ...youthOf(g), offers: [{ id: 'q1', kind: 'compra', playerId: 'u1', club: 'flamengo', fee: 1e6, season: 2026, round: 1, left: 99, status: 'pendente' }, { id: 'q2', kind: 'compra', playerId: 'u1', club: 'santos', fee: 1e6, season: 2026, round: 1, left: 99, status: 'pendente' }] } };
     const first = youthOf(satTick(g)).prospects[0];

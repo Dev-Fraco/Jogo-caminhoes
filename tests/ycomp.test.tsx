@@ -67,7 +67,8 @@ describe('criação das competições para as quatro categorias', () => {
 
 describe('inscrição e regras de idade', () => {
   it('sem atletas elegíveis suficientes o clube não se inscreve (ninguém é inventado); com 11 ou mais, sim', () => {
-    const none = base();
+    const b0 = base();
+    const none: GameState = createYouthComps({ ...b0, youth: { ...youthOf(b0), prospects: [] } }); // base vazia (ninguém é inventado)
     for (const cat of CATEGORIES) { expect(enrollCheck(none, cat.id)).toMatchObject({ ok: false, need: MIN_ROSTER }); expect(compsOf(none, cat.id).every((c) => c.absent.includes('palmeiras') && !c.clubs.includes('palmeiras'))).toBe(true); }
     const full = withYouth(base());
     for (const cat of CATEGORIES) { expect(enrollCheck(full, cat.id).ok).toBe(true); expect(compsOf(full, cat.id).every((c) => c.clubs.includes('palmeiras') && c.absent.length === 0)).toBe(true); }

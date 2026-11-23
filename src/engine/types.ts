@@ -616,6 +616,8 @@ export interface GameState {
   wageCover?: number;
   /** Categorias de base do seu clube: academia (nível 0–5) e jovens em formação. */
   youth?: import('./youth').YouthState;
+  /** O que você construiu em cada clube que deixou (academia, instalações, base e estádio): volta igual se você voltar. */
+  clubProjects?: Record<string, { youth?: import('./youth').YouthState; stadium?: import('./stadium').StadiumState }>;
   /** Débito automático das mensalidades (plano de dados, NetFibra, aluguel e parcelas): ligado a menos que seja desligado. */
   autoDebit?: boolean;
   /** Carreira nova: só dá para avançar dias e jogar depois de alugar ou comprar uma casa. */

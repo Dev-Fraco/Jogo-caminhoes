@@ -97,8 +97,8 @@ describe('ETAPA 1 — estabilidade das temporadas', () => {
       return s;
     };
     const g0 = makeCareer('palmeiras', 21);
-    const a = run(g0, []);
-    const b = run(g0, [1, 3, 8, 13, 21, 30, 40, 55, 70, 90]);
+    const a = run(structuredClone(g0), []);
+    const b = run(structuredClone(g0), [1, 3, 8, 13, 21, 30, 40, 55, 70, 90]);
     expect(canon(b)).toBe(canon(a));
     expect(auditSeasonEnd(b)).toEqual([]);
   }, 600_000);

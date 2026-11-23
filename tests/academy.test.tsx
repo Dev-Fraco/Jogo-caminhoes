@@ -3,7 +3,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { brazilPyramid } from '../src/data/pyramid';
 import { newCareer } from '../src/engine/game';
-import { academyCost, academyCostAt, academyCostTable, academyPercent, academySpeed, coachSpecBonus, dedicationWith, facilityCost, facilityCostTable, facilityTrainingFactor, FACILITIES, facLevel, gapWindow, injuryDurationFactor, intakeCount, MAX_ACADEMY_LEVEL, MAX_FACILITY_LEVEL, originalCost, potentialBonus, totals, upgradeAcademy, upgradeFacility, youthCapacity, START_FACILITIES, type FacilityId } from '../src/engine/academy';
+import { academyCost, academyCostAt, academyCostTable, academyPercent, academySpeed, coachSpecBonus, dedicationWith, facilityCost, facilityCostTable, facilityTrainingFactor, FACILITIES, facLevel, gapWindow, injuryDurationFactor, intakeCount, MAX_ACADEMY_LEVEL, MAX_FACILITY_LEVEL, originalCost, potentialBonus, totals, upgradeAcademy, upgradeFacility, categoryCapacity, categoryCapacity, youthCapacity, START_FACILITIES, type FacilityId } from '../src/engine/academy';
 import { applyInjuries } from '../src/engine/injuries';
 import { baseIncome } from '../src/engine/finance';
 import { priceIndex } from '../src/engine/economy';
@@ -123,12 +123,13 @@ describe('benefícios reais', () => {
   it('alojamento: dedicação maior e mais vagas na base', () => {
     expect(dedicationWith(1, { fac: { ...START_FACILITIES, alojamento: 20 } })).toBeGreaterThan(1.2); expect(dedicationWith(1, { fac: START_FACILITIES })).toBe(1);
     expect(dedicationWith(1.3, { fac: { ...START_FACILITIES, alojamento: 20 } })).toBeLessThanOrEqual(1.6);
-    expect(youthCapacity({ fac: START_FACILITIES })).toBe(80); expect(youthCapacity({ fac: { ...START_FACILITIES, alojamento: 20 } })).toBe(118);
+    expect(youthCapacity({ fac: START_FACILITIES })).toBe(800); expect(youthCapacity({ fac: { ...START_FACILITIES, alojamento: 20 } })).toBe(952); // 200 jovens por categoria
     const p = pr('e', 16, 30, 90);
     expect(pointsPerYear(p, withFac({ alojamento: 20 }))).toBeGreaterThan(pointsPerYear(p, withFac({ alojamento: 1 })));
     // capacidade real: com 100 jovens de potenciais diferentes, o alojamento no máximo mantém mais deles na virada
     const many = (n: number): Prospect[] => Array.from({ length: n }, (_, i) => pr(`m${i}`, 13, 8, 50 + (i % 40)));
-    const keep = (alo: number) => youthOf(youthSeason({ ...base, round: base.totalRounds + 1, youth: { ...youthOf(base), fac: { ...START_FACILITIES, alojamento: alo }, prospects: many(100) } })).prospects.length;
+    expect(categoryCapacity({ fac: START_FACILITIES })).toBe(200); expect(categoryCapacity({ fac: { ...START_FACILITIES, alojamento: 20 } })).toBe(238);
+    const keep = (alo: number) => youthOf(youthSeason({ ...base, round: base.totalRounds + 1, youth: { ...youthOf(base), fac: { ...START_FACILITIES, alojamento: alo }, prospects: many(300) } })).prospects.length; // 300 jovens de 13 anos: só cabem 200 (238 com o alojamento no máximo)
     expect(keep(20)).toBeGreaterThan(keep(1));
   });
   it('centro médico: lesões leves do SEU clube duram menos; graves seguem acima de 1 mês; rivais não mudam', () => {
@@ -155,7 +156,7 @@ describe('benefícios reais', () => {
   });
   it('a safra anual traz mais jovens com academia melhor', () => {
     const n = (lv: number) => youthOf(youthSeason({ ...mk(), round: 39, youth: { ...youthOf(mk()), level: lv, prospects: [] } })).prospects.length;
-    expect(n(20)).toBeGreaterThan(n(0)); expect(n(0)).toBe(4); expect(n(20)).toBe(10);
+    expect(n(20)).toBeGreaterThan(n(0)); expect(n(0)).toBe(intakeCount(0)); expect(n(20)).toBe(intakeCount(20)); expect(intakeCount(0)).toBe(90); expect(intakeCount(20)).toBe(100); // ~100 por ano repõem a Sub-13 (200 vagas)
   });
 });
 

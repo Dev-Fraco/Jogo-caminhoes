@@ -1,5 +1,6 @@
 import { coachLeaves, ensureAiCoaches } from './aicoaches';
 import { returnAiLoans } from './aiyouth';
+import { ensureYouth, inheritedAcademy } from './youth';
 import { cancelClubDeals } from './deals';
 import { creditAccount } from './bank';
 import { stampPayTier } from './coachcareer';
@@ -40,8 +41,16 @@ export function seasonEndFiring(g: GameState, position: number, relegated: boole
   return null;
 }
 
+/** Guarda o que você construiu no clube que está deixando (academia, instalações, base e estádio); a IA passa a usar os mesmos níveis de academia. */
+export function stashClubProjects(g: GameState): GameState {
+  if (!g.userClubId || (!g.youth && !g.stadium)) return g;
+  const y = g.youth;
+  const aiAcademy = y ? { ...(g.aiAcademy ?? {}), [g.userClubId]: [y.level, y.fac?.centro ?? 1, y.fac?.fisica ?? 1, y.fac?.medico ?? 1, y.fac?.alojamento ?? 1, y.fac?.campos ?? 1] } : g.aiAcademy;
+  return { ...g, aiAcademy, clubProjects: { ...(g.clubProjects ?? {}), [g.userClubId]: { youth: g.youth, stadium: g.stadium } } };
+}
+
 export function leaveClub(g: GameState): GameState {
-  let s = returnLoans(g); // jogadores emprestados voltam para o clube que você deixa
+  let s = returnLoans(stashClubProjects(g)); // jogadores emprestados voltam para o clube que você deixa
   s = { ...s, transferList: [], loanList: [], offers: [] };
   const jobs = jobsOf(g);
   s = { ...s, jobs: jobs.map((j, i) => (i === jobs.length - 1 && !j.toSeason ? { ...j, toSeason: g.season } : j)) };
@@ -179,7 +188,8 @@ export function hire(g: GameState, clubId: string): GameState {
   }
   const t = s.teams[clubId];
   s = {
-    ...s, youth: undefined, userClubId: clubId, unemployed: false, firedInfo: g.firedInfo, jobOffers: [], boardLow: 0, appliedKey: undefined, appliedClubs: undefined,
+    ...s, youth: s.clubProjects?.[clubId]?.youth, stadium: s.clubProjects?.[clubId]?.stadium, // voltou a um clube em que já trabalhou: academia, base e estádio como você deixou; clube novo: começa do nível que o clube já tem
+    userClubId: clubId, unemployed: false, firedInfo: g.firedInfo, jobOffers: [], boardLow: 0, appliedKey: undefined, appliedClubs: undefined,
     payMult: undefined, salaryNeg: undefined, // salário novo no clube novo
     morale: { ...MORALE_START, board: 55 }, transferList: [], loanList: [], offers: [], loans: [], wageCover: 0,
     teams: { ...s.teams, [clubId]: { ...t, lineup: autoLineup(t.players, t.formation) } },
@@ -187,6 +197,11 @@ export function hire(g: GameState, clubId: string): GameState {
     social: s.social ? { ...s.social, lastMatch: undefined } : s.social,
   };
   s = { ...s, coachStreak: 0, coachOffer: { season: s.season, clubId, status: 'aceita', salary: 0 } }; // o contrato de quem acaba de chegar já vale: sem nova proposta nesta temporada
+  if (!s.youth) { // clube novo: a academia e as instalações começam do nível que o clube já tem
+    const inh = inheritedAcademy(s);
+    s = ensureYouth(s);
+    if (s.youth) s = { ...s, youth: { ...s.youth, level: inh.level, fac: inh.fac } };
+  }
   s = stampPayTier(s);
   s = returnAiLoans(s, clubId); // empréstimos entre clubes da IA que envolviam o clube acabam
   s = ensureAiCoaches(coachLeaves(s, clubId)); // o treinador da IA que estava lá sai; o clube que você deixou já tem treinador novo

@@ -1,6 +1,6 @@
 import { ACADEMY_START_AGE, ACADEMY_START_OVERALL, canPromoteAge, homeCategory, categoryDef, MIN_PRO_AGE, needsDecision } from './categories';
 import { inflate } from './economy';
-import { academyCost, intakeCount, MAX_ACADEMY_LEVEL, START_FACILITIES, upgradeAcademy, youthCapacity, type FacilityLevels, type YouthFinance } from './academy';
+import { academyCost, categoryCapacity, intakeCount, MAX_ACADEMY_LEVEL, START_FACILITIES, upgradeAcademy, type FacilityLevels, type YouthFinance } from './academy';
 import { basePointsAt, potentialFactor, rollPotential, STAR_POTENTIAL, trainTick, type Specialty } from './training';
 import { ensureCoaches, evaluateCoaches, marketTick, midSeasonCheck, payCoaches, refreshMarket, trackSeason, upgradeLegacyCoaches, type CatLogEntry, type CoachMarket, type YouthCoach } from './coaches';
 import { attributesOf, CATEGORIES } from './categories';
@@ -8,7 +8,7 @@ import { newContract, payWages, personalityOf, SAT_START, satTick } from './ycon
 import { refreshScoutMarket, payScouts, scoutTick } from './yscout';
 import { aiPromoteDerived } from './aiyouth';
 import { aiScoutingYear, aiYouthMarket, endMove, refreshListings, returnLoans, ymarketTick } from './ymarket';
-import { makeRng, type Rng } from './rng';
+import { clamp, makeRng, type Rng } from './rng';
 import { pickSpot, randomName } from './squad';
 import { MAX_SQUAD } from './transfers';
 import type { GameState, NewsItem, Player, Position } from './types';
@@ -60,21 +60,37 @@ export const YOUTH_SCHEMA = 5;
 
 export const MAX_LEVEL = MAX_ACADEMY_LEVEL;
 /** Limite de jovens na base (as quatro categorias juntas). Quem aguarda decisão aos 21 anos nunca é cortado. */
-export const MAX_PROSPECTS = 80; // base; o alojamento acrescenta vagas (youthCapacity)
+export const MAX_PROSPECTS = 800; // 200 por categoria; o alojamento acrescenta vagas (youthCapacity)
 const HISTORY_MAX = 24;
 const note = (p: Prospect, season: number, text: string): Prospect => ({ ...p, history: [...(p.history ?? []), { season, text }].slice(-HISTORY_MAX) });
 const POS_BAG: Position[] = ['GK', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'ATT', 'ATT'];
 
+/** Academia e instalações que o clube já tem quando você é contratado por ele: as da IA (ou estimadas pela reputação). Clube grande não começa do zero. (Carreira nova começa no nível 0.) */
+export function inheritedAcademy(g: GameState): { level: number; fac: FacilityLevels } {
+  const ac = g.aiAcademy?.[g.userClubId];
+  if (ac) return { level: clamp(ac[0], 0, MAX_ACADEMY_LEVEL), fac: { centro: ac[1], fisica: ac[2], medico: ac[3], alojamento: ac[4], campos: ac[5] } };
+  const rep = Math.min(5, Math.max(1, g.clubs[g.userClubId]?.reputation ?? 1));
+  return { level: clamp(Math.round(rep * 2.6), 0, 18), fac: { centro: 1 + rep, fisica: 1 + rep, medico: 1 + rep, alojamento: 1 + rep, campos: 1 + rep } };
+}
 export const youthOf = (g: GameState): YouthState => g.youth ?? { level: 0, prospects: [], seq: 1, lastIntake: -1, schema: YOUTH_SCHEMA, fac: { ...START_FACILITIES }, fin: { total: 0, staff: 0, log: [] } };
 const news = (g: GameState, text: string, tone: NewsItem['tone'] = 'info'): GameState => ({ ...g, news: [{ season: g.season, round: g.round, text, tone }, ...g.news].slice(0, 80) });
 
-/** Atletas com que cada categoria de base começa: assim as competições já podem começar (mínimo de 11 para inscrever). */
-export const SEED_PER_CATEGORY = 15;
-/** Faixas de idade "da casa" de cada categoria (sem sobreposição): Sub-13, Sub-15, Sub-17 e Sub-21 (18 a 21 anos). */
-const SEED_BANDS: readonly [number, number][] = [[12, 13], [14, 15], [16, 17], [18, 21]];
-const SEED_POS: Position[] = ['GK', 'GK', 'DEF', 'DEF', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'MID', 'MID', 'ATT', 'ATT', 'ATT'];
+/** Mantém no máximo CATEGORY_CAPACITY jovens em cada categoria (os de maior potencial; quem está emprestado nunca é cortado). */
+export function capByCategory(list: Prospect[], y: Pick<YouthState, 'fac'>): Prospect[] {
+  const out: Prospect[] = [];
+  const buckets = new Map<string, Prospect[]>();
+  for (const p of list) { const k = p.loanedTo || p.loanFrom ? 'fora' : String(homeCategory(p.player.age) ?? 'fora'); (buckets.get(k) ?? buckets.set(k, []).get(k)!).push(p); }
+  for (const [k, l] of buckets) out.push(...(k === 'fora' ? l : [...l].sort((a, b) => b.potential - a.potential).slice(0, categoryCapacity(y))));
+  return out;
+}
 
-/** Completa a base até 15 atletas em cada categoria (os que já existem ficam como estão; só entram os que faltam). Feito uma vez por carreira. */
+/** Atletas com que cada categoria de base começa: assim as competições já podem começar (mínimo de 11 para inscrever). */
+export const SEED_PER_CATEGORY = 200;
+/** Faixas de idade "da casa" de cada categoria (sem sobreposição): Sub-13, Sub-15, Sub-17 e Sub-21 (18 a 21 anos). */
+const SEED_BANDS: readonly [number, number][] = [[12, 13], [14, 15], [16, 17], [18, 20]];
+const SEED_POS: Position[] = ['GK', 'DEF', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'MID', 'ATT', 'ATT', 'ATT']; // ~8% goleiros, 33% defensores, 33% meias, 25% atacantes
+
+/** Completa a base até 200 atletas em cada categoria (os que já existem ficam como estão; só entram os que faltam). Feito uma vez por carreira. */
 export function seedCategories(g: GameState, y: YouthState): YouthState {
   if (y.seeded) return y;
   const rng = makeRng(g.seed * 131 + g.season * 11 + 17);
@@ -84,9 +100,8 @@ export function seedCategories(g: GameState, y: YouthState): YouthState {
     const inBand = (x: Prospect) => x.player.age >= lo && x.player.age <= hi;
     const have = out.filter(inBand);
     const needGk = Math.max(0, 2 - have.filter((x) => x.player.pos === 'GK').length);
-    const rest = SEED_POS.filter((p) => p !== 'GK');
     for (let k = 0, i = have.length; i < SEED_PER_CATEGORY; i++, k++) {
-      const pos = k < needGk ? 'GK' : rest[(k - needGk) % rest.length];
+      const pos = k < needGk ? 'GK' : SEED_POS[(k - needGk) % SEED_POS.length];
       const age = lo + (k % (hi - lo + 1));
       const potential = rollPotential(rng, y.level);
       let ovr = ACADEMY_START_OVERALL; for (let a = ACADEMY_START_AGE; a < age; a++) ovr = Math.min(potential - 1, ovr + basePointsAt(a) * potentialFactor(potential) * (0.85 + rng() * 0.3)); // quem já passou anos na base é mais forte
@@ -122,7 +137,7 @@ function intake(g: GameState, y: YouthState, rng: Rng): YouthState {
     last.player = { ...last.player, contract: newContract(g, last, 3) }; // contrato de formação de 3 anos
   }
   const pending = y.prospects.filter((p) => needsDecision(p.player.age)); // quem aguarda decisão do clube nunca é cortado
-  const rest = [...y.prospects.filter((p) => !needsDecision(p.player.age)), ...fresh].sort((a, b) => b.potential - a.potential).slice(0, youthCapacity(y));
+  const rest = capByCategory([...y.prospects.filter((p) => !needsDecision(p.player.age)), ...fresh], y); // 200 por categoria: ficam os de maior potencial
   return { ...y, prospects: [...pending, ...rest], seq, lastIntake: g.season, schema: YOUTH_SCHEMA };
 }
 
@@ -202,9 +217,18 @@ export function youthSeason(g: GameState): GameState {
     else if (age === MIN_PRO_AGE) q = note(q, s.season, 'Completou 16 anos: já pode ser promovido ao profissional.');
     return q;
   });
-  if (decide.length) s = news(s, `🌱 Aguardando decisão do clube (21 anos): ${decide.join(', ')}. Escolha entre profissional, empréstimo ou dispensa.`, 'info');
+  // com 200 por categoria chegam ~100 jovens de 21 anos por ano: o clube decide sobre os 12 de maior potencial; os demais são liberados sozinhos
+  const MAX_DECISIONS = 12;
+  const pendingNow = grown.filter((p) => needsDecision(p.player.age) && !p.loanedTo && !p.loanFrom).sort((a, b) => b.potential - a.potential);
+  const released = new Set(pendingNow.slice(MAX_DECISIONS).map((p) => p.player.id));
+  if (released.size) {
+    s = news(s, `🌱 ${released.size} jovem(ns) de 21 anos sem espaço no clube foram liberados. Você decide sobre os ${Math.min(MAX_DECISIONS, pendingNow.length)} de maior potencial.`, 'info');
+    for (const id of released) if (g.ymoves?.[id] || s.ymoves?.[id]) s = endMove(s, id);
+  }
+  const keptDecide = decide.filter((n) => !pendingNow.slice(MAX_DECISIONS).some((p) => p.player.name === n));
+  if (keptDecide.length) s = news(s, `🌱 Aguardando decisão do clube (21 anos): ${keptDecide.slice(0, 12).join(', ')}. Escolha entre profissional, empréstimo ou dispensa.`, 'info');
   if (moved.length) s = news(s, `🌱 ${moved.length} jovem(ns) mudaram de categoria na base.`);
-  s = { ...s, youth: refreshMarket(s, intake(s, { ...y, prospects: grown }, rng), 'full') }; // novo ano: o mercado de treinadores se renova
+  s = { ...s, youth: refreshMarket(s, intake(s, { ...y, prospects: grown.filter((p) => !released.has(p.player.id)) }, rng), 'full') }; // novo ano: o mercado de treinadores se renova
   s = aiPromoteDerived(aiYouthMarket(aiScoutingYear(s, rng), rng), rng);                  // clubes da IA: olheiros, peneiras, compras e empréstimos de jovens
   s = { ...s, youth: refreshListings(s, refreshScoutMarket(s, s.youth!)) };
   return news(s, '🌱 Nova safra da base: novos jovens chegaram às categorias de base.', 'good');
