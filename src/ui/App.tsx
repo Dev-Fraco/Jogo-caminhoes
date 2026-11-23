@@ -51,6 +51,7 @@ import { Screen as MenuFrame } from './Screen';
 import { hooks } from '../engine/hooks';
 const WorldScreen = lazy(() => premiumChunk(() => import('./WorldScreen'))().then((m) => ({ default: m.WorldScreen }))); // (recurso Premium, carregado sob demanda)
 import { MatchChoice, type MatchMode } from './MatchChoice';
+import { LineupCompare } from './LineupCompare';
 import { MatchSim } from './MatchSim';
 import { healUserLineup, injuredSet } from '../engine/injuries';
 import type { Tactic } from '../engine/match';
@@ -98,6 +99,7 @@ export function App() {
   const [tfView, setTfView] = useState<'clubs' | 'buy' | 'offers' | 'news'>('clubs');
   // partida em andamento: o resultado já foi calculado, mas só entra no jogo quando a partida termina
   const [live, setLive] = useState<{ state: GameState; results: MatchResult[] } | null>(null);
+  const [cmpSeen, setCmpSeen] = useState(false); // já viu as escalações desta partida
   const [mode, setMode] = useState<MatchMode | null>(null); // escolha antes da partida: assistir ou simular (some ao terminar)
   const [tactics, setTactics] = useState<Tactic[]>([]); // mudanças táticas feitas na partida ao vivo
   const [last, setLast] = useState<MatchResult[]>([]);
@@ -195,7 +197,7 @@ export function App() {
     if (!game.unemployed && ownsPhone(game) && urgentMessages(game).length > 0 && gateAt !== absRound(game)) { setGateAt(absRound(game)); setPhoneGate(true); return; }
     doPlay();
   };
-  const doPlay = () => { const g0 = game.luck ? game : { ...game, luck: 1 + Math.floor(Math.random() * 2147483000) }; if (g0 !== game) { setGame(g0); saveGame(g0, { urgent: true }); } const r = playNext(g0); const mine = r.results.some((x) => x.homeId === game.userClubId || x.awayId === game.userClubId); if (game.unemployed || !mine) { setLast(r.results); setGame(r.state); if (!game.unemployed && r.results.length) setSheet(r.results); } else { setTactics([]); setMode(null); setLive(r); } }; // sem clube (ou sem jogo seu nesta rodada, como na Série D eliminada): nada para assistir
+  const doPlay = () => { const g0 = game.luck ? game : { ...game, luck: 1 + Math.floor(Math.random() * 2147483000) }; if (g0 !== game) { setGame(g0); saveGame(g0, { urgent: true }); } const r = playNext(g0); const mine = r.results.some((x) => x.homeId === game.userClubId || x.awayId === game.userClubId); if (game.unemployed || !mine) { setLast(r.results); setGame(r.state); if (!game.unemployed && r.results.length) setSheet(r.results); } else { setTactics([]); setMode(null); setCmpSeen(false); setLive(r); } }; // sem clube (ou sem jogo seu nesta rodada, como na Série D eliminada): nada para assistir
   /** Refaz a partida do mesmo ponto com a nova mudança: o que já passou fica igual e o resto muda conforme a mexida. */
   const applyTactic = (t: Tactic) => { const list = [...tactics, t]; setTactics(list); setLive(playNext(game, list)); };
   const finishMatch = () => { setTactics([]); setMode(null); if (live) { setLast(live.results); setGame(live.state); setSheet(live.results); } setLive(null); };
@@ -239,7 +241,8 @@ export function App() {
           </div>
         )}
         <main>
-          {live && liveResult && !mode && <MatchChoice home={clubOf(game, liveResult.homeId)} away={clubOf(game, liveResult.awayId)} divisionName={liveLabel} stadium={clubOf(game, liveResult.homeId).stadium} onChoose={setMode} />}
+          {live && liveResult && !mode && !cmpSeen && <LineupCompare home={clubOf(game, liveResult.homeId)} away={clubOf(game, liveResult.awayId)} homeTeam={liveResult.homeId === game.userClubId ? (healUserLineup(game, true).teams[game.userClubId] ?? teamOf(game, liveResult.homeId)) : teamOf(game, liveResult.homeId)} awayTeam={liveResult.awayId === game.userClubId ? (healUserLineup(game, true).teams[game.userClubId] ?? teamOf(game, liveResult.awayId)) : teamOf(game, liveResult.awayId)} userId={game.userClubId} onStart={() => setCmpSeen(true)} />}
+          {live && liveResult && !mode && cmpSeen && <MatchChoice home={clubOf(game, liveResult.homeId)} away={clubOf(game, liveResult.awayId)} divisionName={liveLabel} stadium={clubOf(game, liveResult.homeId).stadium} onChoose={setMode} />}
           {live && liveResult && mode === 'sim' && <MatchSim home={clubOf(game, liveResult.homeId)} away={clubOf(game, liveResult.awayId)} result={liveResult} userSide={liveResult.homeId === game.userClubId ? 'home' : 'away'} onFinish={finishMatch} />}
           {live && liveResult && mode === 'watch' && (
             <LiveMatch players={playerMap(teamOf(game, liveResult.homeId), teamOf(game, liveResult.awayId))} key={`${game.season}-${game.round}-${ev?.kind ?? 'l'}`} home={clubOf(game, liveResult.homeId)} away={clubOf(game, liveResult.awayId)} result={liveResult}

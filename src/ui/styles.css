@@ -432,3 +432,17 @@ select option { background: #35322e; color: var(--ink); }
 .prem-preview .prem-lock { font-size: 38px; }
 .prem-preview h3 { margin: 0; } .prem-preview ul { text-align: left; margin: 0; padding-left: 18px; }
 .lock-tag { margin-left: 4px; font-size: 11px; opacity: .85; }
+
+/* comparação de escalações antes da partida */
+.lc { display: grid; gap: 10px; padding: 12px 8px 16px; }
+.lc h3 { margin: 0; text-align: center; }
+.lc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.lc-side { display: grid; justify-items: center; gap: 4px; padding: 8px 6px; border-radius: 10px; background: rgba(255,255,255,.04); min-width: 0; align-content: start; }
+.lc-mine { outline: 1px solid var(--gold); }
+.lc-name { text-align: center; font-size: 13px; overflow-wrap: anywhere; }
+.lc-side small { color: var(--muted); }
+.lc-list { list-style: none; margin: 4px 0 0; padding: 0; width: 100%; display: grid; gap: 3px; }
+.lc-list li { display: grid; grid-template-columns: 30px 1fr auto; gap: 4px; font-size: 12px; align-items: center; }
+.lc-pos { color: var(--muted); font-size: 10px; }
+.lc-pl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lc-go { width: 100%; padding: 14px; font-size: 16px; }
