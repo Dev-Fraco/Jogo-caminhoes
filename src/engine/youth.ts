@@ -80,7 +80,7 @@ export function capByCategory(list: Prospect[], y: Pick<YouthState, 'fac'>): Pro
   const out: Prospect[] = [];
   const buckets = new Map<string, Prospect[]>();
   for (const p of list) { const k = p.loanedTo || p.loanFrom ? 'fora' : String(homeCategory(p.player.age) ?? 'fora'); (buckets.get(k) ?? buckets.set(k, []).get(k)!).push(p); }
-  for (const [k, l] of buckets) out.push(...(k === 'fora' ? l : [...l].sort((a, b) => b.potential - a.potential).slice(0, categoryCapacity(y))));
+  for (const [k, l] of buckets) out.push(...(k === 'fora' ? l : [...l].sort((a, b) => b.potential - a.potential).slice(0, k === 'sub21' ? Math.round(categoryCapacity(y) * 1.5) : categoryCapacity(y))));
   return out;
 }
 
@@ -203,7 +203,15 @@ export function youthSeason(g: GameState): GameState {
   s = payCoaches(ev.g, ev.y);
   s = returnLoans(payScouts(payWages(s)));                         // folha dos jovens e dos olheiros; empréstimos que acabam voltam
   // contratos vencidos: o jovem deixa o clube (você foi avisado ao longo da temporada); quem tem contrato válido segue
-  const gone = s.youth!.prospects.filter((p) => !p.loanFrom && p.player.contract && p.player.contract.until < s.season);
+  // quem está satisfeito e ainda é menino da base renova sozinho o contrato de formação (antes sumiam todos de uma vez, quando o contrato inicial de 2 anos vencia)
+  const lapsed = (p: Prospect) => !p.loanFrom && !!p.player.contract && p.player.contract.until < s.season;
+  const renewed = s.youth!.prospects.filter((p) => lapsed(p) && p.player.age < 21 && (p.sat ?? 0) >= 45);
+  if (renewed.length) {
+    const ids = new Set(renewed.map((p) => p.player.id));
+    s = { ...s, youth: { ...s.youth!, prospects: s.youth!.prospects.map((p) => (ids.has(p.player.id) ? { ...p, player: { ...p.player, contract: newContract(s, p, 2) } } : p)) } };
+    s = news(s, `📄 ${renewed.length} jovem(ns) da base tiveram o contrato de formação renovado por mais 2 anos.`, 'info');
+  }
+  const gone = s.youth!.prospects.filter(lapsed);
   if (gone.length) s = news(s, `📄 Contratos vencidos na base: ${gone.map((p) => p.player.name).join(', ')} deixaram o clube.`, 'bad');
   for (const p of gone) if (g.ymoves?.[p.player.id] || s.ymoves?.[p.player.id]) s = endMove(s, p.player.id); // saiu do clube: o registro de empréstimo/transferência também acaba
   const y = { ...s.youth!, offers: [], prospects: s.youth!.prospects.filter((p) => !gone.includes(p)).map((p) => ({ ...p, base: p.exact })) }; // (a folha paga já foi registrada no histórico)
@@ -217,18 +225,11 @@ export function youthSeason(g: GameState): GameState {
     else if (age === MIN_PRO_AGE) q = note(q, s.season, 'Completou 16 anos: já pode ser promovido ao profissional.');
     return q;
   });
-  // com 200 por categoria chegam ~100 jovens de 21 anos por ano: o clube decide sobre os 12 de maior potencial; os demais são liberados sozinhos
-  const MAX_DECISIONS = 12;
-  const pendingNow = grown.filter((p) => needsDecision(p.player.age) && !p.loanedTo && !p.loanFrom).sort((a, b) => b.potential - a.potential);
-  const released = new Set(pendingNow.slice(MAX_DECISIONS).map((p) => p.player.id));
-  if (released.size) {
-    s = news(s, `🌱 ${released.size} jovem(ns) de 21 anos sem espaço no clube foram liberados. Você decide sobre os ${Math.min(MAX_DECISIONS, pendingNow.length)} de maior potencial.`, 'info');
-    for (const id of released) if (g.ymoves?.[id] || s.ymoves?.[id]) s = endMove(s, id);
-  }
-  const keptDecide = decide.filter((n) => !pendingNow.slice(MAX_DECISIONS).some((p) => p.player.name === n));
-  if (keptDecide.length) s = news(s, `🌱 Aguardando decisão do clube (21 anos): ${keptDecide.slice(0, 12).join(', ')}. Escolha entre profissional, empréstimo ou dispensa.`, 'info');
+  // quem completou 21 anos fica aguardando a sua decisão (nunca é dispensado sozinho): o aviso diz quantos são e os de maior potencial
+  const aged = grown.filter((p) => needsDecision(p.player.age) && !needsDecision(p.player.age - 1) && !p.loanedTo && !p.loanFrom).sort((a, b) => b.potential - a.potential);
+  if (aged.length) s = news(s, `🌱 ${aged.length} jovem(ns) completaram 21 anos e saem da base. Querem ficar no elenco? Decida em Base > Aguardando decisão (profissional, empréstimo ou dispensa). Destaques: ${aged.slice(0, 5).map((p) => `${p.player.name} (${p.player.strength}/${p.potential})`).join(', ')}.`, 'info');
   if (moved.length) s = news(s, `🌱 ${moved.length} jovem(ns) mudaram de categoria na base.`);
-  s = { ...s, youth: refreshMarket(s, intake(s, { ...y, prospects: grown.filter((p) => !released.has(p.player.id)) }, rng), 'full') }; // novo ano: o mercado de treinadores se renova
+  s = { ...s, youth: refreshMarket(s, intake(s, { ...y, prospects: grown }, rng), 'full') }; // novo ano: o mercado de treinadores se renova
   s = aiPromoteDerived(aiYouthMarket(aiScoutingYear(s, rng), rng), rng);                  // clubes da IA: olheiros, peneiras, compras e empréstimos de jovens
   s = { ...s, youth: refreshListings(s, refreshScoutMarket(s, s.youth!)) };
   return news(s, '🌱 Nova safra da base: novos jovens chegaram às categorias de base.', 'good');

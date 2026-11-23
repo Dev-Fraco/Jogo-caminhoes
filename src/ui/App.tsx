@@ -2,7 +2,7 @@ import { lazy, useEffect, useRef, useState } from 'react';
 import { pyramidOf, slotsOfLeague } from '../data/pyramid';
 import { getLeague } from '../data/world';
 import { audio } from '../audio/audio';
-import { isSeasonOver, newCareer, playNext, userDivision } from '../engine/game';
+import { divisionTable, isSeasonOver, newCareer, playNext, userDivision } from '../engine/game';
 import { loadSeasonPack, premiumChunk } from '../premium/loader';
 import { pendingEvent } from '../engine/events';
 import { balanceOf } from '../engine/bank';
@@ -52,6 +52,8 @@ import { hooks } from '../engine/hooks';
 const WorldScreen = lazy(() => premiumChunk(() => import('./WorldScreen'))().then((m) => ({ default: m.WorldScreen }))); // (recurso Premium, carregado sob demanda)
 import { MatchChoice, type MatchMode } from './MatchChoice';
 import { LineupCompare } from './LineupCompare';
+import { EstadualChoice, EstadualSim, SeasonTransition } from './SeasonFlow';
+import { estadualOfUser } from '../engine/estadual';
 import { MatchSim } from './MatchSim';
 import { healUserLineup, injuredSet } from '../engine/injuries';
 import type { Tactic } from '../engine/match';
@@ -99,6 +101,9 @@ export function App() {
   const [tfView, setTfView] = useState<'clubs' | 'buy' | 'offers' | 'news'>('clubs');
   // partida em andamento: o resultado já foi calculado, mas só entra no jogo quando a partida termina
   const [live, setLive] = useState<{ state: GameState; results: MatchResult[] } | null>(null);
+  const [asked, setAsked] = useState(''); // temporada em que o estadual já foi oferecido
+  const [simEst, setSimEst] = useState(false);
+  const [trans, setTrans] = useState<{ pos?: number; offer: boolean } | null>(null);
   const [cmpSeen, setCmpSeen] = useState(false); // já viu as escalações desta partida
   const [mode, setMode] = useState<MatchMode | null>(null); // escolha antes da partida: assistir ou simular (some ao terminar)
   const [tactics, setTactics] = useState<Tactic[]>([]); // mudanças táticas feitas na partida ao vivo
@@ -207,13 +212,19 @@ export function App() {
   // seu time com as mudanças táticas já feitas (formação e escalação); serve para a tela de formação e para os bonecos
   const liveUserTeam = (() => { const t = healUserLineup(game, true).teams[game.userClubId]; const last = tactics[tactics.length - 1]; const st = [...tactics].reverse().find((x) => x.stance)?.stance; return t && last ? { ...t, formation: last.formation, lineup: last.lineup, ...(st ? { stance: st } : {}) } : t; })();
   const liveFormation = (side: 'home' | 'away') => { const id = side === 'home' ? liveResult?.homeId : liveResult?.awayId; return id === game.userClubId && liveUserTeam ? liveUserTeam.formation : teamOf(game, id ?? game.userClubId).formation; };
-  const nextSeason = async () => {
+  // início de temporada: pergunta se joga ou simula o estadual (uma vez por temporada)
+  const estKey = `${game.seed}-${game.season}`;
+  const askEst = screen === 'game' && !game.unemployed && !game.observer && !!game.estadual && game.estadual.step <= 1 && game.estadual.due && !game.estadual.done && game.round <= 1 && asked !== estKey && !!estadualOfUser(game);
+  const nextSeason = () => {
     setLast([]);
     // fim da temporada grátis: a próxima já é limitada; mostra a oferta do Premium (em vez de anúncio) uma vez por carreira
     const offer = billingAvailable() && limitedAt(game, game.season + 1) && !offerSeen(game.seed);
-    const pack = await loadSeasonPack(); setGame(pack.startNextSeason(game));
-    if (offer) { markOffer(game.seed); window.dispatchEvent(new Event('vr-open-plans')); } else void maybeShowAd('season');
-  }; // (o pacote da 2ª temporada em diante carrega sob demanda)
+    let pos: number | undefined;
+    try { const d = userDivision(game); pos = d ? divisionTable(game, d.id).findIndex((r) => r.clubId === game.userClubId) + 1 || undefined : undefined; } catch { pos = undefined; }
+    setTrans({ pos, offer }); // a animação roda enquanto a nova temporada é preparada
+  };
+  const prepareSeason = async () => { const pack = await loadSeasonPack(); setGame(pack.startNextSeason(game)); };
+  const closeTransition = () => { const offer = trans?.offer; setTrans(null); if (offer) { markOffer(game.seed); window.dispatchEvent(new Event('vr-open-plans')); } else void maybeShowAd('season'); };
 
   return (
     <>
@@ -264,6 +275,9 @@ export function App() {
         </main>
 
         {sheet && !live && <ResultsSheet game={game} results={sheet} onClose={() => setSheet(null)} />}
+        {trans && <SeasonTransition game={game} pos={trans.pos} onReady={prepareSeason} onClose={closeTransition} />}
+        {!trans && !simEst && !live && askEst && <EstadualChoice game={game} onPlay={() => setAsked(estKey)} onSim={() => { setAsked(estKey); if (blocked()) return; setSimEst(true); }} />}
+        {simEst && <EstadualSim start={game} onProgress={(g) => setGame(g)} onDone={(g) => { setGame(g); setSimEst(false); }} />}
         {calAnim && <DayCalendar game={game} from={calAnim.from} to={calAnim.to} onClose={() => setCalAnim(null)} />}
         {homeGate && (
           <div className="phone-gate" role="dialog" aria-modal="true" aria-label="Moradia necessária">

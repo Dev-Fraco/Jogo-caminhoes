@@ -769,3 +769,23 @@ button.home-tile { width: 100%; font: inherit; color: inherit; text-align: cente
 .cal-date { min-width: 74px; font-size: 13px; color: #ffe88a; }
 .cal-score { font-size: 14px; padding: 2px 8px; border-radius: 8px; background: rgba(255,255,255,.08); white-space: nowrap; }
 .cal-score.w { color: #5ee08a; } .cal-score.l { color: #ff7a7a; } .cal-score.d { color: #ffd166; }
+
+/* início de temporada / simulação do estadual / transição */
+.sf-box { max-width: 360px !important; display: grid; gap: 10px; justify-items: center; }
+.sf-box button { width: 100%; display: grid; gap: 2px; padding: 12px; }
+.sf-box button small { font-weight: 400; opacity: .8; font-size: 12px; }
+.sf-bar { width: 100%; height: 10px; border-radius: 6px; background: rgba(255,255,255,.1); overflow: hidden; }
+.sf-bar > i { display: block; height: 100%; width: 0; background: var(--gold); transition: width .25s; }
+.sf-anim > i { width: 100%; transform-origin: left; transform: scaleX(.04); animation: sf-fill 3s ease-out forwards; }
+.sf-anim > i.sf-full { animation: none; transform: scaleX(1); transition: transform .3s; }
+@keyframes sf-fill { to { transform: scaleX(.92); } }
+.sf-score { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.sf-score > div { display: grid; justify-items: center; gap: 4px; font-size: 12px; }
+.sf-score strong { font: 800 26px var(--font-head); color: var(--gold); animation: sf-pop .4s ease-out; }
+@keyframes sf-pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.sf-skip { background: transparent; border: 1px solid var(--line); }
+.sf-years { display: flex; gap: 12px; align-items: baseline; font: 800 28px var(--font-head); }
+.sf-years span { opacity: .5; animation: sf-slide .8s ease-in-out infinite alternate; }
+.sf-years b { color: var(--gold); }
+@keyframes sf-slide { to { transform: translateX(6px); opacity: .9; } }
+.sf-trans { z-index: 80; background: rgba(0,0,0,.85); }
