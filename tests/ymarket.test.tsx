@@ -162,7 +162,7 @@ describe('contratos e renovações', () => {
   it('contratos próximos do vencimento aparecem; contrato vencido: o jovem deixa o clube (só então)', () => {
     let g = base();
     const soon = prospect(g, 'v1', 17, 40, 75), fine = prospect(g, 'v2', 17, 40, 75, 1);
-    g = withProspects(g, [{ ...soon, player: { ...soon.player, contract: { wage: 20_000, from: 2024, until: 2026 } } }, fine]);
+    g = withProspects(g, [{ ...soon, sat: 30, player: { ...soon.player, contract: { wage: 20_000, from: 2024, until: 2026 } } }, fine]);
     expect(expiring(g).map((p) => p.player.id)).toEqual(['v1']); expect(contractStatus(g, youthOf(g).prospects[0])).toBe('vencendo');
     const n = youthSeason({ ...g, season: 2027, round: g.totalRounds + 1 });
     expect(youthOf(n).prospects.some((p) => p.player.id === 'v1')).toBe(false);
