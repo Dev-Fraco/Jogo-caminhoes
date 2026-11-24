@@ -29,15 +29,29 @@ export function YouthScreen({ game, onChange }: { game: GameState; onChange: (g:
   const [shown, setShown] = useState(50); // 200 jovens por categoria: a lista mostra 50 por vez
   const setCat = (c: CategoryId) => { setCatRaw(c); setShown(50); };
   const [open, setOpen] = useState<string | null>(null);
+  type SortKey = 'ovr' | 'pot' | 'stars' | 'age' | 'pos';
+  const [sortBy, setSortBy] = useState<SortKey>('ovr'); // filtro: ordem da lista (começa pelos de maior overall)
+  const [posF, setPosF] = useState<Position | 'ALL'>('ALL');
+  const [minStars, setMinStars] = useState(1);
+  const [onlyPro, setOnlyPro] = useState(false);
+  const [q, setQ] = useState('');
   const [view, setView] = useState<'jovens' | 'treinadores' | 'academia' | 'competicoes' | 'mercado'>('jovens');
   useEffect(() => { if (!game.youth && !game.unemployed) onChange(ensureYouth(game)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const y = youthOf(game);
   const squad = game.teams[game.userClubId].players.length;
   const POS_ORDER: Position[] = ['GK', 'DEF', 'MID', 'ATT'];
   const byCat = splitByCategory(y.prospects);
-  const sortList = (l: Prospect[]) => [...l].sort((a, b) => POS_ORDER.indexOf(a.player.pos) - POS_ORDER.indexOf(b.player.pos) || b.potential - a.potential);
+  const SORTERS: Record<SortKey, (a: Prospect, b: Prospect) => number> = {
+    ovr: (a, b) => b.player.strength - a.player.strength || b.potential - a.potential,
+    pot: (a, b) => b.potential - a.potential || b.player.strength - a.player.strength,
+    stars: (a, b) => stars(b.potential) - stars(a.potential) || b.player.strength - a.player.strength,
+    age: (a, b) => b.player.age - a.player.age || b.player.strength - a.player.strength,
+    pos: (a, b) => POS_ORDER.indexOf(a.player.pos) - POS_ORDER.indexOf(b.player.pos) || b.player.strength - a.player.strength,
+  };
+  const passes = (p: Prospect) => (posF === 'ALL' || p.player.pos === posF) && stars(p.potential) >= minStars && (!onlyPro || canPromoteAge(p.player.age)) && (!q.trim() || p.player.name.toLowerCase().includes(q.trim().toLowerCase()));
+  const sortList = (l: Prospect[]) => l.filter(passes).sort(SORTERS[sortBy]);
   const list = sortList(byCat[cat]);
-  const decide = sortList(awaitingDecision(y.prospects));
+  const decide = [...awaitingDecision(y.prospects)].sort(SORTERS[sortBy]); // quem aguarda decisão nunca fica escondido pelos filtros
 
   const promote = (id: string) => {
     const r = promoteProspect(game, id);
@@ -64,12 +78,27 @@ export function YouthScreen({ game, onChange }: { game: GameState; onChange: (g:
       <section className="mk-sec">
         <h3><span className="yt-bar2" aria-hidden="true" />Jovens na base ({y.prospects.length}/{youthCapacity(y)})</h3>
         <SubTabs items={CATEGORIES.map((c) => ({ label: `${c.label} (${byCat[c.id].length})`, on: cat === c.id, onClick: () => setCat(c.id) }))} />
+        <div className="yt-filter" role="group" aria-label="Filtros da base">
+          <label>Ordenar por <select value={sortBy} onChange={(e) => { setSortBy(e.target.value as SortKey); setShown(50); }}>
+            <option value="ovr">Maior overall</option><option value="pot">Maior potencial</option><option value="stars">Mais estrelas</option><option value="age">Mais velhos</option><option value="pos">Posição</option>
+          </select></label>
+          <label>Posição <select value={posF} onChange={(e) => { setPosF(e.target.value as Position | 'ALL'); setShown(50); }}>
+            <option value="ALL">Todas</option><option value="GK">Goleiros</option><option value="DEF">Defensores</option><option value="MID">Meias</option><option value="ATT">Atacantes</option>
+          </select></label>
+          <label>Estrelas <select value={minStars} onChange={(e) => { setMinStars(Number(e.target.value)); setShown(50); }}>
+            <option value={1}>Todas</option><option value={2}>2★ ou mais</option><option value={3}>3★ ou mais</option><option value={4}>4★ ou mais</option><option value={5}>Só 5★</option>
+          </select></label>
+          <label className="yt-chk"><input type="checkbox" checked={onlyPro} onChange={(e) => { setOnlyPro(e.target.checked); setShown(50); }} /> Só quem já pode subir ({MIN_PRO_AGE}+ anos)</label>
+          <input type="search" className="yt-search" placeholder="Buscar pelo nome" value={q} onChange={(e) => { setQ(e.target.value); setShown(50); }} />
+        </div>
         <p className="hint yt-rule">{categoryDef(cat).label}: jogadores de {categoryDef(cat).minAge} a {categoryDef(cat).maxAge} anos · {byCat[cat].length} na categoria{cat === 'sub21' ? ' (inclui os de 16 e 17 anos, que também são Sub-17)' : cat === 'sub17' ? ' (os de 16 e 17 anos também podem jogar o Sub-21)' : ''}.</p>
         {(() => { const c = y.coaches?.[cat]; return <p className="hint yt-rule">🧑‍🏫 Treinador do {categoryDef(cat).label}: {c ? <><b>{c.name}</b> <span className="stars">{starsOf(c.rating)}★</span></> : <b>vaga aberta</b>} — quem decide o treino é ele; veja a aba Treinadores.</p>; })()}
-        {list.length === 0 && <p className="hint">Nenhum jovem no {categoryDef(cat).label} agora. {cat === 'sub13' ? 'A próxima safra chega no início da temporada.' : 'Os jovens sobem de categoria conforme a idade, a cada temporada.'}</p>}
+        {list.length === 0 && byCat[cat].length > 0 && <p className="hint">Nenhum jovem com esses filtros. Mude os filtros acima.</p>}
+        {byCat[cat].length === 0 && <p className="hint">Nenhum jovem no {categoryDef(cat).label} agora. {cat === 'sub13' ? 'A próxima safra chega no início da temporada.' : 'Os jovens sobem de categoria conforme a idade, a cada temporada.'}</p>}
         <ul className="yt-grid">
           {list.slice(0, shown).map((p) => <YouthCard key={p.player.id} game={game} y={y} p={p} open={open === p.player.id} onOpen={() => setOpen(open === p.player.id ? null : p.player.id)} onPromote={() => promote(p.player.id)} onRelease={() => { const r = releaseWithContract(game, p.player.id); if (!r.ok) { setMsg({ text: r.error, ok: false }); audio.sfx('error'); return; } onChange(r.state); }} onLoan={() => setView('mercado')} />)}
         </ul>
+        {list.length > 0 && <small className="hint">{list.length} jovem(ns) na lista</small>}
         {list.length > shown && <button className="btn" onClick={() => setShown(shown + 50)}>Mostrar mais ({list.length - shown} restantes)</button>}
       </section>
 
