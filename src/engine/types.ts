@@ -218,10 +218,10 @@ export interface LibState {
   championId?: string;
 }
 
-export interface PhoneSettings { wallpaper: 'azul' | 'neon' | 'ouro' | 'noite' | 'campo' | 'aurora'; dark: boolean; brightness: number; bigText: boolean; dnd: boolean; sounds: boolean; vibration: boolean; /** desbloqueio por digital (sem digitar o PIN) */ fingerprint?: boolean; /** conexões (painel rápido) */ wifi?: boolean; mobileData?: boolean; airplane?: boolean; /** rede Wi-Fi conectada */ wifiNet?: string }
+export interface PhoneSettings { wallpaper: 'azul' | 'neon' | 'ouro' | 'noite' | 'campo' | 'aurora' | 'foto'; dark: boolean; brightness: number; bigText: boolean; dnd: boolean; sounds: boolean; vibration: boolean; /** desbloqueio por digital (sem digitar o PIN) */ fingerprint?: boolean; /** conexões (painel rápido) */ wifi?: boolean; mobileData?: boolean; airplane?: boolean; /** rede Wi-Fi conectada */ wifiNet?: string }
 export interface PhoneNotification { id: string; app: string; text: string; season: number; round: number; read: boolean }
 /** Celular do treinador: PIN, apps instalados, configurações e notificações. */
-export interface PhoneState { pinHash?: string; installed: string[]; settings: PhoneSettings; notifications: PhoneNotification[]; /** modelo do aparelho (Mega-zona Luiz), chip e se o treinador ainda não tem celular */ model?: string; chip?: string; chipNumber?: string; chipUntil?: number; chipCount?: number; chipWarn?: string; noPhone?: boolean; /** apps com conta criada (código por SMS confirmado) */ verified?: string[]; /** código enviado por SMS aguardando confirmação */ pendingCode?: { app: string; code: string; number: string }; sms?: { id: string; text: string; code?: string; season: number; round: number }[]; /** plano de dados: vale até a rodada absoluta `until` */ plan?: { until: number /* dia do calendário */; warned?: boolean; expiredNotified?: boolean};
+export interface PhoneState { pinHash?: string; /** fotos tiradas com a câmera (JPEG pequeno em base64, as mais novas primeiro) e a que está de fundo de tela */ photos?: string[]; wallpaperPhoto?: string; installed: string[]; settings: PhoneSettings; notifications: PhoneNotification[]; /** modelo do aparelho (Mega-zona Luiz), chip e se o treinador ainda não tem celular */ model?: string; chip?: string; chipNumber?: string; chipUntil?: number; chipCount?: number; chipWarn?: string; noPhone?: boolean; /** apps com conta criada (código por SMS confirmado) */ verified?: string[]; /** código enviado por SMS aguardando confirmação */ pendingCode?: { app: string; code: string; number: string }; sms?: { id: string; text: string; code?: string; season: number; round: number }[]; /** plano de dados: vale até a rodada absoluta `until` */ plan?: { until: number /* dia do calendário */; warned?: boolean; expiredNotified?: boolean};
   /** NetFibra (Wi-Fi residencial): vale até a rodada absoluta `until`; rede e senha escolhidas na contratação; `down` = a rede caiu até essa rodada */
   fibra?: { until: number; entryPaid: boolean; ssid?: string; password?: string; down?: number; warned?: boolean; expiredNotified?: boolean } }
 
@@ -239,7 +239,7 @@ export interface OwnedAsset { id: string; price: number; season: number; contrac
 /** Bens do treinador: veículos, imóveis, aluguel atual e contratos. */
 export interface AssetsState { vehicles: OwnedAsset[]; houses: OwnedAsset[]; contracts: Contract[]; seq: number }
 
-export interface SocialPost { id: string; type: string; text: string; season: number; round: number; delta: number; likes: number; views: number; viral: boolean }
+export interface SocialPost { photo?: string; id: string; type: string; text: string; season: number; round: number; delta: number; likes: number; views: number; viral: boolean }
 export interface SocialProfile { followers: number; history: { season: number; round: number; followers: number }[]; posts: SocialPost[]; lastPost: string; adIncome: number }
 /** Redes sociais do treinador. */
 export interface SocialState { linstagra: SocialProfile; tikiteko: SocialProfile; lastMatch?: { season: number; round: number; result: 'win' | 'draw' | 'loss'; streak: number } }

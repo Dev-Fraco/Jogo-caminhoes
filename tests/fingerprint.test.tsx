@@ -15,10 +15,10 @@ beforeEach(() => { plays.length = 0; paused = 0; store.clear(); vi.stubGlobal('A
 afterEach(() => vi.unstubAllGlobals());
 
 describe('digital: som, 1 segundo e sem "deslize para desbloquear"', () => {
-  it('a leitura da digital dura 1 segundo (para entrar no celular e para pagar)', () => {
-    expect(HOLD_MS).toBe(1000);
+  it('a leitura da digital é rápida (menos de meio segundo) (para entrar no celular e para pagar)', () => {
+    expect(HOLD_MS).toBeLessThanOrEqual(400);
     for (const f of ['src/ui/Phone.tsx', 'src/ui/AppKit.tsx', 'src/ui/AccountGate.tsx', 'src/ui/BankApp.tsx']) expect(readFileSync(f, 'utf8'), f).not.toMatch(/1,5 ?s|1,5 segundo/);
-    const css = readFileSync('src/ui/phone.css', 'utf8'); expect(css).not.toMatch(/hold-(fill|bar) 1\.5s/); expect(css).toMatch(/hold-fill 1s/); expect(css).toMatch(/hold-bar 1s/);
+    const css = readFileSync('src/ui/phone.css', 'utf8'); expect(css).not.toMatch(/hold-(fill|bar) 1\.5s/); expect(css).toMatch(/hold-fill 0.35s/); expect(css).toMatch(/hold-bar 0.35s/);
   });
 
   it('o som é o arquivo enviado (digital-91828), em public/sounds, e toca ao começar a leitura; soltar antes o interrompe', () => {

@@ -35,7 +35,7 @@ describe('redes sociais', () => {
     expect(fit('apology', 'win', 0).mult).toBeLessThan(0);
     expect(fit('celebrate', 'loss', 0).mult).toBeLessThan(0);
     expect(fit('lifestyle', 'win', 10).mult).toBeGreaterThan(fit('lifestyle', 'win', 0).mult);
-    expect(POST_TYPES.length).toBe(10);
+    expect(POST_TYPES.length).toBe(11);
   });
   it('publicar: derrota + dança perde seguidores e irrita a torcida; derrota + desculpas ganha e acalma', () => {
     const base = socialAfterMatch(makeCareer('palmeiras', 8), 0, 3);

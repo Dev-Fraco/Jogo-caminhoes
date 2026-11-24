@@ -4,7 +4,7 @@ import { calOf, formatDayLong, formatDayShort, matchTimeOf } from '../engine/cal
 import { clubOf } from '../engine/lookup';
 import { upcomingMatches } from '../engine/upcoming';
 import { appsUsed, connOf, downloadMs, INSTALL_MS, modelOf, needsInternet, netState, openDelayMs } from '../engine/phone';
-import { changePin, checkPin, clearNotifications, hasPin, installApp, installedApps, isInstalled, markAllRead, phoneOf, PIN_LENGTH, registerPin, STORE_APPS, uninstallApp, updatePhoneSettings, WALLPAPERS, appById } from '../engine/phone';
+import { SYSTEM_APPS, wallpaperCss, changePin, checkPin, clearNotifications, hasPin, installApp, installedApps, isInstalled, markAllRead, phoneOf, PIN_LENGTH, registerPin, STORE_APPS, uninstallApp, updatePhoneSettings, WALLPAPERS, appById } from '../engine/phone';
 import type { GameState } from '../engine/types';
 import { BankApp } from './BankApp';
 import { DealerApp } from './DealerApp';
@@ -24,6 +24,7 @@ import { AccountGate } from './AccountGate';
 import { HoldScan } from './AppKit';
 import { needsAccount, ACCOUNT_APPS } from '../engine/accounts';
 import { SocialApp } from './SocialApp';
+import { CameraApp } from './CameraApp';
 import './phone.css';
 
 interface Props { game: GameState; onChange: (g: GameState) => void; onClose: () => void }
@@ -122,7 +123,7 @@ export function Phone({ game, onChange, onClose }: Props) {
 
   const close = () => { setClosing(true); window.setTimeout(onClose, 380); };
   const conn = connOf(game);
-  const wall = WALLPAPERS.find((w) => w.id === s.wallpaper)!.css;
+  const wall = wallpaperCss(game);
   const unread = ph.notifications.filter((n) => !n.read).length;
 
   return (
@@ -141,7 +142,7 @@ export function Phone({ game, onChange, onClose }: Props) {
 
           {locked ? (
             offer ? <FingerOffer onYes={() => { onChange(updatePhoneSettings(gameRef.current, { fingerprint: true })); setOffer(false); unlock(); }} onNo={() => { setOffer(false); unlock(); }} />
-            : <LockScreen game={game} now={now} onSubmit={submitLock} firstPin={firstPin} err={err} shake={shake} onReset={() => { setFirstPin(null); setErr(undefined); }} onFinger={unlock} />
+            : <LockScreen game={game} now={now} onSubmit={submitLock} firstPin={firstPin} err={err} shake={shake} onReset={() => { setFirstPin(null); setErr(undefined); }} onFinger={unlock} onChange={onChange} />
           ) : (
             <>
               {ACCOUNT_APPS.includes(screen) && needsAccount(game, screen) ? <AccountGate game={game} app={screen} onChange={onChange} /> : <>
@@ -157,6 +158,7 @@ export function Phone({ game, onChange, onClose }: Props) {
               {screen === 'calc' && <CalcApp />}
               {screen === 'netfibra' && <NetFibraApp game={game} onChange={onChange} onOpenApp={go} />}
               {screen === 'internetchip' && <ChipApp game={game} onChange={onChange} onOpenApp={go} />}
+              {screen === 'camera' && <CameraApp game={game} onChange={onChange} />}
               {screen === 'mensagens' && <MessagesApp game={game} onChange={onChange} />}
               {(screen === 'linstagra' || screen === 'tikiteko') && <SocialApp app={screen} game={game} onChange={onChange} onHome={() => setScreen('home')} />}
               {!['home', 'loja', 'config', 'banco', 'concessionaria', 'corretor', 'linstagra', 'tikiteko', 'noticias', 'mensagens', 'calc', 'boot', 'nonet', 'internetchip', 'netfibra'].includes(screen) && <SoonApp id={screen} />}
@@ -186,17 +188,18 @@ function FingerOffer({ onYes, onNo }: { onYes: () => void; onNo: () => void }) {
             <button className="ph-btn pri" onClick={() => setReg(true)}>Cadastrar digital</button>
             <button className="ph-link" onClick={onNo}>Agora não</button>
           </>
-        ) : <Finger label="Segure o dedo no sensor (1 s) para cadastrar" onDone={onYes} />}
+        ) : <Finger label="Toque e segure o dedo no sensor para cadastrar" onDone={onYes} />}
       </div>
     </div>
   );
 }
 
-function LockScreen({ game, now, onSubmit, firstPin, err, shake, onReset, onFinger }: { game: GameState; now: string; onSubmit: (pin: string) => void; firstPin: string | null; err?: string; shake: number; onReset: () => void; onFinger: () => void }) {
+function LockScreen({ onChange, game, now, onSubmit, firstPin, err, shake, onReset, onFinger }: { game: GameState; now: string; onSubmit: (pin: string) => void; firstPin: string | null; err?: string; shake: number; onReset: () => void; onFinger: () => void; onChange: (g: GameState) => void }) {
+  const [camOpen, setCamOpen] = useState(false);
   const ph = phoneOf(game);
   const registering = !hasPin(game);
   const [torch, setTorch] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
+  const [note] = useState<string | null>(null);
   const finger = !registering && !!ph.settings.fingerprint;
   const [usePin, setUsePin] = useState(false);
   const nextGame = upcomingMatches(game, 1)[0];
@@ -217,7 +220,7 @@ function LockScreen({ game, now, onSubmit, firstPin, err, shake, onReset, onFing
       ))}
       {finger && !usePin ? (
         <>
-          <Finger label="Segure o dedo no sensor (1 s) para desbloquear" onDone={onFinger} />
+          <Finger label="Toque e segure o dedo no sensor para desbloquear" onDone={onFinger} />
           <button className="ph-link" onClick={() => setUsePin(true)}>Usar PIN</button>
         </>
       ) : registering ? (
@@ -232,7 +235,8 @@ function LockScreen({ game, now, onSubmit, firstPin, err, shake, onReset, onFing
       <div className="ph-lockbar">
         <button className="ph-round" aria-label={torch ? 'Desligar a lanterna' : 'Ligar a lanterna'} aria-pressed={torch} onClick={() => setTorch(!torch)}>🔦</button>
         <span style={{ flex: 1 }} />
-        <button className="ph-round" aria-label="Câmera" onClick={() => { setNote('A câmera do celular ainda não funciona.'); window.setTimeout(() => setNote(null), 2500); }}>📷</button>
+        <button className="ph-round" aria-label="Câmera" onClick={() => setCamOpen(true)}>📷</button>
+        {camOpen && <div className="ph-camover"><button className="ph-btn" onClick={() => setCamOpen(false)}>✖ Fechar câmera</button><CameraApp game={game} onChange={onChange} /></div>}
       </div>
     </div>
   );
@@ -252,7 +256,7 @@ function HomeScreen({ game, onOpen }: { game: GameState; onOpen: (id: string) =>
           </button>
         ))}
       </div>
-      {apps.length === 3 && <p className="ph-tip">Abra a Loja de Apps para baixar novos aplicativos.</p>}
+      {apps.every((a) => SYSTEM_APPS.some((x) => x.id === a.id)) && <p className="ph-tip">Abra a Loja de Apps para baixar novos aplicativos.</p>}
     </div>
   );
 }

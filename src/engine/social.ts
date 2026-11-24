@@ -10,6 +10,7 @@ export type PostKind = 'dance' | 'explain' | 'apology' | 'celebrate' | 'training
 
 export interface PostType { id: string; kind: PostKind; label: string; icon: string; apps: SocialApp[]; hint: string }
 export const POST_TYPES: PostType[] = [
+  { id: 'selfie', kind: 'training', label: 'Selfie com a câmera', icon: '🤳', apps: ['linstagra', 'tikiteko'], hint: 'Postada pela Câmera do celular. Seguro: sempre rende um pouco.' },
   { id: 'dance', kind: 'dance', label: 'Vídeo dançando', icon: '💃', apps: ['linstagra', 'tikiteko'], hint: 'Bomba depois de vitória. Depois de derrota, a torcida não perdoa.' },
   { id: 'explain', kind: 'explain', label: 'Vídeo explicando a derrota', icon: '🗣️', apps: ['linstagra', 'tikiteko'], hint: 'Funciona bem depois de uma derrota.' },
   { id: 'apology', kind: 'apology', label: 'Vídeo pedindo desculpas', icon: '🙏', apps: ['linstagra', 'tikiteko'], hint: 'Acalma a torcida depois de perder. Sem motivo, soa estranho.' },
@@ -80,7 +81,7 @@ export interface PostResult { delta: number; likes: number; views: number; viral
 export type PostOutcome = { ok: true; state: GameState; post: SocialPost; result: PostResult } | { ok: false; error: string };
 
 /** Publica um post: o resultado depende do tipo, do último jogo, do prestígio e da sorte (pode viralizar). */
-export function publish(g: GameState, app: SocialApp, typeId: string): PostOutcome {
+export function publish(g: GameState, app: SocialApp, typeId: string, photo?: string): PostOutcome {
   const t = postType(typeId);
   if (!t || !t.apps.includes(app)) return { ok: false, error: 'Tipo de post inválido.' };
   if (!canPost(g, app)) return { ok: false, error: 'Você já postou nesta rodada. Jogue a próxima partida para postar de novo.' };
@@ -100,7 +101,7 @@ export function publish(g: GameState, app: SocialApp, typeId: string): PostOutco
   const backlash = delta < 0;
   const views = Math.round(p.followers * (0.25 + rng() * 0.5) * (viral ? 6 : 1) * (backlash ? 1.5 : 1));
   const likes = Math.round(views * (backlash ? 0.02 : 0.08 + rng() * 0.08));
-  const post: SocialPost = { id: `${app}-${g.season}-${g.round}-${p.posts.length}`, type: t.id, text: t.label, season: g.season, round: g.round, delta, likes, views, viral };
+  const post: SocialPost = { id: `${app}-${g.season}-${g.round}-${p.posts.length}`, type: t.id, text: t.label, season: g.season, round: g.round, delta, likes, views, viral, ...(photo && typeId === 'selfie' ? { photo } : {}) };
   const followers = Math.max(0, p.followers + delta);
   const profile: SocialProfile = { ...p, followers, posts: [post, ...p.posts].slice(0, 40), lastPost: roundKey(g), history: [...p.history, { season: g.season, round: g.round, followers }].slice(-MAX_HISTORY) };
   const m = g.morale;

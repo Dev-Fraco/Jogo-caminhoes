@@ -68,8 +68,8 @@ export function AppTabs({ items }: { items: { icon: string; label: string; on?: 
   );
 }
 
-/** Quanto tempo (ms) é preciso manter o dedo no sensor de digital: 1 segundo, para entrar no celular e para pagar. */
-export const HOLD_MS = 1000;
+/** Quanto tempo (ms) é preciso manter o dedo no sensor de digital: 0,35 s, para entrar no celular e para pagar. */
+export const HOLD_MS = 350;
 
 /**
  * Leitor de digital: é preciso segurar o dedo (ou a tecla Enter/Espaço) por 1 s. Soltar antes zera a leitura.
@@ -95,7 +95,7 @@ export function HoldScan({ onDone, label, variant = 'sensor', className = '' }: 
   const hint = done ? 'Reconhecido!' : holding ? 'Lendo… continue segurando' : label;
   if (variant === 'button') {
     return (
-      <button type="button" className={`ph-btn bk-wide finger hold ${holding ? 'holding' : ''} ${done ? 'ok' : ''} ${className}`} aria-label={`${label} (segure por 1 segundo)`} {...handlers}>
+      <button type="button" className={`ph-btn bk-wide finger hold ${holding ? 'holding' : ''} ${done ? 'ok' : ''} ${className}`} aria-label={`${label} (segure o dedo)`} {...handlers}>
         <i className="hold-bar" aria-hidden="true" /><span>{done ? '✅ Reconhecido!' : holding ? '👆 Lendo… continue segurando' : label}</span>
       </button>
     );

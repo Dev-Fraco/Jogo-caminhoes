@@ -7,6 +7,7 @@ export interface PhoneApp { id: string; name: string; icon: string; blurb: strin
 export const SYSTEM_APPS: PhoneApp[] = [
   { id: 'loja', name: 'Loja de Apps', icon: '🛍️', blurb: 'Baixe novos aplicativos.', category: 'Sistema', size: '—', rating: 5 },
   { id: 'mensagens', name: 'Mensagens', icon: '💬', blurb: 'Patrocínios, imprensa, diretoria e metas.', category: 'Sistema', size: '—', rating: 5 },
+  { id: 'camera', name: 'Câmera', icon: '📷', blurb: 'Tire uma selfie: poste nas redes ou use de fundo.', category: 'Sistema', size: '—', rating: 5 },
   { id: 'config', name: 'Configurações', icon: '⚙️', blurb: 'Ajuste o seu celular.', category: 'Sistema', size: '—', rating: 5 },
 ];
 
@@ -231,3 +232,29 @@ export function connectHome(g: GameState, password: string): { ok: true; state: 
   if (f.password !== password) return { ok: false, error: 'Senha incorreta.' };
   return { ok: true, state: updatePhoneSettings(g, { airplane: false, wifi: true, wifiNet: f.ssid }) };
 }
+
+/* ---------- câmera: fotos guardadas no próprio save (JPEG pequeno) ---------- */
+export const MAX_PHOTOS = 12;
+export const isPhoto = (s: unknown): s is string => typeof s === 'string' && /^data:image\/jpeg;base64,/.test(s) && s.length < 400_000;
+export function addPhoto(g: GameState, photo: string): GameState {
+  if (!isPhoto(photo)) return g;
+  const p = phoneOf(g);
+  return withPhone(g, { ...p, photos: [photo, ...(p.photos ?? [])].slice(0, MAX_PHOTOS) });
+}
+export function removePhoto(g: GameState, photo: string): GameState {
+  const p = phoneOf(g);
+  const photos = (p.photos ?? []).filter((x) => x !== photo);
+  const lost = p.wallpaperPhoto === photo;
+  return withPhone(g, { ...p, photos, wallpaperPhoto: lost ? undefined : p.wallpaperPhoto, settings: lost ? { ...p.settings, wallpaper: 'azul' } : p.settings });
+}
+export function setPhotoWallpaper(g: GameState, photo: string): GameState {
+  if (!isPhoto(photo)) return g;
+  const p = phoneOf(g);
+  return withPhone(g, { ...p, wallpaperPhoto: photo, settings: { ...p.settings, wallpaper: 'foto' } });
+}
+/** Fundo de tela pronto para o CSS (a foto escolhida ou um dos fundos prontos). */
+export const wallpaperCss = (g: Pick<GameState, 'phone'>): string => {
+  const p = phoneOf(g);
+  if (p.settings.wallpaper === 'foto' && p.wallpaperPhoto) return `center / cover no-repeat url("${p.wallpaperPhoto}")`;
+  return (WALLPAPERS.find((w) => w.id === p.settings.wallpaper) ?? WALLPAPERS[0]).css;
+};

@@ -25,7 +25,7 @@ export function SocialApp({ app, game, onChange, onHome }: Props) {
   const ctx = contextOf(game);
   const prestige = prestigeScore(game);
   const trend = app === 'tikiteko' ? trendOf(game) : null;
-  const allowed = POST_TYPES.filter((t) => t.apps.includes(app));
+  const allowed = POST_TYPES.filter((t) => t.apps.includes(app) && t.id !== 'selfie'); // a selfie é postada pelo app Câmera
   const can = canPost(game, app);
 
   const doPost = (id: string) => {
@@ -147,7 +147,7 @@ function PostRow({ p, unit }: { p: SocialPost; unit: string }) {
   const t = postType(p.type);
   return (
     <li>
-      <span className="ph-ico">{t?.icon ?? '📝'}</span>
+      {p.photo ? <img className="so-thumb" src={p.photo} alt="" /> : <span className="ph-ico">{t?.icon ?? '📝'}</span>}
       <span className="grow"><b>{p.text}{p.viral ? ' 🔥' : ''}</b><small>Temp. {p.season}, rodada {p.round} · {fmtCount(p.likes)} {unit}</small></span>
       <b className={p.delta >= 0 ? 'in' : 'out'}>{p.delta >= 0 ? '+' : '−'}{fmtCount(Math.abs(p.delta))}</b>
     </li>
