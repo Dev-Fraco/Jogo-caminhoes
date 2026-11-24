@@ -31,7 +31,7 @@ describe('sistema de lesões', () => {
     expect(old).toBeGreaterThan(young);
     expect(spanLabel(3)).toBe('3 dias'); expect(spanLabel(1)).toBe('1 dia'); expect(spanLabel(31)).toBe('1 mês'); expect(spanLabel(95)).toBe('3 meses');
   });
-  it('o sorteio respeita os percentuais: 10% leve e 3% grave por time em cada partida (200 mil sorteios)', () => {
+  it('o sorteio respeita os percentuais: 5% leve e 1,5% grave por time em cada partida (200 mil sorteios)', () => {
     const rng = makeRng(7); const n = 200_000; let leve = 0, grave = 0, both = 0;
     for (let i = 0; i < n; i++) {
       const r = rollMatchInjuries(rng);
@@ -39,10 +39,10 @@ describe('sistema de lesões', () => {
       if (l) leve++; if (g) grave++; if (l && g) both++;
       for (const x of r) { expect(x.minute).toBeGreaterThanOrEqual(1); expect(x.minute).toBeLessThanOrEqual(90); }
     }
-    expect(leve / n).toBeGreaterThan(0.097); expect(leve / n).toBeLessThan(0.103);
-    expect(grave / n).toBeGreaterThan(0.028); expect(grave / n).toBeLessThan(0.032);
-    expect(both / n).toBeGreaterThan(0.002); expect(both / n).toBeLessThan(0.004); // independentes: 10% × 3% = 0,3%
-    expect(INJURY_CHANCE).toEqual({ leve: 0.1, grave: 0.03 });
+    expect(leve / n).toBeGreaterThan(0.047); expect(leve / n).toBeLessThan(0.053);
+    expect(grave / n).toBeGreaterThan(0.0135); expect(grave / n).toBeLessThan(0.0165);
+    expect(both / n).toBeGreaterThan(0.0004); expect(both / n).toBeLessThan(0.0012); // independentes: 5% × 1,5% = 0,075%
+    expect(INJURY_CHANCE).toEqual({ leve: 0.05, grave: 0.015 });
   });
   it('nas partidas simuladas, a taxa real de lesões por time bate com os percentuais e a gravidade vem com a duração certa', () => {
     const t = g0.teams.palmeiras, a = g0.teams.santos; const matches = 3000;
@@ -62,8 +62,8 @@ describe('sistema de lesões', () => {
     }
     const sides = matches * 2;
     expect(otherSev).toBe(0);
-    expect(leve / sides).toBeGreaterThan(0.085); expect(leve / sides).toBeLessThan(0.115);
-    expect(grave / sides).toBeGreaterThan(0.02); expect(grave / sides).toBeLessThan(0.04);
+    expect(leve / sides).toBeGreaterThan(0.04); expect(leve / sides).toBeLessThan(0.06);
+    expect(grave / sides).toBeGreaterThan(0.009); expect(grave / sides).toBeLessThan(0.021);
     expect(mostPerTeam).toBeLessThanOrEqual(2);
   });
   it('o jogador volta no prazo: lesão de 3 rodadas (12 dias) cura 12 dias depois', () => {

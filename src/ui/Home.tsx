@@ -1,4 +1,5 @@
 import { Newspaper } from './Newspaper';
+import { injuredSet, remainingLabel } from '../engine/injuries';
 import { SalaryCard } from './SalaryCard';
 import { useState } from 'react';
 import { fixturesOfRound, leagueNameOf, seasonOutcome, slotsOf, userDivision } from '../engine/game';
@@ -52,6 +53,8 @@ function EstadualNotice({ game, onChange }: { game: GameState; onChange: (g: Gam
 
 /** Início: próxima partida, escalação, humor (equipe, dirigentes e torcida), propostas e resultados da rodada. */
 export function Home({ game, onChange, last, over, onPlay, onSeeTables, onSeeResults, onNextSeason, onEditLineup, onAdvance, onAdvanceToMatch }: Props) {
+  const injSet = injuredSet(game);
+  const hurt = (game.teams[game.userClubId]?.players ?? []).filter((p) => injSet.has(p.id));
   const name = (id: string) => clubOf(game, id).name;
   const [open, setOpen] = useState<string | null>(null);
   const division = userDivision(game);
@@ -153,7 +156,7 @@ export function Home({ game, onChange, last, over, onPlay, onSeeTables, onSeeRes
             ? <button className="primary home2-go" onClick={() => { setOpen(null); onPlay(); }}><span aria-hidden="true">▶</span> {next || ev ? 'Iniciar partida' : 'Simular a rodada'}</button>
             : <button className="primary home2-go" onClick={() => { setOpen(null); onAdvanceToMatch(); }}><span aria-hidden="true">⏭</span> {mineDay === undefined ? 'Avançar até o fim da temporada' : 'Avançar até o seu próximo jogo'}</button>)
           : <button className="primary home2-go" onClick={onAdvance}><span aria-hidden="true">⏭</span> Avançar 1 dia</button>}
-        <button className="btn home2-lineup" onClick={onEditLineup}><span aria-hidden="true">📋</span> Editar escalação</button>
+        <button className="btn home2-lineup" onClick={onEditLineup}><span aria-hidden="true">📋</span> Editar escalação{hurt.length > 0 && <span className="home2-hurt">⚠️ {hurt.slice(0, 2).map((p) => `${p.name} (${remainingLabel(game, p.id)})`).join(', ')}{hurt.length > 2 ? ` e mais ${hurt.length - 2}` : ''} lesionado{hurt.length > 1 ? 's' : ''}</span>}</button>
       </div>
       {!isMatchDay(game) && <button className="btn home2-wide" onClick={onAdvanceToMatch}>⏩ {plays ? 'Ir até o dia do jogo' : mineDay === undefined ? 'Avançar até o fim da temporada' : 'Ir até o seu próximo jogo'}</button>}
       {tableRows.length > 0 && (

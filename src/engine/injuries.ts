@@ -21,9 +21,9 @@ export const OFFSEASON_RECOVERY = 8;
 
 /**
  * Chance de lesão por TIME em CADA PARTIDA (sorteadas uma vez por partida, de forma independente):
- * leve 10% e grave 3%. Não há mais sorteio por minuto nem por falta: esses percentuais são exatamente o que o sorteio respeita.
+ * leve 5% e grave 1,5%. Não há mais sorteio por minuto nem por falta: esses percentuais são exatamente o que o sorteio respeita.
  */
-export const INJURY_CHANCE = { leve: 0.1, grave: 0.03 } as const;
+export const INJURY_CHANCE = { leve: 0.05, grave: 0.015 } as const;
 /** Quantas lesões um time pode ter na mesma partida. */
 export const MAX_INJURIES_PER_MATCH = 2;
 /** Dias do calendário do jogo entre uma rodada e outra (38 rodadas em ~5 meses): converte dias de afastamento em rodadas. */

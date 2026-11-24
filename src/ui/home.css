@@ -161,3 +161,4 @@
   .menu-btn:hover, .menu-btn:focus-visible, .menu-btn:active { transform: skewX(-7deg); }
   .menu-arrow { transition: none; }
 }
+.home2-hurt { display: block; font-size: 12px; font-weight: 700; color: #ffb347; }
