@@ -183,7 +183,7 @@ const poisson = (rng: Rng, lambda: number): number => { const L = Math.exp(-lamb
 /** Placar rápido entre duas forças (para jogos em que o seu clube não está). */
 export function quickScore(rng: Rng, rh: number, ra: number): [number, number] {
   const d = rh - ra;
-  return [poisson(rng, Math.min(4, 1.5 * Math.exp(0.035 * d))), poisson(rng, Math.min(4, 1.1 * Math.exp(-0.035 * d)))];
+  return [poisson(rng, Math.min(4, 1.5 * Math.exp(0.07 * d))), poisson(rng, Math.min(4, 1.1 * Math.exp(-0.07 * d)))];
 }
 
 /** Joga a rodada atual de todos os estaduais. Se o seu clube joga, o jogo dele é simulado em detalhe (com narração). */

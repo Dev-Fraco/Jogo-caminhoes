@@ -60,6 +60,8 @@ export interface MatchNames { home: string; away: string }
  * Além dos gols, gera faltas, cartões, escanteios, defesas e chutes para fora, sempre com o nome do jogador.
  * `mods` multiplica a força do time (ex.: humor da equipe: 0,96 a 1,04); `names` traz os nomes dos clubes para o texto.
  */
+/** Quanto a diferença de overall entre os times é ampliada na partida (1 = sem ampliar). */
+export const UPSET_STRETCH = 3;
 export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, mods: Mods = {}, names: MatchNames = { home: 'Mandante', away: 'Visitante' }): SimOutput {
   // um único sorteio do gerador geral decide a partida inteira (assim dá para refazer a partida a partir de um minuto com a mesma "sorte")
   const rng = makeRng(Math.floor(rngOuter() * 2 ** 31));
@@ -78,9 +80,11 @@ export function simulateMatch(home: TeamState, away: TeamState, rngOuter: Rng, m
   const handicap = { home: 1, away: 1 }; // sem reserva para repor o lesionado: joga com um a menos
   const injCount = { home: 0, away: 0 };
   const stance: Record<'home' | 'away', Stance> = { home: home.stance ?? 'equilibrado', away: away.stance ?? 'equilibrado' };
+  // o favorito (overall maior) raramente perde para quem tem overall menor: a diferença entre os dois é ampliada em torno da média geométrica (a média de gols não muda)
+  const stretchOf = (side: 'home' | 'away') => { const o = (side === 'home' ? hR : aR).overall, q = (side === 'home' ? aR : hR).overall; return o > 0 && q > 0 ? (o / Math.sqrt(o * q)) ** (UPSET_STRETCH - 1) : 1; };
   const ratings = (side: 'home' | 'away', minute: number) => {
     const sf = STANCES[stance[side]];
-    const r0 = side === 'home' ? hR : aR, r = sf === STANCES.equilibrado ? r0 : { ...r0, mid: r0.mid * sf.mid, att: r0.att * sf.att, def: r0.def * sf.def }, k = ((side === 'home' ? mods.home : mods.away) ?? 1) * handicap[side];
+    const r0 = side === 'home' ? hR : aR, r = sf === STANCES.equilibrado ? r0 : { ...r0, mid: r0.mid * sf.mid, att: r0.att * sf.att, def: r0.def * sf.def }, k = ((side === 'home' ? mods.home : mods.away) ?? 1) * handicap[side] * stretchOf(side);
     if (side !== mineSide) return scale(r, k);
     const fade = Math.max(0, 1 - (minute - fx.start) / 25), all = 1 + fx.bonus * fade + (minute < fx.confUntil ? -0.03 : 0), st = curBias - origBias;
     return scale({ ...r, mid: r.mid * all }, k, all * (1 + 0.08 * st), all * (1 - 0.08 * st));
