@@ -7,10 +7,10 @@ const LAST = ['Silva','Santos','Oliveira','Souza','Lima','Pereira','Costa','Ferr
 /** Nome fictício que ainda não está em `used`. */
 export function randomName(rng: Rng, used: Set<string>): string {
   let name = '';
-  do name = `${pick(rng, FIRST)} ${pick(rng, LAST)}`;
-  while (used.has(name));
-  used.add(name);
-  return name;
+  for (let i = 0; i < 40; i++) { name = `${pick(rng, FIRST)} ${pick(rng, LAST)}`; if (!used.has(name)) { used.add(name); return name; } }
+  // com muita gente (a base tem 800 jovens) os 900 nomes simples se esgotam: passa a usar dois sobrenomes e, no limite, um número (nunca trava)
+  for (let i = 0; i < 200; i++) { name = `${pick(rng, FIRST)} ${pick(rng, LAST)} ${pick(rng, LAST)}`; if (!used.has(name)) { used.add(name); return name; } }
+  for (let n = 2; ; n++) { const alt = `${name} ${n}`; if (!used.has(alt)) { used.add(alt); return alt; } }
 }
 
 /** Composição do elenco gerado: 24 jogadores. */

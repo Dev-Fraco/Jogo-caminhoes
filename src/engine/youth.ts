@@ -227,7 +227,7 @@ export function youthSeason(g: GameState): GameState {
   });
   // quem completou 21 anos fica aguardando a sua decisão (nunca é dispensado sozinho): o aviso diz quantos são e os de maior potencial
   const aged = grown.filter((p) => needsDecision(p.player.age) && !needsDecision(p.player.age - 1) && !p.loanedTo && !p.loanFrom).sort((a, b) => b.potential - a.potential);
-  if (aged.length) s = news(s, `🌱 ${aged.length} jovem(ns) completaram 21 anos e saem da base. Querem ficar no elenco? Decida em Base > Aguardando decisão (profissional, empréstimo ou dispensa). Destaques: ${aged.slice(0, 5).map((p) => `${p.player.name} (${p.player.strength}/${p.potential})`).join(', ')}.`, 'info');
+  if (aged.length) s = news(s, `🌱 ${aged.length} jovem(ns) completaram 21 anos e saem da base: aguardando decisão do clube. Querem ficar no elenco? Escolha em Base > Aguardando decisão (profissional, empréstimo ou dispensa). Destaques: ${aged.slice(0, 5).map((p) => `${p.player.name} (${p.player.strength}/${p.potential})`).join(', ')}.`, 'info');
   if (moved.length) s = news(s, `🌱 ${moved.length} jovem(ns) mudaram de categoria na base.`);
   s = { ...s, youth: refreshMarket(s, intake(s, { ...y, prospects: grown }, rng), 'full') }; // novo ano: o mercado de treinadores se renova
   s = aiPromoteDerived(aiYouthMarket(aiScoutingYear(s, rng), rng), rng);                  // clubes da IA: olheiros, peneiras, compras e empréstimos de jovens
