@@ -52,6 +52,7 @@ import { hooks } from '../engine/hooks';
 const WorldScreen = lazy(() => premiumChunk(() => import('./WorldScreen'))().then((m) => ({ default: m.WorldScreen }))); // (recurso Premium, carregado sob demanda)
 import { MatchChoice, type MatchMode } from './MatchChoice';
 import { LineupCompare } from './LineupCompare';
+import { Intro } from './Intro';
 import { EstadualChoice, EstadualSim, SeasonTransition } from './SeasonFlow';
 import { estadualOfUser } from '../engine/estadual';
 import { MatchSim } from './MatchSim';
@@ -85,6 +86,7 @@ export function App() {
   // Premium liberado no começo de uma temporada: as copas regionais (Nordeste e Verde) nascem junto da temporada, então entram agora (no meio da temporada, só na próxima)
   useEffect(() => { if (extras === 'on') setGame((g) => (g && !g.regionais && !g.observer && !g.unemployed && g.cup && g.round <= 1 ? hooks.createRegionals(g) : g)); }, [extras]);
   const [screen, setScreen] = useState<Screen>('menu');
+  const [introDone, setIntroDone] = useState((import.meta as unknown as { env?: { MODE?: string } }).env?.MODE === 'test'); // abertura (PS1) ao abrir o app; nos testes é pulada
   // versão grátis: antes de entrar no jogo, a tela de planos mostra o que cada versão tem (uma vez por sessão)
   const planSeen = useRef((() => { try { return isPremium() || sessionStorage.getItem('vr-plan-seen') === '1'; } catch { return isPremium(); } })());
   const planNext = useRef<MenuOptionId | null>(null);
@@ -162,6 +164,8 @@ export function App() {
 
   if (plansOpen) return <PlanScreen onDone={() => setPlansOpen(false)} />;
   if (screen === 'plano') return <PlanScreen onDone={() => { planSeen.current = true; try { sessionStorage.setItem('vr-plan-seen', '1'); } catch { /* sem armazenamento */ } const id = planNext.current; planNext.current = null; if (id) select(id); else setScreen('menu'); }} />;
+  if (!introDone) return <Intro onDone={() => setIntroDone(true)} />;
+
   if (screen === 'menu') return <MainMenu onSelect={select} hasSave={!!game} />;
 
   if (screen === 'novo-jogo') return <NewGame onBack={toMenu} onStart={startCareer} hasSave={!!game} />;

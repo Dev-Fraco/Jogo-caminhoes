@@ -185,6 +185,19 @@ class AudioSys {
     g.connect(dest);
   }
 
+  /** Abertura do jogo (estilo tela de carregamento de futebol dos anos 90): estádio enchendo, apito, torcida explodindo e acorde final. */
+  intro() {
+    this.unlock();
+    const c = this.ctx;
+    if (!c) return;
+    const t = c.currentTime + 0.05, o = this.reactGain;
+    for (let i = 0; i < 4; i++) this.noise(t + i * 0.45, 0.9, 0.18 + i * 0.07, o, 250 + i * 250, 700 + i * 450); // murmúrio da arquibancada crescendo
+    for (const [k, base] of [196, 247, 294].entries()) this.voice(base, t + 0.6 + k * 0.3, 1.2, 'o', 0.1, o, base * 1.12); // "ôô" da torcida
+    this.whistleBlast(t + 1.85, 0.45, this.settings?.audio.whistleType ?? 'classic', this.whistleGain); // apito
+    this.cheer(t + 2.1, o); // a torcida explode junto com o nome na tela
+    for (const [k, f] of [98, 147, 196, 247, 294].entries()) this.tone(f, t + 2.1 + k * 0.03, 2.4, 'sawtooth', 0.09, this.sfxGain, undefined, 1800, 0.05); // acorde de abertura
+  }
+
   /** Gol do seu time: a torcida explode (rugido, "aaaah" subindo e palmas). */
   private cheer(t: number, o: AudioNode) {
     this.noise(t, 2.6, 0.9, o, 500, 1500); this.noise(t + 0.2, 2.2, 0.5, o, 1500, 700);

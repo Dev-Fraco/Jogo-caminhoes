@@ -451,3 +451,19 @@ select option { background: #35322e; color: var(--ink); }
 .yt-filter select, .yt-search { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: rgba(255,255,255,.06); color: inherit; font-size: 14px; }
 .yt-filter .yt-chk { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; font-size: 13px; }
 .yt-search { grid-column: 1 / -1; }
+
+/* abertura estilo PS1 */
+.intro { position: fixed; inset: 0; z-index: 200; background: #000; display: grid; place-items: center; color: #e8e8f0; font-family: var(--font-head, sans-serif); overflow: hidden; animation: intro-in .6s ease-out; }
+@keyframes intro-in { from { opacity: 0; } to { opacity: 1; } }
+.intro-scan { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255,255,255,.04) 0 1px, transparent 1px 3px); pointer-events: none; animation: intro-flick .12s steps(2) infinite; }
+@keyframes intro-flick { 50% { opacity: .7; } }
+.intro-logo { display: grid; justify-items: center; gap: 14px; perspective: 600px; animation: intro-in .8s ease-out; }
+.intro-spin { font-size: clamp(40px, 15vw, 84px); font-weight: 900; letter-spacing: .12em; color: #cfd6ff; text-shadow: 0 0 18px #6a7dff, 0 0 40px #3347d6, 0 4px 0 #1b2480; transform-style: preserve-3d; animation: intro-rot 2s ease-out forwards; }
+@keyframes intro-rot { from { transform: rotateY(-100deg) scale(.6); opacity: 0; } 55% { opacity: 1; } to { transform: rotateY(0) scale(1); opacity: 1; } }
+.intro-logo small { letter-spacing: .3em; text-transform: uppercase; font-size: 12px; color: #9aa3d6; animation: intro-in 1.4s ease-out; }
+.intro-credits { display: grid; gap: 10px; justify-items: center; text-align: center; padding: 0 24px; max-width: 420px; animation: intro-in .6s ease-out; }
+.intro-credits h2 { margin: 0; font-size: 30px; letter-spacing: .08em; color: #ffd45c; text-shadow: 0 0 14px #b8860b; }
+.intro-by { margin: 0; color: #9aa3d6; letter-spacing: .25em; text-transform: uppercase; font-size: 11px; }
+.intro-credits ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 20px; }
+.intro-warn { margin: 10px 0 0; font-size: 12px; line-height: 1.4; color: #b9bdd6; border: 1px solid #2c3160; border-radius: 8px; padding: 8px 10px; }
+.intro-skip { position: absolute; bottom: 14px; font-size: 11px; color: #5d6390; }
