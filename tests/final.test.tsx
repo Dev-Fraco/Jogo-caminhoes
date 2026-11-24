@@ -129,7 +129,7 @@ describe('integração entre sistemas', () => {
     expect(buildReport(s, 'sub13').highlights.length).toBeGreaterThanOrEqual(lines.length);
   });
   it('contrato que vence durante um empréstimo não deixa registro órfão', () => {
-    let g = withProspects(base(), [{ ...prospect('lo1', 17, 40, 75), player: { ...prospect('lo1', 17, 40, 75).player, contract: { wage: 20_000, from: 2025, until: 2026 } } }]);
+    let g = withProspects(base(), [{ ...prospect('lo1', 17, 40, 75), sat: 30, player: { ...prospect('lo1', 17, 40, 75).player, contract: { wage: 20_000, from: 2025, until: 2026 } } }]);
     g = ok(loanOut(g, 'lo1', 'flamengo', 3, 0.5)).state;
     expect(g.ymoves!.lo1).toBeTruthy();
     const n = youthSeason({ ...g, season: 2027, round: g.totalRounds + 1 });
