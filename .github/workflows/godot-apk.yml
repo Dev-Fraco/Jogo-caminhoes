@@ -18,7 +18,7 @@ jobs:
       - name: Instalar Godot 4.3 com export templates
         uses: chickensoft-games/setup-godot@v2
         with:
-          version: 4.3
+          version: 4.3-stable
           use-dotnet: false
           include-templates: true
 
