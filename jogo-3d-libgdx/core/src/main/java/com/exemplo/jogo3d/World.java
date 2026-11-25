@@ -1,27 +1,29 @@
 package com.exemplo.jogo3d;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.VertexAttributes.Usage;
 import com.badlogic.gdx.graphics.g3d.Material;
 import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
-import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
+import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute;
+import com.badlogic.gdx.graphics.g3d.loader.ObjLoader;
 import com.badlogic.gdx.graphics.g3d.utils.MeshPartBuilder;
 import com.badlogic.gdx.graphics.g3d.utils.MeshPartBuilder.VertexInfo;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Matrix4;
-import com.badlogic.gdx.math.Quaternion;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
 
 import java.util.Random;
 
 /**
- * Mundo do sertão: relevo com subidas e descidas, chão de caatinga seca,
- * árvores mortas, cactos, casas redondas de palha/taipa e pedras.
- * Tudo é gerado por código (sem arquivos de modelo).
+ * Mundo do sertão: relevo com subidas e descidas, chão de terra seca com textura,
+ * e objetos 3D reais (cactos, pedras, tocos e troncos, CC0 da Kenney/Quaternius).
+ * Casas redondas são provisórias (ainda sem modelo real).
  */
 public class World {
 
@@ -29,8 +31,9 @@ public class World {
     static final float HALF = SIZE / 2f;
     static final int GRID = 64;              // células por lado (64 = limite seguro de vértices)
     static final float SPAWN_CLEAR = 9f;     // área plana no ponto de nascimento
+    static final float TEXTURE_TILE = 6f;    // metros por repetição da textura de terra
 
-    /** Objeto com colisão circular (casa, cacto, árvore, pedra). */
+    /** Objeto com colisão circular. */
     static class Obstacle {
         final float x, z, radius, baseY, height;
         Obstacle(float x, float z, float radius, float baseY, float height) {
@@ -47,8 +50,10 @@ public class World {
     final Array<Obstacle> obstacles = new Array<>();
 
     private Model terrainModel;
-    private Model unitCylinder;
+    private Model unitCylinder;   // só para as casas provisórias
     private Model unitSphere;
+    private Texture dirtTexture;
+    private final Array<Model> loaded = new Array<>();
 
     /** Altura do terreno em (x, z). Plana perto do spawn, colinas ao redor. */
     public float heightAt(float x, float z) {
@@ -57,7 +62,7 @@ public class World {
                 + 0.8f * MathUtils.sin(x * 0.230f + 1.7f) * MathUtils.sin(z * 0.190f + 0.4f);
         float r = (float) Math.sqrt(x * x + z * z);
         float t = MathUtils.clamp((r - SPAWN_CLEAR) / 14f, 0f, 1f);
-        float flat = t * t * (3f - 2f * t); // suavização
+        float flat = t * t * (3f - 2f * t);
         return h * flat;
     }
 
@@ -68,12 +73,13 @@ public class World {
         return new Vector3(-dhdx, 1f, -dhdz).nor();
     }
 
-    private Color colorAt(float x, float z, Vector3 n) {
+    /** Tom de cor: terra clara no plano, rocha nas encostas. */
+    private Color tintAt(float x, float z, Vector3 n) {
         float var = 0.5f + 0.5f * (float) Math.sin(x * 0.37 + z * 0.21) * (float) Math.sin(x * 0.13 - z * 0.29);
-        Color c = new Color(0.80f, 0.68f, 0.45f, 1f).lerp(new Color(0.60f, 0.55f, 0.34f, 1f), var);
-        float steep = 1f - n.y; // 0 = plano, maior = mais íngreme
+        Color c = new Color(1f, 0.95f, 0.82f, 1f).lerp(new Color(0.85f, 0.78f, 0.62f, 1f), var);
+        float steep = 1f - n.y;
         if (steep > 0.10f) {
-            c.lerp(new Color(0.46f, 0.36f, 0.27f, 1f), MathUtils.clamp((steep - 0.10f) * 3f, 0f, 1f));
+            c.lerp(new Color(0.62f, 0.52f, 0.40f, 1f), MathUtils.clamp((steep - 0.10f) * 3f, 0f, 1f));
         }
         return c;
     }
@@ -83,16 +89,21 @@ public class World {
         return new VertexInfo()
                 .setPos(x, heightAt(x, z), z)
                 .setNor(n.x, n.y, n.z)
-                .setCol(colorAt(x, z, n));
+                .setCol(tintAt(x, z, n))
+                .setUV(x / TEXTURE_TILE, z / TEXTURE_TILE);
     }
 
     public void create() {
+        dirtTexture = new Texture(Gdx.files.internal("textures/dirt.png"));
+        dirtTexture.setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat);
+
         ModelBuilder mb = new ModelBuilder();
 
-        // Terreno com cores por vértice
+        // Terreno: textura de terra + cor por altura/inclinação
         mb.begin();
         MeshPartBuilder part = mb.part("terrain", GL20.GL_TRIANGLES,
-                Usage.Position | Usage.Normal | Usage.ColorPacked, new Material());
+                Usage.Position | Usage.Normal | Usage.ColorPacked | Usage.TextureCoordinates,
+                new Material(TextureAttribute.createDiffuse(dirtTexture)));
         float step = SIZE / GRID;
         for (int i = 0; i < GRID; i++) {
             for (int j = 0; j < GRID; j++) {
@@ -100,22 +111,40 @@ public class World {
                 float z0 = -HALF + j * step, z1 = z0 + step;
                 VertexInfo a = vertex(x0, z0), b = vertex(x1, z0);
                 VertexInfo c = vertex(x1, z1), d = vertex(x0, z1);
-                part.triangle(a, b, c);
-                part.triangle(a, c, d);
+                // ordem anti-horária vista de cima (para a face aparecer)
+                part.triangle(a, c, b);
+                part.triangle(a, d, c);
             }
         }
         terrainModel = mb.end();
         instances.add(new ModelInstance(terrainModel));
 
-        // Primitivas reutilizadas (tamanho unitário; escala no transform)
         unitCylinder = mb.createCylinder(1f, 1f, 1f, 12, new Material(), Usage.Position | Usage.Normal);
         unitSphere = mb.createSphere(1f, 1f, 1f, 14, 10, new Material(), Usage.Position | Usage.Normal);
 
+        // Objetos 3D reais (modelos CC0 convertidos para .obj)
+        Model cactus = loadModel("models/cactus.obj");
+        Model rockLarge = loadModel("models/rock_large.obj");
+        Model rockSmall = loadModel("models/rock_small.obj");
+        Model stump = loadModel("models/stump.obj");
+        Model log = loadModel("models/log.obj");
+        Model bush = loadModel("models/bush.obj");
+
         Random rnd = new Random(7L);
         for (int i = 0; i < 26; i++) addHut(rnd);
-        for (int i = 0; i < 30; i++) addDeadTree(rnd);
-        for (int i = 0; i < 16; i++) addCactus(rnd);
-        for (int i = 0; i < 25; i++) addRock(rnd);
+        for (int i = 0; i < 18; i++) addProp(rnd, cactus, 3.2f, 0.45f, 1.0f + 0.2f * rnd.nextFloat());
+        for (int i = 0; i < 12; i++) addProp(rnd, rockLarge, 2.2f, 0.9f, 1f);
+        for (int i = 0; i < 16; i++) addProp(rnd, rockSmall, 2.2f, 0.45f, 1f);
+        // Madeira morta: tocos e troncos caídos (no lugar das árvores mortas, que ainda não temos modelo)
+        for (int i = 0; i < 18; i++) addProp(rnd, stump, 2.6f, 0.35f, 1f);
+        for (int i = 0; i < 12; i++) addProp(rnd, log, 2.6f, 1.2f, 1f);
+        for (int i = 0; i < 20; i++) addProp(rnd, bush, 2.4f, 0f, 1f);
+    }
+
+    private Model loadModel(String path) {
+        Model m = new ObjLoader().loadModel(Gdx.files.internal(path));
+        loaded.add(m);
+        return m;
     }
 
     /** Escolhe um ponto aleatório fora da área de nascimento. */
@@ -128,9 +157,30 @@ public class World {
         return new float[]{x, z};
     }
 
+    /**
+     * Coloca um modelo real no terreno.
+     * @param scale escala aplicada ao modelo
+     * @param collisionRadius raio de colisão (0 = sem colisão, ex.: troncos deitados)
+     */
+    private void addProp(Random rnd, Model model, float scale, float collisionRadius, float sizeJitter) {
+        float[] p = randomSpot(rnd, 6f);
+        float x = p[0], z = p[1];
+        float y = heightAt(x, z);
+        float rot = rnd.nextFloat() * MathUtils.PI2;
+        float s = scale * sizeJitter;
+
+        ModelInstance mi = new ModelInstance(model);
+        mi.transform.setToTranslation(x, y, z).rotate(Vector3.Y, rot * MathUtils.radiansToDegrees).scale(s, s, s);
+        instances.add(mi);
+
+        if (collisionRadius > 0f) {
+            obstacles.add(new Obstacle(x, z, collisionRadius * sizeJitter, y, 1.5f));
+        }
+    }
+
     private ModelInstance inst(Model m, Color c, Matrix4 t) {
         ModelInstance mi = new ModelInstance(m);
-        mi.materials.get(0).set(ColorAttribute.createDiffuse(c));
+        mi.materials.get(0).set(com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute.createDiffuse(c));
         mi.transform.set(t);
         return mi;
     }
@@ -139,87 +189,21 @@ public class World {
         float[] p = randomSpot(rnd, 12f);
         float x = p[0], z = p[1];
         float y = heightAt(x, z);
-        float r = 2.0f + rnd.nextFloat() * 0.8f;   // raio da casa
-        float h = 2.2f + rnd.nextFloat() * 0.8f;   // altura da parede
+        float r = 2.0f + rnd.nextFloat() * 0.8f;
+        float h = 2.2f + rnd.nextFloat() * 0.8f;
 
-        // Parede de taipa (cilindro)
         instances.add(inst(unitCylinder, new Color(0.84f, 0.73f, 0.55f, 1f),
                 new Matrix4().setToTranslation(x, y + h / 2f, z).scale(r * 2f, h, r * 2f)));
-        // Telhado de palha em cúpula
         instances.add(inst(unitSphere, new Color(0.58f, 0.46f, 0.26f, 1f),
                 new Matrix4().setToTranslation(x, y + h, z).scale(r * 2.3f, r * 1.1f, r * 2.3f)));
         obstacles.add(new Obstacle(x, z, r + 0.2f, y, h));
-    }
-
-    private void addDeadTree(Random rnd) {
-        float[] p = randomSpot(rnd, 8f);
-        float x = p[0], z = p[1];
-        float y = heightAt(x, z);
-        float h = 3.5f + rnd.nextFloat() * 2.5f;
-        float r = 0.16f + rnd.nextFloat() * 0.08f;
-        Color bark = new Color(0.42f, 0.37f, 0.31f, 1f);
-
-        // Tronco seco e sem folhas
-        instances.add(inst(unitCylinder, bark,
-                new Matrix4().setToTranslation(x, y + h / 2f, z).scale(r * 2f, h, r * 2f)));
-
-        // Galhos secos, tortos, subindo e se abrindo
-        int branches = 3 + rnd.nextInt(3);
-        for (int b = 0; b < branches; b++) {
-            float t = 0.45f + rnd.nextFloat() * 0.5f;
-            Vector3 origin = new Vector3(x, y + h * t, z);
-            float ang = rnd.nextFloat() * MathUtils.PI2;
-            float tilt = 0.5f + rnd.nextFloat() * 0.6f;
-            Vector3 dir = new Vector3(
-                    MathUtils.cos(ang) * MathUtils.sin(tilt), MathUtils.cos(tilt), MathUtils.sin(ang) * MathUtils.sin(tilt));
-            float len = 1.1f + rnd.nextFloat() * 1.2f;
-            addBranch(origin, dir, len, r * 0.45f, bark);
-        }
-
-        obstacles.add(new Obstacle(x, z, r * 2.5f, y, h));
-    }
-
-    private void addBranch(Vector3 origin, Vector3 dir, float len, float w, Color color) {
-        Vector3 mid = new Vector3(dir).scl(len / 2f).add(origin);
-        Quaternion q = new Quaternion().setFromCross(Vector3.Y, dir);
-        Matrix4 t = new Matrix4().set(mid, q).scale(w * 2f, len, w * 2f);
-        instances.add(inst(unitCylinder, color, t));
-    }
-
-    private void addCactus(Random rnd) {
-        float[] p = randomSpot(rnd, 8f);
-        float x = p[0], z = p[1];
-        float y = heightAt(x, z);
-        float h = 2.2f + rnd.nextFloat() * 1.6f;
-        float r = 0.32f;
-        Color green = new Color(0.30f, 0.48f, 0.28f, 1f);
-
-        instances.add(inst(unitCylinder, green,
-                new Matrix4().setToTranslation(x, y + h / 2f, z).scale(r * 2f, h, r * 2f)));
-        // Um ou dois braços arredondados
-        if (rnd.nextBoolean()) {
-            float side = rnd.nextBoolean() ? 1f : -1f;
-            float bh = h * 0.55f;
-            addBranch(new Vector3(x, y + bh, z), new Vector3(side, 0.6f, 0f).nor(), 0.9f, r * 0.7f, green);
-        }
-        obstacles.add(new Obstacle(x, z, r + 0.25f, y, h));
-    }
-
-    private void addRock(Random rnd) {
-        float[] p = randomSpot(rnd, 6f);
-        float x = p[0], z = p[1];
-        float y = heightAt(x, z);
-        float s = 0.8f + rnd.nextFloat() * 1.4f;
-        instances.add(inst(unitSphere, new Color(0.56f, 0.51f, 0.46f, 1f),
-                new Matrix4().setToTranslation(x, y + s * 0.3f, z).scale(s * 1.4f, s * 0.9f, s * 1.2f)));
-        obstacles.add(new Obstacle(x, z, s * 0.7f, y, s * 0.9f));
     }
 
     /** Empurra o jogador (círculo) para fora de qualquer obstáculo que ele esteja tocando. */
     public void resolveCollisions(Vector3 p, float playerRadius) {
         for (int k = 0; k < obstacles.size; k++) {
             Obstacle o = obstacles.get(k);
-            if (p.y > o.baseY + o.height) continue; // passou por cima do obstáculo
+            if (p.y > o.baseY + o.height) continue;
             float dx = p.x - o.x, dz = p.z - o.z;
             float min = o.radius + playerRadius;
             float d2 = dx * dx + dz * dz;
@@ -236,5 +220,7 @@ public class World {
         terrainModel.dispose();
         unitCylinder.dispose();
         unitSphere.dispose();
+        dirtTexture.dispose();
+        for (int i = 0; i < loaded.size; i++) loaded.get(i).dispose();
     }
 }

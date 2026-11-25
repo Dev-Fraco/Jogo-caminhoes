@@ -1,0 +1,11 @@
+newmtl m0_woodBark
+Kd 0.8863 0.5137 0.3412
+Ka 0.2 0.2 0.2
+Ks 0 0 0
+d 1.000
+
+newmtl m1_woodInner
+Kd 0.9608 0.8431 0.7333
+Ka 0.2 0.2 0.2
+Ks 0 0 0
+d 1.000
