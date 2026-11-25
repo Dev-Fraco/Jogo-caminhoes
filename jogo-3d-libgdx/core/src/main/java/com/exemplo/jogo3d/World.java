@@ -18,6 +18,7 @@ import com.badlogic.gdx.graphics.g3d.utils.MeshPartBuilder.VertexInfo;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Matrix4;
+import com.badlogic.gdx.math.Quaternion;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.JsonValue;
@@ -69,6 +70,9 @@ public class World {
     private Model casaModel;   // casa de taipa (modelo real importado)
     private Model troughModel; // cocho de madeira (1,84 m)
     private Model postModel;   // morão de madeira, para amarrar o animal
+    private Model cartModel;   // carroça de madeira (2,2 x 2,8 m)
+    private Model donkeyModel; // donkey (1,86 m de comprimento)
+    private Model ropeModel;   // corda do donkey até o morão (criada na hora)
     private Texture dirtTexture;
     private final Array<Model> loaded = new Array<>();
 
@@ -150,6 +154,8 @@ public class World {
         fences.create();
         troughModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cocho.g3dj"));
         postModel = buildPostModel();
+        cartModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/carroca.g3dj"));
+        donkeyModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/donkey.g3dj"));
         for (int i = 0; i < 8; i++) addEnclosedHouse(rnd);
         for (int i = 0; i < 18; i++) addProp(rnd, cactus, 3.2f, 0.45f, 1.0f + 0.2f * rnd.nextFloat());
         for (int i = 0; i < 12; i++) addProp(rnd, rockLarge, 2.2f, 0.9f, 1f);
@@ -238,21 +244,74 @@ public class World {
 
         // Primeiro cercado: estábulo, com morão e cocho do lado esquerdo (dentro do cercado)
         if (houses.size == 1) addStable(bestX, y, bestZ, yaw);
+
+        // Carroça em cada cercado, ao lado da casa (dentro do cercado, frente = +z)
+        Matrix4 enc = new Matrix4().setToTranslation(bestX, y, bestZ).rotate(Vector3.Y, yaw);
+        Vector3 c = new Vector3(6f, 0f, -3f).mul(enc);
+        ModelInstance cart = new ModelInstance(cartModel);
+        cart.transform.setToTranslation(c.x, heightAt(c.x, c.z), c.z).rotate(Vector3.Y, yaw);
+        instances.add(cart);
+        obstacles.add(new Obstacle(c.x, c.z, 1.5f, heightAt(c.x, c.z), 1.8f));
     }
 
-    /** Morão e cocho dentro do cercado, em coordenadas locais do cercado (frente = +z). */
+    /**
+     * Estábulo do primeiro cercado (coordenadas locais do cercado, frente = +z):
+     * morão à esquerda, cocho na frente dele e o donkey amarrado pelo pescoço ao morão, com a cabeça sobre o cocho.
+     */
     private void addStable(float ex, float ey, float ez, float yaw) {
         Matrix4 enc = new Matrix4().setToTranslation(ex, ey, ez).rotate(Vector3.Y, yaw);
-        Vector3 postLocal = new Vector3(-5.5f, 0f, -3f);
-        Vector3 troughLocal = new Vector3(-5.5f, 0f, -5f);
-        Vector3 p = new Vector3(postLocal).mul(enc);
+        Vector3 p = new Vector3(-7.2f, 0f, -3.2f).mul(enc);
         ModelInstance post = new ModelInstance(postModel);
         post.transform.setToTranslation(p.x, heightAt(p.x, p.z), p.z).rotate(Vector3.Y, yaw);
         instances.add(post);
-        Vector3 t = new Vector3(troughLocal).mul(enc);
+        obstacles.add(new Obstacle(p.x, p.z, 0.2f, heightAt(p.x, p.z), 1.6f));
+
+        Vector3 t = new Vector3(-5.5f, 0f, -5f).mul(enc);
         ModelInstance trough = new ModelInstance(troughModel);
         trough.transform.setToTranslation(t.x, heightAt(t.x, t.z), t.z).rotate(Vector3.Y, yaw);
         instances.add(trough);
+        obstacles.add(new Obstacle(t.x, t.z, 0.9f, heightAt(t.x, t.z), 0.9f));
+
+        // Donkey: o modelo tem a cabeça em +z e o centro em z = 0,33; gira 180° para olhar o cocho
+        Vector3 d = new Vector3(-5.6f, 0f, -3.9f).mul(enc);
+        ModelInstance donkey = new ModelInstance(donkeyModel);
+        donkey.transform.setToTranslation(d.x, heightAt(d.x, d.z), d.z).rotate(Vector3.Y, yaw + 180f).translate(0f, 0f, -0.33f);
+        instances.add(donkey);
+        obstacles.add(new Obstacle(d.x, d.z, 0.45f, heightAt(d.x, d.z), 1.5f));
+
+        // Corda: do topo do morão até o pescoço do donkey, com um pouco de folga
+        Vector3 top = new Vector3(p.x, heightAt(p.x, p.z) + 1.45f, p.z);
+        Vector3 head = new Vector3(0f, 1.25f, 1.05f).mul(donkey.transform);
+        ropeModel = buildRope(top, head);
+        ModelInstance rope = new ModelInstance(ropeModel);
+        instances.add(rope);
+    }
+
+    /** Corda com folga: polilinha caindo um pouco no meio, feita de pequenos prismas. */
+    private static Model buildRope(Vector3 a, Vector3 b) {
+        ModelBuilder mb = new ModelBuilder();
+        mb.begin();
+        MeshPartBuilder pb = mb.part("corda", GL20.GL_TRIANGLES, Usage.Position | Usage.Normal,
+                new Material(ColorAttribute.createDiffuse(0.62f, 0.5f, 0.3f, 1f)));
+        int n = 10;
+        float len = a.dst(b);
+        float sag = Math.max(0.15f, 0.12f * len);
+        Vector3 prev = null;
+        for (int i = 0; i <= n; i++) {
+            float t = i / (float) n;
+            Vector3 q = new Vector3(a).lerp(b, t);
+            q.y -= sag * 4f * t * (1f - t);
+            if (prev != null) {
+                Vector3 dir = new Vector3(q).sub(prev);
+                float l = dir.len();
+                Vector3 mid = new Vector3(prev).add(q).scl(0.5f);
+                Quaternion rot = new Quaternion().setFromCross(Vector3.Z, dir.nor());
+                Matrix4 m = new Matrix4().set(mid, rot).scale(0.025f, 0.025f, l);
+                pb.box(m);
+            }
+            prev = q;
+        }
+        return mb.end();
     }
 
     /** Morão: poste de madeira de 1,6 m, com um pequeno topo. */
@@ -330,6 +389,9 @@ public class World {
         fences.dispose();
         troughModel.dispose();
         postModel.dispose();
+        cartModel.dispose();
+        donkeyModel.dispose();
+        if (ropeModel != null) ropeModel.dispose();
         dirtTexture.dispose();
         for (int i = 0; i < loaded.size; i++) loaded.get(i).dispose();
     }
