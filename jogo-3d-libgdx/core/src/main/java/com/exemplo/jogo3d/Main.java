@@ -53,6 +53,7 @@ public class Main extends ApplicationAdapter {
     // ---------- Toque / HUD ----------
     private int joyPointer = -1, lookPointer = -1, jumpPointer = -1, runPointer = -1;
     static final float RUN_BUTTON_RADIUS = 62f;
+    private boolean runToggle = false;   // toque no botão liga/desliga a corrida
     private float joyOriginX, joyOriginY, joyX, joyY;
     private float lookLastX, lookLastY;
     private OrthographicCamera hudCamera;
@@ -164,7 +165,8 @@ public class Main extends ApplicationAdapter {
         jumpRequested = false;
 
         // Física (andar, correr, pular) e animação, ambas com o mesmo dt
-        boolean runHeld = runPointer >= 0 || Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT);
+        if (Gdx.input.isKeyJustPressed(Input.Keys.SHIFT_LEFT)) runToggle = !runToggle;
+        boolean runHeld = runToggle;
         player.update(dt, inX, inY, yaw, jumpPressed, runHeld, world);
         character.update(player, dt);
 
@@ -228,6 +230,7 @@ public class Main extends ApplicationAdapter {
             float x = Gdx.input.getX(i), y = Gdx.input.getY(i);
             if (runPointer < 0 && isOnRunButton(x, y)) {
                 runPointer = i;
+                runToggle = !runToggle;   // toque: começa ou para de correr
             } else if (jumpPointer < 0 && isOnJumpButton(x, y)) {
                 jumpPointer = i;
                 jumpRequested = true;
@@ -278,7 +281,7 @@ public class Main extends ApplicationAdapter {
         }
         float jcx = w - 110f, jcy = 110f;
         float rcx = w - 240f, rcy = 110f;
-        shapes.setColor(1f, 0.85f, 0.5f, runPointer >= 0 ? 0.55f : 0.28f);
+        shapes.setColor(1f, 0.85f, 0.5f, runToggle ? 0.6f : 0.28f);
         shapes.circle(rcx, rcy, RUN_BUTTON_RADIUS);
         shapes.setColor(1f, 1f, 1f, jumpPointer >= 0 ? 0.5f : 0.25f);
         shapes.circle(jcx, jcy, JUMP_BUTTON_RADIUS);

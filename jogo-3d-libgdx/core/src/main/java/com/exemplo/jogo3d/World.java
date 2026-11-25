@@ -19,6 +19,7 @@ import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.JsonValue;
 
 import java.util.Random;
 
@@ -50,6 +51,15 @@ public class World {
     /** Todas as instâncias que devem ser desenhadas (terreno + cenário). */
     final Array<ModelInstance> instances = new Array<>();
     final Array<Obstacle> obstacles = new Array<>();
+
+    /** Casa colocada no mapa: transformação e inversa, para checar colisão no sistema da casa. */
+    static class House {
+        final Matrix4 t, inv;
+        House(Matrix4 t) { this.t = t; this.inv = new Matrix4(t).inv(); }
+    }
+    final Array<House> houses = new Array<>();
+    /** Caixas das paredes da casa (coordenadas locais), lidas de models/casa_taipa_colisao.json. */
+    private final Array<float[]> wallBoxes = new Array<>();
 
     private Model terrainModel;
     private Model casaModel;   // casa de taipa (modelo real importado)
@@ -127,6 +137,10 @@ public class World {
 
         Random rnd = new Random(7L);
         casaModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/casa_taipa.g3dj"));
+        JsonValue boxes = new JsonReader().parse(Gdx.files.internal("models/casa_taipa_colisao.json"));
+        for (JsonValue b = boxes.child; b != null; b = b.next) {
+            wallBoxes.add(new float[]{b.getFloat("minX"), b.getFloat("maxX"), b.getFloat("minY"), b.getFloat("maxY"), b.getFloat("minZ"), b.getFloat("maxZ")});
+        }
         for (int i = 0; i < 8; i++) addHouse(rnd);
         for (int i = 0; i < 18; i++) addProp(rnd, cactus, 3.2f, 0.45f, 1.0f + 0.2f * rnd.nextFloat());
         for (int i = 0; i < 12; i++) addProp(rnd, rockLarge, 2.2f, 0.9f, 1f);
@@ -197,10 +211,11 @@ public class World {
         float yaw = rnd.nextFloat() * 360f;
 
         ModelInstance house = new ModelInstance(casaModel);
-        house.transform.setToTranslation(bestX, y, bestZ).rotate(Vector3.Y, yaw);
+        Matrix4 t = new Matrix4().setToTranslation(bestX, y, bestZ).rotate(Vector3.Y, yaw);
+        house.transform.set(t);
         instances.add(house);
-        // Colisão aproximada da casa (círculo cobrindo as paredes)
-        obstacles.add(new Obstacle(bestX, bestZ, 4.8f, y, 5.2f));   // casa ~8,7 m x 7,5 m, 5,1 m de altura
+        // A colisão das paredes é feita no sistema da casa (ver resolveCollisions)
+        houses.add(new House(t));
     }
 
     /** Inclinação aproximada do terreno numa área de 6 m (quanto menor, mais plano). */
@@ -212,6 +227,26 @@ public class World {
 
     /** Empurra o jogador (círculo) para fora de qualquer obstáculo que ele esteja tocando. */
     public void resolveCollisions(Vector3 p, float playerRadius) {
+        // Paredes das casas: entra pela abertura da porta, não pelas paredes
+        for (int h = 0; h < houses.size; h++) {
+            House house = houses.get(h);
+            Vector3 l = new Vector3(p).mul(house.inv);   // posição no sistema da casa
+            if (l.y > 3.0f) continue;                    // acima das paredes
+            for (int k = 0; k < wallBoxes.size; k++) {
+                float[] b = wallBoxes.get(k);
+                float minX = b[0] - playerRadius, maxX = b[1] + playerRadius;
+                float minZ = b[4] - playerRadius, maxZ = b[5] + playerRadius;
+                if (l.x > minX && l.x < maxX && l.z > minZ && l.z < maxZ && l.y >= b[2] - 0.05f && l.y < b[3]) {
+                    float left = l.x - minX, right = maxX - l.x, back = l.z - minZ, front = maxZ - l.z;
+                    float m = Math.min(Math.min(left, right), Math.min(back, front));
+                    if (m == left) l.x = minX;
+                    else if (m == right) l.x = maxX;
+                    else if (m == back) l.z = minZ;
+                    else l.z = maxZ;
+                }
+            }
+            p.set(l).mul(house.t);                       // volta para o mundo
+        }
         for (int k = 0; k < obstacles.size; k++) {
             Obstacle o = obstacles.get(k);
             if (p.y > o.baseY + o.height) continue;
