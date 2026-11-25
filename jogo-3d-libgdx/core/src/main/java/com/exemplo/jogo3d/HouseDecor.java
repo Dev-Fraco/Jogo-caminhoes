@@ -139,8 +139,21 @@ final class HouseDecor {
 
     // ---------- Porta ----------
 
+    private static com.badlogic.gdx.audio.Sound doorSound;
+    private static boolean doorSoundLoaded = false;
+
     void toggleDoor() {
         doorTarget = doorTarget == 0f ? OPEN_DEG : 0f;
+        // Som de porta ao abrir e ao fechar (o jogador só aciona de perto)
+        if (!doorSoundLoaded) {
+            doorSoundLoaded = true;
+            try {
+                doorSound = com.badlogic.gdx.Gdx.audio.newSound(com.badlogic.gdx.Gdx.files.internal("audio/porta.mp3"));
+            } catch (RuntimeException e) {
+                doorSound = null;   // sem som: o jogo continua
+            }
+        }
+        if (doorSound != null) doorSound.play(0.9f);
     }
 
     boolean doorOpen() {

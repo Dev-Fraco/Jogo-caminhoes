@@ -56,6 +56,11 @@ public class Character {
     private State candidate = State.IDLE;
     private float candidateTime = 0f;
 
+    // Passos: um som por pisada, disparado na fase do clipe Walk/Run (um ciclo tem duas pisadas)
+    private static com.badlogic.gdx.audio.Sound[] walkSounds, runSounds;
+    private com.badlogic.gdx.graphics.g3d.model.Animation lastStepAnim;
+    private int lastStepHalf = -1;
+
     public void create() {
         model = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cangaceiro.g3dj"));
         instance = new ModelInstance(model);
@@ -67,6 +72,57 @@ public class Character {
         }
         anim.animate("Idle", -1, 1f, null, 0.15f);
         anim.current.speed = 0f;
+        loadSounds();
+    }
+
+    private static void loadSounds() {
+        if (walkSounds != null) return;
+        try {
+            walkSounds = new com.badlogic.gdx.audio.Sound[]{
+                    com.badlogic.gdx.Gdx.audio.newSound(com.badlogic.gdx.Gdx.files.internal("audio/passo1.mp3")),
+                    com.badlogic.gdx.Gdx.audio.newSound(com.badlogic.gdx.Gdx.files.internal("audio/passo2.mp3")),
+                    com.badlogic.gdx.Gdx.audio.newSound(com.badlogic.gdx.Gdx.files.internal("audio/passo3.mp3"))};
+            runSounds = new com.badlogic.gdx.audio.Sound[]{
+                    com.badlogic.gdx.Gdx.audio.newSound(com.badlogic.gdx.Gdx.files.internal("audio/corrida1.mp3")),
+                    com.badlogic.gdx.Gdx.audio.newSound(com.badlogic.gdx.Gdx.files.internal("audio/corrida2.mp3")),
+                    com.badlogic.gdx.Gdx.audio.newSound(com.badlogic.gdx.Gdx.files.internal("audio/corrida3.mp3"))};
+        } catch (RuntimeException e) {
+            // Sem som: o jogo continua normal
+            walkSounds = new com.badlogic.gdx.audio.Sound[0];
+            runSounds = new com.badlogic.gdx.audio.Sound[0];
+        }
+    }
+
+    /**
+     * Toca um som a cada pisada. O clipe tem dois passos por ciclo (uma vez em cada metade),
+     * então o som sai exatamente no momento em que a animação põe o pé no chão.
+     */
+    private void footsteps(Player p) {
+        com.badlogic.gdx.graphics.g3d.utils.AnimationController.AnimationDesc cur = anim.current;
+        boolean stepping = onceClip == null && !sitting && p.grounded
+                && (current == State.WALK || current == State.RUN) && cur != null && cur.animation != null
+                && cur.animation.duration > 0f;
+        if (!stepping) {
+            lastStepHalf = -1;
+            lastStepAnim = null;
+            return;
+        }
+        if (cur.animation != lastStepAnim) {        // clipe trocou: começa a contar de novo
+            lastStepAnim = cur.animation;
+            lastStepHalf = -1;
+        }
+        float dur = cur.animation.duration;
+        float tt = cur.time % dur;
+        if (tt < 0f) tt += dur;
+        int half = (int) (tt / (dur * 0.5f)) & 1;
+        if (lastStepHalf >= 0 && half != lastStepHalf) {
+            com.badlogic.gdx.audio.Sound[] set = current == State.RUN ? runSounds : walkSounds;
+            if (set != null && set.length > 0) {
+                float vol = 0.5f + 0.4f * MathUtils.clamp(p.speed / 5f, 0f, 1f);
+                set[MathUtils.random(set.length - 1)].play(vol, MathUtils.random(0.95f, 1.05f), 0f);
+            }
+        }
+        lastStepHalf = half;
     }
 
     /** Toca uma animação uma vez (ex.: "LieDown", "GetUp"). Ao terminar, fica na última pose. */
@@ -157,6 +213,7 @@ public class Character {
             }
         } else {
             anim.update(dt);
+            footsteps(p);
         }
         applyPoses();
         instance.calculateTransforms();

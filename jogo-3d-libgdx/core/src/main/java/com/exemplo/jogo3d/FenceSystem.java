@@ -229,6 +229,23 @@ public class FenceSystem {
         return best;
     }
 
+    // Som da porteira: toca quando a folha começa a girar
+    private static com.badlogic.gdx.audio.Sound gateSound;
+    private static boolean gateSoundLoaded = false;
+    private boolean gateSoundPlayed = false;
+
+    private static void playGateSound() {
+        if (!gateSoundLoaded) {
+            gateSoundLoaded = true;
+            try {
+                gateSound = com.badlogic.gdx.Gdx.audio.newSound(com.badlogic.gdx.Gdx.files.internal("audio/porteira.mp3"));
+            } catch (RuntimeException e) {
+                gateSound = null;   // sem som: o jogo continua
+            }
+        }
+        if (gateSound != null) gateSound.play(0.9f);
+    }
+
     /** Começa a operação da folha escolhida: o personagem vai até ela e a move. */
     public void startOperation(Prompt pr, Player player) {
         if (activeGate != null) return;
@@ -239,6 +256,7 @@ public class FenceSystem {
         opTo = pr.open ? 0f : OPEN_DEG;
         opT = 0f;
         opReach = 0f;
+        gateSoundPlayed = false;
         // Fica do lado em que o personagem está
         Vector3 rel = tmpB.set(player.pos).mul(g.inv);
         Vector3 n = Gate.normal(pr.leaf, opFrom);
@@ -266,6 +284,10 @@ public class FenceSystem {
         Gate g = activeGate;
         int leaf = activeLeaf;
         opT += dt;
+        if (!gateSoundPlayed && opT >= T_REACH) {
+            gateSoundPlayed = true;
+            playGateSound();
+        }
 
         // Caminha até a folha, do lado em que estava
         float walk = smooth(Math.min(opT / T_WALK, 1f));
