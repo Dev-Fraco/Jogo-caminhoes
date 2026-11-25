@@ -7,13 +7,13 @@ import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector3;
 
 /**
- * Montaria no donkey.
+ * Montaria (donkey ou cavalo).
  *
- * Sequência de montar: anda até o lado do donkey, agacha, pula e senta sobre o lombo.
- * Montado: o joystick guia o donkey (andando, o personagem vai junto sentado).
- * Pular enquanto montado desce do lado. O donkey desamarrado pode ser montado de novo.
+ * Sequência de montar: anda até o lado do animal, agacha, pula e senta sobre o lombo.
+ * Montado: o joystick guia o animal (andando ou correndo, se for cavalo), e o personagem vai junto sentado.
+ * Pular enquanto montado desce do lado. Depois pode montar de novo.
  *
- * Coordenadas do donkey: a cabeça aponta para +z; o lombo fica em y ≈ 1,2 m.
+ * Coordenadas do animal: a cabeça aponta para +z; a origem fica no chão.
  */
 public class Riding {
 
@@ -22,24 +22,42 @@ public class Riding {
     static final float MOUNT_END = 2.2f;
     static final float DISMOUNT_END = 1.0f;
     static final float MOUNT_RANGE = 2.2f;
-    static final float WALK_SPEED = 1.4f;
-    static final float RUN_SPEED = 2.6f;
-    static final float DONKEY_RADIUS = 0.7f;
-
-    static final float SEAT_Y = 1.22f;     // lombo, no modelo do donkey
-    static final float SEAT_Z = 0.1f;
-    static final float SIDE_X = 0.75f;     // ponto ao lado do donkey, para subir
-    static final float SIDE_Z = 0.1f;
     static final float RIDER_HIP = 0.9f;   // quadril do personagem sentado, abaixo do lombo
+    static final float ANIMAL_RADIUS = 0.7f;
+
+    /** Dados de uma montaria (o donkey ou um cavalo). */
+    static final class Mount {
+        final ModelInstance inst;
+        final AnimationController anim;
+        final ModelInstance rope;        // corda do morão (pode ser null)
+        final Vector3 pos;               // posição no chão
+        float facing;                    // radianos (direção da cabeça)
+        final float seatY;               // altura do lombo
+        final float seatZ;               // onde fica o assento no sentido do corpo
+        final float sideX;               // distância do lado para subir
+        final float walkSpeed, runSpeed;
+        final boolean horse;             // cavalo tem o clipe Run; donkey só andar mais rápido
+
+        Mount(ModelInstance inst, AnimationController anim, ModelInstance rope, Vector3 pos, float facingDeg,
+              float seatY, float seatZ, float sideX, float walkSpeed, float runSpeed, boolean horse) {
+            this.inst = inst;
+            this.anim = anim;
+            this.rope = rope;
+            this.pos = pos;
+            this.facing = facingDeg * MathUtils.degreesToRadians;
+            this.seatY = seatY;
+            this.seatZ = seatZ;
+            this.sideX = sideX;
+            this.walkSpeed = walkSpeed;
+            this.runSpeed = runSpeed;
+            this.horse = horse;
+        }
+    }
 
     private enum St { FREE, MOUNTING, MOUNTED, DISMOUNTING }
 
     private final World world;
-    private final ModelInstance donkey;
-    private final AnimationController donkeyAnim;
-    private final ModelInstance rope;     // pode ser null
-    private final Vector3 donkeyPos = new Vector3();
-    private float donkeyFacing;           // radianos
+    private final Mount m;
     private final Matrix4 inv = new Matrix4();
     private final Vector3 from = new Vector3();
     private final Vector3 tmp = new Vector3();
@@ -47,34 +65,31 @@ public class Riding {
     private St state = St.FREE;
     private float t = 0f;
     private float sideSign = 1f;
-    private String donkeyClip = "";
+    private String clipNow = "";
+    private float walkFactor = 1f;
     private boolean ropeCut = false;
 
-    Riding(World world) {
+    Riding(World world, Mount m) {
         this.world = world;
-        this.donkey = world.getDonkey();
-        this.donkeyAnim = world.getDonkeyAnim();
-        this.rope = world.getRope();
-        donkeyPos.set(world.getDonkeyStart());
-        donkeyFacing = world.getDonkeyStartFacingDeg() * MathUtils.degreesToRadians;
-        placeDonkey();
+        this.m = m;
+        placeAnimal();
     }
 
     boolean isMounted() { return state == St.MOUNTED; }
     boolean isBusy() { return state == St.MOUNTING || state == St.DISMOUNTING; }
 
-    /** Pode montar agora: perto do donkey e livre. */
+    /** Pode montar agora: perto do animal e livre. */
     boolean canMount(Vector3 p) {
-        if (donkey == null || state != St.FREE) return false;
-        float dx = p.x - donkeyPos.x, dz = p.z - donkeyPos.z;
+        if (state != St.FREE) return false;
+        float dx = p.x - m.pos.x, dz = p.z - m.pos.z;
         return dx * dx + dz * dz < MOUNT_RANGE * MOUNT_RANGE;
     }
 
-    /** Começa a subir no donkey, pelo lado em que o personagem está. */
+    /** Começa a subir, pelo lado em que o personagem está. */
     void startMount(Player player) {
         if (state != St.FREE) return;
         from.set(player.pos);
-        inv.set(donkey.transform).inv();
+        inv.set(m.inst.transform).inv();
         Vector3 local = tmp.set(player.pos).mul(inv);
         sideSign = local.x >= 0f ? 1f : -1f;
         t = 0f;
@@ -82,8 +97,8 @@ public class Riding {
     }
 
     /**
-     * Atualiza a montaria. Chame todo quadro, mesmo quando não está montado (o donkey
-     * continua com a animação dele). Quando isMounted() ou isBusy(), não use player.update.
+     * Atualiza a montaria. Chame todo quadro, também quando ela não está em uso (o animal
+     * continua com a animação dele). Quando isMounted() ou isBusy(), o Player não deve andar.
      */
     void update(float dt, float inX, float inY, float camYaw, boolean run, boolean jumpPressed,
                 Player player, Character ch) {
@@ -94,17 +109,14 @@ public class Riding {
                 mountUpdate(dt, player, ch);
                 break;
             case MOUNTED:
-                if (jumpPressed) {
-                    startDismount(player, ch);
-                } else {
-                    rideUpdate(dt, inX, inY, camYaw, run, player, ch);
-                }
+                if (jumpPressed) startDismount(player, ch);
+                else rideUpdate(dt, inX, inY, camYaw, run, player, ch);
                 break;
             case DISMOUNTING:
                 dismountUpdate(dt, player, ch);
                 break;
         }
-        donkeyAnim.update(dt);
+        m.anim.update(dt);
     }
 
     // ---------- Montar ----------
@@ -114,24 +126,21 @@ public class Riding {
         Vector3 side = sidePoint();
         float groundSide = side.y;
         if (t < MOUNT_WALK_END) {
-            // Anda até o lado do donkey
             float s = smooth(t / MOUNT_WALK_END);
             tmp.set(from).lerp(side, s);
             tmp.y = world.heightAt(tmp.x, tmp.z);
             setPlayer(player, tmp.x, tmp.y, tmp.z, true);
             player.speed = 1.6f;
-            playerFacingToDonkey(player);
+            player.facing = facingToAnimal(player);
             ch.setCrouch(0f);
             ch.setSitting(false);
-            setDonkeyClip("Eat");
+            setClip("Eat", 1f);
         } else if (t < MOUNT_CROUCH_END) {
-            // Agacha ao lado do donkey
             setPlayer(player, side.x, groundSide, side.z, true);
             player.speed = 0f;
-            playerFacingToDonkey(player);
+            player.facing = facingToAnimal(player);
             ch.setCrouch(smooth((t - MOUNT_WALK_END) / (MOUNT_CROUCH_END - MOUNT_WALK_END)));
         } else if (t < MOUNT_END) {
-            // Pula para cima do lombo
             float s = (t - MOUNT_CROUCH_END) / (MOUNT_END - MOUNT_CROUCH_END);
             Vector3 seat = seatRoot();
             float x = side.x + (seat.x - side.x) * s;
@@ -139,14 +148,13 @@ public class Riding {
             float y = groundSide + (seat.y - groundSide) * s + 0.8f * MathUtils.sin(MathUtils.PI * s);
             setPlayer(player, x, y, z, false);
             player.speed = 0f;
-            player.facing = donkeyFacing;
+            player.facing = m.facing;
             ch.setCrouch(1f - smooth(Math.min(1f, s * 2f)));
         } else {
-            // Sentado
             Vector3 seat = seatRoot();
             setPlayer(player, seat.x, seat.y, seat.z, true);
             player.speed = 0f;
-            player.facing = donkeyFacing;
+            player.facing = m.facing;
             ch.setCrouch(0f);
             ch.setSitting(true);
             state = St.MOUNTED;
@@ -157,7 +165,6 @@ public class Riding {
     // ---------- Cavalgar ----------
 
     private void rideUpdate(float dt, float inX, float inY, float camYaw, boolean run, Player player, Character ch) {
-        // Direção do joystick em relação à câmera
         float fx = MathUtils.sin(camYaw), fz = MathUtils.cos(camYaw);
         float rx = fz, rz = -fx;
         float mx = inX * rx + inY * fx;
@@ -166,24 +173,25 @@ public class Riding {
         boolean moving = mag > 0.15f;
         if (moving) {
             float target = MathUtils.atan2(mx, mz);
-            donkeyFacing += wrapAngle(target - donkeyFacing) * Math.min(1f, dt * 4f);
-            float speed = (run ? RUN_SPEED : WALK_SPEED) * Math.min(1f, mag);
-            donkeyPos.x += MathUtils.sin(donkeyFacing) * speed * dt;
-            donkeyPos.z += MathUtils.cos(donkeyFacing) * speed * dt;
-            tmp.set(donkeyPos.x, 0f, donkeyPos.z);
-            world.resolveCollisions(tmp, DONKEY_RADIUS);   // o donkey não atravessa paredes nem cercas
-            donkeyPos.x = tmp.x;
-            donkeyPos.z = tmp.z;
-            donkeyAnimSpeed = speed / WALK_SPEED;
-            setDonkeyClip("Walk");
+            m.facing += wrapAngle(target - m.facing) * Math.min(1f, dt * 4f);
+            boolean galloping = run && m.horse;
+            float speed = (galloping ? m.runSpeed : m.walkSpeed) * Math.min(1f, mag);
+            m.pos.x += MathUtils.sin(m.facing) * speed * dt;
+            m.pos.z += MathUtils.cos(m.facing) * speed * dt;
+            tmp.set(m.pos.x, 0f, m.pos.z);
+            world.resolveCollisions(tmp, ANIMAL_RADIUS);   // não atravessa paredes nem cercas
+            m.pos.x = tmp.x;
+            m.pos.z = tmp.z;
+            if (galloping) setClip("Run", 1f);
+            else setClip("Walk", speed / m.walkSpeed);
         } else {
-            setDonkeyClip("Idle");
+            setClip("Idle", 1f);
         }
-        placeDonkey();
+        placeAnimal();
         Vector3 seat = seatRoot();
         setPlayer(player, seat.x, seat.y, seat.z, true);
         player.speed = 0f;
-        player.facing = donkeyFacing;
+        player.facing = m.facing;
         ch.setSitting(true);
         ch.setCrouch(0f);
     }
@@ -207,7 +215,7 @@ public class Riding {
         float y = from.y + (side.y - from.y) * e + 0.6f * MathUtils.sin(MathUtils.PI * e);
         setPlayer(player, x, y, z, s >= 1f);
         player.speed = 0f;
-        player.facing = donkeyFacing;
+        player.facing = m.facing;
         if (s >= 1f) {
             state = St.FREE;
             ch.setCrouch(0f);
@@ -216,32 +224,29 @@ public class Riding {
 
     // ---------- Auxiliares ----------
 
-    private float donkeyAnimSpeed = 1f;
-
-    private void setDonkeyClip(String clip) {
-        if (!clip.equals(donkeyClip)) {
-            donkeyClip = clip;
-            donkeyAnim.animate(clip, -1, 1f, null, 0.2f);
+    private void setClip(String clip, float speed) {
+        if (!clip.equals(clipNow)) {
+            clipNow = clip;
+            m.anim.animate(clip, -1, 1f, null, 0.2f);
         }
-        donkeyAnim.current.speed = clip.equals("Walk") ? donkeyAnimSpeed : 1f;
+        m.anim.current.speed = speed;
     }
 
-    private void placeDonkey() {
-        donkey.transform.setToTranslation(donkeyPos.x, world.heightAt(donkeyPos.x, donkeyPos.z), donkeyPos.z)
-                .rotate(Vector3.Y, donkeyFacing * MathUtils.radiansToDegrees);
+    private void placeAnimal() {
+        m.inst.transform.setToTranslation(m.pos.x, world.heightAt(m.pos.x, m.pos.z), m.pos.z)
+                .rotate(Vector3.Y, m.facing * MathUtils.radiansToDegrees);
     }
 
-    /** Ponto no chão ao lado do donkey (y = altura do chão). */
+    /** Ponto no chão ao lado do animal (y = altura do chão). */
     private Vector3 sidePoint() {
-        Vector3 p = tmp2.set(sideSign * SIDE_X, 0f, SIDE_Z).mul(donkey.transform);
+        Vector3 p = tmp2.set(sideSign * m.sideX, 0f, 0.1f).mul(m.inst.transform);
         p.y = world.heightAt(p.x, p.z);
         return new Vector3(p);
     }
 
-    /** Posição do personagem sentado (pés, não quadril). */
+    /** Posição do personagem sentado (origem dos pés, não o quadril). */
     private Vector3 seatRoot() {
-        Vector3 p = new Vector3(0f, SEAT_Y - RIDER_HIP, SEAT_Z).mul(donkey.transform);
-        return p;
+        return new Vector3(0f, m.seatY - RIDER_HIP, m.seatZ).mul(m.inst.transform);
     }
 
     private void setPlayer(Player player, float x, float y, float z, boolean grounded) {
@@ -249,14 +254,14 @@ public class Riding {
         player.grounded = grounded;
     }
 
-    private void playerFacingToDonkey(Player player) {
-        float dx = donkeyPos.x - player.pos.x, dz = donkeyPos.z - player.pos.z;
-        player.facing = MathUtils.atan2(dx, dz);
+    private float facingToAnimal(Player player) {
+        float dx = m.pos.x - player.pos.x, dz = m.pos.z - player.pos.z;
+        return MathUtils.atan2(dx, dz);
     }
 
     private void cutRope() {
-        if (!ropeCut && rope != null) {
-            world.instances.removeValue(rope, true);   // o cabresto é solto ao montar
+        if (!ropeCut && m.rope != null) {
+            world.instances.removeValue(m.rope, true);   // o cabresto é solto ao montar
             ropeCut = true;
         }
     }

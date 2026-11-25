@@ -77,6 +77,8 @@ public class World {
     private Model ropeModel;   // corda do donkey até o morão (criada na hora)
     private ModelInstance donkeyInstance;
     private AnimationController donkeyAnim;
+    /** Montarias do mundo: o donkey do estábulo e os cavalos (cada um pode ser montado). */
+    final Array<Riding.Mount> mounts = new Array<>();
     private ModelInstance ropeInstance;
     private final Vector3 donkeyStart = new Vector3();
     private float donkeyStartFacingDeg = 0f;
@@ -267,6 +269,10 @@ public class World {
             ModelInstance horse = new ModelInstance(horseModel);
             horse.transform.setToTranslation(h.x, heightAt(h.x, h.z), h.z).rotate(Vector3.Y, yaw);
             instances.add(horse);
+            AnimationController horseAnim = new AnimationController(horse);
+            horseAnim.animate("Idle", -1, 1f, null, 0.2f);
+            mounts.add(new Riding.Mount(horse, horseAnim, null, new Vector3(h.x, 0f, h.z), yaw,
+                    1.28f, 0.0f, 0.55f, 1.8f, 4.0f, true));
             obstacles.add(new Obstacle(h.x, h.z, 0.6f, heightAt(h.x, h.z), 1.7f));
         }
     }
@@ -300,6 +306,8 @@ public class World {
         donkeyAnim.animate("Eat", -1, 1f, null, 0.2f);
         donkeyStart.set(d);
         donkeyStartFacingDeg = yaw + 180f;
+        mounts.add(new Riding.Mount(donkey, donkeyAnim, ropeInstance, new Vector3(d.x, 0f, d.z), yaw + 180f,
+                1.22f, 0.1f, 0.75f, 1.4f, 2.6f, false));
         obstacles.add(new Obstacle(d.x, d.z, 0.45f, heightAt(d.x, d.z), 1.5f));
 
         // Corda: do topo do morão até o pescoço do donkey, com um pouco de folga

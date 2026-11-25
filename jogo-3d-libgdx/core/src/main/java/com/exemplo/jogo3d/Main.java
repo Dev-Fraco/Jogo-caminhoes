@@ -18,6 +18,7 @@ import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.utils.Array;
 
 /**
  * Sertão do Ceará, 1915. Relevo com subidas e descidas, casas cercadas com porteira.
@@ -52,8 +53,8 @@ public class Main extends ApplicationAdapter {
     private float joyRadius = 100f;
     private float lookLastX, lookLastY;  // coordenadas da tela (origem em cima)
     private FenceSystem.Prompt prompt = null;     // folha da porteira ao alcance (mostra o botão)
-    private boolean mountPrompt = false;          // perto do donkey: botão MONTAR
-    private Riding riding;
+    private Riding mountTarget = null;            // montaria ao alcance (mostra o botão MONTAR)
+    private final Array<Riding> ridings = new Array<>();
     private final Hud hud = new Hud();
     private OrthographicCamera hudCamera;
     private ShapeRenderer shapes;
@@ -105,7 +106,7 @@ public class Main extends ApplicationAdapter {
         }
 
         try {
-            riding = new Riding(world);
+            for (int i = 0; i < world.mounts.size; i++) ridings.add(new Riding(world, world.mounts.get(i)));
         } catch (Throwable t) {
             errorText = "ERRO NA MONTARIA:\n" + describe(t);
         }
@@ -182,15 +183,24 @@ public class Main extends ApplicationAdapter {
 
         // Durante a abertura da porteira, o jogo controla o personagem
         boolean busy = world.fences.isBusy();
-        boolean ridingActive = riding != null && (riding.isMounted() || riding.isBusy());
-        if (riding != null) riding.update(dt, inX, inY, yaw, runToggle, jumpPressed, player, character);
+        boolean ridingActive = false;
+        for (int i = 0; i < ridings.size; i++) {
+            Riding r = ridings.get(i);
+            r.update(dt, inX, inY, yaw, runToggle, jumpPressed, player, character);
+            if (r.isMounted() || r.isBusy()) ridingActive = true;
+        }
         if (!busy && !ridingActive) player.update(dt, inX, inY, yaw, jumpPressed, runToggle, world);
         character.setReach(world.fences.reach());
         character.update(player, dt);
         world.fences.update(dt, player);
 
         prompt = (busy || ui || ridingActive) ? null : world.fences.nearPrompt(player.pos);
-        mountPrompt = prompt == null && !busy && !ui && !ridingActive && riding != null && riding.canMount(player.pos);
+        mountTarget = null;
+        if (prompt == null && !busy && !ui && !ridingActive) {
+            for (int i = 0; i < ridings.size && mountTarget == null; i++) {
+                if (ridings.get(i).canMount(player.pos)) mountTarget = ridings.get(i);
+            }
+        }
 
         // Direção da câmera (usada também para a câmera ficar atrás do jogador)
         Vector3 forward = new Vector3(MathUtils.sin(yaw), 0f, MathUtils.cos(yaw));
@@ -293,9 +303,9 @@ public class Main extends ApplicationAdapter {
                 if (prompt != null) {
                     world.fences.startOperation(prompt, player);
                     prompt = null;
-                } else if (mountPrompt && riding != null) {
-                    riding.startMount(player);
-                    mountPrompt = false;
+                } else if (mountTarget != null) {
+                    mountTarget.startMount(player);
+                    mountTarget = null;
                 }
                 return;
             case "":
@@ -327,9 +337,9 @@ public class Main extends ApplicationAdapter {
         hud.jumpDown = jumpPointer >= 0;
         hud.joyX = joyX;
         hud.joyY = joyY;
-        hud.promptVisible = prompt != null || mountPrompt;
+        hud.promptVisible = prompt != null || mountTarget != null;
         if (prompt != null) hud.promptText = prompt.label();
-        else if (mountPrompt) hud.promptText = "MONTAR NO DONKEY";
+        else if (mountTarget != null) hud.promptText = "MONTAR";
         hud.draw(batch, shapes, font);
 
         batch.begin();
