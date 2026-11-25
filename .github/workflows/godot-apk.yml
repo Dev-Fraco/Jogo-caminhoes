@@ -39,6 +39,20 @@ jobs:
           echo "ANDROID_SDK_ROOT=$SDK_DIR" >> "$GITHUB_ENV"
           ls "$HOME/.local/share/godot/export_templates/4.3.stable" || true
 
+          # Caminhos do Java e do Android SDK gravados nas configurações do editor da Godot 4.3
+          mkdir -p "$HOME/.config/godot"
+          cat > "$HOME/.config/godot/editor_settings-4.3.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/java_sdk_path = "$JAVA_DIR"
+          export/android/android_sdk_path = "$SDK_DIR"
+          EOF
+
+          # Diagnóstico: o que existe no SDK
+          ls "$SDK_DIR" || true
+          ls "$SDK_DIR/build-tools" || true
+
       # Keystore de debug: basta para instalar o APK de teste no celular.
       - name: Criar keystore de debug
         run: |
@@ -55,7 +69,7 @@ jobs:
         run: |
           mkdir -p build
           godot --version
-          godot --headless --path jogo-3d --export-debug "Android" "$GITHUB_WORKSPACE/build/jogo-3d.apk"
+          godot --headless --verbose --path jogo-3d --export-debug "Android" "$GITHUB_WORKSPACE/build/jogo-3d.apk" 2>&1 | tail -n 150
           ls -lh build/
 
       - name: Publicar Release com o APK
