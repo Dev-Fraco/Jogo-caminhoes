@@ -31,7 +31,7 @@ public class World {
     static final float HALF = SIZE / 2f;
     static final int GRID = 64;              // células por lado (64 = limite seguro de vértices)
     static final float SPAWN_CLEAR = 9f;     // área plana no ponto de nascimento
-    static final float TEXTURE_TILE = 6f;    // metros por repetição da textura de terra
+    static final float TEXTURE_TILE = 14f;    // metros por repetição da textura de terra
 
     /** Objeto com colisão circular. */
     static class Obstacle {
@@ -72,15 +72,11 @@ public class World {
         return new Vector3(-dhdx, 1f, -dhdz).nor();
     }
 
-    /** Tom de cor: terra clara no plano, rocha nas encostas. */
+    /** Tom por vértice: quase branco (a textura já traz a cor); só escurece as encostas. */
     private Color tintAt(float x, float z, Vector3 n) {
-        float var = 0.5f + 0.5f * (float) Math.sin(x * 0.37 + z * 0.21) * (float) Math.sin(x * 0.13 - z * 0.29);
-        Color c = new Color(1f, 0.95f, 0.82f, 1f).lerp(new Color(0.85f, 0.78f, 0.62f, 1f), var);
         float steep = 1f - n.y;
-        if (steep > 0.10f) {
-            c.lerp(new Color(0.62f, 0.52f, 0.40f, 1f), MathUtils.clamp((steep - 0.10f) * 3f, 0f, 1f));
-        }
-        return c;
+        float shade = 1f - MathUtils.clamp((steep - 0.10f) * 0.6f, 0f, 0.25f);
+        return new Color(shade, shade, shade, 1f);
     }
 
     private VertexInfo vertex(float x, float z) {
@@ -93,7 +89,7 @@ public class World {
     }
 
     public void create() {
-        dirtTexture = new Texture(Gdx.files.internal("textures/dirt.png"));
+        dirtTexture = new Texture(Gdx.files.internal("textures/ground_basecolor.jpg"));
         dirtTexture.setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat);
 
         ModelBuilder mb = new ModelBuilder();

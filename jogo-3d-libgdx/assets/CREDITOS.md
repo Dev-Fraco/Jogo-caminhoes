@@ -14,3 +14,7 @@ Fontes:
 
 - **Modelo e animações** (`models/player.g3dj`): personagem e animações *Walking*, *Fast Run* e *Jumping Down* baixados do Mixamo (https://www.mixamo.com), convertidos de FBX para .g3dj.
 - Uso permitido em jogos pela licença do Mixamo; não é permitido redistribuir o personagem como arquivo avulso.
+
+## Chão (material enviado pelo usuário)
+
+- `textures/ground_basecolor.jpg`: mapa de cor (basecolor) do material "AddWater", reduzido para 1024 px. Os mapas de normal, rugosidade e altura do mesmo material ainda não estão no jogo.
