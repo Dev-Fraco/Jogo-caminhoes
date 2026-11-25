@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.g3d.Material;
 import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
+import com.badlogic.gdx.graphics.g3d.utils.AnimationController;
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute;
 import com.badlogic.gdx.graphics.g3d.loader.ObjLoader;
 import com.badlogic.gdx.graphics.g3d.loader.G3dModelLoader;
@@ -73,6 +74,8 @@ public class World {
     private Model cartModel;   // carroça de madeira (2,2 x 2,8 m)
     private Model donkeyModel; // donkey (1,86 m de comprimento)
     private Model ropeModel;   // corda do donkey até o morão (criada na hora)
+    private ModelInstance donkeyInstance;
+    private AnimationController donkeyAnim;
     private Texture dirtTexture;
     private final Array<Model> loaded = new Array<>();
 
@@ -273,15 +276,19 @@ public class World {
         obstacles.add(new Obstacle(t.x, t.z, 0.9f, heightAt(t.x, t.z), 0.9f));
 
         // Donkey: o modelo tem a cabeça em +z e o centro em z = 0,33; gira 180° para olhar o cocho
-        Vector3 d = new Vector3(-5.6f, 0f, -3.9f).mul(enc);
+        // Focinho sobre o centro do cocho: na pose de comer o focinho fica 0,77 m à frente da origem do modelo
+        Vector3 d = new Vector3(-5.5f, 0f, -4.23f).mul(enc);
         ModelInstance donkey = new ModelInstance(donkeyModel);
-        donkey.transform.setToTranslation(d.x, heightAt(d.x, d.z), d.z).rotate(Vector3.Y, yaw + 180f).translate(0f, 0f, -0.33f);
+        donkey.transform.setToTranslation(d.x, heightAt(d.x, d.z), d.z).rotate(Vector3.Y, yaw + 180f);
         instances.add(donkey);
+        donkeyInstance = donkey;
+        donkeyAnim = new AnimationController(donkey);
+        donkeyAnim.animate("Eat", -1, 1f, null, 0.2f);
         obstacles.add(new Obstacle(d.x, d.z, 0.45f, heightAt(d.x, d.z), 1.5f));
 
         // Corda: do topo do morão até o pescoço do donkey, com um pouco de folga
         Vector3 top = new Vector3(p.x, heightAt(p.x, p.z) + 1.45f, p.z);
-        Vector3 head = new Vector3(0f, 1.25f, 1.05f).mul(donkey.transform);
+        Vector3 head = new Vector3(0f, 1.25f, 0.72f).mul(donkey.transform);   // ponto do cabresto na cabeça
         ropeModel = buildRope(top, head);
         ModelInstance rope = new ModelInstance(ropeModel);
         instances.add(rope);
@@ -312,6 +319,11 @@ public class World {
             prev = q;
         }
         return mb.end();
+    }
+
+    /** Atualiza as animações dos animais (chame uma vez por quadro). */
+    public void update(float dt) {
+        if (donkeyAnim != null) donkeyAnim.update(dt);
     }
 
     /** Morão: poste de madeira de 1,6 m, com um pequeno topo. */

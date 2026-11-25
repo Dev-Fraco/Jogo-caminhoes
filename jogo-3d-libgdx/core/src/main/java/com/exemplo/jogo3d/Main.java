@@ -178,6 +178,7 @@ public class Main extends ApplicationAdapter {
         character.setReach(world.fences.reach());
         character.update(player, dt);
         world.fences.update(dt, player);
+        world.update(dt);
 
         prompt = (busy || ui) ? null : world.fences.nearPrompt(player.pos);
 
