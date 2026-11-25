@@ -21,8 +21,8 @@ android {
         minSdk 24
         targetSdk 36
         // Cada build do GitHub tem um número maior: é isso que permite atualizar por cima
-        versionCode (System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger()
-        versionName '0.' + (System.getenv('GITHUB_RUN_NUMBER') ?: '1')
+        versionCode = (System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger()
+        versionName = '0.' + (System.getenv('GITHUB_RUN_NUMBER') ?: '1')
     }
 
     compileOptions {
