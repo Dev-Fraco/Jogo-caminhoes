@@ -12,6 +12,8 @@ import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g3d.Environment;
 import com.badlogic.gdx.graphics.g3d.ModelBatch;
+import com.badlogic.gdx.graphics.g3d.shaders.DefaultShader;
+import com.badlogic.gdx.graphics.g3d.utils.DefaultShaderProvider;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
@@ -64,7 +66,10 @@ public class Main extends ApplicationAdapter {
     public void create() {
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST);
 
-        modelBatch = new ModelBatch();
+        // O personagem do Mixamo tem 65 ossos; o padrão do libGDX aceita só 12
+        DefaultShader.Config shaderConfig = new DefaultShader.Config();
+        shaderConfig.numBones = 80;
+        modelBatch = new ModelBatch(new DefaultShaderProvider(shaderConfig));
 
         environment = new Environment();
         // Luz de sol forte e quente do sertão, com pouca luz de ambiente (sombras escuras)
