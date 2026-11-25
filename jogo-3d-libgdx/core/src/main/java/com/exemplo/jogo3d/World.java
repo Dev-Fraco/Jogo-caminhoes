@@ -50,8 +50,7 @@ public class World {
     final Array<Obstacle> obstacles = new Array<>();
 
     private Model terrainModel;
-    private Model unitCylinder;   // só para as casas provisórias
-    private Model unitSphere;
+    private Model unitBox;   // cubo unitário para as casas (escalado)
     private Texture dirtTexture;
     private final Array<Model> loaded = new Array<>();
 
@@ -119,8 +118,7 @@ public class World {
         terrainModel = mb.end();
         instances.add(new ModelInstance(terrainModel));
 
-        unitCylinder = mb.createCylinder(1f, 1f, 1f, 12, new Material(), Usage.Position | Usage.Normal);
-        unitSphere = mb.createSphere(1f, 1f, 1f, 14, 10, new Material(), Usage.Position | Usage.Normal);
+        unitBox = mb.createBox(1f, 1f, 1f, new Material(), Usage.Position | Usage.Normal);
 
         // Objetos 3D reais (modelos CC0 convertidos para .obj)
         Model cactus = loadModel("models/cactus.obj");
@@ -185,18 +183,44 @@ public class World {
         return mi;
     }
 
+    /**
+     * Casa de taipa cearense: parede retangular de barro, telhado de duas águas com telha,
+     * porta de madeira e janela azul.
+     */
     private void addHut(Random rnd) {
-        float[] p = randomSpot(rnd, 12f);
+        float[] p = randomSpot(rnd, 14f);
         float x = p[0], z = p[1];
         float y = heightAt(x, z);
-        float r = 2.0f + rnd.nextFloat() * 0.8f;
-        float h = 2.2f + rnd.nextFloat() * 0.8f;
+        float w = 6f + rnd.nextFloat() * 2f;      // comprimento da casa
+        float d = 5f + rnd.nextFloat() * 1.5f;    // profundidade
+        float h = 2.6f + rnd.nextFloat() * 0.4f;  // altura da parede
+        float rise = 1.6f + rnd.nextFloat() * 0.6f; // altura do telhado até a cumeeira
+        float yaw = rnd.nextFloat() * MathUtils.PI2;
 
-        instances.add(inst(unitCylinder, new Color(0.84f, 0.73f, 0.55f, 1f),
-                new Matrix4().setToTranslation(x, y + h / 2f, z).scale(r * 2f, h, r * 2f)));
-        instances.add(inst(unitSphere, new Color(0.58f, 0.46f, 0.26f, 1f),
-                new Matrix4().setToTranslation(x, y + h, z).scale(r * 2.3f, r * 1.1f, r * 2.3f)));
-        obstacles.add(new Obstacle(x, z, r + 0.2f, y, h));
+        Matrix4 base = new Matrix4().setToTranslation(x, y, z)
+                .rotate(Vector3.Y, yaw * MathUtils.radiansToDegrees);
+
+        // Parede de taipa (barro retangular)
+        instances.add(inst(unitBox, new Color(0.80f, 0.64f, 0.44f, 1f),
+                new Matrix4(base).translate(0f, h / 2f, 0f).scale(w, h, d)));
+
+        // Telhado de duas águas: duas abas inclinadas que se encontram na cumeeira
+        float slope = (float) Math.atan2(rise, d / 2f);
+        float panelLen = (float) Math.sqrt((d / 2f) * (d / 2f) + rise * rise) + 0.3f;
+        for (int side = -1; side <= 1; side += 2) {
+            Matrix4 m = new Matrix4(base).translate(0f, h + rise / 2f, side * d / 4f);
+            m.rotate(Vector3.X, side * slope * MathUtils.radiansToDegrees);
+            m.scale(w + 0.6f, 0.15f, panelLen);
+            instances.add(inst(unitBox, new Color(0.66f, 0.33f, 0.20f, 1f), m));
+        }
+
+        // Porta de madeira e janela azul na frente
+        instances.add(inst(unitBox, new Color(0.40f, 0.25f, 0.14f, 1f),
+                new Matrix4(base).translate(-w * 0.2f, 0.9f, d / 2f + 0.05f).scale(0.9f, 1.8f, 0.1f)));
+        instances.add(inst(unitBox, new Color(0.25f, 0.50f, 0.70f, 1f),
+                new Matrix4(base).translate(w * 0.25f, 1.25f, d / 2f + 0.05f).scale(1.1f, 0.9f, 0.1f)));
+
+        obstacles.add(new Obstacle(x, z, Math.max(w, d) / 2f * 0.9f, y, h));
     }
 
     /** Empurra o jogador (círculo) para fora de qualquer obstáculo que ele esteja tocando. */
@@ -218,8 +242,7 @@ public class World {
 
     public void dispose() {
         terrainModel.dispose();
-        unitCylinder.dispose();
-        unitSphere.dispose();
+        unitBox.dispose();
         dirtTexture.dispose();
         for (int i = 0; i < loaded.size; i++) loaded.get(i).dispose();
     }
