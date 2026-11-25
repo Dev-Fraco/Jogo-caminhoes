@@ -81,16 +81,68 @@ public class Main extends ApplicationAdapter {
         font = new BitmapFont();
 
         world = new World();
-        world.create();
+        try {
+            world.create();
+        } catch (Throwable t) {
+            errorText = "ERRO NO MUNDO:\n" + describe(t);
+        }
 
         character = new Character();
-        character.create();
+        try {
+            character.create();
+        } catch (Throwable t) {
+            errorText = "ERRO NO PERSONAGEM:\n" + describe(t);
+        }
 
         playerPos.set(0f, world.heightAt(0f, 0f), 0f);
     }
 
+    // Texto de erro que aparece na tela (para diagnóstico sem computador)
+    private String errorText = null;
+
+    private static String describe(Throwable t) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(t.toString()).append('\n');
+        StackTraceElement[] st = t.getStackTrace();
+        for (int i = 0; i < Math.min(st.length, 6); i++) {
+            sb.append("  at ").append(st[i].toString()).append('\n');
+        }
+        return sb.toString();
+    }
+
+    private void showError() {
+        Gdx.gl.glDisable(GL20.GL_DEPTH_TEST);
+        Gdx.gl.glClearColor(0.25f, 0f, 0f, 1f);
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
+        int h = Gdx.graphics.getHeight();
+        hudCamera.setToOrtho(false, Gdx.graphics.getWidth(), h);
+        hudCamera.update();
+        batch.setProjectionMatrix(hudCamera.combined);
+        batch.begin();
+        font.setColor(1f, 1f, 1f, 1f);
+        float y = h - 20f;
+        for (String line : errorText.split("\n")) {
+            font.draw(batch, line, 12f, y);
+            y -= 22f;
+        }
+        batch.end();
+    }
+
     @Override
     public void render() {
+        if (errorText != null) {
+            showError();
+            return;
+        }
+        try {
+            renderGame();
+        } catch (Throwable t) {
+            errorText = "ERRO AO RODAR:\n" + describe(t);
+            showError();
+        }
+    }
+
+    private void renderGame() {
         float dt = Math.min(Gdx.graphics.getDeltaTime(), 0.05f);
 
         updateTouch();
