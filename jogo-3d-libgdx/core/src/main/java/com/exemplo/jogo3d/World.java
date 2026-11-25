@@ -184,41 +184,59 @@ public class World {
     }
 
     /**
-     * Casa de taipa cearense: parede retangular de barro, telhado de duas águas com telha,
-     * porta de madeira e janela azul.
+     * Casa de taipa cearense (taipa de mão): parede de barro caiada de branco, rodapé de barro,
+     * telhado baixo de telha cerâmica em duas águas, alpendre frontal com pilares de madeira,
+     * porta e janelas de madeira.
      */
     private void addHut(Random rnd) {
         float[] p = randomSpot(rnd, 14f);
         float x = p[0], z = p[1];
         float y = heightAt(x, z);
-        float w = 6f + rnd.nextFloat() * 2f;      // comprimento da casa
-        float d = 5f + rnd.nextFloat() * 1.5f;    // profundidade
-        float h = 2.6f + rnd.nextFloat() * 0.4f;  // altura da parede
-        float rise = 1.6f + rnd.nextFloat() * 0.6f; // altura do telhado até a cumeeira
+        float w = 7f + rnd.nextFloat() * 2f;      // comprimento (fachada)
+        float d = 4.5f + rnd.nextFloat() * 1f;    // profundidade
+        float h = 2.7f + rnd.nextFloat() * 0.3f;  // altura da parede
+        float rise = 1.1f + rnd.nextFloat() * 0.3f; // telhado baixo
         float yaw = rnd.nextFloat() * MathUtils.PI2;
 
         Matrix4 base = new Matrix4().setToTranslation(x, y, z)
                 .rotate(Vector3.Y, yaw * MathUtils.radiansToDegrees);
 
-        // Parede de taipa (barro retangular)
-        instances.add(inst(unitBox, new Color(0.80f, 0.64f, 0.44f, 1f),
-                new Matrix4(base).translate(0f, h / 2f, 0f).scale(w, h, d)));
+        Color whitewash = new Color(0.93f, 0.91f, 0.85f, 1f);  // parede caiada
+        Color plinth = new Color(0.62f, 0.45f, 0.30f, 1f);      // rodapé de barro
+        Color tile = new Color(0.72f, 0.38f, 0.22f, 1f);        // telha cerâmica
+        Color wood = new Color(0.42f, 0.27f, 0.15f, 1f);        // madeira
+        Color blue = new Color(0.25f, 0.45f, 0.65f, 1f);        // janela azul
 
-        // Telhado de duas águas: duas abas inclinadas que se encontram na cumeeira
+        // Parede caiada e rodapé de barro
+        instances.add(inst(unitBox, whitewash, new Matrix4(base).translate(0f, h / 2f, 0f).scale(w, h, d)));
+        instances.add(inst(unitBox, plinth, new Matrix4(base).translate(0f, 0.25f, 0f).scale(w + 0.05f, 0.5f, d + 0.05f)));
+
+        // Telhado baixo de duas águas
         float slope = (float) Math.atan2(rise, d / 2f);
-        float panelLen = (float) Math.sqrt((d / 2f) * (d / 2f) + rise * rise) + 0.3f;
+        float panelLen = (float) Math.sqrt((d / 2f) * (d / 2f) + rise * rise) + 0.25f;
         for (int side = -1; side <= 1; side += 2) {
             Matrix4 m = new Matrix4(base).translate(0f, h + rise / 2f, side * d / 4f);
             m.rotate(Vector3.X, side * slope * MathUtils.radiansToDegrees);
-            m.scale(w + 0.6f, 0.15f, panelLen);
-            instances.add(inst(unitBox, new Color(0.66f, 0.33f, 0.20f, 1f), m));
+            m.scale(w + 0.8f, 0.12f, panelLen);
+            instances.add(inst(unitBox, tile, m));
         }
 
-        // Porta de madeira e janela azul na frente
-        instances.add(inst(unitBox, new Color(0.40f, 0.25f, 0.14f, 1f),
-                new Matrix4(base).translate(-w * 0.2f, 0.9f, d / 2f + 0.05f).scale(0.9f, 1.8f, 0.1f)));
-        instances.add(inst(unitBox, new Color(0.25f, 0.50f, 0.70f, 1f),
-                new Matrix4(base).translate(w * 0.25f, 1.25f, d / 2f + 0.05f).scale(1.1f, 0.9f, 0.1f)));
+        // Alpendre frontal: cobertura extra e pilares de madeira
+        float porchD = 1.6f;
+        float porchZ = d / 2f + porchD / 2f;
+        Matrix4 porchRoof = new Matrix4(base).translate(0f, h - 0.3f, porchZ).rotate(Vector3.X, -4f);
+        instances.add(inst(unitBox, tile, new Matrix4(porchRoof).scale(w + 0.8f, 0.12f, porchD + 0.2f)));
+        for (float px : new float[]{-w / 2f + 0.4f, w / 2f - 0.4f}) {
+            instances.add(inst(unitBox, wood, new Matrix4(base).translate(px, (h - 0.3f) / 2f, d / 2f + porchD - 0.1f)
+                    .scale(0.16f, h - 0.3f, 0.16f)));
+        }
+
+        // Porta de madeira no centro e duas janelas azuis
+        float frontZ = d / 2f + 0.05f;
+        instances.add(inst(unitBox, wood, new Matrix4(base).translate(0f, 1.0f, frontZ).scale(0.9f, 2.0f, 0.1f)));
+        for (float wx : new float[]{-w * 0.3f, w * 0.3f}) {
+            instances.add(inst(unitBox, blue, new Matrix4(base).translate(wx, 1.5f, frontZ).scale(0.9f, 0.8f, 0.1f)));
+        }
 
         obstacles.add(new Obstacle(x, z, Math.max(w, d) / 2f * 0.9f, y, h));
     }
