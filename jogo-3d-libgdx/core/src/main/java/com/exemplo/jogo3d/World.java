@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.VertexAttributes.Usage;
 import com.badlogic.gdx.graphics.g3d.Material;
 import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
+import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute;
 import com.badlogic.gdx.graphics.g3d.loader.ObjLoader;
 import com.badlogic.gdx.graphics.g3d.loader.G3dModelLoader;
@@ -66,6 +67,8 @@ public class World {
 
     private Model terrainModel;
     private Model casaModel;   // casa de taipa (modelo real importado)
+    private Model troughModel; // cocho de madeira (1,84 m)
+    private Model postModel;   // morão de madeira, para amarrar o animal
     private Texture dirtTexture;
     private final Array<Model> loaded = new Array<>();
 
@@ -145,6 +148,8 @@ public class World {
             wallBoxes.add(new float[]{b.getFloat("minX"), b.getFloat("maxX"), b.getFloat("minY"), b.getFloat("maxY"), b.getFloat("minZ"), b.getFloat("maxZ")});
         }
         fences.create();
+        troughModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cocho.g3dj"));
+        postModel = buildPostModel();
         for (int i = 0; i < 8; i++) addEnclosedHouse(rnd);
         for (int i = 0; i < 18; i++) addProp(rnd, cactus, 3.2f, 0.45f, 1.0f + 0.2f * rnd.nextFloat());
         for (int i = 0; i < 12; i++) addProp(rnd, rockLarge, 2.2f, 0.9f, 1f);
@@ -230,6 +235,35 @@ public class World {
         houses.add(new House(t));
 
         fences.addEnclosure(this, bestX, bestZ, yaw);
+
+        // Primeiro cercado: estábulo, com morão e cocho do lado esquerdo (dentro do cercado)
+        if (houses.size == 1) addStable(bestX, y, bestZ, yaw);
+    }
+
+    /** Morão e cocho dentro do cercado, em coordenadas locais do cercado (frente = +z). */
+    private void addStable(float ex, float ey, float ez, float yaw) {
+        Matrix4 enc = new Matrix4().setToTranslation(ex, ey, ez).rotate(Vector3.Y, yaw);
+        Vector3 postLocal = new Vector3(-5.5f, 0f, -3f);
+        Vector3 troughLocal = new Vector3(-5.5f, 0f, -5f);
+        Vector3 p = new Vector3(postLocal).mul(enc);
+        ModelInstance post = new ModelInstance(postModel);
+        post.transform.setToTranslation(p.x, heightAt(p.x, p.z), p.z).rotate(Vector3.Y, yaw);
+        instances.add(post);
+        Vector3 t = new Vector3(troughLocal).mul(enc);
+        ModelInstance trough = new ModelInstance(troughModel);
+        trough.transform.setToTranslation(t.x, heightAt(t.x, t.z), t.z).rotate(Vector3.Y, yaw);
+        instances.add(trough);
+    }
+
+    /** Morão: poste de madeira de 1,6 m, com um pequeno topo. */
+    private static Model buildPostModel() {
+        ModelBuilder b = new ModelBuilder();
+        b.begin();
+        MeshPartBuilder pb = b.part("morao", GL20.GL_TRIANGLES, Usage.Position | Usage.Normal,
+                new Material(ColorAttribute.createDiffuse(0.33f, 0.21f, 0.11f, 1f)));
+        pb.box(0f, 0.8f, 0f, 0.16f, 1.6f, 0.16f);
+        pb.box(0f, 1.62f, 0f, 0.22f, 0.06f, 0.22f);
+        return b.end();
     }
 
     /** Diferença de altura dentro da área do cercado (20 m x 16 m): quanto menor, mais plano. */
@@ -294,6 +328,8 @@ public class World {
         terrainModel.dispose();
         casaModel.dispose();
         fences.dispose();
+        troughModel.dispose();
+        postModel.dispose();
         dirtTexture.dispose();
         for (int i = 0; i < loaded.size; i++) loaded.get(i).dispose();
     }
