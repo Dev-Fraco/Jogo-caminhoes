@@ -27,8 +27,8 @@ public class Character {
     // Velocidade "natural" de cada animação (m/s), para sincronizar os passos com o movimento
     static final float WALK_CLIP_SPEED = 1.8f;   // medido no clipe: quadril anda ~1,8 m/s
     static final float RUN_CLIP_SPEED = 5.8f;    // medido no clipe: quadril anda ~5,8 m/s
-    // Velocidade dos braços e pernas: 10% da velocidade do clipe (diminuição de 90%)
-    static final float LIMB_SPEED_SCALE = 0.1f;
+    // 1.0 = ritmo natural. (Antes estava 0.1 por causa de um bug de unidade: keytime em ms)
+    static final float LIMB_SPEED_SCALE = 1.0f;
 
     private enum State { IDLE, WALK, RUN, JUMP }
 
