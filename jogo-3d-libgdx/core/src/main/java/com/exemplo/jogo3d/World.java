@@ -221,7 +221,6 @@ public class World {
 
 
         // Objetos 3D reais (modelos CC0 convertidos para .obj)
-        Model cactus = loadModel("models/cactus.obj");
         Model rockLarge = loadModel("models/rock_large.obj");
         Model rockSmall = loadModel("models/rock_small.obj");
         Model stump = loadModel("models/stump.obj");
@@ -236,12 +235,16 @@ public class World {
         }
         fences.create();
         troughModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cocho.g3dj"));
+        cactusModels = new Model[]{
+                new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cactus0.g3dj")),
+                new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cactus1.g3dj")),
+                new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cactus2.g3dj"))};
         postModel = buildPostModel();
         cartModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/carroca.g3dj"));
         horseModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/horse.g3dj"));
         donkeyModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/donkey.g3dj"));
         for (int i = 0; i < 8; i++) addEnclosedHouse(rnd);
-        for (int i = 0; i < 18; i++) addProp(rnd, cactus, 3.2f, 0.45f, 1.0f + 0.2f * rnd.nextFloat());
+        for (int i = 0; i < 18; i++) addCactus(rnd);
         for (int i = 0; i < 12; i++) addProp(rnd, rockLarge, 2.2f, 0.9f, 1f);
         for (int i = 0; i < 16; i++) addProp(rnd, rockSmall, 2.2f, 0.45f, 1f);
         // Madeira morta: tocos e troncos caídos (no lugar das árvores mortas, que ainda não temos modelo)
@@ -271,6 +274,41 @@ public class World {
      * @param scale escala aplicada ao modelo
      * @param collisionRadius raio de colisão (0 = sem colisão, ex.: troncos deitados)
      */
+    // Cactos: três modelos (versões 0, 1 e 2), em escalas que deixam cada um com 3 a 4 m de altura.
+    private static final float[] CACTUS_H = {6.19f, 8.19f, 8.56f};     // altura do modelo (unidades)
+    private static final float[] CACTUS_HALF_W = {0.29f, 0.60f, 0.75f}; // meia largura do modelo
+    private static final float[] CACTUS_SCALE = {0.55f, 0.42f, 0.40f};
+    private Model[] cactusModels;
+
+    private void addCactus(Random rnd) {
+        int v = rnd.nextInt(3);
+        float[] p = null;
+        for (int t = 0; t < 60; t++) {
+            p = randomSpot(rnd, 6f);
+            if (!nearLandmark(p[0], p[1])) break;
+        }
+        float x = p[0], z = p[1];
+        float y = heightAt(x, z);
+        float s = CACTUS_SCALE[v] * (0.85f + 0.35f * rnd.nextFloat());
+        float rot = rnd.nextFloat() * MathUtils.PI2;
+        ModelInstance mi = new ModelInstance(cactusModels[v]);
+        mi.transform.setToTranslation(x, y, z).rotate(Vector3.Y, rot * MathUtils.radiansToDegrees).scale(s, s, s);
+        instances.add(mi);
+        // Colisão pela largura real do cacto (com folga para o personagem), e altura do modelo
+        float radius = Math.max(0.45f, CACTUS_HALF_W[v] * s + 0.25f);
+        obstacles.add(new Obstacle(x, z, radius, y, CACTUS_H[v] * s));
+    }
+
+    /** Perto de casa, cercado, poço ou açude: os cactos não nascem ali. */
+    private boolean nearLandmark(float x, float z) {
+        if (nearWellOrDam(x, z, 10f)) return true;
+        for (int k = 0; k < enclosureCenters.size; k++) {
+            float[] c = enclosureCenters.get(k);
+            if (Math.hypot(x - c[0], z - c[1]) < 14f) return true;
+        }
+        return false;
+    }
+
     private void addProp(Random rnd, Model model, float scale, float collisionRadius, float sizeJitter) {
         float[] p = randomSpot(rnd, 6f);
         float x = p[0], z = p[1];
@@ -534,6 +572,7 @@ public class World {
         troughModel.dispose();
         postModel.dispose();
         cartModel.dispose();
+        for (Model m : cactusModels) m.dispose();
         horseModel.dispose();
         donkeyModel.dispose();
         if (ropeModel != null) ropeModel.dispose();
