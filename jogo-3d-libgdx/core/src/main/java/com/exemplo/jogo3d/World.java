@@ -83,6 +83,11 @@ public class World {
     private final Vector3 donkeyStart = new Vector3();
     private float donkeyStartFacingDeg = 0f;
     private Texture dirtTexture;
+    // Açude seco e cacimba (escolhidos em create, antes do terreno)
+    private boolean hasDam = false, hasWell = false;
+    private float damX, damZ, wellX, wellZ;
+    private Texture crackTexture;
+    private Model damModel, wellModel;
     private final Array<Model> loaded = new Array<>();
 
     /** Altura do terreno em (x, z). Plana perto do spawn, colinas ao redor. */
@@ -93,7 +98,30 @@ public class World {
         float r = (float) Math.sqrt(x * x + z * z);
         float t = MathUtils.clamp((r - SPAWN_CLEAR) / 14f, 0f, 1f);
         float flat = t * t * (3f - 2f * t);
-        return h * flat;
+        float edge = Math.max(Math.abs(x), Math.abs(z));
+        float k = MathUtils.clamp((edge - 40f) / 40f, 0f, 1f);
+        k = k * k * (3f - 2f * k);
+        float corners = 16f * k * (0.6f + 0.4f * MathUtils.sin(x * 0.07f + 0.5f) * MathUtils.cos(z * 0.06f - 0.9f));
+        float y = h * flat + corners;
+        if (hasDam) {
+            // Açude: fundo rebaixado 35 cm, com as bordas subindo suavemente
+            float d = (float) Math.sqrt((x - damX) * (x - damX) + (z - damZ) * (z - damZ));
+            float w = d <= 2.6f ? 1f : d >= 3.8f ? 0f : (3.8f - d) / 1.2f;
+            y -= 0.35f * w * w * (3f - 2f * w);
+        }
+        return y;
+    }
+
+    /** Verdadeiro se o retângulo da célula toca o círculo (cx, cz, r). */
+    private static boolean cellTouchesCircle(float x0, float z0, float x1, float z1, float cx, float cz, float r) {
+        float dx = Math.max(Math.max(x0 - cx, 0f), cx - x1);
+        float dz = Math.max(Math.max(z0 - cz, 0f), cz - z1);
+        return dx * dx + dz * dz < r * r;
+    }
+
+    private boolean nearWellOrDam(float x, float z, float margin) {
+        if (hasWell && Math.hypot(x - wellX, z - wellZ) < margin) return true;
+        return hasDam && Math.hypot(x - damX, z - damZ) < margin;
     }
 
     private Vector3 normalAt(float x, float z) {
@@ -110,6 +138,36 @@ public class World {
         return new Color(shade, shade, shade, 1f);
     }
 
+    /** Escolhe o lugar do açude e da cacimba: longe do início e um do outro. */
+    private void choosePlacesForLandmarks() {
+        Random r = new Random(20261125L);
+        for (int t = 0; t < 400 && (!hasDam || !hasWell); t++) {
+            float x = (r.nextFloat() * 2f - 1f) * 70f, z = (r.nextFloat() * 2f - 1f) * 70f;
+            if (Math.hypot(x, z) < 30f) continue;
+            if (!hasDam) {
+                if (!flatAround(x, z, 4f, 1.0f)) continue;   // açude em lugar plano
+                damX = x; damZ = z; hasDam = true;
+            } else if (!hasWell && Math.hypot(x - damX, z - damZ) > 30f && flatAround(x, z, 4f, 1.4f)) {
+                wellX = x; wellZ = z; hasWell = true;
+            }
+        }
+    }
+
+    /** Verdadeiro se o terreno num raio 'r' varia no máximo 'maxRange' metros. */
+    private boolean flatAround(float x, float z, float r, float maxRange) {
+        float mn = 1e9f, mx = -1e9f;
+        for (int i = 0; i < 8; i++) {
+            float a = MathUtils.PI2 * i / 8f;
+            float h = heightAt(x + r * MathUtils.cos(a), z + r * MathUtils.sin(a));
+            mn = Math.min(mn, h);
+            mx = Math.max(mx, h);
+        }
+        float c = heightAt(x, z);
+        mn = Math.min(mn, c);
+        mx = Math.max(mx, c);
+        return mx - mn <= maxRange;
+    }
+
     private VertexInfo vertex(float x, float z) {
         Vector3 n = normalAt(x, z);
         return new VertexInfo()
@@ -122,6 +180,9 @@ public class World {
     public void create() {
         dirtTexture = new Texture(Gdx.files.internal("textures/ground_basecolor.jpg"));
         dirtTexture.setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat);
+        crackTexture = new Texture(Gdx.files.internal("textures/cracks.jpg"));
+        crackTexture.setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat);
+        choosePlacesForLandmarks();
 
         ModelBuilder mb = new ModelBuilder();
 
@@ -135,6 +196,8 @@ public class World {
             for (int j = 0; j < GRID; j++) {
                 float x0 = -HALF + i * step, x1 = x0 + step;
                 float z0 = -HALF + j * step, z1 = z0 + step;
+                // Boca da cacimba: sai do terreno toda célula que toca o círculo do poço (a plataforma cobre a borda)
+                if (hasWell && cellTouchesCircle(x0, z0, x1, z1, wellX, wellZ, Landmarks.WELL_R)) continue;
                 VertexInfo a = vertex(x0, z0), b = vertex(x1, z0);
                 VertexInfo c = vertex(x1, z1), d = vertex(x0, z1);
                 // ordem anti-horária vista de cima (para a face aparecer)
@@ -144,6 +207,17 @@ public class World {
         }
         terrainModel = mb.end();
         instances.add(new ModelInstance(terrainModel));
+
+        // Açude seco com rachaduras e cacimba funda com água no fundo
+        if (hasDam) {
+            damModel = Landmarks.buildDam(this, damX, damZ, crackTexture);
+            instances.add(new ModelInstance(damModel));
+        }
+        if (hasWell) {
+            wellModel = Landmarks.buildWell(this, wellX, wellZ);
+            instances.add(new ModelInstance(wellModel));
+            obstacles.add(new Obstacle(wellX, wellZ, Landmarks.WELL_OUT + 0.3f, heightAt(wellX, wellZ), 1.0f));
+        }
 
 
         // Objetos 3D reais (modelos CC0 convertidos para .obj)
@@ -229,6 +303,7 @@ public class World {
         for (int t = 0; t < 80; t++) {
             float[] p = randomSpot(rnd, 14f);
             if (Math.hypot(p[0], p[1]) < 20.0) continue;          // longe do início
+            if (nearWellOrDam(p[0], p[1], 16f)) continue;         // longe do açude e da cacimba
             boolean near = false;
             for (int k = 0; k < enclosureCenters.size; k++) {
                 float[] c = enclosureCenters.get(k);
@@ -452,6 +527,9 @@ public class World {
     public void dispose() {
         terrainModel.dispose();
         casaModel.dispose();
+        if (crackTexture != null) crackTexture.dispose();
+        if (damModel != null) damModel.dispose();
+        if (wellModel != null) wellModel.dispose();
         fences.dispose();
         troughModel.dispose();
         postModel.dispose();
