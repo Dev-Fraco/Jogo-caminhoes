@@ -52,6 +52,8 @@ public class Main extends ApplicationAdapter {
     private float joyRadius = 100f;
     private float lookLastX, lookLastY;  // coordenadas da tela (origem em cima)
     private FenceSystem.Prompt prompt = null;     // folha da porteira ao alcance (mostra o botão)
+    private boolean mountPrompt = false;          // perto do donkey: botão MONTAR
+    private Riding riding;
     private final Hud hud = new Hud();
     private OrthographicCamera hudCamera;
     private ShapeRenderer shapes;
@@ -100,6 +102,12 @@ public class Main extends ApplicationAdapter {
             character.create();
         } catch (Throwable t) {
             errorText = "ERRO NO PERSONAGEM:\n" + describe(t);
+        }
+
+        try {
+            riding = new Riding(world);
+        } catch (Throwable t) {
+            errorText = "ERRO NA MONTARIA:\n" + describe(t);
         }
 
         player.spawn(0f, 0f, world.heightAt(0f, 0f));
@@ -174,13 +182,15 @@ public class Main extends ApplicationAdapter {
 
         // Durante a abertura da porteira, o jogo controla o personagem
         boolean busy = world.fences.isBusy();
-        if (!busy) player.update(dt, inX, inY, yaw, jumpPressed, runToggle, world);
+        boolean ridingActive = riding != null && (riding.isMounted() || riding.isBusy());
+        if (riding != null) riding.update(dt, inX, inY, yaw, runToggle, jumpPressed, player, character);
+        if (!busy && !ridingActive) player.update(dt, inX, inY, yaw, jumpPressed, runToggle, world);
         character.setReach(world.fences.reach());
         character.update(player, dt);
         world.fences.update(dt, player);
-        world.update(dt);
 
-        prompt = (busy || ui) ? null : world.fences.nearPrompt(player.pos);
+        prompt = (busy || ui || ridingActive) ? null : world.fences.nearPrompt(player.pos);
+        mountPrompt = prompt == null && !busy && !ui && !ridingActive && riding != null && riding.canMount(player.pos);
 
         // Direção da câmera (usada também para a câmera ficar atrás do jogador)
         Vector3 forward = new Vector3(MathUtils.sin(yaw), 0f, MathUtils.cos(yaw));
@@ -283,6 +293,9 @@ public class Main extends ApplicationAdapter {
                 if (prompt != null) {
                     world.fences.startOperation(prompt, player);
                     prompt = null;
+                } else if (mountPrompt && riding != null) {
+                    riding.startMount(player);
+                    mountPrompt = false;
                 }
                 return;
             case "":
@@ -314,8 +327,9 @@ public class Main extends ApplicationAdapter {
         hud.jumpDown = jumpPointer >= 0;
         hud.joyX = joyX;
         hud.joyY = joyY;
-        hud.promptVisible = prompt != null;
+        hud.promptVisible = prompt != null || mountPrompt;
         if (prompt != null) hud.promptText = prompt.label();
+        else if (mountPrompt) hud.promptText = "MONTAR NO DONKEY";
         hud.draw(batch, shapes, font);
 
         batch.begin();

@@ -76,6 +76,9 @@ public class World {
     private Model ropeModel;   // corda do donkey até o morão (criada na hora)
     private ModelInstance donkeyInstance;
     private AnimationController donkeyAnim;
+    private ModelInstance ropeInstance;
+    private final Vector3 donkeyStart = new Vector3();
+    private float donkeyStartFacingDeg = 0f;
     private Texture dirtTexture;
     private final Array<Model> loaded = new Array<>();
 
@@ -284,6 +287,8 @@ public class World {
         donkeyInstance = donkey;
         donkeyAnim = new AnimationController(donkey);
         donkeyAnim.animate("Eat", -1, 1f, null, 0.2f);
+        donkeyStart.set(d);
+        donkeyStartFacingDeg = yaw + 180f;
         obstacles.add(new Obstacle(d.x, d.z, 0.45f, heightAt(d.x, d.z), 1.5f));
 
         // Corda: do topo do morão até o pescoço do donkey, com um pouco de folga
@@ -292,6 +297,7 @@ public class World {
         ropeModel = buildRope(top, head);
         ModelInstance rope = new ModelInstance(ropeModel);
         instances.add(rope);
+        ropeInstance = rope;
     }
 
     /** Corda com folga: polilinha caindo um pouco no meio, feita de pequenos prismas. */
@@ -321,10 +327,12 @@ public class World {
         return mb.end();
     }
 
-    /** Atualiza as animações dos animais (chame uma vez por quadro). */
-    public void update(float dt) {
-        if (donkeyAnim != null) donkeyAnim.update(dt);
-    }
+    // Acesso ao donkey para o sistema de montaria (Riding)
+    ModelInstance getDonkey() { return donkeyInstance; }
+    AnimationController getDonkeyAnim() { return donkeyAnim; }
+    ModelInstance getRope() { return ropeInstance; }
+    Vector3 getDonkeyStart() { return donkeyStart; }
+    float getDonkeyStartFacingDeg() { return donkeyStartFacingDeg; }
 
     /** Morão: poste de madeira de 1,6 m, com um pequeno topo. */
     private static Model buildPostModel() {

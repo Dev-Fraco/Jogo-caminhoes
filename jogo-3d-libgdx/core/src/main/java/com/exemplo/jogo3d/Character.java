@@ -4,31 +4,29 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.loader.G3dModelLoader;
+import com.badlogic.gdx.graphics.g3d.model.Node;
 import com.badlogic.gdx.graphics.g3d.utils.AnimationController;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.math.Quaternion;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.JsonReader;
 
 /**
- * Personagem Mixamo (.g3dj) com animações "walk", "run" e "jump".
+ * Personagem cangaceiro (.g3dj) com as animações "Idle", "Walk", "Run" e "Jump".
  *
- * Correções em relação à versão anterior:
- * - Troca de animação com histerese: só muda depois de ficar estável por um tempo
- *   (antes trocava a cada quadro e piscava entre pulo e caminhada).
- * - Velocidade da animação acompanha a velocidade real (sem "correr no lugar").
- * - O modelo gira para onde o jogador anda (vem do Player.facing).
- * - Escala 0.01 (modelo em centímetros -> 1.8 m).
+ * Poses por código, em cima da animação normal (e desfeitas a cada quadro, para não acumular):
+ * - braço esticado (abrir a porteira);
+ * - agachado (preparar o pulo para montar);
+ * - sentado (montado no donkey).
  */
 public class Character {
 
-    // Cangaceiro (modelo principal): já está em metros, então escala 1. Frente do modelo = +z (igual ao Player.facing).
+    // Modelo em metros. Frente do modelo = +z (igual ao Player.facing).
     static final float MODEL_SCALE = 1.0f;
-    static final float STATE_HOLD = 0.12f;   // tempo mínimo para trocar de animação (s)
-    // Velocidade "natural" de cada animação (m/s), para sincronizar os passos com o movimento
-    static final float WALK_CLIP_SPEED = 1.8f;   // medido no clipe: quadril anda ~1,8 m/s
-    static final float RUN_CLIP_SPEED = 5.8f;    // medido no clipe: quadril anda ~5,8 m/s
-    // 1.0 = ritmo natural. (Antes estava 0.1 por causa de um bug de unidade: keytime em ms)
+    static final float STATE_HOLD = 0.12f;       // tempo mínimo para trocar de animação (s)
+    static final float WALK_CLIP_SPEED = 1.8f;   // quadril anda ~1,8 m/s no clipe
+    static final float RUN_CLIP_SPEED = 5.8f;    // quadril anda ~5,8 m/s no clipe
     static final float LIMB_SPEED_SCALE = 1.0f;
 
     private enum State { IDLE, WALK, RUN, JUMP }
@@ -38,11 +36,15 @@ public class Character {
     private ModelInstance instance;
     private AnimationController anim;
 
-    private float reach = 0f;   // 0..1: braço direito esticado (usado ao abrir a porteira)
-    private final com.badlogic.gdx.math.Quaternion tmpQ = new com.badlogic.gdx.math.Quaternion();
-    private final com.badlogic.gdx.math.Quaternion armBase = new com.badlogic.gdx.math.Quaternion();
-    private com.badlogic.gdx.graphics.g3d.model.Node armNode;
-    private boolean armOverridden = false;
+    // Poses por código (graus): sinal negativo em X = para a frente
+    private float reach = 0f;     // 0..1: braço direito esticado
+    private float crouch = 0f;    // 0..1: agachado
+    private boolean sitting = false;
+
+    private final Quaternion tmpQ = new Quaternion();
+    private final java.util.Map<String, Node> nodes = new java.util.HashMap<>();
+    private final java.util.Map<String, Quaternion> saved = new java.util.HashMap<>();   // rotação da animação
+    private final java.util.Map<String, Quaternion> extra = new java.util.HashMap<>();   // ajuste do quadro
 
     private State current = State.IDLE;
     private State candidate = State.IDLE;
@@ -53,22 +55,23 @@ public class Character {
         instance = new ModelInstance(model);
         anim = new AnimationController(instance);
         instances.add(instance);
-        armNode = instance.getNode("RightUpperArm");
+        for (String n : new String[]{"RightUpperArm", "Hips", "Spine", "LeftUpperLeg", "RightUpperLeg", "LeftLowerLeg", "RightLowerLeg"}) {
+            Node node = instance.getNode(n);
+            if (node != null) nodes.put(n, node);
+        }
         anim.animate("Idle", -1, 1f, null, 0.15f);
         anim.current.speed = 0f;
     }
 
     /**
      * Atualiza pose e animação a partir do estado do Player.
-     * @param p estado de física (posição, direção, velocidade, chão)
+     * Se o personagem estiver montado (sitting), o Player não é usado para a pose de andar.
      */
     public void update(Player p, float dt) {
-        // Posição e rotação do modelo: os pés ficam no chão (pos.y), o corpo olha para facing
         instance.transform.setToTranslation(p.pos.x, p.pos.y, p.pos.z)
                 .rotate(Vector3.Y, p.facing * MathUtils.radiansToDegrees)
                 .scale(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
 
-        // Estado desejado pela física
         State wanted;
         if (!p.grounded) wanted = State.JUMP;
         else if (p.speed < 0.25f) wanted = State.IDLE;
@@ -85,51 +88,79 @@ public class Character {
             if (candidateTime >= STATE_HOLD) {
                 current = wanted;
                 candidateTime = 0f;
-                applyClip(p);
+                applyClip();
             }
         } else {
             candidate = current;
             candidateTime = 0f;
         }
 
-        // Velocidade de reprodução acompanha o movimento real
         switch (current) {
-            case IDLE:
-                anim.current.speed = 1f;   // respiração do clipe Idle
-                break;
-            case WALK:
-                anim.current.speed = MathUtils.clamp(p.speed / WALK_CLIP_SPEED, 0.6f, 1.3f);
-                break;
-            case RUN:
-                anim.current.speed = MathUtils.clamp(p.speed / RUN_CLIP_SPEED, 0.7f, 1.3f);
-                break;
-            case JUMP:
-                anim.current.speed = 1f;
-                break;
+            case IDLE: anim.current.speed = 1f; break;
+            case WALK: anim.current.speed = MathUtils.clamp(p.speed / WALK_CLIP_SPEED, 0.6f, 1.3f); break;
+            case RUN: anim.current.speed = MathUtils.clamp(p.speed / RUN_CLIP_SPEED, 0.7f, 1.3f); break;
+            case JUMP: anim.current.speed = 1f; break;
         }
         anim.current.speed *= LIMB_SPEED_SCALE;
-        // Desfaz o ajuste do braço do quadro anterior (senão ele gira sem parar)
-        if (armOverridden) {
-            armNode.rotation.set(armBase);
-            armOverridden = false;
-        }
-        anim.update(dt);
 
-        // Braço direito esticado para a frente (ex.: alcançar o cadeado da porteira)
-        if (reach > 0.001f && armNode != null) {
-            armBase.set(armNode.rotation);
-            armNode.rotation.mulLeft(tmpQ.setFromAxisRad(Vector3.X, -reach * 1.2f));
-            armOverridden = true;
-            instance.calculateTransforms();
+        // 1) desfaz o ajuste do quadro anterior; 2) toca a animação; 3) aplica as poses por código
+        for (java.util.Map.Entry<String, Quaternion> e : saved.entrySet()) {
+            nodes.get(e.getKey()).rotation.set(e.getValue());
         }
+        saved.clear();
+        anim.update(dt);
+        applyPoses();
+        instance.calculateTransforms();
+    }
+
+    private void applyPoses() {
+        extra.clear();
+        if (reach > 0.001f) addX("RightUpperArm", -reach * 69f);
+        if (crouch > 0.001f || sitting) {
+            float c = sitting ? 1f : crouch;
+            addX("Hips", -25f * c);
+            addX("Spine", 10f * c);
+            addX("LeftUpperLeg", -62f * c);
+            addX("RightUpperLeg", -62f * c);
+            addX("LeftLowerLeg", 70f * c);
+            addX("RightLowerLeg", 70f * c);
+        }
+        if (sitting) addX("Hips", -8f);
+        for (java.util.Map.Entry<String, Quaternion> e : extra.entrySet()) {
+            Node node = nodes.get(e.getKey());
+            if (node == null) continue;
+            saved.put(e.getKey(), new Quaternion(node.rotation));
+            node.rotation.mulLeft(e.getValue());
+        }
+    }
+
+    private void addX(String node, float deg) {
+        if (!nodes.containsKey(node)) return;
+        Quaternion q = extra.get(node);
+        if (q == null) {
+            q = new Quaternion();
+            extra.put(node, q);
+        }
+        tmpQ.setFromAxisRad(Vector3.X, deg * MathUtils.degreesToRadians);
+        q.mulLeft(tmpQ);
     }
 
     /** 0 = braço solto, 1 = braço totalmente esticado para a frente. */
     public void setReach(float r) {
-        reach = Math.max(0f, Math.min(1f, r));
+        reach = MathUtils.clamp(r, 0f, 1f);
     }
 
-    private void applyClip(Player p) {
+    /** 0 = em pé, 1 = agachado (para o pulo de montaria). */
+    public void setCrouch(float c) {
+        crouch = MathUtils.clamp(c, 0f, 1f);
+    }
+
+    /** Sentado sobre o donkey. */
+    public void setSitting(boolean s) {
+        sitting = s;
+    }
+
+    private void applyClip() {
         String clip;
         switch (current) {
             case JUMP: clip = "Jump"; break;
