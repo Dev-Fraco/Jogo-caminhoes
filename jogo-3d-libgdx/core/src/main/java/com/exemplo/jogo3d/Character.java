@@ -22,7 +22,8 @@ import com.badlogic.gdx.utils.JsonReader;
  */
 public class Character {
 
-    static final float MODEL_SCALE = 0.01f;
+    // Cangaceiro (modelo principal): já está em metros, então escala 1. Frente do modelo = +z (igual ao Player.facing).
+    static final float MODEL_SCALE = 1.0f;
     static final float STATE_HOLD = 0.12f;   // tempo mínimo para trocar de animação (s)
     // Velocidade "natural" de cada animação (m/s), para sincronizar os passos com o movimento
     static final float WALK_CLIP_SPEED = 1.8f;   // medido no clipe: quadril anda ~1,8 m/s
@@ -42,12 +43,12 @@ public class Character {
     private float candidateTime = 0f;
 
     public void create() {
-        model = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/player.g3dj"));
+        model = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cangaceiro.g3dj"));
         instance = new ModelInstance(model);
         anim = new AnimationController(instance);
         instances.add(instance);
-        anim.animate("walk", -1, 1f, null, 0.15f);
-        anim.current.speed = 0f;   // começa parado (pose de andar congelada)
+        anim.animate("Idle", -1, 1f, null, 0.15f);
+        anim.current.speed = 0f;
     }
 
     /**
@@ -87,7 +88,7 @@ public class Character {
         // Velocidade de reprodução acompanha o movimento real
         switch (current) {
             case IDLE:
-                anim.current.speed = 0f;
+                anim.current.speed = 1f;   // respiração do clipe Idle
                 break;
             case WALK:
                 anim.current.speed = MathUtils.clamp(p.speed / WALK_CLIP_SPEED, 0.6f, 1.3f);
@@ -106,10 +107,10 @@ public class Character {
     private void applyClip(Player p) {
         String clip;
         switch (current) {
-            case JUMP: clip = "jump"; break;
-            case RUN: clip = "run"; break;
-            case WALK: clip = "walk"; break;
-            default: clip = "walk"; break;   // parado: segura a pose do andar
+            case JUMP: clip = "Jump"; break;
+            case RUN: clip = "Run"; break;
+            case WALK: clip = "Walk"; break;
+            default: clip = "Idle"; break;
         }
         anim.animate(clip, -1, 1f, null, 0.15f);
     }

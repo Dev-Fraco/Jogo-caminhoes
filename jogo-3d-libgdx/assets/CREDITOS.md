@@ -18,3 +18,5 @@ Fontes:
 ## Chão (material enviado pelo usuário)
 
 - `textures/ground_basecolor.jpg`: mapa de cor (basecolor) do material "AddWater", reduzido para 1024 px. Os mapas de normal, rugosidade e altura do mesmo material ainda não estão no jogo.
+
+- **Personagem cangaceiro** (`models/cangaceiro.g3dj`, texturas em `models/cangaceiro/`): reconstrução 3D estilizada fornecida pelo autor do projeto, baseada em imagem de referência. Convertida de GLB rigado para libGDX, com a malha reduzida para celular.
