@@ -244,7 +244,6 @@ public class World {
         Model rockSmall = loadModel("models/rock_small.obj");
         Model stump = loadModel("models/stump.obj");
         Model log = loadModel("models/log.obj");
-        Model bush = loadModel("models/bush.obj");
 
         Random rnd = new Random(7L);
         casaModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/casa_taipa.g3dj"));
@@ -279,7 +278,6 @@ public class World {
         // Madeira morta: tocos e troncos caídos (no lugar das árvores mortas, que ainda não temos modelo)
         for (int i = 0; i < 18; i++) addProp(rnd, stump, 2.6f, 0.35f, 1f);
         for (int i = 0; i < 12; i++) addProp(rnd, log, 2.6f, 1.2f, 1f);
-        for (int i = 0; i < 20; i++) addProp(rnd, bush, 2.4f, 0f, 1f);
     }
 
     private Model loadModel(String path) {
