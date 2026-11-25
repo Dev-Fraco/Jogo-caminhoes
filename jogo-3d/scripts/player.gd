@@ -6,17 +6,21 @@ const SPEED := 8.0
 const JUMP_VELOCITY := 7.0
 const GRAVITY := 20.0
 const MOUSE_SENSITIVITY := 0.003
+const TOUCH_SENSITIVITY := 0.006  # radianos por pixel arrastado
 const CAMERA_DISTANCE := 4.5
 const PITCH_MIN := -1.2  # olhando para cima (negativo)
 const PITCH_MAX := 0.3   # olhando para baixo (positivo)
 
 var _pivot: Node3D
+## Definido pelo mundo quando o aparelho tem tela de toque (celular).
+var touch_hud = null  # touch_hud.gd (sem tipo fixo para acessar move_vector etc.)
 
 
 func _ready() -> void:
 	_build_body()
 	_build_camera()
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	if touch_hud == null:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
 func _build_body() -> void:
@@ -64,18 +68,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	elif key and key.pressed and key.keycode == KEY_ESCAPE:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	elif motion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+	elif motion and touch_hud == null and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		rotate_y(-motion.relative.x * MOUSE_SENSITIVITY)
 		_pivot.rotation.x = clampf(
 			_pivot.rotation.x - motion.relative.y * MOUSE_SENSITIVITY, PITCH_MIN, PITCH_MAX)
 
 
 func _physics_process(delta: float) -> void:
-	if not is_on_floor():
-		velocity.y -= GRAVITY * delta
-	elif Input.is_physical_key_pressed(KEY_SPACE):
-		velocity.y = JUMP_VELOCITY
-
+	var jump_pressed := Input.is_physical_key_pressed(KEY_SPACE)
 	var input := Vector2.ZERO
 	if Input.is_physical_key_pressed(KEY_W):
 		input.y -= 1.0
@@ -85,6 +85,22 @@ func _physics_process(delta: float) -> void:
 		input.x -= 1.0
 	if Input.is_physical_key_pressed(KEY_D):
 		input.x += 1.0
+
+	if touch_hud:
+		input += touch_hud.move_vector
+		input = input.limit_length(1.0)
+		rotate_y(-touch_hud.look_delta.x * TOUCH_SENSITIVITY)
+		_pivot.rotation.x = clampf(
+			_pivot.rotation.x - touch_hud.look_delta.y * TOUCH_SENSITIVITY, PITCH_MIN, PITCH_MAX)
+		touch_hud.look_delta = Vector2.ZERO
+		if touch_hud.jump_requested:
+			jump_pressed = true
+			touch_hud.jump_requested = false
+
+	if not is_on_floor():
+		velocity.y -= GRAVITY * delta
+	elif jump_pressed:
+		velocity.y = JUMP_VELOCITY
 
 	var direction := (transform.basis * Vector3(input.x, 0.0, input.y)).normalized()
 	velocity.x = direction.x * SPEED

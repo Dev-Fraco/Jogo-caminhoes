@@ -1,0 +1,52 @@
+name: Jogo 3D (APK Android)
+
+on:
+  workflow_dispatch: # botão "Run workflow" na aba Actions (funciona pelo celular)
+  push:
+    branches: [ccr-52c62cf7-6acwwc, main]
+    paths: ['jogo-3d/**', '.github/workflows/godot-apk.yml']
+
+permissions:
+  contents: write # necessário para publicar a Release com o APK
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar Godot 4.3 com export templates
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.3
+          use-dotnet: false
+          include-templates: true
+
+      # Keystore de debug: basta para instalar o APK de teste no celular.
+      - name: Criar keystore de debug
+        run: |
+          keytool -genkey -v -keystore "$GITHUB_WORKSPACE/debug.keystore" \
+            -storepass android -alias androiddebugkey -keypass android \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+      - name: Exportar APK
+        env:
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ github.workspace }}/debug.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
+        run: |
+          mkdir -p build
+          godot --headless --path jogo-3d --export-debug "Android" "$GITHUB_WORKSPACE/build/jogo-3d.apk"
+          ls -lh build/
+
+      - name: Publicar Release com o APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: jogo3d-${{ github.run_number }}
+          name: Jogo 3D — build ${{ github.run_number }}
+          body: |
+            APK de teste do jogo 3D (Godot 4). Baixe `jogo-3d.apk` no celular e instale
+            (talvez precise permitir "instalar apps desconhecidos").
+          files: build/jogo-3d.apk
+          make_latest: true

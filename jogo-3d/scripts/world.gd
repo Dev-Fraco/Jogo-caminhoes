@@ -3,6 +3,7 @@ extends Node3D
 ## Tudo é criado por código para a cena principal ficar mínima e fácil de mexer.
 
 const PLAYER_SCRIPT := preload("res://scripts/player.gd")
+const TOUCH_HUD_SCRIPT := preload("res://scripts/touch_hud.gd")
 const WORLD_SIZE := 200.0
 const OBSTACLE_COUNT := 40
 
@@ -60,6 +61,17 @@ func _build_player() -> void:
 	var player: CharacterBody3D = PLAYER_SCRIPT.new()
 	player.name = "Player"
 	player.position = Vector3(0.0, 1.0, 0.0)
+
+	# Celular: cria a camada de toque (joystick, arrastar para girar, botão pular).
+	if DisplayServer.is_touchscreen_available():
+		var layer := CanvasLayer.new()
+		layer.name = "TouchLayer"
+		add_child(layer)
+		var hud: Control = TOUCH_HUD_SCRIPT.new()
+		hud.name = "TouchHud"
+		layer.add_child(hud)
+		player.touch_hud = hud
+
 	add_child(player)
 
 
