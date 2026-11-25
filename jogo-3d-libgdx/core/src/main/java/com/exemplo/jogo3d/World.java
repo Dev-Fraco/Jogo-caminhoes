@@ -81,6 +81,8 @@ public class World {
     final Array<HouseDecor> decors = new Array<>();
     private Model stoveModel, hammockModel, benchModel, doorModel, treeModel, pole;
     private Fire fire;
+    private ModelInstance terrainInstance;
+    ModelInstance terrainInstance() { return terrainInstance; }
     /** Montarias do mundo: o donkey do estábulo e os cavalos (cada um pode ser montado). */
     final Array<Riding.Mount> mounts = new Array<>();
     private ModelInstance ropeInstance;
@@ -210,7 +212,8 @@ public class World {
             }
         }
         terrainModel = mb.end();
-        instances.add(new ModelInstance(terrainModel));
+        terrainInstance = new ModelInstance(terrainModel);
+        instances.add(terrainInstance);
 
         // Açude seco com rachaduras e cacimba funda com água no fundo
         if (hasDam) {

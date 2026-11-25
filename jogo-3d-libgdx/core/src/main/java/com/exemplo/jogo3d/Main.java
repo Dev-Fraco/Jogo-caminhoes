@@ -18,6 +18,8 @@ import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.graphics.g3d.ModelInstance;
+import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Array;
 
 /**
@@ -54,7 +56,14 @@ public class Main extends ApplicationAdapter {
     private float joyRadius = 100f;
     private float lookLastX, lookLastY;  // coordenadas da tela (origem em cima)
     private FenceSystem.Prompt prompt = null;     // folha da porteira ao alcance (mostra o botão)
-    private boolean crouchOn = false;             // botão AGACHAR (agachado enquanto parado)
+    private boolean crouchOn = false;
+    // Configurações (engrenagem): taxa de quadros e qualidade gráfica
+    private boolean settingsOpen = false;
+    private final Array<ModelInstance> drawList = new Array<>();
+    private final Vector3 tmpT = new Vector3();
+    private final String[] setIds = new String[12];
+    private final float[][] setRects = new float[12][4];
+    private int setN = 0;             // botão AGACHAR (agachado enquanto parado)
     private Riding mountTarget = null;            // montaria ao alcance (mostra o botão MONTAR)
     private HouseDecor doorTarget = null;         // porta ao alcance (mostra o botão da porta)
     private HouseDecor hammockTarget = null;      // rede ao alcance (mostra DEITAR)
@@ -91,6 +100,8 @@ public class Main extends ApplicationAdapter {
         font = new BitmapFont();
         font.getData().setScale(1.1f);
 
+        Settings.load();
+        Settings.apply();
         try {
             hud.create();
         } catch (Throwable t) {
@@ -172,7 +183,7 @@ public class Main extends ApplicationAdapter {
         updateTouch();
 
         // Com o editor do HUD aberto, o personagem fica parado
-        boolean ui = hud.editing;
+        boolean ui = hud.editing || settingsOpen;
         float kx = 0f, ky = 0f;
         if (!ui) {
             if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP)) ky += 1f;
@@ -254,7 +265,7 @@ public class Main extends ApplicationAdapter {
         Gdx.gl.glClearColor(0.72f, 0.82f, 0.92f, 1f); // céu pálido de seca
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
         modelBatch.begin(camera);
-        modelBatch.render(world.instances, environment);
+        modelBatch.render(visibleWorldInstances(), environment);
         modelBatch.render(character.instances, environment);
         world.fences.render(modelBatch, environment);
         modelBatch.render(world.fireInstance(), environment);
@@ -309,6 +320,10 @@ public class Main extends ApplicationAdapter {
     }
 
     private void onPress(int i, float x, float rawY, float yb, int W, int H) {
+        if (settingsOpen) {
+            settingsPress(x, yb);
+            return;
+        }
         if (hud.editing) {
             hud.editPress(i, x, yb);
             return;
@@ -322,7 +337,7 @@ public class Main extends ApplicationAdapter {
         String id = e == null ? "" : e.id;
         switch (id) {
             case "config":
-                hud.editing = true;
+                settingsOpen = true;
                 joyPointer = -1;
                 return;
             case "correr":
@@ -410,7 +425,122 @@ public class Main extends ApplicationAdapter {
         }
         batch.end();
 
+        if (settingsOpen) drawSettings(w, h);
         Gdx.gl.glDisable(GL20.GL_BLEND);
+    }
+
+    /** Objetos do mundo dentro da distância da qualidade escolhida (o terreno sempre). */
+    private Array<ModelInstance> visibleWorldInstances() {
+        drawList.clear();
+        float maxD2 = Settings.drawDistance() * Settings.drawDistance();
+        Vector3 cp = camera.position;
+        ModelInstance terrain = world.terrainInstance();
+        for (int i = 0; i < world.instances.size; i++) {
+            ModelInstance mi = world.instances.get(i);
+            if (mi == terrain) { drawList.add(mi); continue; }
+            mi.transform.getTranslation(tmpT);
+            float dx = tmpT.x - cp.x, dz = tmpT.z - cp.z;
+            if (dx * dx + dz * dz <= maxD2) drawList.add(mi);
+        }
+        return drawList;
+    }
+
+    // ---------- Configurações ----------
+
+    private void settingsRect(int i, float x, float y, float w, float h, String id) {
+        setIds[i] = id;
+        setRects[i][0] = x; setRects[i][1] = y; setRects[i][2] = w; setRects[i][3] = h;
+    }
+
+    /** Monta os botões do painel e os desenha. */
+    private void drawSettings(int W, int H) {
+        setN = 0;
+        float pw = W * 0.6f, ph = H * 0.7f, px = (W - pw) / 2f, py = (H - ph) / 2f;
+        float pad = 0.03f * H, gap = 0.015f * H, bh = 0.085f * H;
+
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        shapes.setColor(0f, 0f, 0f, 0.55f);
+        shapes.rect(0, 0, W, H);
+        shapes.setColor(0.30f, 0.19f, 0.10f, 0.97f);
+        shapes.rect(px, py, pw, ph);
+        shapes.end();
+
+        // Linha de FPS (4 botões)
+        float rowFps = py + ph - pad - 0.22f * H;
+        float bw4 = (pw - 2 * pad - 3 * gap) / 4f;
+        for (int k = 0; k < 4; k++) {
+            int f = Settings.FPS_OPTIONS[k];
+            settingsRect(setN++, px + pad + k * (bw4 + gap), rowFps, bw4, bh, "fps" + f);
+        }
+        // Linha de qualidade (3 botões)
+        float rowQ = rowFps - 0.22f * H;
+        float bw3 = (pw - 2 * pad - 2 * gap) / 3f;
+        for (int k = 0; k < 3; k++) {
+            settingsRect(setN++, px + pad + k * (bw3 + gap), rowQ, bw3, bh, "q" + k);
+        }
+        // Botões de baixo
+        float rowB = py + pad;
+        float bw2 = (pw - 2 * pad - gap) / 2f;
+        settingsRect(setN++, px + pad, rowB, bw2, bh, "editHud");
+        settingsRect(setN++, px + pad + bw2 + gap, rowB, bw2, bh, "fechar");
+
+        // Botões (selecionado em dourado)
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        for (int i = 0; i < setN; i++) {
+            String id = setIds[i];
+            boolean sel = (id.startsWith("fps") && Integer.parseInt(id.substring(3)) == Settings.fps)
+                    || (id.startsWith("q") && id.length() == 2 && Integer.parseInt(id.substring(1)) == Settings.quality);
+            if (sel) shapes.setColor(0.85f, 0.62f, 0.15f, 1f);
+            else shapes.setColor(0.45f, 0.29f, 0.15f, 1f);
+            float[] r = setRects[i];
+            shapes.rect(r[0], r[1], r[2], r[3]);
+        }
+        shapes.end();
+
+        batch.begin();
+        // Título e rótulos
+        font.setColor(1f, 0.92f, 0.7f, 1f);
+        layout.setText(font, "CONFIGURAÇÕES");
+        font.draw(batch, "CONFIGURAÇÕES", px + (pw - layout.width) / 2f, py + ph - pad);
+        font.draw(batch, "Taxa de quadros (FPS)", px + pad, rowFps + bh + 0.02f * H + 0);
+        font.draw(batch, "Gráficos", px + pad, rowQ + bh + 0.02f * H + 0);
+        font.draw(batch, "Suavização de serrilhado: sempre ligada", px + pad, rowB + bh * 1.6f + 0.02f * H);
+        for (int i = 0; i < setN; i++) {
+            String id = setIds[i];
+            String label;
+            if (id.startsWith("fps")) label = id.substring(3) + " FPS";
+            else if (id.equals("editHud")) label = "Editar HUD";
+            else if (id.equals("fechar")) label = "Fechar";
+            else label = Settings.QUALITY_NAMES[Integer.parseInt(id.substring(1))];
+            layout.setText(font, label);
+            float[] r = setRects[i];
+            font.setColor(1f, 0.97f, 0.9f, 1f);
+            font.draw(batch, label, r[0] + (r[2] - layout.width) / 2f, r[1] + (r[3] + layout.height) / 2f);
+        }
+        batch.end();
+    }
+
+    private void settingsPress(float x, float yb) {
+        for (int i = 0; i < setN; i++) {
+            float[] r = setRects[i];
+            if (x < r[0] || x > r[0] + r[2] || yb < r[1] || yb > r[1] + r[3]) continue;
+            String id = setIds[i];
+            if (id.startsWith("fps")) {
+                Settings.fps = Integer.parseInt(id.substring(3));
+                Settings.apply();
+                Settings.save();
+            } else if (id.startsWith("q")) {
+                Settings.quality = Integer.parseInt(id.substring(1));
+                Settings.apply();
+                Settings.save();
+            } else if (id.equals("editHud")) {
+                settingsOpen = false;
+                hud.editing = true;
+            } else if (id.equals("fechar")) {
+                settingsOpen = false;
+            }
+            return;
+        }
     }
 
     @Override

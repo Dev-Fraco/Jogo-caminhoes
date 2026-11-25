@@ -30,8 +30,8 @@ public class FenceSystem {
     static final float ENCL_HALF_W = 10f;   // 20 m de largura (eixo X local)
     static final float ENCL_HALF_D = 8f;    // 16 m de profundidade (eixo Z local)
     static final float MODULE = 4f;         // comprimento de um trecho de cerca
-    static final float UPDATE_RADIUS = 40f; // dentro deste raio o arame é simulado
-    static final float RENDER_RADIUS = 50f; // dentro deste raio a cerca é desenhada
+    static float updateRadius = 40f; // dentro deste raio o arame é simulado (ajustado pela qualidade)
+    static float renderRadius = 50f; // dentro deste raio a cerca é desenhada (ajustado pela qualidade)
     static final float WALL_MARGIN = 0.06f; // folga de colisão além do raio do jogador
 
     static final float LEAF = 2f;           // cada folha tem 2 m (a porteira tem 4 m)
@@ -316,8 +316,8 @@ public class FenceSystem {
             Piece p = pieces.get(i);
             float dx = p.x - player.pos.x, dz = p.z - player.pos.z;
             float d2 = dx * dx + dz * dz;
-            if (d2 < UPDATE_RADIUS * UPDATE_RADIUS) p.fence.update(dt);
-            if (d2 < RENDER_RADIUS * RENDER_RADIUS) visible.addAll(p.fence.instances);
+            if (d2 < updateRadius * updateRadius) p.fence.update(dt);
+            if (d2 < renderRadius * renderRadius) visible.addAll(p.fence.instances);
         }
         for (int i = 0; i < gates.size; i++) {
             visible.add(gates.get(i).leaves[0]);
