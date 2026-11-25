@@ -1,0 +1,52 @@
+name: Jogo 3D libGDX (APK Android)
+
+on:
+  workflow_dispatch: # botão "Run workflow" na aba Actions (funciona pelo celular)
+  push:
+    branches: [ccr-52c62cf7-6acwwc, main]
+    paths: ['jogo-3d-libgdx/**', '.github/workflows/libgdx-apk.yml']
+
+permissions:
+  contents: write # necessário para publicar a Release com o APK
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # O runner já traz o Android SDK; só aceitamos as licenças (mesmo passo do app de futebol)
+      - name: Aceitar licenças do Android SDK
+        run: |
+          SDKM=$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | tail -1)
+          if [ -n "$SDKM" ]; then yes | "$SDKM" --licenses > /dev/null || true; fi
+
+      - name: Gerar APK de debug
+        working-directory: jogo-3d-libgdx
+        run: |
+          chmod +x gradlew
+          ./gradlew :android:assembleDebug --stacktrace --no-daemon
+
+      - name: Preparar APK
+        run: |
+          mkdir -p build
+          cp jogo-3d-libgdx/android/build/outputs/apk/debug/android-debug.apk build/jogo3d-libgdx.apk
+          ls -lh build/
+
+      - name: Publicar Release com o APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: jogo3d-libgdx-${{ github.run_number }}
+          name: Jogo 3D libGDX — build ${{ github.run_number }}
+          body: |
+            APK de teste do jogo 3D (libGDX). Baixe `jogo3d-libgdx.apk` no celular e instale
+            (talvez precise permitir "instalar apps desconhecidos").
+          files: build/jogo3d-libgdx.apk
+          fail_on_unmatched_files: true
+          make_latest: true

@@ -1,10 +1,7 @@
 name: Jogo 3D (APK Android)
 
 on:
-  workflow_dispatch: # botão "Run workflow" na aba Actions (funciona pelo celular)
-  push:
-    branches: [ccr-52c62cf7-6acwwc, main]
-    paths: ['jogo-3d/**', '.github/workflows/godot-apk.yml']
+  workflow_dispatch: # só manual agora: o projeto Godot foi abandonado em favor do libGDX
 
 permissions:
   contents: write # necessário para publicar a Release com o APK
