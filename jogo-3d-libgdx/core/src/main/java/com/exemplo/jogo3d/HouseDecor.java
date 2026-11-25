@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.utils.MeshPartBuilder;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
+import com.badlogic.gdx.graphics.g3d.utils.MeshPartBuilder.VertexInfo;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector3;
@@ -28,14 +29,60 @@ final class HouseDecor {
     // Rede e deitar
     // Centro da rede na casa: longe do fogão (parede de fundo) e no meio do cômodo
     static final float HAMMOCK_CZ = 0.3f, HAMMOCK_ANCHOR_Y = 1.9f;
+    static final float HAMMOCK_HALF = 3.85f, HAMMOCK_SAG = 0.55f, HAMMOCK_HALF_W = 0.75f;
     // Altura do pano da rede no centro (o pano fica por volta de 1,6 m do chão)
-    static final float LIE_Y = 1.6f;
+    static final float LIE_Y = 1.35f;   // barriga do pano (centro da rede)
     static final float LIE_RANGE = 1.8f;
     // Fogão e banco
     static final float STOVE_X = 2.5f, STOVE_Z = -2.48f;
     static final float BENCH_X = 2.7f, BENCH_Z = 4.4f, BENCH_SCALE = 1.33f;
 
     enum Lie { FREE, LYING_IN, LYING, GETTING_UP }
+
+    /** Altura do pano da rede no ponto x (a barriga fica no meio). */
+    static float hammockY(float x) {
+        return HAMMOCK_ANCHOR_Y - HAMMOCK_SAG * (1f - (x * x) / (HAMMOCK_HALF * HAMMOCK_HALF));
+    }
+
+    /** Rede: pano com barriga entre duas pontas presas nas paredes laterais. Origem no centro, eixo x = corda. */
+    static Model buildHammock() {
+        ModelBuilder mb = new ModelBuilder();
+        mb.begin();
+        MeshPartBuilder pb = mb.part("pano", GL20.GL_TRIANGLES, Usage.Position | Usage.Normal,
+                new Material(ColorAttribute.createDiffuse(0.78f, 0.66f, 0.45f, 1f)));
+        int n = 24;
+        for (int i = 0; i < n; i++) {
+            float x0 = -HAMMOCK_HALF + 2f * HAMMOCK_HALF * i / n, x1 = -HAMMOCK_HALF + 2f * HAMMOCK_HALF * (i + 1) / n;
+            float y0 = hammockY(x0), y1 = hammockY(x1);
+            VertexInfo a = new VertexInfo().setPos(x0, y0, -HAMMOCK_HALF_W).setNor(0f, 1f, 0f);
+            VertexInfo b = new VertexInfo().setPos(x1, y1, -HAMMOCK_HALF_W).setNor(0f, 1f, 0f);
+            VertexInfo c = new VertexInfo().setPos(x1, y1, HAMMOCK_HALF_W).setNor(0f, 1f, 0f);
+            VertexInfo d = new VertexInfo().setPos(x0, y0, HAMMOCK_HALF_W).setNor(0f, 1f, 0f);
+            pb.triangle(a, b, c);
+            pb.triangle(a, c, d);
+        }
+        MeshPartBuilder ph = mb.part("ganchos", GL20.GL_TRIANGLES, Usage.Position | Usage.Normal,
+                new Material(ColorAttribute.createDiffuse(0.2f, 0.14f, 0.08f, 1f)));
+        ph.box(HAMMOCK_HALF + 0.08f, HAMMOCK_ANCHOR_Y, 0f, 0.16f, 0.16f, 0.5f);
+        ph.box(-HAMMOCK_HALF - 0.08f, HAMMOCK_ANCHOR_Y, 0f, 0.16f, 0.16f, 0.5f);
+        return mb.end();
+    }
+
+    /** Piso de terra batida da casa (interior), para esconder o terreno por baixo. */
+    static Model buildFloor() {
+        ModelBuilder mb = new ModelBuilder();
+        mb.begin();
+        MeshPartBuilder pb = mb.part("piso", GL20.GL_TRIANGLES, Usage.Position | Usage.Normal,
+                new Material(ColorAttribute.createDiffuse(0.55f, 0.42f, 0.28f, 1f)));
+        float x = 3.85f, z = 2.85f, y = 0.03f;
+        VertexInfo a = new VertexInfo().setPos(-x, y, -z).setNor(0f, 1f, 0f);
+        VertexInfo b = new VertexInfo().setPos(x, y, -z).setNor(0f, 1f, 0f);
+        VertexInfo c = new VertexInfo().setPos(x, y, z).setNor(0f, 1f, 0f);
+        VertexInfo d = new VertexInfo().setPos(-x, y, z).setNor(0f, 1f, 0f);
+        pb.triangle(a, b, c);
+        pb.triangle(a, c, d);
+        return mb.end();
+    }
 
     /** Folha de porta de madeira: dobradiça na origem, 1,25 m para +x, 2,2 m de altura. */
     static Model buildDoor() {
@@ -80,7 +127,7 @@ final class HouseDecor {
         stove = new ModelInstance(stoveModel);
         stove.transform.set(house).translate(STOVE_X, 0f, STOVE_Z).rotate(Vector3.Y, 90f);
         // Rede: a corda mais longa fica no eixo x, de parede a parede
-        hammock = new ModelInstance(hammockModel);
+        hammock = new ModelInstance(hammockModel);   // rede feita em código (buildHammock)
         // Banco do lado de fora, à frente, à direita da porta
         bench = new ModelInstance(benchModel);
         bench.transform.set(house).translate(BENCH_X, 0f, BENCH_Z).scale(BENCH_SCALE, BENCH_SCALE, BENCH_SCALE);
@@ -149,10 +196,8 @@ final class HouseDecor {
         // Ângulo que alinha a corda da rede (de -139,7°) com o eixo x da casa.
         // Depois de girar, o centro do modelo fica em (0,04; -1,78): desloca para o centro desejado.
         float phi = -139.7f;
-        float dz = HAMMOCK_CZ + 1.78f;
-        // balanço em torno da linha das ancoragens (altura 1,9 m, no centro da rede)
-        tmp.set(house).translate(0f, HAMMOCK_ANCHOR_Y, HAMMOCK_CZ).rotate(Vector3.X, swing * MathUtils.radiansToDegrees)
-                .translate(0f, -HAMMOCK_ANCHOR_Y, -HAMMOCK_CZ).translate(0f, 0f, dz).rotate(Vector3.Y, phi);
+        // Pontas presas em (±3,85; 1,9) no centro da rede; balança de lado, em torno da linha das pontas
+        tmp.set(house).translate(0f, HAMMOCK_ANCHOR_Y, HAMMOCK_CZ).rotate(Vector3.X, swing * MathUtils.radiansToDegrees);
         hammock.transform.set(tmp);
     }
 

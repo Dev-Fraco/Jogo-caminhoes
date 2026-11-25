@@ -79,7 +79,7 @@ public class World {
     private AnimationController donkeyAnim;
     // Enfeites das casas, árvores secas e fogo
     final Array<HouseDecor> decors = new Array<>();
-    private Model stoveModel, hammockModel, benchModel, doorModel, treeModel, pole;
+    private Model stoveModel, hammockModel, benchModel, doorModel, treeModel, pole, floorModel;
     private Fire fire;
     private ModelInstance terrainInstance;
     ModelInstance terrainInstance() { return terrainInstance; }
@@ -255,7 +255,10 @@ public class World {
         fences.create();
         troughModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cocho.g3dj"));
         stoveModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/fogao.g3dj"));
-        hammockModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/rede.g3dj"));
+        hammockModel = HouseDecor.buildHammock();
+        loaded.add(hammockModel);
+        floorModel = HouseDecor.buildFloor();
+        loaded.add(floorModel);
         benchModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/banco.g3dj"));
         doorModel = HouseDecor.buildDoor();
         loaded.add(doorModel);
@@ -473,11 +476,20 @@ public class World {
 
         // Casa no centro do cercado, com a porta voltada para a porteira (frente +z)
         float yaw = rnd.nextInt(4) * 90f;
-        float y = heightAt(bestX, bestZ);
+        // Base da casa: no ponto mais alto da área, para o terreno não aparecer dentro dela
+        float y = -1e9f;
+        Matrix4 probe = new Matrix4().setToTranslation(bestX, 0f, bestZ).rotate(Vector3.Y, yaw);
+        for (float lx = -4.2f; lx <= 4.21f; lx += 1.4f) for (float lz = -3.2f; lz <= 3.21f; lz += 1.6f) {
+            Vector3 w = new Vector3(lx, 0f, lz).mul(probe);
+            y = Math.max(y, heightAt(w.x, w.z));
+        }
         Matrix4 t = new Matrix4().setToTranslation(bestX, y, bestZ).rotate(Vector3.Y, yaw);
         ModelInstance house = new ModelInstance(casaModel);
         house.transform.set(t);
         instances.add(house);
+        ModelInstance floor = new ModelInstance(floorModel);
+        floor.transform.set(t);
+        instances.add(floor);
         houses.add(new House(t));
 
         // Enfeites: fogão (com fogo e fumaça), rede, banco e porta
