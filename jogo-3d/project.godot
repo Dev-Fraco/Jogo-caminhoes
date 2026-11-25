@@ -1,0 +1,15 @@
+; Engine configuration file.
+; Projeto Godot 4 (GDScript). Abra esta pasta pela Godot e aperte F5.
+config_version=5
+
+[application]
+
+config/name="Jogo 3D"
+config/description="Protótipo 3D nativo (não navegador)"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.3", "Forward Plus")
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
