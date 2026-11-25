@@ -48,7 +48,7 @@ public class Player {
      * @param camYaw direção da câmera (radianos); o movimento é relativo a ela
      * @param jumpPressed true no quadro em que o botão de pular foi apertado
      */
-    public void update(float dtRaw, float inX, float inY, float camYaw, boolean jumpPressed, World world) {
+    public void update(float dtRaw, float inX, float inY, float camYaw, boolean jumpPressed, boolean runHeld, World world) {
         float dt = Math.min(dtRaw, MAX_DT);
 
         // 1) Direção desejada, relativa à câmera
@@ -61,8 +61,15 @@ public class Player {
         if (len > 1e-4f) { dx /= len; dz /= len; }
 
         // 2) Velocidade alvo pela força do comando (joystick leve = anda, forte = corre)
-        float targetSpeed = inMag <= 0.02f ? 0f
+        float targetSpeed;
+        if (runHeld) {
+            // Botão de correr: corre sem precisar do analógico (na direção da câmera, ou do analógico se ele estiver sendo usado)
+            if (inMag <= 0.02f) { dx = fx; dz = fz; }
+            targetSpeed = RUN_SPEED;
+        } else {
+            targetSpeed = inMag <= 0.02f ? 0f
                 : MathUtils.lerp(WALK_SPEED, RUN_SPEED, MathUtils.clamp((inMag - 0.3f) / 0.7f, 0f, 1f));
+        }
         speed = approach(speed, targetSpeed, ACCEL * dt);
 
         // 3) Anda e desvia de obstáculos

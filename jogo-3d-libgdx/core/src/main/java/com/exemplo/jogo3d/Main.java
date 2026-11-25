@@ -51,7 +51,8 @@ public class Main extends ApplicationAdapter {
     private float pitch = 0.45f; // inclinação da câmera (positivo = de cima)
 
     // ---------- Toque / HUD ----------
-    private int joyPointer = -1, lookPointer = -1, jumpPointer = -1;
+    private int joyPointer = -1, lookPointer = -1, jumpPointer = -1, runPointer = -1;
+    static final float RUN_BUTTON_RADIUS = 62f;
     private float joyOriginX, joyOriginY, joyX, joyY;
     private float lookLastX, lookLastY;
     private OrthographicCamera hudCamera;
@@ -163,7 +164,8 @@ public class Main extends ApplicationAdapter {
         jumpRequested = false;
 
         // Física (andar, correr, pular) e animação, ambas com o mesmo dt
-        player.update(dt, inX, inY, yaw, jumpPressed, world);
+        boolean runHeld = runPointer >= 0 || Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT);
+        player.update(dt, inX, inY, yaw, jumpPressed, runHeld, world);
         character.update(player, dt);
 
         // Direção da câmera (usada também para a câmera ficar atrás do jogador)
@@ -194,6 +196,12 @@ public class Main extends ApplicationAdapter {
     }
 
     // ---------- Toque ----------
+    private boolean isOnRunButton(float x, float y) {
+        float cx = Gdx.graphics.getWidth() - 240f;
+        float cy = Gdx.graphics.getHeight() - 110f;
+        return Vector3.dst2(x, y, 0f, cx, cy, 0f) <= RUN_BUTTON_RADIUS * RUN_BUTTON_RADIUS * 1.6f;
+    }
+
     private boolean isOnJumpButton(float x, float y) {
         float cx = Gdx.graphics.getWidth() - 110f;
         float cy = Gdx.graphics.getHeight() - 110f;
@@ -211,13 +219,16 @@ public class Main extends ApplicationAdapter {
         }
         if (lookPointer >= 0 && !Gdx.input.isTouched(lookPointer)) lookPointer = -1;
         if (jumpPointer >= 0 && !Gdx.input.isTouched(jumpPointer)) jumpPointer = -1;
+        if (runPointer >= 0 && !Gdx.input.isTouched(runPointer)) runPointer = -1;
 
         // Atribui novos dedos
         for (int i = 0; i < 5; i++) {
             if (!Gdx.input.isTouched(i)) continue;
-            if (i == joyPointer || i == lookPointer || i == jumpPointer) continue;
+            if (i == joyPointer || i == lookPointer || i == jumpPointer || i == runPointer) continue;
             float x = Gdx.input.getX(i), y = Gdx.input.getY(i);
-            if (jumpPointer < 0 && isOnJumpButton(x, y)) {
+            if (runPointer < 0 && isOnRunButton(x, y)) {
+                runPointer = i;
+            } else if (jumpPointer < 0 && isOnJumpButton(x, y)) {
                 jumpPointer = i;
                 jumpRequested = true;
             } else if (joyPointer < 0 && x < w / 2f) {
@@ -266,6 +277,9 @@ public class Main extends ApplicationAdapter {
             shapes.circle(ox + joyX * JOY_RADIUS, oy + joyY * JOY_RADIUS, 44f);
         }
         float jcx = w - 110f, jcy = 110f;
+        float rcx = w - 240f, rcy = 110f;
+        shapes.setColor(1f, 0.85f, 0.5f, runPointer >= 0 ? 0.55f : 0.28f);
+        shapes.circle(rcx, rcy, RUN_BUTTON_RADIUS);
         shapes.setColor(1f, 1f, 1f, jumpPointer >= 0 ? 0.5f : 0.25f);
         shapes.circle(jcx, jcy, JUMP_BUTTON_RADIUS);
         shapes.end();
@@ -280,6 +294,9 @@ public class Main extends ApplicationAdapter {
         layout.setText(font, "PULAR");
         font.setColor(1f, 1f, 1f, 0.9f);
         font.draw(batch, "PULAR", jcx - layout.width / 2f, jcy + layout.height / 2f);
+        layout.setText(font, "CORRER");
+        font.setColor(1f, 1f, 1f, 0.9f);
+        font.draw(batch, "CORRER", (w - 240f) - layout.width / 2f, rcy + layout.height / 2f);
         font.setColor(0.35f, 0.2f, 0.1f, 0.9f);
         font.draw(batch, "Sertão do Ceará - 1915: a seca chegou", 16f, h - 16f);
         batch.end();

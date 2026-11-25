@@ -25,8 +25,8 @@ public class Character {
     static final float MODEL_SCALE = 0.01f;
     static final float STATE_HOLD = 0.12f;   // tempo mínimo para trocar de animação (s)
     // Velocidade "natural" de cada animação (m/s), para sincronizar os passos com o movimento
-    static final float WALK_CLIP_SPEED = 1.3f;
-    static final float RUN_CLIP_SPEED = 4.0f;
+    static final float WALK_CLIP_SPEED = 1.8f;   // medido no clipe: quadril anda ~1,8 m/s
+    static final float RUN_CLIP_SPEED = 5.8f;    // medido no clipe: quadril anda ~5,8 m/s
 
     private enum State { IDLE, WALK, RUN, JUMP }
 
@@ -88,10 +88,10 @@ public class Character {
                 anim.current.speed = 0f;
                 break;
             case WALK:
-                anim.current.speed = MathUtils.clamp(p.speed / WALK_CLIP_SPEED, 0.5f, 1.6f);
+                anim.current.speed = MathUtils.clamp(p.speed / WALK_CLIP_SPEED, 0.6f, 1.3f);
                 break;
             case RUN:
-                anim.current.speed = MathUtils.clamp(p.speed / RUN_CLIP_SPEED, 0.7f, 1.4f);
+                anim.current.speed = MathUtils.clamp(p.speed / RUN_CLIP_SPEED, 0.7f, 1.3f);
                 break;
             case JUMP:
                 anim.current.speed = 1f;

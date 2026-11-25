@@ -182,7 +182,7 @@ public class World {
     }
 
     /**
-     * Coloca a casa de taipa (modelo real, 6 m x 4 m) num ponto plano e com rotação aleatória.
+     * Coloca a casa de taipa (modelo real, ~8,7 m x 7,5 m) num ponto plano e com rotação aleatória.
      * É um objeto independente: pode ser posicionado em qualquer lugar do mapa.
      */
     private void addHouse(Random rnd) {
@@ -200,7 +200,7 @@ public class World {
         house.transform.setToTranslation(bestX, y, bestZ).rotate(Vector3.Y, yaw);
         instances.add(house);
         // Colisão aproximada da casa (círculo cobrindo as paredes)
-        obstacles.add(new Obstacle(bestX, bestZ, 3.8f, y, 3.7f));
+        obstacles.add(new Obstacle(bestX, bestZ, 4.8f, y, 5.2f));   // casa ~8,7 m x 7,5 m, 5,1 m de altura
     }
 
     /** Inclinação aproximada do terreno numa área de 6 m (quanto menor, mais plano). */
