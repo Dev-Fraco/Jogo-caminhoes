@@ -12,17 +12,17 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Imagem pronta com Godot 4.3, export templates e Android SDK/JDK
+    # Imagem pronta com Godot 4.3, export templates, Java e Android SDK
     container: barichello/godot-ci:4.3
     steps:
       - uses: actions/checkout@v4
 
-      # A imagem tem Godot, templates, Java e Android SDK, mas em lugares que a Godot não procura
-      # por padrão. Aqui localizamos cada um e apontamos para o caminho esperado.
+      # A imagem tem Godot, templates, Java e Android SDK, mas em lugares que a Godot não
+      # procura por padrão. Localizamos cada um e apontamos para o caminho esperado.
       - name: Preparar templates, Java e Android SDK
         shell: bash
         run: |
-          set -x
+          set -e
           TPL=$(find / -type d -name "4.3.stable" -path "*export_templates*" 2>/dev/null | head -1)
           echo "Templates encontrados em: $TPL"
           mkdir -p "$HOME/.local/share/godot/export_templates"
@@ -37,7 +37,6 @@ jobs:
           echo "JAVA_HOME=$JAVA_DIR" >> "$GITHUB_ENV"
           echo "ANDROID_HOME=$SDK_DIR" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$SDK_DIR" >> "$GITHUB_ENV"
-          ls "$HOME/.local/share/godot/export_templates/4.3.stable" || true
 
           # Caminhos do Java e do Android SDK gravados nas configurações do editor da Godot 4.3
           mkdir -p "$HOME/.config/godot"
@@ -49,27 +48,39 @@ jobs:
           export/android/android_sdk_path = "$SDK_DIR"
           EOF
 
-          # Diagnóstico: o que existe no SDK
-          ls "$SDK_DIR" || true
-          ls "$SDK_DIR/build-tools" || true
-
       # Keystore de debug: basta para instalar o APK de teste no celular.
-      - name: Criar keystore de debug
+      # O caminho e as senhas vão direto no preset de exportação (é onde a Godot valida).
+      - name: Criar keystore de debug e configurar o preset
+        shell: bash
         run: |
-          keytool -genkey -v -keystore "$GITHUB_WORKSPACE/debug.keystore" \
+          set -e
+          KS="$GITHUB_WORKSPACE/debug.keystore"
+          keytool -genkey -v -keystore "$KS" \
             -storepass android -alias androiddebugkey -keypass android \
             -keyalg RSA -keysize 2048 -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
+          sed -i \
+            -e "s|^keystore/debug=\"\"|keystore/debug=\"$KS\"|" \
+            -e 's|^keystore/debug_user=""|keystore/debug_user="androiddebugkey"|' \
+            -e 's|^keystore/debug_password=""|keystore/debug_password="android"|' \
+            jogo-3d/export_presets.cfg
+          grep '^keystore/debug' jogo-3d/export_presets.cfg
 
       - name: Exportar APK
-        env:
-          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ github.workspace }}/debug.keystore
-          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
-          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
+        shell: bash
         run: |
+          set -o pipefail
           mkdir -p build
           godot --version
-          godot --headless --verbose --path jogo-3d --export-debug "Android" "$GITHUB_WORKSPACE/build/jogo-3d.apk" 2>&1 | tail -n 150
+          set +e
+          godot --headless --verbose --path jogo-3d --export-debug "Android" "$GITHUB_WORKSPACE/build/jogo-3d.apk" > export.log 2>&1
+          CODE=$?
+          set -e
+          grep -v "is not exposed" export.log | tail -n 200
+          echo "Código de saída da Godot: $CODE"
+          # Falha aqui se a exportação não gerou o APK (evita Release vazia)
+          test "$CODE" -eq 0
+          test -s build/jogo-3d.apk
           ls -lh build/
 
       - name: Publicar Release com o APK
@@ -81,4 +92,5 @@ jobs:
             APK de teste do jogo 3D (Godot 4). Baixe `jogo-3d.apk` no celular e instale
             (talvez precise permitir "instalar apps desconhecidos").
           files: build/jogo-3d.apk
+          fail_on_unmatched_files: true
           make_latest: true
