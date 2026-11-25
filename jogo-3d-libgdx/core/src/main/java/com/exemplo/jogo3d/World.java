@@ -196,7 +196,7 @@ public class World {
     }
 
     /**
-     * Coloca a casa de taipa (modelo real, ~8,7 m x 7,5 m) num ponto plano e com rotação aleatória.
+     * Coloca a casa de taipa (modelo real, ~8,4 m x 6,4 m, porta na frente) num ponto plano e com rotação aleatória.
      * É um objeto independente: pode ser posicionado em qualquer lugar do mapa.
      */
     private void addHouse(Random rnd) {
@@ -231,7 +231,7 @@ public class World {
         for (int h = 0; h < houses.size; h++) {
             House house = houses.get(h);
             Vector3 l = new Vector3(p).mul(house.inv);   // posição no sistema da casa
-            if (l.y > 3.0f) continue;                    // acima das paredes
+            if (l.y > 3.4f) continue;                    // acima das paredes (~3,2 m)
             for (int k = 0; k < wallBoxes.size; k++) {
                 float[] b = wallBoxes.get(k);
                 float minX = b[0] - playerRadius, maxX = b[1] + playerRadius;
