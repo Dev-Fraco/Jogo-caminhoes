@@ -30,6 +30,7 @@ public class Main extends ApplicationAdapter {
 
     // ---------- Ajustes ----------
     static final float CAMERA_DISTANCE = 4.5f;
+    static final float CAMERA_DISTANCE_INSIDE = 1.7f;   // dentro da casa a câmera chega perto do personagem
     static final float LOOK_SENSITIVITY = 0.006f;
 
     // ---------- 3D ----------
@@ -55,6 +56,10 @@ public class Main extends ApplicationAdapter {
     private FenceSystem.Prompt prompt = null;     // folha da porteira ao alcance (mostra o botão)
     private boolean crouchOn = false;             // botão AGACHAR (agachado enquanto parado)
     private Riding mountTarget = null;            // montaria ao alcance (mostra o botão MONTAR)
+    private HouseDecor doorTarget = null;         // porta ao alcance (mostra o botão da porta)
+    private HouseDecor hammockTarget = null;      // rede ao alcance (mostra DEITAR)
+    private HouseDecor lyingIn = null;            // casa onde o personagem está deitado na rede
+    private float camDist = CAMERA_DISTANCE;      // distância da câmera, suavizada
     private final Array<Riding> ridings = new Array<>();
     private final Hud hud = new Hud();
     private OrthographicCamera hudCamera;
@@ -190,15 +195,36 @@ public class Main extends ApplicationAdapter {
             r.update(dt, inX, inY, yaw, runToggle, jumpPressed, player, character);
             if (r.isMounted() || r.isBusy()) ridingActive = true;
         }
-        if (!busy && !ridingActive) player.update(dt, inX, inY, yaw, jumpPressed, runToggle, world);
+        boolean lying = lyingIn != null;
+        if (!busy && !ridingActive && !lying) player.update(dt, inX, inY, yaw, jumpPressed, runToggle, world);
+        if (lying) {
+            // Deitado: fica na rede, balançando, até levantar
+            player.pos.set(lyingIn.lieSpot());
+            player.facing = lyingIn.lieFacing();
+            player.speed = 0f;
+            player.grounded = true;
+            character.setSwing(lyingIn.swing);
+            if (lyingIn.lie == HouseDecor.Lie.LYING_IN && character.onceFinished()) lyingIn.lie = HouseDecor.Lie.LYING;
+            if (lyingIn.lie == HouseDecor.Lie.GETTING_UP && character.onceFinished()) {
+                character.endOnce();
+                character.setSwing(0f);
+                lyingIn.lie = HouseDecor.Lie.FREE;
+                lyingIn = null;
+            }
+        } else {
+            character.setSwing(0f);
+        }
         if (!ridingActive) character.setCrouch(crouchOn && player.speed < 0.25f ? 1f : 0f);
         character.setReach(world.fences.reach());
         character.update(player, dt);
         world.fences.update(dt, player);
+        world.update(dt, camera);
 
-        prompt = (busy || ui || ridingActive) ? null : world.fences.nearPrompt(player.pos);
+        prompt = (busy || ui || ridingActive || lying) ? null : world.fences.nearPrompt(player.pos);
+        doorTarget = (busy || ui || ridingActive || lying || prompt != null) ? null : world.nearDoor(player.pos);
+        hammockTarget = (busy || ui || ridingActive || lying || prompt != null || doorTarget != null) ? null : world.nearHammockFree(player.pos);
         mountTarget = null;
-        if (prompt == null && !busy && !ui && !ridingActive) {
+        if (prompt == null && doorTarget == null && hammockTarget == null && !busy && !ui && !ridingActive && !lying) {
             for (int i = 0; i < ridings.size && mountTarget == null; i++) {
                 if (ridings.get(i).canMount(player.pos)) mountTarget = ridings.get(i);
             }
@@ -206,12 +232,16 @@ public class Main extends ApplicationAdapter {
 
         // Direção da câmera (usada também para a câmera ficar atrás do jogador)
         Vector3 forward = new Vector3(MathUtils.sin(yaw), 0f, MathUtils.cos(yaw));
-        Vector3 pivot = new Vector3(player.pos.x, player.pos.y + 1.4f, player.pos.z);
+        // Dentro da casa a câmera chega perto e baixa um pouco, para enxergar o interior
+        boolean inside = world.insideHouse(player.pos);
+        float targetDist = inside ? CAMERA_DISTANCE_INSIDE : CAMERA_DISTANCE;
+        camDist += (targetDist - camDist) * Math.min(1f, dt * 6f);
+        Vector3 pivot = new Vector3(player.pos.x, player.pos.y + (inside ? 1.2f : 1.4f), player.pos.z);
         Vector3 back = new Vector3(
                 -forward.x * MathUtils.cos(pitch),
                 MathUtils.sin(pitch),
                 -forward.z * MathUtils.cos(pitch));
-        camera.position.set(pivot).mulAdd(back, CAMERA_DISTANCE);
+        camera.position.set(pivot).mulAdd(back, camDist);
         float camGround = world.heightAt(camera.position.x, camera.position.z) + 0.5f;
         if (camera.position.y < camGround) camera.position.y = camGround;
         camera.lookAt(pivot);
@@ -225,6 +255,7 @@ public class Main extends ApplicationAdapter {
         modelBatch.render(world.instances, environment);
         modelBatch.render(character.instances, environment);
         world.fences.render(modelBatch, environment);
+        modelBatch.render(world.fireInstance(), environment);
         modelBatch.end();
 
         drawHud();
@@ -308,6 +339,19 @@ public class Main extends ApplicationAdapter {
                 if (prompt != null) {
                     world.fences.startOperation(prompt, player);
                     prompt = null;
+                } else if (doorTarget != null) {
+                    doorTarget.toggleDoor();
+                } else if (hammockTarget != null) {
+                    // Deitar: vai para a rede e a animação de deitar toca uma vez
+                    lyingIn = hammockTarget;
+                    lyingIn.lie = HouseDecor.Lie.LYING_IN;
+                    lyingIn.lieT = 0f;
+                    character.playOnce("LieDown");
+                    hammockTarget = null;
+                } else if (lyingIn != null && lyingIn.lie == HouseDecor.Lie.LYING) {
+                    // Levantar: animação de levantar e volta ao normal
+                    lyingIn.lie = HouseDecor.Lie.GETTING_UP;
+                    character.playOnce("GetUp");
                 } else if (mountTarget != null) {
                     mountTarget.startMount(player);
                     mountTarget = null;
@@ -343,9 +387,13 @@ public class Main extends ApplicationAdapter {
         hud.jumpDown = jumpPointer >= 0;
         hud.joyX = joyX;
         hud.joyY = joyY;
-        hud.promptVisible = prompt != null || mountTarget != null;
+        boolean canGetUp = lyingIn != null && lyingIn.lie == HouseDecor.Lie.LYING;
+        hud.promptVisible = prompt != null || mountTarget != null || doorTarget != null || hammockTarget != null || canGetUp;
         if (prompt != null) hud.promptText = prompt.label();
         else if (mountTarget != null) hud.promptText = "MONTAR";
+        else if (doorTarget != null) hud.promptText = doorTarget.doorOpen() ? "FECHAR PORTA" : "ABRIR PORTA";
+        else if (hammockTarget != null) hud.promptText = "DEITAR NA REDE";
+        else if (canGetUp) hud.promptText = "LEVANTAR";
         hud.draw(batch, shapes, font);
 
         batch.begin();

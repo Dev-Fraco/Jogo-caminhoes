@@ -40,6 +40,12 @@ public class Character {
     private float reach = 0f;     // 0..1: braço direito esticado
     private float crouch = 0f;    // 0..1: agachado
     private boolean sitting = false;
+    // Animação única (deitar, levantar) e balanço da rede
+    private String onceClip = null;
+    private float onceT = 0f, onceDur = 1f;
+    private boolean onceDone = false;
+    private float swing = 0f;      // radianos: balanço em torno do quadril (rede)
+    private float swingPivotY = 1.15f;   // altura das ancoragens da rede, em relação aos pés deitados
 
     private final Quaternion tmpQ = new Quaternion();
     private final java.util.Map<String, Node> nodes = new java.util.HashMap<>();
@@ -63,52 +69,95 @@ public class Character {
         anim.current.speed = 0f;
     }
 
+    /** Toca uma animação uma vez (ex.: "LieDown", "GetUp"). Ao terminar, fica na última pose. */
+    public void playOnce(String clip) {
+        onceClip = clip;
+        onceT = 0f;
+        onceDone = false;
+        com.badlogic.gdx.graphics.g3d.model.Animation a = model.getAnimation(clip);
+        onceDur = a != null && a.duration > 0f ? a.duration : 1.2f;
+        anim.animate(clip, 1, 1f, null, 0.2f);
+    }
+
+    public boolean onceFinished() {
+        return onceClip == null || onceDone;
+    }
+
+    /** Sai da animação única e volta ao estado normal (andar, parado...). */
+    public void endOnce() {
+        onceClip = null;
+        onceDone = false;
+        current = State.IDLE;
+        candidate = State.IDLE;
+        applyClip();
+    }
+
+    /** Balanço da rede (radianos), em torno do quadril. */
+    public void setSwing(float rad) {
+        swing = rad;
+    }
+
     /**
      * Atualiza pose e animação a partir do estado do Player.
      * Se o personagem estiver montado (sitting), o Player não é usado para a pose de andar.
      */
     public void update(Player p, float dt) {
         instance.transform.setToTranslation(p.pos.x, p.pos.y, p.pos.z)
-                .rotate(Vector3.Y, p.facing * MathUtils.radiansToDegrees)
-                .scale(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
+                .rotate(Vector3.Y, p.facing * MathUtils.radiansToDegrees);
+        if (swing != 0f) {
+            // balança em torno de um eixo na altura do quadril (da rede), no sentido do corpo
+            instance.transform.translate(0f, swingPivotY, 0f).rotate(Vector3.Z, swing * MathUtils.radiansToDegrees)
+                    .translate(0f, -swingPivotY, 0f);
+        }
+        instance.transform.scale(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
 
-        State wanted;
-        if (!p.grounded) wanted = State.JUMP;
-        else if (p.speed < 0.25f) wanted = State.IDLE;
-        else if (p.speed < 3.6f) wanted = State.WALK;
-        else wanted = State.RUN;
+        if (onceClip == null) {
+            State wanted;
+            if (!p.grounded) wanted = State.JUMP;
+            else if (p.speed < 0.25f) wanted = State.IDLE;
+            else if (p.speed < 3.6f) wanted = State.WALK;
+            else wanted = State.RUN;
 
-        // Histerese: só troca depois de ficar estável por STATE_HOLD segundos
-        if (wanted != current) {
-            if (wanted != candidate) {
-                candidate = wanted;
+            // Histerese: só troca depois de ficar estável por STATE_HOLD segundos
+            if (wanted != current) {
+                if (wanted != candidate) {
+                    candidate = wanted;
+                    candidateTime = 0f;
+                }
+                candidateTime += dt;
+                if (candidateTime >= STATE_HOLD) {
+                    current = wanted;
+                    candidateTime = 0f;
+                    applyClip();
+                }
+            } else {
+                candidate = current;
                 candidateTime = 0f;
             }
-            candidateTime += dt;
-            if (candidateTime >= STATE_HOLD) {
-                current = wanted;
-                candidateTime = 0f;
-                applyClip();
+
+            switch (current) {
+                case IDLE: anim.current.speed = 1f; break;
+                case WALK: anim.current.speed = MathUtils.clamp(p.speed / WALK_CLIP_SPEED, 0.6f, 1.3f); break;
+                case RUN: anim.current.speed = MathUtils.clamp(p.speed / RUN_CLIP_SPEED, 0.7f, 1.3f); break;
+                case JUMP: anim.current.speed = 1f; break;
             }
-        } else {
-            candidate = current;
-            candidateTime = 0f;
-        }
+            anim.current.speed *= LIMB_SPEED_SCALE;
 
-        switch (current) {
-            case IDLE: anim.current.speed = 1f; break;
-            case WALK: anim.current.speed = MathUtils.clamp(p.speed / WALK_CLIP_SPEED, 0.6f, 1.3f); break;
-            case RUN: anim.current.speed = MathUtils.clamp(p.speed / RUN_CLIP_SPEED, 0.7f, 1.3f); break;
-            case JUMP: anim.current.speed = 1f; break;
         }
-        anim.current.speed *= LIMB_SPEED_SCALE;
-
         // 1) desfaz o ajuste do quadro anterior; 2) toca a animação; 3) aplica as poses por código
         for (java.util.Map.Entry<String, Quaternion> e : saved.entrySet()) {
             nodes.get(e.getKey()).rotation.set(e.getValue());
         }
         saved.clear();
-        anim.update(dt);
+        if (onceClip != null) {
+            if (!onceDone) {
+                onceT += dt;
+                anim.update(dt);
+                if (onceT >= onceDur) onceDone = true;   // segura a última pose
+            }
+        } else {
+            anim.update(dt);
+        }
         applyPoses();
         instance.calculateTransforms();
     }

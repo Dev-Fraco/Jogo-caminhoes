@@ -77,6 +77,10 @@ public class World {
     private Model ropeModel;   // corda do donkey até o morão (criada na hora)
     private ModelInstance donkeyInstance;
     private AnimationController donkeyAnim;
+    // Enfeites das casas, árvores secas e fogo
+    final Array<HouseDecor> decors = new Array<>();
+    private Model stoveModel, hammockModel, benchModel, doorModel, treeModel, pole;
+    private Fire fire;
     /** Montarias do mundo: o donkey do estábulo e os cavalos (cada um pode ser montado). */
     final Array<Riding.Mount> mounts = new Array<>();
     private ModelInstance ropeInstance;
@@ -235,6 +239,14 @@ public class World {
         }
         fences.create();
         troughModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cocho.g3dj"));
+        stoveModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/fogao.g3dj"));
+        hammockModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/rede.g3dj"));
+        benchModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/banco.g3dj"));
+        doorModel = HouseDecor.buildDoor();
+        loaded.add(doorModel);
+        treeModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/arvore_seca.g3dj"));
+        pole = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/arvore_pole.g3dj"));
+        fire = new Fire();
         cactusModels = new Model[]{
                 new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cactus0.g3dj")),
                 new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cactus1.g3dj")),
@@ -245,6 +257,8 @@ public class World {
         donkeyModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/donkey.g3dj"));
         for (int i = 0; i < 8; i++) addEnclosedHouse(rnd);
         for (int i = 0; i < 18; i++) addCactus(rnd);
+        for (int i = 0; i < 9; i++) addTree(rnd, true);
+        for (int i = 0; i < 7; i++) addTree(rnd, false);
         for (int i = 0; i < 12; i++) addProp(rnd, rockLarge, 2.2f, 0.9f, 1f);
         for (int i = 0; i < 16; i++) addProp(rnd, rockSmall, 2.2f, 0.45f, 1f);
         // Madeira morta: tocos e troncos caídos (no lugar das árvores mortas, que ainda não temos modelo)
@@ -257,6 +271,45 @@ public class World {
         Model m = new ObjLoader().loadModel(Gdx.files.internal(path));
         loaded.add(m);
         return m;
+    }
+
+    /** Atualiza enfeites (porta, rede) e o fogo. Chame todo quadro. */
+    public void update(float dt, com.badlogic.gdx.graphics.PerspectiveCamera cam) {
+        for (int i = 0; i < decors.size; i++) decors.get(i).update(dt);
+        fire.update(dt, cam);
+    }
+
+    /** Fogo e fumaça: desenhe com o ModelBatch (transparência). */
+    ModelInstance fireInstance() { return fire.instance(); }
+
+    /** Porta mais próxima do jogador (para mostrar o botão), ou null. */
+    HouseDecor nearDoor(Vector3 p) {
+        HouseDecor best = null;
+        float bestD = 2.2f * 2.2f;
+        for (int i = 0; i < decors.size; i++) {
+            Vector3 c = decors.get(i).doorCenter();
+            float dx = p.x - c.x, dz = p.z - c.z, d = dx * dx + dz * dz;
+            if (d < bestD) { bestD = d; best = decors.get(i); }
+        }
+        return best;
+    }
+
+    /** Rede ao alcance do jogador (para mostrar DEITAR), ou null. */
+    HouseDecor nearHammockFree(Vector3 p) {
+        for (int i = 0; i < decors.size; i++) {
+            HouseDecor d = decors.get(i);
+            if (d.lie == HouseDecor.Lie.FREE && d.nearHammock(p)) return d;
+        }
+        return null;
+    }
+
+    /** Verdadeiro se o ponto está dentro de alguma casa (para aproximar a câmera). */
+    boolean insideHouse(Vector3 p) {
+        for (int k = 0; k < houses.size; k++) {
+            Vector3 l = new Vector3(p).mul(houses.get(k).inv);
+            if (Math.abs(l.x) < 3.85f && Math.abs(l.z) < 2.85f && l.y > -0.2f && l.y < 3.2f) return true;
+        }
+        return false;
     }
 
     /** Escolhe um ponto aleatório fora da área de nascimento. */
@@ -297,6 +350,23 @@ public class World {
         // Colisão pela largura real do cacto (com folga para o personagem), e altura do modelo
         float radius = Math.max(0.45f, CACTUS_HALF_W[v] * s + 0.25f);
         obstacles.add(new Obstacle(x, z, radius, y, CACTUS_H[v] * s));
+    }
+
+    /** Árvore seca (grande ou pequena), com o tronco como obstáculo. */
+    private void addTree(Random rnd, boolean big) {
+        float[] p = null;
+        for (int t = 0; t < 60; t++) {
+            p = randomSpot(rnd, 8f);
+            if (!nearLandmark(p[0], p[1])) break;
+        }
+        float x = p[0], z = p[1];
+        float y = heightAt(x, z);
+        float rot = rnd.nextFloat() * MathUtils.PI2;
+        float s = (big ? 1.0f : 1.0f) * (0.9f + 0.3f * rnd.nextFloat());
+        ModelInstance mi = new ModelInstance(big ? treeModel : pole);
+        mi.transform.setToTranslation(x, y, z).rotate(Vector3.Y, rot * MathUtils.radiansToDegrees).scale(s, s, s);
+        instances.add(mi);
+        obstacles.add(new Obstacle(x, z, big ? 0.45f : 0.3f, y, big ? 6.0f : 2.4f));
     }
 
     /** Perto de casa, cercado, poço ou açude: os cactos não nascem ali. */
@@ -362,6 +432,21 @@ public class World {
         house.transform.set(t);
         instances.add(house);
         houses.add(new House(t));
+
+        // Enfeites: fogão (com fogo e fumaça), rede, banco e porta
+        HouseDecor dec = new HouseDecor(t, yaw, stoveModel, hammockModel, benchModel, doorModel);
+        decors.add(dec);
+        instances.add(dec.stove);
+        instances.add(dec.hammock);
+        instances.add(dec.bench);
+        instances.add(dec.door);
+        fire.addSource(dec.flameSource(), dec.smokeSource());
+        // Colisão: o fogão (2,4 m, encostado na parede) e o banco
+        Vector3 s0 = new Vector3(1.8f, 0f, -2.48f).mul(t), s1 = new Vector3(3.3f, 0f, -2.48f).mul(t);
+        obstacles.add(new Obstacle(s0.x, s0.z, 0.5f, heightAt(s0.x, s0.z), 1.3f));
+        obstacles.add(new Obstacle(s1.x, s1.z, 0.5f, heightAt(s1.x, s1.z), 1.3f));
+        Vector3 bc = new Vector3(HouseDecor.BENCH_X, 0f, HouseDecor.BENCH_Z).mul(t);
+        obstacles.add(new Obstacle(bc.x, bc.z, 0.35f, heightAt(bc.x, bc.z), 0.6f));
 
         fences.addEnclosure(this, bestX, bestZ, yaw);
 
@@ -519,6 +604,7 @@ public class World {
     /** Como resolveCollisions, mas ignora a cápsula de uma montaria (usado pelo próprio animal). */
     void resolveCollisionsExcept(Vector3 p, float playerRadius, Riding.Mount skip) {
         fences.resolveCollisions(p, playerRadius);   // arame farpado dos cercados
+        for (int i = 0; i < decors.size; i++) decors.get(i).resolveDoor(p, playerRadius);   // portas fechadas
         // Corpo dos animais (cavalos e donkey): cápsula ao longo do corpo, que acompanha o animal
         for (int i = 0; i < mounts.size; i++) {
             Riding.Mount mt = mounts.get(i);
@@ -569,6 +655,8 @@ public class World {
         if (damModel != null) damModel.dispose();
         if (wellModel != null) wellModel.dispose();
         fences.dispose();
+        if (fire != null) fire.dispose();
+        for (Model m : new Model[]{stoveModel, hammockModel, benchModel, treeModel, pole}) if (m != null) m.dispose();
         troughModel.dispose();
         postModel.dispose();
         cartModel.dispose();
