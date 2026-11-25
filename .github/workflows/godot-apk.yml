@@ -48,6 +48,21 @@ jobs:
           export/android/android_sdk_path = "$SDK_DIR"
           EOF
 
+      # O build com Gradle exige o template Android dentro do projeto. Normalmente a Godot instala
+      # pelo editor; aqui extraímos o android_source.zip da imagem na pasta que ela espera.
+      - name: Instalar template de build Android (Gradle)
+        shell: bash
+        run: |
+          set -e
+          ZIP="$HOME/.local/share/godot/export_templates/4.3.stable/android_source.zip"
+          test -f "$ZIP"
+          DEST="$GITHUB_WORKSPACE/jogo-3d/android/build"
+          mkdir -p "$DEST"
+          unzip -q "$ZIP" -d "$DEST"
+          echo "4.3.stable" > "$GITHUB_WORKSPACE/jogo-3d/android/.build_version"
+          chmod +x "$DEST/gradlew" || true
+          ls -la "$DEST" | head -30
+
       # Keystore de debug: basta para instalar o APK de teste no celular.
       # O caminho e as senhas vão direto no preset de exportação (é onde a Godot valida).
       - name: Criar keystore de debug e configurar o preset
