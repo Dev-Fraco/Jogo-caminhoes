@@ -38,6 +38,9 @@ public class Character {
     private ModelInstance instance;
     private AnimationController anim;
 
+    private float reach = 0f;   // 0..1: braço direito esticado (usado ao abrir a porteira)
+    private final com.badlogic.gdx.math.Quaternion tmpQ = new com.badlogic.gdx.math.Quaternion();
+
     private State current = State.IDLE;
     private State candidate = State.IDLE;
     private float candidateTime = 0f;
@@ -102,6 +105,20 @@ public class Character {
         }
         anim.current.speed *= LIMB_SPEED_SCALE;
         anim.update(dt);
+
+        // Braço direito esticado para a frente (ex.: alcançar o cadeado da porteira)
+        if (reach > 0.001f) {
+            com.badlogic.gdx.graphics.g3d.model.Node arm = instance.getNode("RightUpperArm");
+            if (arm != null) {
+                arm.rotation.mulLeft(tmpQ.setFromAxisRad(Vector3.X, -reach * 1.2f));
+                instance.calculateTransforms();
+            }
+        }
+    }
+
+    /** 0 = braço solto, 1 = braço totalmente esticado para a frente. */
+    public void setReach(float r) {
+        reach = Math.max(0f, Math.min(1f, r));
     }
 
     private void applyClip(Player p) {

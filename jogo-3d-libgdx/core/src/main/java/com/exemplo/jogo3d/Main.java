@@ -3,7 +3,6 @@ package com.exemplo.jogo3d;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
-import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.PerspectiveCamera;
@@ -21,21 +20,16 @@ import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector3;
 
 /**
- * Sertão do Ceará, 1915. Relevo com subidas e descidas, árvores mortas, casas redondas.
- * Celular: joystick na esquerda, arrastar na direita para girar, botão PULAR.
+ * Sertão do Ceará, 1915. Relevo com subidas e descidas, casas cercadas com porteira.
+ * Celular: joystick embaixo à esquerda, arrastar na metade direita para girar, botões de correr e pular.
+ * Engrenagem no canto superior esquerdo: edita a posição e o tamanho de cada botão.
  * PC: WASD/setas, espaço, arrastar com o mouse para girar.
  */
 public class Main extends ApplicationAdapter {
 
     // ---------- Ajustes ----------
-    static final float SPEED = 5.5f;
-    static final float JUMP_VELOCITY = 6.5f;
-    static final float GRAVITY = 18f;
-    static final float PLAYER_RADIUS = 0.35f;
     static final float CAMERA_DISTANCE = 4.5f;
     static final float LOOK_SENSITIVITY = 0.006f;
-    static final float JOY_RADIUS = 110f;
-    static final float JUMP_BUTTON_RADIUS = 70f;
 
     // ---------- 3D ----------
     private ModelBatch modelBatch;
@@ -46,16 +40,19 @@ public class Main extends ApplicationAdapter {
 
     // ---------- Jogador ----------
     private final Player player = new Player();
-    private boolean jumpRequested = false;   // pulo vindo do botão na tela
+    private boolean jumpRequested = false;
     private float yaw = 0f;      // direção da câmera (e do personagem)
     private float pitch = 0.45f; // inclinação da câmera (positivo = de cima)
 
     // ---------- Toque / HUD ----------
+    private final boolean[] wasDown = new boolean[5];
     private int joyPointer = -1, lookPointer = -1, jumpPointer = -1, runPointer = -1;
-    static final float RUN_BUTTON_RADIUS = 62f;
-    private boolean runToggle = false;   // toque no botão liga/desliga a corrida
-    private float joyOriginX, joyOriginY, joyX, joyY;
-    private float lookLastX, lookLastY;
+    private boolean runToggle = false;   // botão CORRER liga/desliga a corrida
+    private float joyX, joyY;            // -1..1
+    private float joyRadius = 100f;
+    private float lookLastX, lookLastY;  // coordenadas da tela (origem em cima)
+    private FenceSystem.Gate promptGate = null;   // porteira ao alcance (mostra o botão)
+    private final Hud hud = new Hud();
     private OrthographicCamera hudCamera;
     private ShapeRenderer shapes;
     private SpriteBatch batch;
@@ -66,7 +63,6 @@ public class Main extends ApplicationAdapter {
     public void create() {
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST);
 
-        // O personagem do Mixamo tem 65 ossos; o padrão do libGDX aceita só 12
         DefaultShader.Config shaderConfig = new DefaultShader.Config();
         shaderConfig.numBones = 80;
         modelBatch = new ModelBatch(new DefaultShaderProvider(shaderConfig));
@@ -84,6 +80,13 @@ public class Main extends ApplicationAdapter {
         shapes = new ShapeRenderer();
         batch = new SpriteBatch();
         font = new BitmapFont();
+        font.getData().setScale(1.1f);
+
+        try {
+            hud.create();
+        } catch (Throwable t) {
+            errorText = "ERRO NO HUD:\n" + describe(t);
+        }
 
         world = new World();
         try {
@@ -153,29 +156,33 @@ public class Main extends ApplicationAdapter {
 
         updateTouch();
 
-        // Entradas: teclado (PC) somado ao joystick (celular)
+        // Com o editor do HUD aberto, o personagem fica parado
+        boolean ui = hud.editing;
         float kx = 0f, ky = 0f;
-        if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP)) ky += 1f;
-        if (Gdx.input.isKeyPressed(Input.Keys.S) || Gdx.input.isKeyPressed(Input.Keys.DOWN)) ky -= 1f;
-        if (Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT)) kx -= 1f;
-        if (Gdx.input.isKeyPressed(Input.Keys.D) || Gdx.input.isKeyPressed(Input.Keys.RIGHT)) kx += 1f;
-        float inX = MathUtils.clamp(kx + joyX, -1f, 1f);
-        float inY = MathUtils.clamp(ky + joyY, -1f, 1f);
+        if (!ui) {
+            if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP)) ky += 1f;
+            if (Gdx.input.isKeyPressed(Input.Keys.S) || Gdx.input.isKeyPressed(Input.Keys.DOWN)) ky -= 1f;
+            if (Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT)) kx -= 1f;
+            if (Gdx.input.isKeyPressed(Input.Keys.D) || Gdx.input.isKeyPressed(Input.Keys.RIGHT)) kx += 1f;
+        }
+        float inX = ui ? 0f : MathUtils.clamp(kx + joyX, -1f, 1f);
+        float inY = ui ? 0f : MathUtils.clamp(ky + joyY, -1f, 1f);
 
-        boolean jumpPressed = jumpRequested || Gdx.input.isKeyJustPressed(Input.Keys.SPACE);
+        boolean jumpPressed = !ui && (jumpRequested || Gdx.input.isKeyJustPressed(Input.Keys.SPACE));
         jumpRequested = false;
+        if (!ui && Gdx.input.isKeyJustPressed(Input.Keys.SHIFT_LEFT)) runToggle = !runToggle;
 
-        // Física (andar, correr, pular) e animação, ambas com o mesmo dt
-        if (Gdx.input.isKeyJustPressed(Input.Keys.SHIFT_LEFT)) runToggle = !runToggle;
-        boolean runHeld = runToggle;
-        player.update(dt, inX, inY, yaw, jumpPressed, runHeld, world);
+        // Durante a abertura da porteira, o jogo controla o personagem
+        boolean busy = world.fences.isBusy();
+        if (!busy) player.update(dt, inX, inY, yaw, jumpPressed, runToggle, world);
+        character.setReach(world.fences.reach());
         character.update(player, dt);
-        world.fences.update(dt, player.pos);
+        world.fences.update(dt, player);
+
+        promptGate = (busy || ui) ? null : world.fences.nearClosedGate(player.pos);
 
         // Direção da câmera (usada também para a câmera ficar atrás do jogador)
         Vector3 forward = new Vector3(MathUtils.sin(yaw), 0f, MathUtils.cos(yaw));
-
-        // Câmera atrás do jogador, sempre acima do chão
         Vector3 pivot = new Vector3(player.pos.x, player.pos.y + 1.4f, player.pos.z);
         Vector3 back = new Vector3(
                 -forward.x * MathUtils.cos(pitch),
@@ -197,78 +204,100 @@ public class Main extends ApplicationAdapter {
         world.fences.render(modelBatch, environment);
         modelBatch.end();
 
-        // Toque no aviso de atualização (topo da tela) abre o download
-        if (UpdateChecker.available() && Gdx.input.justTouched() && Gdx.input.getY() < 80) {
-            Gdx.net.openURI(UpdateChecker.downloadUrl());
-        }
         drawHud();
     }
 
     // ---------- Toque ----------
-    private boolean isOnRunButton(float x, float y) {
-        float cx = Gdx.graphics.getWidth() - 240f;
-        float cy = Gdx.graphics.getHeight() - 110f;
-        return Vector3.dst2(x, y, 0f, cx, cy, 0f) <= RUN_BUTTON_RADIUS * RUN_BUTTON_RADIUS * 1.6f;
-    }
-
-    private boolean isOnJumpButton(float x, float y) {
-        float cx = Gdx.graphics.getWidth() - 110f;
-        float cy = Gdx.graphics.getHeight() - 110f;
-        return Vector3.dst2(x, y, 0f, cx, cy, 0f) <= JUMP_BUTTON_RADIUS * JUMP_BUTTON_RADIUS * 1.6f;
-    }
 
     private void updateTouch() {
-        int w = Gdx.graphics.getWidth();
+        int W = Gdx.graphics.getWidth(), H = Gdx.graphics.getHeight();
 
-        // Solta os dedos que saíram da tela
-        if (joyPointer >= 0 && !Gdx.input.isTouched(joyPointer)) {
-            joyPointer = -1;
-            joyX = 0f;
-            joyY = 0f;
-        }
-        if (lookPointer >= 0 && !Gdx.input.isTouched(lookPointer)) lookPointer = -1;
-        if (jumpPointer >= 0 && !Gdx.input.isTouched(jumpPointer)) jumpPointer = -1;
-        if (runPointer >= 0 && !Gdx.input.isTouched(runPointer)) runPointer = -1;
+        for (int i = 0; i < wasDown.length; i++) {
+            boolean down = Gdx.input.isTouched(i);
+            boolean pressed = down && !wasDown[i];
+            wasDown[i] = down;
 
-        // Atribui novos dedos
-        for (int i = 0; i < 5; i++) {
-            if (!Gdx.input.isTouched(i)) continue;
-            if (i == joyPointer || i == lookPointer || i == jumpPointer || i == runPointer) continue;
-            float x = Gdx.input.getX(i), y = Gdx.input.getY(i);
-            if (runPointer < 0 && isOnRunButton(x, y)) {
-                runPointer = i;
-                runToggle = !runToggle;   // toque: começa ou para de correr
-            } else if (jumpPointer < 0 && isOnJumpButton(x, y)) {
-                jumpPointer = i;
-                jumpRequested = true;
-            } else if (joyPointer < 0 && x < w / 2f) {
-                joyPointer = i;
-                joyOriginX = x;
-                joyOriginY = y;
-            } else if (lookPointer < 0 && x >= w / 2f) {
-                lookPointer = i;
-                lookLastX = x;
-                lookLastY = y;
+            if (!down) {
+                if (i == joyPointer) { joyPointer = -1; joyX = 0f; joyY = 0f; }
+                if (i == lookPointer) lookPointer = -1;
+                if (i == runPointer) runPointer = -1;
+                if (i == jumpPointer) jumpPointer = -1;
+                hud.editRelease(i);
+                continue;
             }
-        }
 
-        if (joyPointer >= 0) {
-            float dx = Gdx.input.getX(joyPointer) - joyOriginX;
-            float dy = Gdx.input.getY(joyPointer) - joyOriginY;
-            joyX = MathUtils.clamp(dx / JOY_RADIUS, -1f, 1f);
-            joyY = MathUtils.clamp(-dy / JOY_RADIUS, -1f, 1f); // a tela cresce para baixo
-        }
+            float x = Gdx.input.getX(i);
+            float rawY = Gdx.input.getY(i);
+            float yb = H - rawY;   // origem embaixo, como o HUD
 
-        if (lookPointer >= 0) {
-            float x = Gdx.input.getX(lookPointer), y = Gdx.input.getY(lookPointer);
-            yaw -= (x - lookLastX) * LOOK_SENSITIVITY;
-            pitch = MathUtils.clamp(pitch + (y - lookLastY) * LOOK_SENSITIVITY, 0.05f, 1.2f);
-            lookLastX = x;
-            lookLastY = y;
+            if (pressed) onPress(i, x, rawY, yb, W, H);
+
+            if (hud.editing) {
+                hud.editDrag(i, x, yb);
+                continue;
+            }
+            if (i == joyPointer) {
+                float[] r = hud.rect(hud.get("joystick"));
+                float cx = r[0] + r[2] / 2f, cy = r[1] + r[3] / 2f;
+                joyRadius = Math.max(40f, r[2] * 0.42f);
+                joyX = MathUtils.clamp((x - cx) / joyRadius, -1f, 1f);
+                joyY = MathUtils.clamp((yb - cy) / joyRadius, -1f, 1f);
+            }
+            if (i == lookPointer) {
+                yaw -= (x - lookLastX) * LOOK_SENSITIVITY;
+                pitch = MathUtils.clamp(pitch + (rawY - lookLastY) * LOOK_SENSITIVITY, 0.05f, 1.2f);
+                lookLastX = x;
+                lookLastY = rawY;
+            }
         }
     }
 
-    // ---------- HUD (joystick, botão de pular, texto) ----------
+    private void onPress(int i, float x, float rawY, float yb, int W, int H) {
+        if (hud.editing) {
+            hud.editPress(i, x, yb);
+            return;
+        }
+        // Aviso de nova versão (topo, no meio): toque abre o download
+        if (UpdateChecker.available() && yb > H - 60f && Math.abs(x - W / 2f) < W * 0.3f) {
+            Gdx.net.openURI(UpdateChecker.downloadUrl());
+            return;
+        }
+        Hud.El e = hud.hitTest(x, yb);
+        String id = e == null ? "" : e.id;
+        switch (id) {
+            case "config":
+                hud.editing = true;
+                joyPointer = -1;
+                return;
+            case "correr":
+                if (runPointer < 0) { runPointer = i; runToggle = !runToggle; }
+                return;
+            case "pular":
+                if (jumpPointer < 0) { jumpPointer = i; jumpRequested = true; }
+                return;
+            case "joystick":
+                if (joyPointer < 0) joyPointer = i;
+                return;
+            case "abrir":
+                if (promptGate != null) {
+                    world.fences.startOpening(promptGate, player);
+                    promptGate = null;
+                }
+                return;
+            case "":
+                if (x >= W / 2f) {
+                    if (lookPointer < 0) { lookPointer = i; lookLastX = x; lookLastY = rawY; }
+                } else if (joyPointer < 0) {
+                    joyPointer = i;   // metade esquerda da tela sem botão: também controla o joystick
+                }
+                return;
+            default:
+                // mochila, agachar, status e itens ainda não têm ação
+                return;
+        }
+    }
+
+    // ---------- HUD ----------
     private void drawHud() {
         int w = Gdx.graphics.getWidth(), h = Gdx.graphics.getHeight();
         hudCamera.setToOrtho(false, w, h);
@@ -278,40 +307,24 @@ public class Main extends ApplicationAdapter {
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
 
         shapes.setProjectionMatrix(hudCamera.combined);
-        shapes.begin(ShapeRenderer.ShapeType.Filled);
-        if (joyPointer >= 0) {
-            float ox = joyOriginX, oy = h - joyOriginY;
-            shapes.setColor(1f, 1f, 1f, 0.12f);
-            shapes.circle(ox, oy, JOY_RADIUS);
-            shapes.setColor(1f, 1f, 1f, 0.45f);
-            shapes.circle(ox + joyX * JOY_RADIUS, oy + joyY * JOY_RADIUS, 44f);
-        }
-        float jcx = w - 110f, jcy = 110f;
-        float rcx = w - 240f, rcy = 110f;
-        shapes.setColor(1f, 0.85f, 0.5f, runToggle ? 0.6f : 0.28f);
-        shapes.circle(rcx, rcy, RUN_BUTTON_RADIUS);
-        shapes.setColor(1f, 1f, 1f, jumpPointer >= 0 ? 0.5f : 0.25f);
-        shapes.circle(jcx, jcy, JUMP_BUTTON_RADIUS);
-        shapes.end();
-
-        shapes.begin(ShapeRenderer.ShapeType.Line);
-        shapes.setColor(1f, 1f, 1f, 0.6f);
-        shapes.circle(jcx, jcy, JUMP_BUTTON_RADIUS);
-        shapes.end();
-
         batch.setProjectionMatrix(hudCamera.combined);
+
+        hud.runOn = runToggle;
+        hud.jumpDown = jumpPointer >= 0;
+        hud.joyX = joyX;
+        hud.joyY = joyY;
+        hud.promptVisible = promptGate != null;
+        hud.draw(batch, shapes, font);
+
         batch.begin();
-        layout.setText(font, "PULAR");
-        font.setColor(1f, 1f, 1f, 0.9f);
-        font.draw(batch, "PULAR", jcx - layout.width / 2f, jcy + layout.height / 2f);
-        layout.setText(font, "CORRER");
-        font.setColor(1f, 1f, 1f, 0.9f);
-        font.draw(batch, "CORRER", (w - 240f) - layout.width / 2f, rcy + layout.height / 2f);
         font.setColor(0.35f, 0.2f, 0.1f, 0.9f);
-        font.draw(batch, "Sertão do Ceará - 1915: a seca chegou", 16f, h - 16f);
+        layout.setText(font, "Sertão do Ceará - 1915: a seca chegou");
+        font.draw(batch, "Sertão do Ceará - 1915: a seca chegou", (w - layout.width) / 2f, 22f);
         if (UpdateChecker.available()) {
             font.setColor(0.6f, 0.1f, 0.05f, 1f);
-            font.draw(batch, "Nova versão " + UpdateChecker.latestBuild() + " disponível: toque aqui para baixar", 16f, h - 44f);
+            String msg = "Nova versão " + UpdateChecker.latestBuild() + " disponível: toque aqui para baixar";
+            layout.setText(font, msg);
+            font.draw(batch, msg, (w - layout.width) / 2f, h - 14f);
         }
         batch.end();
 
@@ -330,6 +343,7 @@ public class Main extends ApplicationAdapter {
         modelBatch.dispose();
         world.dispose();
         character.dispose();
+        hud.dispose();
         shapes.dispose();
         batch.dispose();
         font.dispose();
