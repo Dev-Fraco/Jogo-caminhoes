@@ -12,6 +12,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     # Imagem pronta com Godot 4.3, export templates, Java e Android SDK
     container: barichello/godot-ci:4.3
     steps:
@@ -55,7 +56,7 @@ jobs:
         run: |
           set -o pipefail
           godot --headless --help | grep -i "install-android-build-template" || echo "Opção não listada no --help"
-          godot --headless --path jogo-3d --install-android-build-template 2>&1 | grep -v "is not exposed" | tail -n 40 || true
+          timeout 300 godot --headless --path jogo-3d --install-android-build-template 2>&1 | grep -v "is not exposed" | tail -n 40 || echo "Instalação do template terminou com erro ou tempo esgotado (código $?)"
           ls -la jogo-3d/android/ || true
           ls -la jogo-3d/android/build | head -30 || true
           cat jogo-3d/android/.build_version || true
