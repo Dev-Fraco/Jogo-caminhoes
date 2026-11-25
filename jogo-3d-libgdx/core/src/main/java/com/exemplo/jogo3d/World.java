@@ -58,6 +58,9 @@ public class World {
         House(Matrix4 t) { this.t = t; this.inv = new Matrix4(t).inv(); }
     }
     final Array<House> houses = new Array<>();
+    /** Cercados de arame farpado em volta das casas (com porteira). */
+    final FenceSystem fences = new FenceSystem();
+    private final Array<float[]> enclosureCenters = new Array<>();
     /** Caixas das paredes da casa (coordenadas locais), lidas de models/casa_taipa_colisao.json. */
     private final Array<float[]> wallBoxes = new Array<>();
 
@@ -141,7 +144,8 @@ public class World {
         for (JsonValue b = boxes.child; b != null; b = b.next) {
             wallBoxes.add(new float[]{b.getFloat("minX"), b.getFloat("maxX"), b.getFloat("minY"), b.getFloat("maxY"), b.getFloat("minZ"), b.getFloat("maxZ")});
         }
-        for (int i = 0; i < 8; i++) addHouse(rnd);
+        fences.create();
+        for (int i = 0; i < 8; i++) addEnclosedHouse(rnd);
         for (int i = 0; i < 18; i++) addProp(rnd, cactus, 3.2f, 0.45f, 1.0f + 0.2f * rnd.nextFloat());
         for (int i = 0; i < 12; i++) addProp(rnd, rockLarge, 2.2f, 0.9f, 1f);
         for (int i = 0; i < 16; i++) addProp(rnd, rockSmall, 2.2f, 0.45f, 1f);
@@ -199,23 +203,46 @@ public class World {
      * Coloca a casa de taipa (modelo real, ~8,4 m x 6,4 m, porta na frente) num ponto plano e com rotação aleatória.
      * É um objeto independente: pode ser posicionado em qualquer lugar do mapa.
      */
-    private void addHouse(Random rnd) {
-        float bestX = 0f, bestZ = 0f, bestSlope = 1e9f;
-        for (int t = 0; t < 40; t++) {
+    private void addEnclosedHouse(Random rnd) {
+        float bestX = 0f, bestZ = 0f, bestRange = 1e9f;
+        for (int t = 0; t < 80; t++) {
             float[] p = randomSpot(rnd, 14f);
-            float slope = slopeAt(p[0], p[1]);
-            if (slope < bestSlope) { bestSlope = slope; bestX = p[0]; bestZ = p[1]; }
-            if (slope < 0.12f) break;
+            if (Math.hypot(p[0], p[1]) < 20.0) continue;          // longe do início
+            boolean near = false;
+            for (int k = 0; k < enclosureCenters.size; k++) {
+                float[] c = enclosureCenters.get(k);
+                if (Math.hypot(p[0] - c[0], p[1] - c[1]) < 34.0) near = true;   // cercados não se encostam
+            }
+            if (near) continue;
+            float range = flatRange(p[0], p[1]);
+            if (range < bestRange) { bestRange = range; bestX = p[0]; bestZ = p[1]; }
+            if (range < 0.5f) break;
         }
-        float y = heightAt(bestX, bestZ);
-        float yaw = rnd.nextFloat() * 360f;
+        enclosureCenters.add(new float[]{bestX, bestZ});
 
-        ModelInstance house = new ModelInstance(casaModel);
+        // Casa no centro do cercado, com a porta voltada para a porteira (frente +z)
+        float yaw = rnd.nextInt(4) * 90f;
+        float y = heightAt(bestX, bestZ);
         Matrix4 t = new Matrix4().setToTranslation(bestX, y, bestZ).rotate(Vector3.Y, yaw);
+        ModelInstance house = new ModelInstance(casaModel);
         house.transform.set(t);
         instances.add(house);
-        // A colisão das paredes é feita no sistema da casa (ver resolveCollisions)
         houses.add(new House(t));
+
+        fences.addEnclosure(this, bestX, bestZ, yaw);
+    }
+
+    /** Diferença de altura dentro da área do cercado (20 m x 16 m): quanto menor, mais plano. */
+    private float flatRange(float cx, float cz) {
+        float mn = 1e9f, mx = -1e9f;
+        for (int i = -2; i <= 2; i++) {
+            for (int j = -2; j <= 2; j++) {
+                float h = heightAt(cx + i * 5f, cz + j * 4f);
+                mn = Math.min(mn, h);
+                mx = Math.max(mx, h);
+            }
+        }
+        return mx - mn;
     }
 
     /** Inclinação aproximada do terreno numa área de 6 m (quanto menor, mais plano). */
@@ -227,6 +254,7 @@ public class World {
 
     /** Empurra o jogador (círculo) para fora de qualquer obstáculo que ele esteja tocando. */
     public void resolveCollisions(Vector3 p, float playerRadius) {
+        fences.resolveCollisions(p, playerRadius);   // arame farpado dos cercados
         // Paredes das casas: entra pela abertura da porta, não pelas paredes
         for (int h = 0; h < houses.size; h++) {
             House house = houses.get(h);
@@ -265,6 +293,7 @@ public class World {
     public void dispose() {
         terrainModel.dispose();
         casaModel.dispose();
+        fences.dispose();
         dirtTexture.dispose();
         for (int i = 0; i < loaded.size; i++) loaded.get(i).dispose();
     }
