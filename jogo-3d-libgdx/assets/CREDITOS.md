@@ -9,3 +9,8 @@ Fontes:
 - Kenney: https://www.kenney.nl
 - Quaternius: https://quaternius.com
 - Screaming Brain Studios (OpenGameArt): https://opengameart.org/content/base-material-texture-pack
+
+## Personagem e animações (Mixamo / Adobe)
+
+- **Modelo e animações** (`models/player.g3dj`): personagem e animações *Walking*, *Fast Run* e *Jumping Down* baixados do Mixamo (https://www.mixamo.com), convertidos de FBX para .g3dj.
+- Uso permitido em jogos pela licença do Mixamo; não é permitido redistribuir o personagem como arquivo avulso.
