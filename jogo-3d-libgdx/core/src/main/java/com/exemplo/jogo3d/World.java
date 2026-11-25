@@ -232,7 +232,8 @@ public class World {
             signModel = Landmarks.buildSign(signTexture);
             ModelInstance sign = new ModelInstance(signModel);
             float sx = wellX, sz = wellZ + 5.5f;
-            sign.transform.setToTranslation(sx, heightAt(sx, sz), sz).rotate(Vector3.Y, 180f);
+            // A frente da placa aponta para fora do poço (o poço fica no lado -z)
+            sign.transform.setToTranslation(sx, heightAt(sx, sz), sz).rotate(Vector3.Y, 0f);
             instances.add(sign);
             obstacles.add(new Obstacle(sx, sz, 0.25f, heightAt(sx, sz), 2.0f));
             obstacles.add(new Obstacle(wellX, wellZ, Landmarks.WELL_OUT + 0.3f, heightAt(wellX, wellZ), 1.0f));

@@ -83,6 +83,8 @@ public class Main extends ApplicationAdapter {
 
         DefaultShader.Config shaderConfig = new DefaultShader.Config();
         shaderConfig.numBones = 80;
+        // Sem descarte de faces: o shader padrão desligava o lado de dentro das paredes, do poço e do muro
+        shaderConfig.defaultCullFace = 0;
         modelBatch = new ModelBatch(new DefaultShaderProvider(shaderConfig));
 
         environment = new Environment();
