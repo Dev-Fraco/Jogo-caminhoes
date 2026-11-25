@@ -72,6 +72,7 @@ public class World {
     private Model troughModel; // cocho de madeira (1,84 m)
     private Model postModel;   // morão de madeira, para amarrar o animal
     private Model cartModel;   // carroça de madeira (2,2 x 2,8 m)
+    private Model horseModel;  // cavalo (estático, 1,72 m de altura)
     private Model donkeyModel; // donkey (1,86 m de comprimento)
     private Model ropeModel;   // corda do donkey até o morão (criada na hora)
     private ModelInstance donkeyInstance;
@@ -161,6 +162,7 @@ public class World {
         troughModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cocho.g3dj"));
         postModel = buildPostModel();
         cartModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/carroca.g3dj"));
+        horseModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/horse.g3dj"));
         donkeyModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/donkey.g3dj"));
         for (int i = 0; i < 8; i++) addEnclosedHouse(rnd);
         for (int i = 0; i < 18; i++) addProp(rnd, cactus, 3.2f, 0.45f, 1.0f + 0.2f * rnd.nextFloat());
@@ -258,6 +260,15 @@ public class World {
         cart.transform.setToTranslation(c.x, heightAt(c.x, c.z), c.z).rotate(Vector3.Y, yaw);
         instances.add(cart);
         obstacles.add(new Obstacle(c.x, c.z, 1.5f, heightAt(c.x, c.z), 1.8f));
+
+        // Cavalo em só algumas casas (3ª, 6ª e 8ª), parado dentro do cercado
+        if (houses.size == 3 || houses.size == 6 || houses.size == 8) {
+            Vector3 h = new Vector3(-5f, 0f, 3f).mul(enc);
+            ModelInstance horse = new ModelInstance(horseModel);
+            horse.transform.setToTranslation(h.x, heightAt(h.x, h.z), h.z).rotate(Vector3.Y, yaw);
+            instances.add(horse);
+            obstacles.add(new Obstacle(h.x, h.z, 0.6f, heightAt(h.x, h.z), 1.7f));
+        }
     }
 
     /**
@@ -410,6 +421,7 @@ public class World {
         troughModel.dispose();
         postModel.dispose();
         cartModel.dispose();
+        horseModel.dispose();
         donkeyModel.dispose();
         if (ropeModel != null) ropeModel.dispose();
         dirtTexture.dispose();
