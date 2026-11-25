@@ -10,7 +10,9 @@ import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute;
 import com.badlogic.gdx.graphics.g3d.loader.ObjLoader;
+import com.badlogic.gdx.graphics.g3d.loader.G3dModelLoader;
 import com.badlogic.gdx.graphics.g3d.utils.MeshPartBuilder;
+import com.badlogic.gdx.utils.JsonReader;
 import com.badlogic.gdx.graphics.g3d.utils.MeshPartBuilder.VertexInfo;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
 import com.badlogic.gdx.math.MathUtils;
@@ -50,7 +52,7 @@ public class World {
     final Array<Obstacle> obstacles = new Array<>();
 
     private Model terrainModel;
-    private Model unitBox;   // cubo unitário para as casas (escalado)
+    private Model casaModel;   // casa de taipa (modelo real importado)
     private Texture dirtTexture;
     private final Array<Model> loaded = new Array<>();
 
@@ -114,7 +116,6 @@ public class World {
         terrainModel = mb.end();
         instances.add(new ModelInstance(terrainModel));
 
-        unitBox = mb.createBox(1f, 1f, 1f, new Material(), Usage.Position | Usage.Normal);
 
         // Objetos 3D reais (modelos CC0 convertidos para .obj)
         Model cactus = loadModel("models/cactus.obj");
@@ -125,7 +126,8 @@ public class World {
         Model bush = loadModel("models/bush.obj");
 
         Random rnd = new Random(7L);
-        for (int i = 0; i < 26; i++) addHut(rnd);
+        casaModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/casa_taipa.g3dj"));
+        for (int i = 0; i < 8; i++) addHouse(rnd);
         for (int i = 0; i < 18; i++) addProp(rnd, cactus, 3.2f, 0.45f, 1.0f + 0.2f * rnd.nextFloat());
         for (int i = 0; i < 12; i++) addProp(rnd, rockLarge, 2.2f, 0.9f, 1f);
         for (int i = 0; i < 16; i++) addProp(rnd, rockSmall, 2.2f, 0.45f, 1f);
@@ -180,61 +182,32 @@ public class World {
     }
 
     /**
-     * Casa de taipa cearense (taipa de mão): parede de barro caiada de branco, rodapé de barro,
-     * telhado baixo de telha cerâmica em duas águas, alpendre frontal com pilares de madeira,
-     * porta e janelas de madeira.
+     * Coloca a casa de taipa (modelo real, 6 m x 4 m) num ponto plano e com rotação aleatória.
+     * É um objeto independente: pode ser posicionado em qualquer lugar do mapa.
      */
-    private void addHut(Random rnd) {
-        float[] p = randomSpot(rnd, 14f);
-        float x = p[0], z = p[1];
-        float y = heightAt(x, z);
-        float w = 7f + rnd.nextFloat() * 2f;      // comprimento (fachada)
-        float d = 4.5f + rnd.nextFloat() * 1f;    // profundidade
-        float h = 2.7f + rnd.nextFloat() * 0.3f;  // altura da parede
-        float rise = 1.1f + rnd.nextFloat() * 0.3f; // telhado baixo
-        float yaw = rnd.nextFloat() * MathUtils.PI2;
-
-        Matrix4 base = new Matrix4().setToTranslation(x, y, z)
-                .rotate(Vector3.Y, yaw * MathUtils.radiansToDegrees);
-
-        Color whitewash = new Color(0.93f, 0.91f, 0.85f, 1f);  // parede caiada
-        Color plinth = new Color(0.62f, 0.45f, 0.30f, 1f);      // rodapé de barro
-        Color tile = new Color(0.72f, 0.38f, 0.22f, 1f);        // telha cerâmica
-        Color wood = new Color(0.42f, 0.27f, 0.15f, 1f);        // madeira
-        Color blue = new Color(0.25f, 0.45f, 0.65f, 1f);        // janela azul
-
-        // Parede caiada e rodapé de barro
-        instances.add(inst(unitBox, whitewash, new Matrix4(base).translate(0f, h / 2f, 0f).scale(w, h, d)));
-        instances.add(inst(unitBox, plinth, new Matrix4(base).translate(0f, 0.25f, 0f).scale(w + 0.05f, 0.5f, d + 0.05f)));
-
-        // Telhado baixo de duas águas
-        float slope = (float) Math.atan2(rise, d / 2f);
-        float panelLen = (float) Math.sqrt((d / 2f) * (d / 2f) + rise * rise) + 0.25f;
-        for (int side = -1; side <= 1; side += 2) {
-            Matrix4 m = new Matrix4(base).translate(0f, h + rise / 2f, side * d / 4f);
-            m.rotate(Vector3.X, side * slope * MathUtils.radiansToDegrees);
-            m.scale(w + 0.8f, 0.12f, panelLen);
-            instances.add(inst(unitBox, tile, m));
+    private void addHouse(Random rnd) {
+        float bestX = 0f, bestZ = 0f, bestSlope = 1e9f;
+        for (int t = 0; t < 40; t++) {
+            float[] p = randomSpot(rnd, 14f);
+            float slope = slopeAt(p[0], p[1]);
+            if (slope < bestSlope) { bestSlope = slope; bestX = p[0]; bestZ = p[1]; }
+            if (slope < 0.12f) break;
         }
+        float y = heightAt(bestX, bestZ);
+        float yaw = rnd.nextFloat() * 360f;
 
-        // Alpendre frontal: cobertura extra e pilares de madeira
-        float porchD = 1.6f;
-        float porchZ = d / 2f + porchD / 2f;
-        Matrix4 porchRoof = new Matrix4(base).translate(0f, h - 0.3f, porchZ).rotate(Vector3.X, -4f);
-        instances.add(inst(unitBox, tile, new Matrix4(porchRoof).scale(w + 0.8f, 0.12f, porchD + 0.2f)));
-        for (float px : new float[]{-w / 2f + 0.4f, w / 2f - 0.4f}) {
-            instances.add(inst(unitBox, wood, new Matrix4(base).translate(px, (h - 0.3f) / 2f, d / 2f + porchD - 0.1f)
-                    .scale(0.16f, h - 0.3f, 0.16f)));
-        }
+        ModelInstance house = new ModelInstance(casaModel);
+        house.transform.setToTranslation(bestX, y, bestZ).rotate(Vector3.Y, yaw);
+        instances.add(house);
+        // Colisão aproximada da casa (círculo cobrindo as paredes)
+        obstacles.add(new Obstacle(bestX, bestZ, 3.8f, y, 3.7f));
+    }
 
-        // Porta de madeira no centro e duas janelas azuis
-        float frontZ = d / 2f + 0.05f;
-        instances.add(inst(unitBox, wood, new Matrix4(base).translate(0f, 1.0f, frontZ).scale(0.9f, 2.0f, 0.1f)));
-        for (float wx : new float[]{-w * 0.3f, w * 0.3f}) {
-            instances.add(inst(unitBox, blue, new Matrix4(base).translate(wx, 1.5f, frontZ).scale(0.9f, 0.8f, 0.1f)));
-        }
-
-        obstacles.add(new Obstacle(x, z, Math.max(w, d) / 2f * 0.9f, y, h));
+    /** Inclinação aproximada do terreno numa área de 6 m (quanto menor, mais plano). */
+    private float slopeAt(float x, float z) {
+        float e = 3f;
+        return Math.abs(heightAt(x + e, z) - heightAt(x - e, z)) / (2f * e)
+                + Math.abs(heightAt(x, z + e) - heightAt(x, z - e)) / (2f * e);
     }
 
     /** Empurra o jogador (círculo) para fora de qualquer obstáculo que ele esteja tocando. */
@@ -256,7 +229,7 @@ public class World {
 
     public void dispose() {
         terrainModel.dispose();
-        unitBox.dispose();
+        casaModel.dispose();
         dirtTexture.dispose();
         for (int i = 0; i < loaded.size; i++) loaded.get(i).dispose();
     }
