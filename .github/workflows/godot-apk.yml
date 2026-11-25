@@ -12,15 +12,10 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Imagem pronta com Godot 4.3, export templates e Android SDK/JDK
+    container: barichello/godot-ci:4.3
     steps:
       - uses: actions/checkout@v4
-
-      - name: Instalar Godot 4.3 com export templates
-        uses: chickensoft-games/setup-godot@v2
-        with:
-          version: 4.3-stable
-          use-dotnet: false
-          include-templates: true
 
       # Keystore de debug: basta para instalar o APK de teste no celular.
       - name: Criar keystore de debug
@@ -37,6 +32,7 @@ jobs:
           GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
         run: |
           mkdir -p build
+          godot --version
           godot --headless --path jogo-3d --export-debug "Android" "$GITHUB_WORKSPACE/build/jogo-3d.apk"
           ls -lh build/
 
