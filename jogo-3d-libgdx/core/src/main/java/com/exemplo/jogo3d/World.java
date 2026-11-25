@@ -303,6 +303,39 @@ public class World {
         return null;
     }
 
+    /**
+     * Distância máxima da câmera ao personagem, sem atravessar paredes, árvores, cercas nem o chão.
+     * 'dir' é unitário, do personagem para a câmera. Devolve no máximo 'maxDist'.
+     */
+    float cameraDistance(Vector3 pivot, Vector3 dir, float maxDist) {
+        float step = 0.12f;
+        Vector3 p = new Vector3();
+        for (float d = step; d <= maxDist; d += step) {
+            p.set(pivot).mulAdd(dir, d);
+            if (cameraBlocked(p)) return Math.max(0.6f, d - 0.3f);
+        }
+        return maxDist;
+    }
+
+    /** Ponto que a câmera não pode ocupar: chão, parede de casa, obstáculo ou cerca. */
+    private boolean cameraBlocked(Vector3 p) {
+        if (p.y < heightAt(p.x, p.z) + 0.15f) return true;
+        for (int k = 0; k < houses.size; k++) {
+            Vector3 l = new Vector3(p).mul(houses.get(k).inv);
+            for (int w = 0; w < wallBoxes.size; w++) {
+                float[] b = wallBoxes.get(w);
+                if (l.x > b[0] - 0.05f && l.x < b[1] + 0.05f && l.y > b[2] && l.y < b[3] && l.z > b[4] - 0.05f && l.z < b[5] + 0.05f) return true;
+            }
+        }
+        for (int o = 0; o < obstacles.size; o++) {
+            Obstacle ob = obstacles.get(o);
+            if (p.y < ob.baseY || p.y > ob.baseY + ob.height) continue;
+            float dx = p.x - ob.x, dz = p.z - ob.z;
+            if (dx * dx + dz * dz < ob.radius * ob.radius) return true;
+        }
+        return fences.blocks(p);
+    }
+
     /** Verdadeiro se o ponto está dentro de alguma casa (para aproximar a câmera). */
     boolean insideHouse(Vector3 p) {
         for (int k = 0; k < houses.size; k++) {

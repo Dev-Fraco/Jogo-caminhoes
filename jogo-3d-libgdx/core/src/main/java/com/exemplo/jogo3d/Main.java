@@ -235,12 +235,14 @@ public class Main extends ApplicationAdapter {
         // Dentro da casa a câmera chega perto e baixa um pouco, para enxergar o interior
         boolean inside = world.insideHouse(player.pos);
         float targetDist = inside ? CAMERA_DISTANCE_INSIDE : CAMERA_DISTANCE;
-        camDist += (targetDist - camDist) * Math.min(1f, dt * 6f);
         Vector3 pivot = new Vector3(player.pos.x, player.pos.y + (inside ? 1.2f : 1.4f), player.pos.z);
         Vector3 back = new Vector3(
                 -forward.x * MathUtils.cos(pitch),
                 MathUtils.sin(pitch),
                 -forward.z * MathUtils.cos(pitch));
+        // Colisão da câmera: encurta a distância se houver parede, árvore, cerca ou chão no caminho
+        float clipped = world.cameraDistance(pivot, back, targetDist);
+        camDist += (clipped - camDist) * Math.min(1f, dt * (clipped < camDist ? 14f : 4f));
         camera.position.set(pivot).mulAdd(back, camDist);
         float camGround = world.heightAt(camera.position.x, camera.position.z) + 0.5f;
         if (camera.position.y < camGround) camera.position.y = camGround;

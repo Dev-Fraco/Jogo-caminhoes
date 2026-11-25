@@ -331,6 +331,20 @@ public class FenceSystem {
     }
 
     /** Empurra o jogador (círculo no plano XZ) para fora dos trechos e das folhas fechadas. */
+    /** Verdadeiro se o ponto está encostado num trecho de cerca (para a câmera não atravessar). */
+    public boolean blocks(Vector3 p) {
+        for (int i = 0; i < segments.size; i++) {
+            float[] s = segments.get(i);
+            float sx = s[2] - s[0], sz = s[3] - s[1];
+            float len2 = sx * sx + sz * sz;
+            if (len2 < 1e-9f) continue;
+            float t = Math.max(0f, Math.min(1f, ((p.x - s[0]) * sx + (p.z - s[1]) * sz) / len2));
+            float dx = p.x - (s[0] + sx * t), dz = p.z - (s[1] + sz * t);
+            if (dx * dx + dz * dz < 0.15f * 0.15f && p.y < 1.8f) return true;
+        }
+        return false;
+    }
+
     public void resolveCollisions(Vector3 p, float playerRadius) {
         float min = playerRadius + WALL_MARGIN;
         for (int i = 0; i < segments.size; i++) {
