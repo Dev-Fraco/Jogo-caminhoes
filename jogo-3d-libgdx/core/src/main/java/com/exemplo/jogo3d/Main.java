@@ -100,6 +100,7 @@ public class Main extends ApplicationAdapter {
         }
 
         player.spawn(0f, 0f, world.heightAt(0f, 0f));
+        UpdateChecker.start();   // verifica nova versão em segundo plano
     }
 
     // Texto de erro que aparece na tela (para diagnóstico sem computador)
@@ -194,6 +195,10 @@ public class Main extends ApplicationAdapter {
         modelBatch.render(character.instances, environment);
         modelBatch.end();
 
+        // Toque no aviso de atualização (topo da tela) abre o download
+        if (UpdateChecker.available() && Gdx.input.justTouched() && Gdx.input.getY() < 80) {
+            Gdx.net.openURI(UpdateChecker.downloadUrl());
+        }
         drawHud();
     }
 
@@ -302,6 +307,10 @@ public class Main extends ApplicationAdapter {
         font.draw(batch, "CORRER", (w - 240f) - layout.width / 2f, rcy + layout.height / 2f);
         font.setColor(0.35f, 0.2f, 0.1f, 0.9f);
         font.draw(batch, "Sertão do Ceará - 1915: a seca chegou", 16f, h - 16f);
+        if (UpdateChecker.available()) {
+            font.setColor(0.6f, 0.1f, 0.05f, 1f);
+            font.draw(batch, "Nova versão " + UpdateChecker.latestBuild() + " disponível: toque aqui para baixar", 16f, h - 44f);
+        }
         batch.end();
 
         Gdx.gl.glDisable(GL20.GL_BLEND);

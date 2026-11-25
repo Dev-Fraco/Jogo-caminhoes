@@ -27,6 +27,9 @@ jobs:
           SDKM=$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | tail -1)
           if [ -n "$SDKM" ]; then yes | "$SDKM" --licenses > /dev/null || true; fi
 
+      - name: Gravar número do build dentro do jogo
+        run: echo "${{ github.run_number }}" > jogo-3d-libgdx/assets/version.txt
+
       - name: Gerar APK de debug
         working-directory: jogo-3d-libgdx
         run: |

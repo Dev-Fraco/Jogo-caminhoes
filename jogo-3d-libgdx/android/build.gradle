@@ -6,12 +6,23 @@ android {
     namespace 'com.exemplo.jogo3d'
     compileSdk 36
 
+    // Mesma chave de assinatura em todos os builds: sem isso o Android não atualiza por cima
+    signingConfigs {
+        debug {
+            storeFile file('keystore/jogo3d-teste.jks')
+            storePassword 'jogo3d123'
+            keyAlias 'teste'
+            keyPassword 'jogo3d123'
+        }
+    }
+
     defaultConfig {
         applicationId 'com.exemplo.jogo3d'
         minSdk 24
         targetSdk 36
-        versionCode 1
-        versionName '0.1.0'
+        // Cada build do GitHub tem um número maior: é isso que permite atualizar por cima
+        versionCode (System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger()
+        versionName '0.' + (System.getenv('GITHUB_RUN_NUMBER') ?: '1')
     }
 
     compileOptions {
