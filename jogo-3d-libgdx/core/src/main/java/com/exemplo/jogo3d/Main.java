@@ -51,7 +51,7 @@ public class Main extends ApplicationAdapter {
     private float joyX, joyY;            // -1..1
     private float joyRadius = 100f;
     private float lookLastX, lookLastY;  // coordenadas da tela (origem em cima)
-    private FenceSystem.Gate promptGate = null;   // porteira ao alcance (mostra o botão)
+    private FenceSystem.Prompt prompt = null;     // folha da porteira ao alcance (mostra o botão)
     private final Hud hud = new Hud();
     private OrthographicCamera hudCamera;
     private ShapeRenderer shapes;
@@ -179,7 +179,7 @@ public class Main extends ApplicationAdapter {
         character.update(player, dt);
         world.fences.update(dt, player);
 
-        promptGate = (busy || ui) ? null : world.fences.nearClosedGate(player.pos);
+        prompt = (busy || ui) ? null : world.fences.nearPrompt(player.pos);
 
         // Direção da câmera (usada também para a câmera ficar atrás do jogador)
         Vector3 forward = new Vector3(MathUtils.sin(yaw), 0f, MathUtils.cos(yaw));
@@ -279,9 +279,9 @@ public class Main extends ApplicationAdapter {
                 if (joyPointer < 0) joyPointer = i;
                 return;
             case "abrir":
-                if (promptGate != null) {
-                    world.fences.startOpening(promptGate, player);
-                    promptGate = null;
+                if (prompt != null) {
+                    world.fences.startOperation(prompt, player);
+                    prompt = null;
                 }
                 return;
             case "":
@@ -313,7 +313,8 @@ public class Main extends ApplicationAdapter {
         hud.jumpDown = jumpPointer >= 0;
         hud.joyX = joyX;
         hud.joyY = joyY;
-        hud.promptVisible = promptGate != null;
+        hud.promptVisible = prompt != null;
+        if (prompt != null) hud.promptText = prompt.label();
         hud.draw(batch, shapes, font);
 
         batch.begin();

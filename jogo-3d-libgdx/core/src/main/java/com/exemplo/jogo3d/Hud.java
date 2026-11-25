@@ -52,7 +52,7 @@ public class Hud {
             new El("correr", "Correr", "hud/botao_correr.png", 0.17f, 0f),
             new El("pular", "Pular", "hud/botao_pular.png", 0.15f, 0f),
             new El("agachar", "Agachar", "hud/botao_agachar.png", 0.12f, 0f),
-            new El("abrir", "Abrir porteira", null, 0.10f, 3.2f),
+            new El("abrir", "Porteira", null, 0.10f, 4.6f),
     };
     private Texture knobTex;
 
@@ -60,7 +60,8 @@ public class Hud {
     boolean editing = false;
     boolean runOn = false;
     boolean jumpDown = false;
-    boolean promptVisible = false;   // botão "abrir porteira" aparece
+    boolean promptVisible = false;   // botão da porteira aparece
+    String promptText = "ABRIR PORTEIRA";
     float joyX = 0f, joyY = 0f;      // -1..1 (posição do polegar no joystick)
 
     // Edição
@@ -312,8 +313,8 @@ public class Hud {
             El abrir = get("abrir");
             float[] r = rect(abrir);
             font.setColor(0.98f, 0.9f, 0.7f, 1f);
-            layout.setText(font, "ABRIR PORTEIRA");
-            font.draw(batch, "ABRIR PORTEIRA", r[0] + (r[2] - layout.width) / 2f, r[1] + (r[3] + layout.height) / 2f);
+            layout.setText(font, promptText);
+            font.draw(batch, promptText, r[0] + (r[2] - layout.width) / 2f, r[1] + (r[3] + layout.height) / 2f);
         }
         batch.end();
 

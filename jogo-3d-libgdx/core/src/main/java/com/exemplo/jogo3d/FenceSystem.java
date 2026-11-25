@@ -19,12 +19,11 @@ import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.JsonReader;
 
 /**
- * Cercados de arame farpado em volta das casas, com porteira.
+ * Cercados de arame farpado em volta de algumas casas, com porteira de duas folhas.
  *
- * Cada cercado é um retângulo de 20 m x 16 m, com trechos de 4 m. A porteira fica no lado da
- * frente (+z local, onde está a porta da casa) e começa FECHADA: as folhas bloqueiam a passagem.
- * Perto dela aparece o botão ABRIR PORTEIRA. Ao tocar, o personagem vai até a porteira, estica
- * o braço até o cadeado e puxa: as folhas abrem para fora até 90 graus.
+ * Cada folha abre e fecha sozinha. Para abrir a folha esquerda o personagem vai até ela; para a
+ * direita ele tem que ir até o lado direito. Ao abrir, o personagem anda junto da ponta da folha
+ * enquanto ela gira para fora (até 90°). A folha fechada bloqueia a passagem.
  */
 public class FenceSystem {
 
@@ -35,15 +34,14 @@ public class FenceSystem {
     static final float RENDER_RADIUS = 50f; // dentro deste raio a cerca é desenhada
     static final float WALL_MARGIN = 0.06f; // folga de colisão além do raio do jogador
 
-    static final float GATE_LEAF = 2f;      // cada folha tem 2 m (a porteira tem 4 m)
-    static final float STAND_DIST = 1.3f;   // distância do personagem até a porteira ao abrir
+    static final float LEAF = 2f;           // cada folha tem 2 m (a porteira tem 4 m)
+    static final float STAND_DIST = 1.3f;   // distância do personagem até a folha durante a abertura
     static final float PROMPT_DIST = 2.4f;  // a partir daqui aparece o botão
     static final float OPEN_DEG = 90f;      // abertura final
-    static final float CLEAR_DEG = 80f;     // acima disso as folhas não bloqueiam mais
-    static final Vector3 LATCH_LOCAL = new Vector3(1.9f, 1.0f, 0.09f); // cadeado na ponta da folha esquerda
+    static final float CLEAR_DEG = 80f;     // acima disso a folha não bloqueia mais
 
-    // Linha do tempo da abertura (segundos)
-    static final float T_WALK = 0.8f, T_REACH = 1.4f, T_PULL = 2.6f, T_END = 3.0f;
+    // Linha do tempo da operação (segundos)
+    static final float T_WALK = 0.9f, T_REACH = 1.5f, T_END = 3.4f;
 
     /** Trecho de cerca com sua posição no mundo (para decidir se simula e desenha). */
     static final class Piece {
@@ -57,39 +55,82 @@ public class FenceSystem {
         }
     }
 
-    /** Porteira: duas folhas que giram em torno das dobradiças nas extremidades do vão. */
+    /** Porteira de duas folhas. Folha 0 = esquerda (dobradiça em x=-2), folha 1 = direita (x=+2). */
     static final class Gate {
         final Matrix4 world = new Matrix4();
         final Matrix4 inv;
-        final float cx, cy, cz, yawDeg;
-        final ModelInstance left, right;
-        float angle = 0f;     // graus: 0 = fechada, 90 = totalmente aberta
-        int state = 0;        // 0 fechada, 1 abrindo, 2 aberta
-        float t = 0f;
-        float reach = 0f;     // 0..1: quanto o braço está esticado
-        float side = 1f;      // +1 se o jogador abriu pelo lado de fora, -1 pelo lado de dentro
-        float startFacing = 0f;
-        final Vector3 start = new Vector3();
+        final float yawDeg;
+        final ModelInstance[] leaves;
+        final float[] angle = {0f, 0f};   // graus: 0 = fechada, 90 = aberta
 
-        Gate(Matrix4 world, float cx, float cy, float cz, float yawDeg, ModelInstance left, ModelInstance right) {
+        Gate(Matrix4 world, float yawDeg, ModelInstance left, ModelInstance right) {
             this.world.set(world);
             this.inv = new Matrix4(world).inv();
-            this.cx = cx;
-            this.cy = cy;
-            this.cz = cz;
             this.yawDeg = yawDeg;
-            this.left = left;
-            this.right = right;
+            this.leaves = new ModelInstance[]{left, right};
             updateLeaves();
         }
 
-        void updateLeaves() {
-            left.transform.set(world).translate(-GATE_LEAF, 0f, 0f).rotate(Vector3.Y, -angle);
-            right.transform.set(world).translate(GATE_LEAF, 0f, 0f).rotate(Vector3.Y, 180f + angle);
+        /** Dobradiça da folha, em coordenadas locais da porteira. */
+        static Vector3 hinge(int leaf) {
+            return new Vector3(leaf == 0 ? -LEAF : LEAF, 0f, 0f);
         }
 
-        Vector3 latch() {
-            return new Vector3(LATCH_LOCAL).mul(left.transform);
+        /** Direção da folha no ângulo a (graus). A folha fechada aponta para o centro. */
+        static Vector3 dir(int leaf, float a) {
+            float r = a * MathUtils.degreesToRadians;
+            return new Vector3(leaf == 0 ? MathUtils.cos(r) : -MathUtils.cos(r), 0f, MathUtils.sin(r));
+        }
+
+        /** Normal da folha pelo lado de fora da porteira (+z quando fechada). */
+        static Vector3 normal(int leaf, float a) {
+            Vector3 d = dir(leaf, a);
+            return leaf == 0 ? new Vector3(-d.z, 0f, d.x) : new Vector3(d.z, 0f, -d.x);
+        }
+
+        /** Ponto no meio da folha (onde o personagem alcança). */
+        static Vector3 mid(int leaf, float a) {
+            return hinge(leaf).add(dir(leaf, a).scl(LEAF / 2f));
+        }
+
+        /** Ponto local da ponta livre da folha. */
+        static Vector3 tip(int leaf, float a) {
+            return hinge(leaf).add(dir(leaf, a).scl(LEAF));
+        }
+
+        Vector3 toWorld(Vector3 local) {
+            return new Vector3(local).mul(world);
+        }
+
+        void updateLeaves() {
+            for (int i = 0; i < 2; i++) {
+                Vector3 h = hinge(i);
+                // Folha esquerda: a geometria aponta para +x; direita: gira 180° para apontar para -x
+                float rot = i == 0 ? -angle[i] : 180f + angle[i];
+                leaves[i].transform.set(world).translate(h.x, h.y, h.z).rotate(Vector3.Y, rot);
+            }
+        }
+
+        Vector3 latchWorld(int leaf) {
+            return toWorld(mid(leaf, angle[leaf]));
+        }
+    }
+
+    /** Opção mostrada na tela: abrir ou fechar uma folha, perto dela. */
+    static final class Prompt {
+        final Gate gate;
+        final int leaf;
+        final boolean open;
+
+        Prompt(Gate gate, int leaf, boolean open) {
+            this.gate = gate;
+            this.leaf = leaf;
+            this.open = open;
+        }
+
+        String label() {
+            String lado = leaf == 0 ? "ESQUERDO" : "DIREITO";
+            return (open ? "FECHAR" : "ABRIR") + " LADO " + lado;
         }
     }
 
@@ -101,7 +142,13 @@ public class FenceSystem {
     private final Array<Gate> gates = new Array<>();
     private final Array<float[]> segments = new Array<>();   // {ax, az, bx, bz} no mundo, trechos fixos
     private final Array<ModelInstance> visible = new Array<>();
-    private Gate active = null;
+
+    // Operação em andamento (uma folha por vez)
+    private Gate activeGate = null;
+    private int activeLeaf = 0;
+    private float opFrom, opTo, opT, opSide, opReach, opFacing;
+    private final Vector3 opStart = new Vector3();
+
     private final Vector3 tmpA = new Vector3();
     private final Vector3 tmpB = new Vector3();
     private final Vector3 tmpC = new Vector3();
@@ -152,96 +199,117 @@ public class FenceSystem {
         segments.add(new float[]{a.x, a.z, b.x, b.z});
     }
 
-    /** Porteira no vão central da frente, fechada. */
+    /** Porteira no vão central da frente, com as duas folhas fechadas. */
     private void addGate(World world, Matrix4 enclosure, float yawDeg) {
         Vector3 c = tmpA.set(0f, 0f, ENCL_HALF_D).mul(enclosure);
         float y = world.heightAt(c.x, c.z);
         Matrix4 gw = new Matrix4().setToTranslation(c.x, y, c.z).rotate(Vector3.Y, yawDeg);
-        ModelInstance left = new ModelInstance(leafPadlockModel);
-        ModelInstance right = new ModelInstance(leafModel);
-        gates.add(new Gate(gw, c.x, y, c.z, yawDeg, left, right));
+        gates.add(new Gate(gw, yawDeg, new ModelInstance(leafPadlockModel), new ModelInstance(leafModel)));
     }
 
     // ---------- Porteira: interação ----------
 
-    /** Porteira fechada perto do jogador (para mostrar o botão), ou null. */
-    public Gate nearClosedGate(Vector3 p) {
-        Gate best = null;
+    /** Botão a mostrar perto de uma folha (abrir se fechada, fechar se aberta), ou null. */
+    public Prompt nearPrompt(Vector3 p) {
+        if (activeGate != null) return null;
+        Prompt best = null;
         float bestD = PROMPT_DIST * PROMPT_DIST;
-        for (int i = 0; i < gates.size; i++) {
-            Gate g = gates.get(i);
-            if (g.state != 0) continue;
-            Vector3 l = g.latch();
-            float dx = p.x - l.x, dz = p.z - l.z;
-            float d = dx * dx + dz * dz;
-            if (d < bestD) { bestD = d; best = g; }
+        for (int g = 0; g < gates.size; g++) {
+            Gate gate = gates.get(g);
+            for (int leaf = 0; leaf < 2; leaf++) {
+                Vector3 m = gate.latchWorld(leaf);
+                float dx = p.x - m.x, dz = p.z - m.z;
+                float d = dx * dx + dz * dz;
+                if (d < bestD) {
+                    bestD = d;
+                    best = new Prompt(gate, leaf, gate.angle[leaf] >= CLEAR_DEG);
+                }
+            }
         }
         return best;
     }
 
-    /** Começa a abertura: o personagem vai até a porteira pelo lado em que está. */
-    public void startOpening(Gate g, Player player) {
-        if (active != null || g.state != 0) return;
-        tmpB.set(player.pos).mul(g.inv);
-        g.side = tmpB.z >= 0f ? 1f : -1f;
-        g.start.set(player.pos);
-        g.startFacing = player.facing;
-        g.t = 0f;
-        g.state = 1;
-        active = g;
+    /** Começa a operação da folha escolhida: o personagem vai até ela e a move. */
+    public void startOperation(Prompt pr, Player player) {
+        if (activeGate != null) return;
+        Gate g = pr.gate;
+        activeGate = g;
+        activeLeaf = pr.leaf;
+        opFrom = g.angle[pr.leaf];
+        opTo = pr.open ? 0f : OPEN_DEG;
+        opT = 0f;
+        opReach = 0f;
+        // Fica do lado em que o personagem está
+        Vector3 rel = tmpB.set(player.pos).mul(g.inv);
+        Vector3 n = Gate.normal(pr.leaf, opFrom);
+        opSide = (rel.x * n.x + rel.z * n.z) >= 0f ? 1f : -1f;
+        opStart.set(player.pos);
+        opFacing = player.facing;
     }
 
     public boolean isBusy() {
-        return active != null;
+        return activeGate != null;
     }
 
     /** Braço esticado nesta hora (0..1), para o personagem. */
     public float reach() {
-        return active != null ? active.reach : 0f;
+        return activeGate != null ? opReach : 0f;
     }
 
-    /** Dentro da abertura: move o jogador, estica o braço e gira as folhas. */
-    private void advance(float dt, Player player) {
-        Gate g = active;
-        g.t += dt;
-        float yawRad = g.yawDeg * MathUtils.degreesToRadians;
-        float targetFacing = yawRad + (g.side > 0f ? MathUtils.PI : 0f);
+    /** Ponto em que o personagem fica, ao lado da folha no ângulo a (mundo). */
+    private Vector3 standWorld(Gate g, int leaf, float a) {
+        Vector3 local = Gate.mid(leaf, a).add(Gate.normal(leaf, a).scl(STAND_DIST * opSide));
+        return g.toWorld(local);
+    }
 
-        // Caminha até o ponto em frente à porteira, do lado em que estava
-        float walk = smooth(Math.min(g.t / T_WALK, 1f));
-        tmpC.set(0f, 0f, g.side * STAND_DIST).mul(g.world);
-        tmpB.set(g.start).lerp(tmpC, walk);
-        player.pos.set(tmpB);
+    private void advance(float dt, Player player) {
+        Gate g = activeGate;
+        int leaf = activeLeaf;
+        opT += dt;
+
+        // Caminha até a folha, do lado em que estava
+        float walk = smooth(Math.min(opT / T_WALK, 1f));
+        Vector3 target = standWorld(g, leaf, opFrom);
+        Vector3 pos = (opT < T_WALK) ? tmpC.set(opStart).lerp(target, walk) : null;
+
+        // Folha: fica parada, depois gira enquanto o personagem acompanha a ponta
+        float a;
+        if (opT < T_REACH) a = opFrom;
+        else a = opFrom + (opTo - opFrom) * smooth(Math.min((opT - T_REACH) / (T_END - T_REACH), 1f));
+        g.angle[leaf] = a;
+        g.updateLeaves();
+
+        if (pos == null) pos = standWorld(g, leaf, a);   // acompanha a folha enquanto ela abre
+        player.pos.set(pos);
         player.pos.y = worldRef.heightAt(player.pos.x, player.pos.z);
-        player.facing = g.startFacing + wrapAngle(targetFacing - g.startFacing) * walk;
+
+        // Olha para o meio da folha
+        Vector3 mid = g.latchWorld(leaf);
+        float fx = mid.x - player.pos.x, fz = mid.z - player.pos.z;
+        float facing = MathUtils.atan2(fx, fz);
+        player.facing = facing;
         player.speed = 0f;
         player.grounded = true;
 
-        // Braço: estica até o cadeado, segura enquanto puxa, depois solta
-        if (g.t < T_WALK) g.reach = 0f;
-        else if (g.t < T_REACH) g.reach = smooth((g.t - T_WALK) / (T_REACH - T_WALK));
-        else if (g.t < T_PULL) g.reach = 1f;
-        else g.reach = 1f - smooth(Math.min((g.t - T_PULL) / (T_END - T_PULL), 1f));
+        // Braço: estica até a folha, segura enquanto ela gira, depois solta
+        if (opT < T_WALK) opReach = 0f;
+        else if (opT < T_REACH) opReach = smooth((opT - T_WALK) / (T_REACH - T_WALK));
+        else if (opT < T_END - 0.5f) opReach = 1f;
+        else opReach = 1f - smooth(Math.min((opT - (T_END - 0.5f)) / 0.5f, 1f));
 
-        // Folhas: abrem para fora depois que o cadeado foi puxado
-        if (g.t < T_REACH) g.angle = 0f;
-        else g.angle = OPEN_DEG * smooth(Math.min((g.t - T_REACH) / (T_END - T_REACH), 1f));
-        g.updateLeaves();
-
-        if (g.t >= T_END) {
-            g.state = 2;
-            g.angle = OPEN_DEG;
-            g.reach = 0f;
+        if (opT >= T_END) {
+            g.angle[leaf] = opTo;
             g.updateLeaves();
-            active = null;
+            activeGate = null;
+            opReach = 0f;
         }
     }
 
     // ---------- Loop ----------
 
-    /** Atualiza a abertura (se houver), os trechos perto do jogador e prepara a lista do que será desenhado. */
+    /** Atualiza a operação (se houver), os trechos perto do jogador e a lista do que será desenhado. */
     public void update(float dt, Player player) {
-        if (active != null) advance(dt, player);
+        if (activeGate != null) advance(dt, player);
 
         visible.clear();
         for (int i = 0; i < pieces.size; i++) {
@@ -252,8 +320,8 @@ public class FenceSystem {
             if (d2 < RENDER_RADIUS * RENDER_RADIUS) visible.addAll(p.fence.instances);
         }
         for (int i = 0; i < gates.size; i++) {
-            visible.add(gates.get(i).left);
-            visible.add(gates.get(i).right);
+            visible.add(gates.get(i).leaves[0]);
+            visible.add(gates.get(i).leaves[1]);
         }
     }
 
@@ -269,18 +337,14 @@ public class FenceSystem {
             float[] s = segments.get(i);
             pushOut(p, s[0], s[1], s[2], s[3], min);
         }
-        for (int i = 0; i < gates.size; i++) {
-            Gate g = gates.get(i);
-            if (g.angle >= CLEAR_DEG) continue;
-            float r = g.angle * MathUtils.degreesToRadians;
-            // Folha esquerda: da dobradiça (-2,0) para +z conforme abre
-            tmpA.set(-GATE_LEAF, 0f, 0f).mul(g.world);
-            tmpB.set(-GATE_LEAF + GATE_LEAF * MathUtils.cos(r), 0f, GATE_LEAF * MathUtils.sin(r)).mul(g.world);
-            pushOut(p, tmpA.x, tmpA.z, tmpB.x, tmpB.z, min);
-            // Folha direita: da dobradiça (+2,0)
-            tmpA.set(GATE_LEAF, 0f, 0f).mul(g.world);
-            tmpB.set(GATE_LEAF - GATE_LEAF * MathUtils.cos(r), 0f, GATE_LEAF * MathUtils.sin(r)).mul(g.world);
-            pushOut(p, tmpA.x, tmpA.z, tmpB.x, tmpB.z, min);
+        for (int g = 0; g < gates.size; g++) {
+            Gate gate = gates.get(g);
+            for (int leaf = 0; leaf < 2; leaf++) {
+                if (gate.angle[leaf] >= CLEAR_DEG) continue;
+                Vector3 a = gate.toWorld(Gate.hinge(leaf));
+                Vector3 b = gate.toWorld(Gate.tip(leaf, gate.angle[leaf]));
+                pushOut(p, a.x, a.z, b.x, b.z, min);
+            }
         }
     }
 
@@ -321,21 +385,14 @@ public class FenceSystem {
         return x * x * (3f - 2f * x);
     }
 
-    private static float wrapAngle(float a) {
-        while (a > MathUtils.PI) a -= MathUtils.PI2;
-        while (a < -MathUtils.PI) a += MathUtils.PI2;
-        return a;
-    }
-
     /** Folha da porteira em coordenadas locais: dobradiça na origem, folha de 2 m para +x. */
     private static Model buildLeafModel(boolean padlock) {
         ModelBuilder mb = new ModelBuilder();
         mb.begin();
         MeshPartBuilder pb = mb.part("madeira", GL20.GL_TRIANGLES, Usage.Position | Usage.Normal,
                 new Material(ColorAttribute.createDiffuse(0.36f, 0.24f, 0.13f, 1f)));
-        // Travessas ao longo da folha e ripas verticais
         for (float y : new float[]{0.25f, 0.75f, 1.25f}) {
-            pb.box(GATE_LEAF / 2f, y, 0f, GATE_LEAF, 0.07f, 0.06f);
+            pb.box(LEAF / 2f, y, 0f, LEAF, 0.07f, 0.06f);
         }
         for (float x : new float[]{0.1f, 0.55f, 1.0f, 1.45f, 1.9f}) {
             pb.box(x, 0.75f, 0f, 0.06f, 1.5f, 0.06f);
@@ -343,7 +400,7 @@ public class FenceSystem {
         if (padlock) {
             MeshPartBuilder pl = mb.part("cadeado", GL20.GL_TRIANGLES, Usage.Position | Usage.Normal,
                     new Material(ColorAttribute.createDiffuse(0.62f, 0.5f, 0.22f, 1f)));
-            pl.box(LATCH_LOCAL.x, LATCH_LOCAL.y, LATCH_LOCAL.z, 0.12f, 0.14f, 0.07f);
+            pl.box(1.9f, 1.0f, 0.09f, 0.12f, 0.14f, 0.07f);
         }
         return mb.end();
     }

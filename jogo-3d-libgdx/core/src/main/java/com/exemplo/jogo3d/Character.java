@@ -40,6 +40,9 @@ public class Character {
 
     private float reach = 0f;   // 0..1: braço direito esticado (usado ao abrir a porteira)
     private final com.badlogic.gdx.math.Quaternion tmpQ = new com.badlogic.gdx.math.Quaternion();
+    private final com.badlogic.gdx.math.Quaternion armBase = new com.badlogic.gdx.math.Quaternion();
+    private com.badlogic.gdx.graphics.g3d.model.Node armNode;
+    private boolean armOverridden = false;
 
     private State current = State.IDLE;
     private State candidate = State.IDLE;
@@ -50,6 +53,7 @@ public class Character {
         instance = new ModelInstance(model);
         anim = new AnimationController(instance);
         instances.add(instance);
+        armNode = instance.getNode("RightUpperArm");
         anim.animate("Idle", -1, 1f, null, 0.15f);
         anim.current.speed = 0f;
     }
@@ -104,15 +108,19 @@ public class Character {
                 break;
         }
         anim.current.speed *= LIMB_SPEED_SCALE;
+        // Desfaz o ajuste do braço do quadro anterior (senão ele gira sem parar)
+        if (armOverridden) {
+            armNode.rotation.set(armBase);
+            armOverridden = false;
+        }
         anim.update(dt);
 
         // Braço direito esticado para a frente (ex.: alcançar o cadeado da porteira)
-        if (reach > 0.001f) {
-            com.badlogic.gdx.graphics.g3d.model.Node arm = instance.getNode("RightUpperArm");
-            if (arm != null) {
-                arm.rotation.mulLeft(tmpQ.setFromAxisRad(Vector3.X, -reach * 1.2f));
-                instance.calculateTransforms();
-            }
+        if (reach > 0.001f && armNode != null) {
+            armBase.set(armNode.rotation);
+            armNode.rotation.mulLeft(tmpQ.setFromAxisRad(Vector3.X, -reach * 1.2f));
+            armOverridden = true;
+            instance.calculateTransforms();
         }
     }
 
