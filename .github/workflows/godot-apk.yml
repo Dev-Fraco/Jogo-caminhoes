@@ -53,15 +53,12 @@ jobs:
       - name: Instalar template de build Android (Gradle)
         shell: bash
         run: |
-          set -e
-          ZIP="$HOME/.local/share/godot/export_templates/4.3.stable/android_source.zip"
-          test -f "$ZIP"
-          DEST="$GITHUB_WORKSPACE/jogo-3d/android/build"
-          mkdir -p "$DEST"
-          unzip -q "$ZIP" -d "$DEST"
-          echo "4.3.stable" > "$GITHUB_WORKSPACE/jogo-3d/android/.build_version"
-          chmod +x "$DEST/gradlew" || true
-          ls -la "$DEST" | head -30
+          set -o pipefail
+          godot --headless --help | grep -i "install-android-build-template" || echo "Opção não listada no --help"
+          godot --headless --path jogo-3d --install-android-build-template 2>&1 | grep -v "is not exposed" | tail -n 40 || true
+          ls -la jogo-3d/android/ || true
+          ls -la jogo-3d/android/build | head -30 || true
+          cat jogo-3d/android/.build_version || true
 
       # Keystore de debug: basta para instalar o APK de teste no celular.
       # O caminho e as senhas vão direto no preset de exportação (é onde a Godot valida).
