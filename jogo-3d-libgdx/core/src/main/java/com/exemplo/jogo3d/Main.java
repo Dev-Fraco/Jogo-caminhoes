@@ -45,10 +45,8 @@ public class Main extends ApplicationAdapter {
     private Character character;
 
     // ---------- Jogador ----------
-    private final Vector3 playerPos = new Vector3();
-    private float velY = 0f;
-    private boolean grounded = false;
-    private boolean jumpRequested = false;
+    private final Player player = new Player();
+    private boolean jumpRequested = false;   // pulo vindo do botão na tela
     private float yaw = 0f;      // direção da câmera (e do personagem)
     private float pitch = 0.45f; // inclinação da câmera (positivo = de cima)
 
@@ -99,7 +97,7 @@ public class Main extends ApplicationAdapter {
             errorText = "ERRO NO PERSONAGEM:\n" + describe(t);
         }
 
-        playerPos.set(0f, world.heightAt(0f, 0f), 0f);
+        player.spawn(0f, 0f, world.heightAt(0f, 0f));
     }
 
     // Texto de erro que aparece na tela (para diagnóstico sem computador)
@@ -152,50 +150,27 @@ public class Main extends ApplicationAdapter {
 
         updateTouch();
 
-        // Teclado (PC) soma com o joystick (celular)
-        float ix = 0f, iy = 0f;
-        if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP)) iy += 1f;
-        if (Gdx.input.isKeyPressed(Input.Keys.S) || Gdx.input.isKeyPressed(Input.Keys.DOWN)) iy -= 1f;
-        if (Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT)) ix -= 1f;
-        if (Gdx.input.isKeyPressed(Input.Keys.D) || Gdx.input.isKeyPressed(Input.Keys.RIGHT)) ix += 1f;
-        if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) jumpRequested = true;
-        ix += joyX;
-        iy += joyY;
+        // Entradas: teclado (PC) somado ao joystick (celular)
+        float kx = 0f, ky = 0f;
+        if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP)) ky += 1f;
+        if (Gdx.input.isKeyPressed(Input.Keys.S) || Gdx.input.isKeyPressed(Input.Keys.DOWN)) ky -= 1f;
+        if (Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT)) kx -= 1f;
+        if (Gdx.input.isKeyPressed(Input.Keys.D) || Gdx.input.isKeyPressed(Input.Keys.RIGHT)) kx += 1f;
+        float inX = MathUtils.clamp(kx + joyX, -1f, 1f);
+        float inY = MathUtils.clamp(ky + joyY, -1f, 1f);
 
-        // Direções a partir da câmera (andar é relativo à câmera)
-        Vector3 forward = new Vector3(MathUtils.sin(yaw), 0f, MathUtils.cos(yaw));
-        Vector3 right = new Vector3(forward).crs(Vector3.Y);
-
-        Vector3 move = new Vector3(forward).scl(iy).add(new Vector3(right).scl(ix));
-        float moveLen = Math.min(move.len(), 1f);
-        if (move.len() > 1f) move.nor();
-
-        playerPos.x += move.x * SPEED * dt;
-        playerPos.z += move.z * SPEED * dt;
-        world.resolveCollisions(playerPos, PLAYER_RADIUS);
-
-        // Gravidade acompanha o relevo: o jogador sobe e desce com o chão
-        float groundY = world.heightAt(playerPos.x, playerPos.z);
-        velY -= GRAVITY * dt;
-        playerPos.y += velY * dt;
-        grounded = false;
-        if (playerPos.y <= groundY) {
-            playerPos.y = groundY;
-            velY = 0f;
-            grounded = true;
-            if (jumpRequested) velY = JUMP_VELOCITY;
-        }
+        boolean jumpPressed = jumpRequested || Gdx.input.isKeyJustPressed(Input.Keys.SPACE);
         jumpRequested = false;
 
-        // Limita ao terreno
-        float half = World.HALF - 2f;
-        playerPos.x = MathUtils.clamp(playerPos.x, -half, half);
-        playerPos.z = MathUtils.clamp(playerPos.z, -half, half);
+        // Física (andar, correr, pular) e animação, ambas com o mesmo dt
+        player.update(dt, inX, inY, yaw, jumpPressed, world);
+        character.update(player, dt);
 
-        character.update(playerPos.x, playerPos.y, playerPos.z, yaw, grounded ? moveLen : 0f, grounded, dt);
+        // Direção da câmera (usada também para a câmera ficar atrás do jogador)
+        Vector3 forward = new Vector3(MathUtils.sin(yaw), 0f, MathUtils.cos(yaw));
 
         // Câmera atrás do jogador, sempre acima do chão
-        Vector3 pivot = new Vector3(playerPos.x, playerPos.y + 1.4f, playerPos.z);
+        Vector3 pivot = new Vector3(player.pos.x, player.pos.y + 1.4f, player.pos.z);
         Vector3 back = new Vector3(
                 -forward.x * MathUtils.cos(pitch),
                 MathUtils.sin(pitch),
