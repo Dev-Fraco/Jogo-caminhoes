@@ -243,6 +243,23 @@ final class HouseDecor {
 
     // ---------- Atualização ----------
 
+    static final float SWING_PERIOD = 3.2f;   // segundos por balanço da rede
+    private int lastSwingCycle = -1;
+    private static com.badlogic.gdx.audio.Sound armadorSound;
+    private static boolean armadorLoaded = false;
+
+    private static void playArmador() {
+        if (!armadorLoaded) {
+            armadorLoaded = true;
+            try {
+                armadorSound = com.badlogic.gdx.Gdx.audio.newSound(com.badlogic.gdx.Gdx.files.internal("audio/armador.mp3"));
+            } catch (RuntimeException e) {
+                armadorSound = null;   // sem som: o jogo continua
+            }
+        }
+        if (armadorSound != null) armadorSound.play(0.7f);
+    }
+
     void update(float dt) {
         // Porta anda até o ângulo desejado
         if (doorAngle != doorTarget) {
@@ -253,9 +270,16 @@ final class HouseDecor {
         // Balanço da rede (quando alguém está deitado)
         if (lie == Lie.LYING) {
             lieT += dt;
-            swing = 0.2f * MathUtils.sin(lieT * (MathUtils.PI2 / 3.2f));
+            swing = 0.2f * MathUtils.sin(lieT * (MathUtils.PI2 / SWING_PERIOD));
+            // Som do armador: um por ciclo de balanço, no começo de cada ciclo
+            int cycle = (int) (lieT / SWING_PERIOD);
+            if (cycle != lastSwingCycle) {
+                lastSwingCycle = cycle;
+                playArmador();
+            }
         } else if (lie == Lie.FREE || lie == Lie.GETTING_UP) {
             swing *= Math.max(0f, 1f - 2.5f * dt);
+            lastSwingCycle = -1;
         }
         updateHammock();
     }
