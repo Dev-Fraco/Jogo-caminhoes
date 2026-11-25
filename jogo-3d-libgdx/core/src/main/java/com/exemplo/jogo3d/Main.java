@@ -7,90 +7,68 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.PerspectiveCamera;
-import com.badlogic.gdx.graphics.VertexAttributes.Usage;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g3d.Environment;
-import com.badlogic.gdx.graphics.g3d.Material;
-import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelBatch;
-import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
-import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector3;
-import com.badlogic.gdx.utils.Array;
 
 /**
- * Protótipo: sertão seco, casas de taipa, cacto, jogador em terceira pessoa.
+ * Sertão do Ceará, 1915. Relevo com subidas e descidas, árvores mortas, casas redondas.
  * Celular: joystick na esquerda, arrastar na direita para girar, botão PULAR.
  * PC: WASD/setas, espaço, arrastar com o mouse para girar.
  */
 public class Main extends ApplicationAdapter {
 
     // ---------- Ajustes ----------
-    static final float SPEED = 7f;
-    static final float JUMP_VELOCITY = 7f;
-    static final float GRAVITY = 20f;
-    static final float PLAYER_RADIUS = 0.45f;
-    static final float CAMERA_DISTANCE = 5f;
+    static final float SPEED = 5.5f;
+    static final float JUMP_VELOCITY = 6.5f;
+    static final float GRAVITY = 18f;
+    static final float PLAYER_RADIUS = 0.35f;
+    static final float CAMERA_DISTANCE = 4.5f;
     static final float LOOK_SENSITIVITY = 0.006f;
     static final float JOY_RADIUS = 110f;
     static final float JUMP_BUTTON_RADIUS = 70f;
-    static final int OBSTACLE_COUNT = 45;
-    static final float WORLD_HALF = 70f;
 
     // ---------- 3D ----------
     private ModelBatch modelBatch;
     private Environment environment;
     private PerspectiveCamera camera;
-    private Model unitBox;
-    private final Array<ModelInstance> scenery = new Array<>();
-    private final Array<Obstacle> obstacles = new Array<>();
-    private ModelInstance playerInstance;
+    private World world;
+    private Character character;
 
     // ---------- Jogador ----------
-    private final Vector3 playerPos = new Vector3(0f, 0f, 0f);
+    private final Vector3 playerPos = new Vector3();
     private float velY = 0f;
-    private float yaw = 0f;     // rotação horizontal da câmera (e do jogador)
-    private float pitch = 0.45f; // inclinação da câmera (positivo = olhando de cima)
+    private boolean grounded = false;
+    private boolean jumpRequested = false;
+    private float yaw = 0f;      // direção da câmera (e do personagem)
+    private float pitch = 0.45f; // inclinação da câmera (positivo = de cima)
 
     // ---------- Toque / HUD ----------
     private int joyPointer = -1, lookPointer = -1, jumpPointer = -1;
     private float joyOriginX, joyOriginY, joyX, joyY;
     private float lookLastX, lookLastY;
-    private boolean jumpRequested;
     private OrthographicCamera hudCamera;
     private ShapeRenderer shapes;
     private SpriteBatch batch;
     private BitmapFont font;
     private final GlyphLayout layout = new GlyphLayout();
 
-    private static class Obstacle {
-        final Vector3 pos;
-        final Vector3 half;
-        Obstacle(Vector3 pos, Vector3 half) {
-            this.pos = pos;
-            this.half = half;
-        }
-    }
-
     @Override
     public void create() {
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST);
 
         modelBatch = new ModelBatch();
-        ModelBuilder builder = new ModelBuilder();
-        unitBox = builder.createBox(1f, 1f, 1f,
-                new Material(ColorAttribute.createDiffuse(Color.WHITE)),
-                Usage.Position | Usage.Normal);
 
         environment = new Environment();
-        // Luz do sol forte do sertão: quente e direta, com pouca luz de ambiente
-        environment.set(new ColorAttribute(ColorAttribute.AmbientLight, 0.42f, 0.38f, 0.34f, 1f));
+        // Luz de sol forte e quente do sertão, com pouca luz de ambiente (sombras escuras)
+        environment.set(new ColorAttribute(ColorAttribute.AmbientLight, 0.46f, 0.42f, 0.37f, 1f));
         environment.add(new DirectionalLight().set(1f, 0.93f, 0.78f, -0.4f, -1f, -0.35f));
 
         camera = new PerspectiveCamera(67f, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
@@ -102,52 +80,13 @@ public class Main extends ApplicationAdapter {
         batch = new SpriteBatch();
         font = new BitmapFont();
 
-        buildWorld();
+        world = new World();
+        world.create();
 
-        playerInstance = makeBox(0.8f, 1.8f, 0.8f, new Color(0.85f, 0.35f, 0.12f, 1f));
-    }
+        character = new Character();
+        character.create();
 
-    private void buildWorld() {
-        // Chão de terra seca
-        scenery.add(makeBox(800f, 1f, 800f, new Color(0.76f, 0.63f, 0.40f, 1f), 0f, -0.5f, 0f));
-
-        java.util.Random rnd = new java.util.Random(42L);
-        for (int i = 0; i < OBSTACLE_COUNT; i++) {
-            float x = (rnd.nextFloat() * 2f - 1f) * WORLD_HALF;
-            float z = (rnd.nextFloat() * 2f - 1f) * WORLD_HALF;
-            if (Math.abs(x) < 8f && Math.abs(z) < 8f) continue; // espaço livre no spawn
-
-            if (rnd.nextBoolean()) {
-                // Casa de taipa: corpo de barro + telhado de telha
-                float w = 4f + rnd.nextFloat() * 3f;
-                float h = 2.5f + rnd.nextFloat() * 1.5f;
-                float d = 4f + rnd.nextFloat() * 3f;
-                Vector3 pos = new Vector3(x, h / 2f, z);
-                Vector3 half = new Vector3(w / 2f, h / 2f, d / 2f);
-                obstacles.add(new Obstacle(pos, half));
-                scenery.add(makeBox(w, h, d, new Color(0.84f, 0.72f, 0.55f, 1f), x, h / 2f, z));
-                scenery.add(makeBox(w + 0.6f, 0.5f, d + 0.6f, new Color(0.55f, 0.28f, 0.18f, 1f),
-                        x, h + 0.25f, z));
-            } else {
-                // Cacto: pilar verde
-                float h = 2.5f + rnd.nextFloat() * 2f;
-                Vector3 pos = new Vector3(x, h / 2f, z);
-                Vector3 half = new Vector3(0.45f, h / 2f, 0.45f);
-                obstacles.add(new Obstacle(pos, half));
-                scenery.add(makeBox(0.9f, h, 0.9f, new Color(0.30f, 0.50f, 0.28f, 1f), x, h / 2f, z));
-            }
-        }
-    }
-
-    private ModelInstance makeBox(float w, float h, float d, Color color) {
-        return makeBox(w, h, d, color, 0f, 0f, 0f);
-    }
-
-    private ModelInstance makeBox(float w, float h, float d, Color color, float x, float y, float z) {
-        ModelInstance inst = new ModelInstance(unitBox);
-        inst.materials.get(0).set(ColorAttribute.createDiffuse(color));
-        inst.transform.setToTranslationAndScaling(x, y, z, w, h, d);
-        return inst;
+        playerPos.set(0f, world.heightAt(0f, 0f), 0f);
     }
 
     @Override
@@ -166,40 +105,47 @@ public class Main extends ApplicationAdapter {
         ix += joyX;
         iy += joyY;
 
-        // Direções a partir da câmera (estilo GTA: andar é relativo à câmera)
+        // Direções a partir da câmera (andar é relativo à câmera)
         Vector3 forward = new Vector3(MathUtils.sin(yaw), 0f, MathUtils.cos(yaw));
         Vector3 right = new Vector3(forward).crs(Vector3.Y);
 
         Vector3 move = new Vector3(forward).scl(iy).add(new Vector3(right).scl(ix));
-        if (move.len2() > 1f) move.nor();
+        float moveLen = Math.min(move.len(), 1f);
+        if (move.len() > 1f) move.nor();
+
         playerPos.x += move.x * SPEED * dt;
         playerPos.z += move.z * SPEED * dt;
-        resolveCollisions(playerPos);
+        world.resolveCollisions(playerPos, PLAYER_RADIUS);
 
-        // Gravidade e pulo
+        // Gravidade acompanha o relevo: o jogador sobe e desce com o chão
+        float groundY = world.heightAt(playerPos.x, playerPos.z);
         velY -= GRAVITY * dt;
         playerPos.y += velY * dt;
-        if (playerPos.y <= 0f) {
-            playerPos.y = 0f;
+        grounded = false;
+        if (playerPos.y <= groundY) {
+            playerPos.y = groundY;
             velY = 0f;
+            grounded = true;
             if (jumpRequested) velY = JUMP_VELOCITY;
         }
         jumpRequested = false;
 
-        // Limita o mundo
-        playerPos.x = MathUtils.clamp(playerPos.x, -WORLD_HALF, WORLD_HALF);
-        playerPos.z = MathUtils.clamp(playerPos.z, -WORLD_HALF, WORLD_HALF);
+        // Limita ao terreno
+        float half = World.HALF - 2f;
+        playerPos.x = MathUtils.clamp(playerPos.x, -half, half);
+        playerPos.z = MathUtils.clamp(playerPos.z, -half, half);
 
-        playerInstance.transform.setToTranslation(playerPos.x, playerPos.y + 0.9f, playerPos.z)
-                .rotate(Vector3.Y, yaw * MathUtils.radiansToDegrees);
+        character.update(playerPos.x, playerPos.y, playerPos.z, yaw, grounded ? moveLen : 0f, grounded, dt);
 
-        // Câmera atrás do jogador
-        Vector3 pivot = new Vector3(playerPos.x, playerPos.y + 1.5f, playerPos.z);
+        // Câmera atrás do jogador, sempre acima do chão
+        Vector3 pivot = new Vector3(playerPos.x, playerPos.y + 1.4f, playerPos.z);
         Vector3 back = new Vector3(
                 -forward.x * MathUtils.cos(pitch),
                 MathUtils.sin(pitch),
                 -forward.z * MathUtils.cos(pitch));
         camera.position.set(pivot).mulAdd(back, CAMERA_DISTANCE);
+        float camGround = world.heightAt(camera.position.x, camera.position.z) + 0.5f;
+        if (camera.position.y < camGround) camera.position.y = camGround;
         camera.lookAt(pivot);
         camera.up.set(Vector3.Y);
         camera.update();
@@ -208,30 +154,11 @@ public class Main extends ApplicationAdapter {
         Gdx.gl.glClearColor(0.72f, 0.82f, 0.92f, 1f); // céu pálido de seca
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
         modelBatch.begin(camera);
-        modelBatch.render(scenery, environment);
-        modelBatch.render(playerInstance, environment);
+        modelBatch.render(world.instances, environment);
+        modelBatch.render(character.instances, environment);
         modelBatch.end();
 
         drawHud();
-    }
-
-    private void resolveCollisions(Vector3 p) {
-        for (Obstacle o : obstacles) {
-            float minX = o.pos.x - o.half.x - PLAYER_RADIUS;
-            float maxX = o.pos.x + o.half.x + PLAYER_RADIUS;
-            float minZ = o.pos.z - o.half.z - PLAYER_RADIUS;
-            float maxZ = o.pos.z + o.half.z + PLAYER_RADIUS;
-            if (p.x > minX && p.x < maxX && p.z > minZ && p.z < maxZ && p.y < o.pos.y + o.half.y) {
-                // Empurra para fora pelo lado mais próximo
-                float left = p.x - minX, right = maxX - p.x;
-                float bottom = p.z - minZ, top = maxZ - p.z;
-                float m = Math.min(Math.min(left, right), Math.min(bottom, top));
-                if (m == left) p.x = minX;
-                else if (m == right) p.x = maxX;
-                else if (m == bottom) p.z = minZ;
-                else p.z = maxZ;
-            }
-        }
     }
 
     // ---------- Toque ----------
@@ -276,7 +203,7 @@ public class Main extends ApplicationAdapter {
             float dx = Gdx.input.getX(joyPointer) - joyOriginX;
             float dy = Gdx.input.getY(joyPointer) - joyOriginY;
             joyX = MathUtils.clamp(dx / JOY_RADIUS, -1f, 1f);
-            joyY = MathUtils.clamp(-dy / JOY_RADIUS, -1f, 1f); // tela cresce para baixo
+            joyY = MathUtils.clamp(-dy / JOY_RADIUS, -1f, 1f); // a tela cresce para baixo
         }
 
         if (lookPointer >= 0) {
@@ -338,7 +265,8 @@ public class Main extends ApplicationAdapter {
     @Override
     public void dispose() {
         modelBatch.dispose();
-        unitBox.dispose();
+        world.dispose();
+        character.dispose();
         shapes.dispose();
         batch.dispose();
         font.dispose();
