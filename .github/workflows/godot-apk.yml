@@ -17,6 +17,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # A imagem tem Godot, templates, Java e Android SDK, mas em lugares que a Godot não procura
+      # por padrão. Aqui localizamos cada um e apontamos para o caminho esperado.
+      - name: Preparar templates, Java e Android SDK
+        shell: bash
+        run: |
+          set -x
+          TPL=$(find / -type d -name "4.3.stable" -path "*export_templates*" 2>/dev/null | head -1)
+          echo "Templates encontrados em: $TPL"
+          mkdir -p "$HOME/.local/share/godot/export_templates"
+          if [ -n "$TPL" ] && [ ! -e "$HOME/.local/share/godot/export_templates/4.3.stable" ]; then
+            ln -s "$TPL" "$HOME/.local/share/godot/export_templates/4.3.stable"
+          fi
+
+          JAVA_BIN=$(readlink -f "$(command -v java)")
+          JAVA_DIR=$(dirname "$(dirname "$JAVA_BIN")")
+          APKSIGNER=$(find / -type f -name apksigner 2>/dev/null | head -1)
+          SDK_DIR=$(dirname "$(dirname "$(dirname "$APKSIGNER")")")
+          echo "JAVA_HOME=$JAVA_DIR" >> "$GITHUB_ENV"
+          echo "ANDROID_HOME=$SDK_DIR" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_DIR" >> "$GITHUB_ENV"
+          ls "$HOME/.local/share/godot/export_templates/4.3.stable" || true
+
       # Keystore de debug: basta para instalar o APK de teste no celular.
       - name: Criar keystore de debug
         run: |
