@@ -39,6 +39,7 @@ public class Main extends ApplicationAdapter {
 
     // ---------- 3D ----------
     private ModelBatch modelBatch;
+    private BarbedWireFence fence;
     private Environment environment;
     private PerspectiveCamera camera;
     private World world;
@@ -97,6 +98,14 @@ public class Main extends ApplicationAdapter {
             character.create();
         } catch (Throwable t) {
             errorText = "ERRO NO PERSONAGEM:\n" + describe(t);
+        }
+
+        try {
+            // Cerca de arame farpado 4 m à frente do início, apoiada no terreno
+            float fx = 0f, fz = -12f;
+            fence = new BarbedWireFence(fx, world.heightAt(fx, fz), fz, 0f);
+        } catch (Throwable t) {
+            errorText = "ERRO NA CERCA:\n" + describe(t);
         }
 
         player.spawn(0f, 0f, world.heightAt(0f, 0f));
@@ -170,6 +179,7 @@ public class Main extends ApplicationAdapter {
         boolean runHeld = runToggle;
         player.update(dt, inX, inY, yaw, jumpPressed, runHeld, world);
         character.update(player, dt);
+        if (fence != null) fence.update(dt);
 
         // Direção da câmera (usada também para a câmera ficar atrás do jogador)
         Vector3 forward = new Vector3(MathUtils.sin(yaw), 0f, MathUtils.cos(yaw));
@@ -193,6 +203,7 @@ public class Main extends ApplicationAdapter {
         modelBatch.begin(camera);
         modelBatch.render(world.instances, environment);
         modelBatch.render(character.instances, environment);
+        if (fence != null) modelBatch.render(fence.instances, environment);
         modelBatch.end();
 
         // Toque no aviso de atualização (topo da tela) abre o download
@@ -325,6 +336,7 @@ public class Main extends ApplicationAdapter {
 
     @Override
     public void dispose() {
+        if (fence != null) fence.dispose();
         modelBatch.dispose();
         world.dispose();
         character.dispose();
