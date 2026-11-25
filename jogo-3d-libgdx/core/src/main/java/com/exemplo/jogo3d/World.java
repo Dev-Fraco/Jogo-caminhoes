@@ -272,8 +272,7 @@ public class World {
             AnimationController horseAnim = new AnimationController(horse);
             horseAnim.animate("Idle", -1, 1f, null, 0.2f);
             mounts.add(new Riding.Mount(horse, horseAnim, null, new Vector3(h.x, 0f, h.z), yaw,
-                    1.28f, 0.0f, 0.55f, 1.8f, 4.0f, true));
-            obstacles.add(new Obstacle(h.x, h.z, 0.6f, heightAt(h.x, h.z), 1.7f));
+                    1.55f, 0.0f, 0.67f, 1.8f, 4.5f, true, -0.9f, 1.42f));
         }
     }
 
@@ -307,8 +306,7 @@ public class World {
         donkeyStart.set(d);
         donkeyStartFacingDeg = yaw + 180f;
         mounts.add(new Riding.Mount(donkey, donkeyAnim, ropeInstance, new Vector3(d.x, 0f, d.z), yaw + 180f,
-                1.22f, 0.1f, 0.75f, 1.4f, 2.6f, false));
-        obstacles.add(new Obstacle(d.x, d.z, 0.45f, heightAt(d.x, d.z), 1.5f));
+                1.22f, 0.1f, 0.75f, 1.4f, 2.6f, false, -0.6f, 1.26f));
 
         // Corda: do topo do morão até o pescoço do donkey, com um pouco de folga
         Vector3 top = new Vector3(p.x, heightAt(p.x, p.z) + 1.45f, p.z);
@@ -385,8 +383,37 @@ public class World {
     }
 
     /** Empurra o jogador (círculo) para fora de qualquer obstáculo que ele esteja tocando. */
+    /** Empurra o ponto (plano XZ) para fora de um segmento, à distância mínima 'min'. */
+    private static void pushOutSegment(Vector3 p, float ax, float az, float bx, float bz, float min) {
+        float sx = bx - ax, sz = bz - az;
+        float len2 = sx * sx + sz * sz;
+        if (len2 < 1e-9f) return;
+        float t = Math.max(0f, Math.min(1f, ((p.x - ax) * sx + (p.z - az) * sz) / len2));
+        float qx = ax + sx * t, qz = az + sz * t;
+        float dx = p.x - qx, dz = p.z - qz;
+        float d2 = dx * dx + dz * dz;
+        if (d2 >= min * min) return;
+        float d = (float) Math.sqrt(d2);
+        if (d < 1e-5f) { dx = -sz; dz = sx; d = (float) Math.sqrt(len2); }
+        p.x = qx + dx / d * min;
+        p.z = qz + dz / d * min;
+    }
+
     public void resolveCollisions(Vector3 p, float playerRadius) {
+        resolveCollisionsExcept(p, playerRadius, null);
+    }
+
+    /** Como resolveCollisions, mas ignora a cápsula de uma montaria (usado pelo próprio animal). */
+    void resolveCollisionsExcept(Vector3 p, float playerRadius, Riding.Mount skip) {
         fences.resolveCollisions(p, playerRadius);   // arame farpado dos cercados
+        // Corpo dos animais (cavalos e donkey): cápsula ao longo do corpo, que acompanha o animal
+        for (int i = 0; i < mounts.size; i++) {
+            Riding.Mount mt = mounts.get(i);
+            if (mt == skip) continue;
+            Vector3 a = new Vector3(0f, 0f, mt.zMin).mul(mt.inst.transform);
+            Vector3 b = new Vector3(0f, 0f, mt.zMax).mul(mt.inst.transform);
+            pushOutSegment(p, a.x, a.z, b.x, b.z, playerRadius + 0.32f);
+        }
         // Paredes das casas: entra pela abertura da porta, não pelas paredes
         for (int h = 0; h < houses.size; h++) {
             House house = houses.get(h);

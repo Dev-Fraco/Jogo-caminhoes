@@ -340,7 +340,6 @@ public class FenceSystem {
         for (int g = 0; g < gates.size; g++) {
             Gate gate = gates.get(g);
             for (int leaf = 0; leaf < 2; leaf++) {
-                if (gate.angle[leaf] >= CLEAR_DEG) continue;
                 Vector3 a = gate.toWorld(Gate.hinge(leaf));
                 Vector3 b = gate.toWorld(Gate.tip(leaf, gate.angle[leaf]));
                 pushOut(p, a.x, a.z, b.x, b.z, min);

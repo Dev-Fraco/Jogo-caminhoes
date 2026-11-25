@@ -53,6 +53,7 @@ public class Main extends ApplicationAdapter {
     private float joyRadius = 100f;
     private float lookLastX, lookLastY;  // coordenadas da tela (origem em cima)
     private FenceSystem.Prompt prompt = null;     // folha da porteira ao alcance (mostra o botão)
+    private boolean crouchOn = false;             // botão AGACHAR (agachado enquanto parado)
     private Riding mountTarget = null;            // montaria ao alcance (mostra o botão MONTAR)
     private final Array<Riding> ridings = new Array<>();
     private final Hud hud = new Hud();
@@ -190,6 +191,7 @@ public class Main extends ApplicationAdapter {
             if (r.isMounted() || r.isBusy()) ridingActive = true;
         }
         if (!busy && !ridingActive) player.update(dt, inX, inY, yaw, jumpPressed, runToggle, world);
+        if (!ridingActive) character.setCrouch(crouchOn && player.speed < 0.25f ? 1f : 0f);
         character.setReach(world.fences.reach());
         character.update(player, dt);
         world.fences.update(dt, player);
@@ -299,6 +301,9 @@ public class Main extends ApplicationAdapter {
             case "joystick":
                 if (joyPointer < 0) joyPointer = i;
                 return;
+            case "agachar":
+                crouchOn = !crouchOn;
+                return;
             case "abrir":
                 if (prompt != null) {
                     world.fences.startOperation(prompt, player);
@@ -334,6 +339,7 @@ public class Main extends ApplicationAdapter {
         batch.setProjectionMatrix(hudCamera.combined);
 
         hud.runOn = runToggle;
+        hud.crouchOn = crouchOn;
         hud.jumpDown = jumpPointer >= 0;
         hud.joyX = joyX;
         hud.joyY = joyY;

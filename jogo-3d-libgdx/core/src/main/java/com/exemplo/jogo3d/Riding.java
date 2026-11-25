@@ -37,9 +37,11 @@ public class Riding {
         final float sideX;               // distância do lado para subir
         final float walkSpeed, runSpeed;
         final boolean horse;             // cavalo tem o clipe Run; donkey só andar mais rápido
+        final float zMin, zMax;          // extensão do corpo no eixo do animal (cápsula de colisão)
 
         Mount(ModelInstance inst, AnimationController anim, ModelInstance rope, Vector3 pos, float facingDeg,
-              float seatY, float seatZ, float sideX, float walkSpeed, float runSpeed, boolean horse) {
+              float seatY, float seatZ, float sideX, float walkSpeed, float runSpeed, boolean horse,
+              float zMin, float zMax) {
             this.inst = inst;
             this.anim = anim;
             this.rope = rope;
@@ -51,6 +53,8 @@ public class Riding {
             this.walkSpeed = walkSpeed;
             this.runSpeed = runSpeed;
             this.horse = horse;
+            this.zMin = zMin;
+            this.zMax = zMax;
         }
     }
 
@@ -174,12 +178,12 @@ public class Riding {
         if (moving) {
             float target = MathUtils.atan2(mx, mz);
             m.facing += wrapAngle(target - m.facing) * Math.min(1f, dt * 4f);
-            boolean galloping = run && m.horse;
+            boolean galloping = run;   // correr: galope no cavalo, trote rápido no donkey
             float speed = (galloping ? m.runSpeed : m.walkSpeed) * Math.min(1f, mag);
             m.pos.x += MathUtils.sin(m.facing) * speed * dt;
             m.pos.z += MathUtils.cos(m.facing) * speed * dt;
             tmp.set(m.pos.x, 0f, m.pos.z);
-            world.resolveCollisions(tmp, ANIMAL_RADIUS);   // não atravessa paredes nem cercas
+            world.resolveCollisionsExcept(tmp, ANIMAL_RADIUS, m);   // não atravessa paredes nem cercas
             m.pos.x = tmp.x;
             m.pos.z = tmp.z;
             if (galloping) setClip("Run", 1f);

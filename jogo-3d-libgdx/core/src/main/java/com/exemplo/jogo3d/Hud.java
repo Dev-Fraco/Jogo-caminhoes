@@ -59,6 +59,7 @@ public class Hud {
     // Estado que o Main preenche a cada quadro
     boolean editing = false;
     boolean runOn = false;
+    boolean crouchOn = false;
     boolean jumpDown = false;
     boolean promptVisible = false;   // botão da porteira aparece
     String promptText = "ABRIR PORTEIRA";
@@ -293,6 +294,7 @@ public class Hud {
             float tint = 1f;
             if (e.id.equals("correr") && runOn) tint = 1.25f;
             if (e.id.equals("pular") && jumpDown) tint = 1.25f;
+            if (e.id.equals("agachar") && crouchOn) tint = 1.25f;
             batch.setColor(tint, tint, tint, a);
             if (e.tex != null) {
                 batch.draw(e.tex, r[0], r[1], r[2], r[3]);
