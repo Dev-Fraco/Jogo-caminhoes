@@ -264,6 +264,8 @@ public class Main extends ApplicationAdapter {
         // Desenha o mundo 3D
         Gdx.gl.glClearColor(0.72f, 0.82f, 0.92f, 1f); // céu pálido de seca
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
+        // Faces dos dois lados (paredes, telhado e poço visíveis de dentro e de fora)
+        Gdx.gl.glDisable(GL20.GL_CULL_FACE);
         modelBatch.begin(camera);
         modelBatch.render(visibleWorldInstances(), environment);
         modelBatch.render(character.instances, environment);

@@ -93,7 +93,8 @@ public class World {
     private boolean hasDam = false, hasWell = false;
     private float damX, damZ, wellX, wellZ;
     private Texture crackTexture;
-    private Model damModel, wellModel;
+    private Model damModel, wellModel, guardModel, signModel;
+    private Texture signTexture;
     private final Array<Model> loaded = new Array<>();
 
     /** Altura do terreno em (x, z). Plana perto do spawn, colinas ao redor. */
@@ -223,6 +224,17 @@ public class World {
         if (hasWell) {
             wellModel = Landmarks.buildWell(this, wellX, wellZ);
             instances.add(new ModelInstance(wellModel));
+            // Proteção em volta da boca e placa de aviso, a 5,5 m do poço, virada para ele
+            guardModel = Landmarks.buildGuard(this, wellX, wellZ);
+            instances.add(new ModelInstance(guardModel));
+            signTexture = new Texture(Gdx.files.internal("textures/placa_poco.png"));
+            signTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+            signModel = Landmarks.buildSign(signTexture);
+            ModelInstance sign = new ModelInstance(signModel);
+            float sx = wellX, sz = wellZ + 5.5f;
+            sign.transform.setToTranslation(sx, heightAt(sx, sz), sz).rotate(Vector3.Y, 180f);
+            instances.add(sign);
+            obstacles.add(new Obstacle(sx, sz, 0.25f, heightAt(sx, sz), 2.0f));
             obstacles.add(new Obstacle(wellX, wellZ, Landmarks.WELL_OUT + 0.3f, heightAt(wellX, wellZ), 1.0f));
         }
 
@@ -506,7 +518,7 @@ public class World {
             AnimationController horseAnim = new AnimationController(horse);
             horseAnim.animate("Idle", -1, 1f, null, 0.2f);
             mounts.add(new Riding.Mount(horse, horseAnim, null, new Vector3(h.x, 0f, h.z), yaw,
-                    1.55f, 0.0f, 0.67f, 1.8f, 4.5f, true, -0.9f, 1.42f));
+                    2.33f, 0.0f, 1.0f, 1.8f, 4.5f, true, -1.31f, 2.13f));
         }
     }
 
@@ -530,7 +542,7 @@ public class World {
 
         // Donkey: o modelo tem a cabeça em +z e o centro em z = 0,33; gira 180° para olhar o cocho
         // Focinho sobre o centro do cocho: na pose de comer o focinho fica 0,77 m à frente da origem do modelo
-        Vector3 d = new Vector3(-5.5f, 0f, -4.23f).mul(enc);
+        Vector3 d = new Vector3(-5.5f, 0f, -3.84f).mul(enc);
         ModelInstance donkey = new ModelInstance(donkeyModel);
         donkey.transform.setToTranslation(d.x, heightAt(d.x, d.z), d.z).rotate(Vector3.Y, yaw + 180f);
         instances.add(donkey);
@@ -540,11 +552,11 @@ public class World {
         donkeyStart.set(d);
         donkeyStartFacingDeg = yaw + 180f;
         mounts.add(new Riding.Mount(donkey, donkeyAnim, ropeInstance, new Vector3(d.x, 0f, d.z), yaw + 180f,
-                1.22f, 0.1f, 0.75f, 1.4f, 2.6f, false, -0.6f, 1.26f));
+                1.83f, 0.15f, 1.13f, 1.4f, 2.6f, false, -0.9f, 1.89f));
 
         // Corda: do topo do morão até o pescoço do donkey, com um pouco de folga
         Vector3 top = new Vector3(p.x, heightAt(p.x, p.z) + 1.45f, p.z);
-        Vector3 head = new Vector3(0f, 1.25f, 0.72f).mul(donkey.transform);   // ponto do cabresto na cabeça
+        Vector3 head = new Vector3(0f, 1.875f, 1.08f).mul(donkey.transform);   // ponto do cabresto na cabeça (1,5x)
         ropeModel = buildRope(top, head);
         ModelInstance rope = new ModelInstance(ropeModel);
         instances.add(rope);
@@ -689,6 +701,9 @@ public class World {
         casaModel.dispose();
         if (crackTexture != null) crackTexture.dispose();
         if (damModel != null) damModel.dispose();
+        if (guardModel != null) guardModel.dispose();
+        if (signModel != null) signModel.dispose();
+        if (signTexture != null) signTexture.dispose();
         if (wellModel != null) wellModel.dispose();
         fences.dispose();
         if (fire != null) fire.dispose();

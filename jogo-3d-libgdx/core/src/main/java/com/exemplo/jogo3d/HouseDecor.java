@@ -26,8 +26,10 @@ final class HouseDecor {
     static final float DOOR_SPEED = 90f / 0.8f;    // graus por segundo
     static final float OPEN_DEG = 90f, CLEAR_DEG = 80f;
     // Rede e deitar
-    static final float HAMMOCK_Y = 0.0f, HAMMOCK_Z = -0.2f, HAMMOCK_ANCHOR_Y = 1.9f;
-    static final float LIE_Y = 0.75f;
+    // Centro da rede na casa: longe do fogão (parede de fundo) e no meio do cômodo
+    static final float HAMMOCK_CZ = 0.3f, HAMMOCK_ANCHOR_Y = 1.9f;
+    // Altura do pano da rede no centro (o pano fica por volta de 1,6 m do chão)
+    static final float LIE_Y = 1.6f;
     static final float LIE_RANGE = 1.8f;
     // Fogão e banco
     static final float STOVE_X = 2.5f, STOVE_Z = -2.48f;
@@ -144,16 +146,19 @@ final class HouseDecor {
 
     /** Matriz da rede: centrada no meio da casa, com a corda no eixo x e balançando em torno das ancoragens. */
     private void updateHammock() {
-        // Ângulo que alinha a corda da rede (de -139,7°) com o eixo x da casa
+        // Ângulo que alinha a corda da rede (de -139,7°) com o eixo x da casa.
+        // Depois de girar, o centro do modelo fica em (0,04; -1,78): desloca para o centro desejado.
         float phi = -139.7f;
-        tmp.set(house).translate(0f, HAMMOCK_Y, HAMMOCK_Z).rotate(Vector3.Y, phi);
-        tmp.translate(0f, HAMMOCK_ANCHOR_Y, 0f).rotate(Vector3.X, swing * MathUtils.radiansToDegrees).translate(0f, -HAMMOCK_ANCHOR_Y, 0f);
+        float dz = HAMMOCK_CZ + 1.78f;
+        // balanço em torno da linha das ancoragens (altura 1,9 m, no centro da rede)
+        tmp.set(house).translate(0f, HAMMOCK_ANCHOR_Y, HAMMOCK_CZ).rotate(Vector3.X, swing * MathUtils.radiansToDegrees)
+                .translate(0f, -HAMMOCK_ANCHOR_Y, -HAMMOCK_CZ).translate(0f, 0f, dz).rotate(Vector3.Y, phi);
         hammock.transform.set(tmp);
     }
 
     /** Ponto onde a pessoa deitada fica (mundo). */
     Vector3 lieSpot() {
-        return v.set(0f, LIE_Y, HAMMOCK_Z).mul(house);
+        return v.set(0f, LIE_Y, HAMMOCK_CZ).mul(house);
     }
 
     /** Direção da cabeça quando deitada: ao longo da rede (eixo x da casa). */

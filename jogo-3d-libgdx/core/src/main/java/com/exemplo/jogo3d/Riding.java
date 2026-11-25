@@ -169,11 +169,18 @@ public class Riding {
     // ---------- Cavalgar ----------
 
     private void rideUpdate(float dt, float inX, float inY, float camYaw, boolean run, Player player, Character ch) {
+        // Mesmo cálculo do personagem (Player): frente e direita da câmera
         float fx = MathUtils.sin(camYaw), fz = MathUtils.cos(camYaw);
-        float rx = fz, rz = -fx;
+        float rx = -fz, rz = fx;
         float mx = inX * rx + inY * fx;
         float mz = inX * rz + inY * fz;
         float mag = (float) Math.sqrt(mx * mx + mz * mz);
+        if (run && mag <= 0.02f) {
+            // Botão de correr sem analógico: corre na direção da câmera (como o personagem)
+            mx = fx;
+            mz = fz;
+            mag = 1f;
+        }
         boolean moving = mag > 0.15f;
         if (moving) {
             float target = MathUtils.atan2(mx, mz);
