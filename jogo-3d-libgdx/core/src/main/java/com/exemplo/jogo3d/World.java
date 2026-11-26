@@ -183,6 +183,18 @@ public class World {
     private boolean gridDirty = true;
     private float maxObsRadius = 0f;
 
+    /** Dano num muro atingido por tiro: quebra (e some) quando a vida chega a zero. */
+    void damageObstacle(Obstacle o, float dmg) {
+        for (int i = 0; i < walls.size; i++) {
+            StoneWall w = walls.get(i);
+            if (w.cols.contains(o, true)) {
+                w.hp -= dmg;
+                if (w.hp <= 0f) removeWall(w);
+                return;
+            }
+        }
+    }
+
     /** Acrescenta um obstáculo (carroça, por exemplo) e marca a grade para refazer. */
     void addObstacle(Obstacle o) {
         obstacles.add(o);
@@ -251,15 +263,9 @@ public class World {
             float tt = td / 16f, s = tt * tt * (3f - 2f * tt), th = townHeight();
             y = th + (y - th) * s;
         }
-        // Cemitério: chão plano no cercado, voltando ao relevo em 12 m
-        if (hasCem) {
-            float cdx = Math.max(Math.abs(x - cemX) - CEM_HW - 2f, 0f), cdz = Math.max(Math.abs(z - cemZ) - CEM_HD - 2f, 0f);
-            float cd = (float) Math.sqrt(cdx * cdx + cdz * cdz);
-            if (cd < CEM_BLEND) {
-                float ct = cd / CEM_BLEND, cs = ct * ct * (3f - 2f * ct);
-                y = cemH + (y - cemH) * cs;
-            }
-        }
+        // Lugares planos (cemitério e galpão de treino): chão reto no meio, aterro suave em volta
+        if (hasCem) y = padBlend(x, z, y, cemX, cemZ, CEM_HW, CEM_HD, cemH);
+        if (hasTrain) y = padBlend(x, z, y, trainX, trainZ, TR_HW, TR_HD, trainH);
         return y;
     }
 
@@ -399,6 +405,7 @@ public class World {
             }
         }
         chooseCemetery();
+        chooseTrainingSite();
     }
 
     /** Lugar do cemitério: sertão longe da estrada, da vila e dos outros locais, no trecho mais plano. */
@@ -437,6 +444,96 @@ public class World {
         }
         // portão voltado para o lado da estrada
         cemYaw = roadZ(cemX) < cemZ ? 0f : 180f;
+    }
+
+    /** Altura de um lugar plano: 'ph' dentro do retângulo (hw x hd, mais 2 m), aterro suave em CEM_BLEND. */
+    private static float padBlend(float x, float z, float y, float px, float pz, float hw, float hd, float ph) {
+        float cdx = Math.max(Math.abs(x - px) - hw - 2f, 0f), cdz = Math.max(Math.abs(z - pz) - hd - 2f, 0f);
+        float cd = (float) Math.sqrt(cdx * cdx + cdz * cdz);
+        if (cd >= CEM_BLEND) return y;
+        float ct = cd / CEM_BLEND, cs = ct * ct * (3f - 2f * ct);
+        return ph + (y - ph) * cs;
+    }
+
+    // ---------- Galpão de treino (modo treinamento) ----------
+    static final float TR_HW = 6f, TR_HD = 4f;   // meia largura e meio fundo do galpão (interior)
+    boolean hasTrain = false;
+    float trainX, trainZ, trainH;
+
+    /** Lugar plano longe do cemitério para o galpão de treino (mesma regra do cemitério). */
+    private void chooseTrainingSite() {
+        Random r = new Random(4242L);
+        float best = 1e9f;
+        for (int t = 0; t < 500; t++) {
+            float x = (r.nextFloat() * 2f - 1f) * (HALF - 80f), z = (r.nextFloat() * 2f - 1f) * (HALF - 80f);
+            if (Regions.at(x, z) != Regions.Region.SERTAO) continue;
+            if (Math.abs(z - roadZ(x)) < 90f || Math.abs(x - riverX(z)) < 30f) continue;
+            if (Math.hypot(x - TOWN_X, z - TOWN_Z) < 150f || Math.hypot(x, z) < 60f) continue;
+            if (nearWellOrDam(x, z, 50f) || Regions.farmDist(x, z) < 60f) continue;
+            if (hasCem && Math.hypot(x - cemX, z - cemZ) < 90f) continue;
+            float mn = 1e9f, mx = -1e9f;
+            for (int i = -4; i <= 4; i++) for (int j = -4; j <= 4; j++) {
+                float h = heightAt(x + i * 3.75f, z + j * 3.75f);
+                mn = Math.min(mn, h);
+                mx = Math.max(mx, h);
+            }
+            if (mx - mn < best) {
+                best = mx - mn;
+                trainX = x;
+                trainZ = z;
+            }
+        }
+        hasTrain = best < 1e8f;
+        if (hasTrain) {
+            float sum = 0f;
+            int n = 0;
+            for (float lx = -TR_HW; lx <= TR_HW + 0.01f; lx += 2f) for (float lz = -TR_HD; lz <= TR_HD + 0.01f; lz += 2f) {
+                sum += heightAt(trainX + lx, trainZ + lz);
+                n++;
+            }
+            trainH = sum / n;
+        }
+    }
+
+    /** Perto do galpão de treino (para não nascer planta ou pedra dentro dele). */
+    boolean nearTraining(float x, float z, float margin) {
+        return hasTrain && Math.abs(x - trainX) < TR_HW + margin && Math.abs(z - trainZ) < TR_HD + margin;
+    }
+
+    /** Pelo galpão fechado: 4 paredes (porta de 2 m no lado sul), teto e piso. Colisão e tiro com as paredes. */
+    private void addTrainingShed() {
+        if (!hasTrain) return;
+        ModelBuilder mb = new ModelBuilder();
+        long attrs = Usage.Position | Usage.Normal;
+        float h = 3f, t = 0.3f;
+        addShedPart(mb, attrs, trainX, trainZ + TR_HD, 2 * TR_HW + t, t, false, h, new Color(0.52f, 0.36f, 0.22f, 1f));   // norte
+        addShedPart(mb, attrs, trainX - (TR_HW + 1f) / 2f - 0.5f, trainZ - TR_HD, TR_HW - 1f + 0.5f, t, false, h, new Color(0.46f, 0.32f, 0.2f, 1f));   // sul, esquerda
+        addShedPart(mb, attrs, trainX + (TR_HW + 1f) / 2f + 0.5f, trainZ - TR_HD, TR_HW - 1f + 0.5f, t, false, h, new Color(0.46f, 0.32f, 0.2f, 1f));   // sul, direita
+        addShedPart(mb, attrs, trainX - TR_HW, trainZ, 2 * TR_HD + t, t, true, h, new Color(0.5f, 0.35f, 0.21f, 1f));   // oeste
+        addShedPart(mb, attrs, trainX + TR_HW, trainZ, 2 * TR_HD + t, t, true, h, new Color(0.5f, 0.35f, 0.21f, 1f));   // leste
+        // teto e piso (sem colisão: só visual)
+        Model roof = mb.createBox(2 * TR_HW + 1f, 0.25f, 2 * TR_HD + 1f, new Material(ColorAttribute.createDiffuse(0.36f, 0.24f, 0.14f, 1f)), attrs);
+        loaded.add(roof);
+        ModelInstance ri = new ModelInstance(roof);
+        ri.transform.setToTranslation(trainX, trainH + h + 0.12f, trainZ);
+        instances.add(ri);
+        Model floor = mb.createBox(2 * TR_HW, 0.1f, 2 * TR_HD, new Material(ColorAttribute.createDiffuse(0.42f, 0.30f, 0.18f, 1f)), attrs);
+        loaded.add(floor);
+        ModelInstance fi = new ModelInstance(floor);
+        fi.transform.setToTranslation(trainX, trainH + 0.05f, trainZ);
+        instances.add(fi);
+    }
+
+    /** Uma parede do galpão: visual (caixa) e colisão (Box). len ao longo de x (ou de z, se alongZ). */
+    private void addShedPart(ModelBuilder mb, long attrs, float cx, float cz, float len, float thick, boolean alongZ, float h, Color c) {
+        float yaw = alongZ ? 90f : 0f;
+        Matrix4 t = new Matrix4().setToTranslation(cx, trainH, cz).rotate(Vector3.Y, yaw);
+        boxes.add(new Box(t, len / 2f, thick / 2f, h));
+        Model m = mb.createBox(len, h, thick, new Material(ColorAttribute.createDiffuse(c)), attrs);
+        loaded.add(m);
+        ModelInstance mi = new ModelInstance(m);
+        mi.transform.set(t).translate(0f, h / 2f, 0f);
+        instances.add(mi);
     }
 
     /** Dentro (ou a 'margin' metros) do cemitério. */
@@ -672,6 +769,7 @@ public class World {
             }
         }
         addPlacesAndPlants(rnd);
+        addTrainingShed();
         addTrailsCracksBirds(rnd);
         // Armas espalhadas: dentro das casas, na frente das casas da cidade e soltas pelo mapa
         weapons = new Weapons();
@@ -873,6 +971,7 @@ public class World {
     private final Vector3 rayO = new Vector3(), rayD = new Vector3(), rayT = new Vector3();
     /** Material e normal (aprox.) do primeiro impacto do último raycast. */
     Surface hitSurface = Surface.TERRA;
+    Obstacle hitObstacle = null;   // obstáculo (parede, cerca...) atingido pelo último raio, ou null
     final Vector3 hitNormal = new Vector3(0f, 1f, 0f);
 
     /**
@@ -883,6 +982,7 @@ public class World {
     float raycast(Vector3 origin, Vector3 dir, float maxDist) {
         float best = maxDist;
         Surface surf = Surface.TERRA;
+        Obstacle bestOb = null;
         // Paredes das casas de taipa: caixas no sistema da casa
         for (int k = 0; k < houses.size; k++) {
             House h = houses.get(k);
@@ -892,7 +992,7 @@ public class World {
             for (int w = 0; w < wallBoxes.size; w++) {
                 float[] b = wallBoxes.get(w);
                 float t = slab(rayO, rayD, b[0], b[1], b[2], b[3], b[4], b[5], best);
-                if (t < best) { best = t; surf = Surface.BARRO; }   // taipa: barro e madeira
+                if (t < best) { best = t; surf = Surface.BARRO; bestOb = null; }   // taipa: barro e madeira
             }
         }
         // Casas da cidade feitas em código
@@ -902,7 +1002,7 @@ public class World {
             rayT.set(origin).add(dir).mul(bx.inv);
             rayD.set(rayT).sub(rayO);
             float t = slab(rayO, rayD, -bx.hx, bx.hx, 0f, bx.h, -bx.hz, bx.hz, best);
-            if (t < best) { best = t; surf = Surface.PEDRA; }   // casas da cidade: alvenaria caiada
+            if (t < best) { best = t; surf = Surface.PEDRA; bestOb = null; }   // casas da cidade: alvenaria caiada
         }
         // Obstáculos: cilindros em pé
         for (int k = 0; k < obstacles.size; k++) {
@@ -917,7 +1017,7 @@ public class World {
             if (t < 0f) t = c < 0f ? 0f : -1f;   // começou dentro
             if (t < 0f || t >= best) continue;
             float y = origin.y + dir.y * t;
-            if (y >= ob.baseY && y <= ob.baseY + ob.height) { best = t; surf = ob.surface; }
+            if (y >= ob.baseY && y <= ob.baseY + ob.height) { best = t; surf = ob.surface; bestOb = ob; }
         }
         // Chão: anda em passos e refina
         float step = 0.6f, prev = 0f;
@@ -931,8 +1031,8 @@ public class World {
                     if (origin.y + dir.y * m < heightAt(origin.x + dir.x * m, origin.z + dir.z * m)) hi = m;
                     else lo = m;
                 }
-                if (hi < best) { hitSurface = Surface.TERRA; }
-                else hitSurface = surf;
+                if (hi < best) { hitSurface = Surface.TERRA; hitObstacle = null; }
+                else { hitSurface = surf; hitObstacle = bestOb; }
                 float gh = Math.min(best, hi);
                 if (hi < best) normalAt(origin.x + dir.x * gh, origin.z + dir.z * gh, hitNormal);
                 else hitNormal.set(-dir.x, 0f, -dir.z).nor();
@@ -942,6 +1042,7 @@ public class World {
             if (tt >= best) break;
         }
         hitSurface = surf;
+        hitObstacle = bestOb;
         hitNormal.set(-dir.x, 0f, -dir.z);
         if (hitNormal.len2() < 1e-6f) hitNormal.set(0f, 1f, 0f); else hitNormal.nor();
         return best;
@@ -1243,7 +1344,7 @@ public class World {
             x = (rnd.nextFloat() * 2f - 1f) * (HALF - margin);
             z = (rnd.nextFloat() * 2f - 1f) * (HALF - margin);
         } while (Math.sqrt(x * x + z * z) < 14f || Math.abs(z - roadZ(x)) < ROAD_HALF + 6f
-                || Math.abs(x - riverX(z)) < 6f || nearEnclosure(x, z) || inTown(x, z) || nearCemetery(x, z, 6f));
+                || Math.abs(x - riverX(z)) < 6f || nearEnclosure(x, z) || inTown(x, z) || nearCemetery(x, z, 6f) || nearTraining(x, z, 6f));
         return new float[]{x, z};
     }
 
@@ -1329,7 +1430,7 @@ public class World {
 
     /** Perto de casa, cercado, poço ou açude: os cactos não nascem ali. */
     private boolean nearLandmark(float x, float z) {
-        if (nearWellOrDam(x, z, 10f) || nearCemetery(x, z, 12f)) return true;
+        if (nearWellOrDam(x, z, 10f) || nearCemetery(x, z, 12f) || nearTraining(x, z, 12f)) return true;
         for (int k = 0; k < enclosureCenters.size; k++) {
             float[] c = enclosureCenters.get(k);
             if (Math.hypot(x - c[0], z - c[1]) < 14f) return true;

@@ -80,7 +80,11 @@ public class Main extends ApplicationAdapter {
     // Menu principal: o jogo abre aqui; morrer ou sair da partida volta para cá
     private boolean inMenu = true;
     private final float[][] menuRects = new float[2][4];
-    private static final String[] MENU_ITEMS = {"JOGAR", "CONFIGURAÇÕES"};
+    private static final String[] MENU_ITEMS = {"BATTLE ROYALE", "TREINAMENTO", "CONFIGURAÇÕES"};
+    private boolean training = false;   // modo treinamento (galpão com dois bonecos) em vez do battle royale
+    private boolean trainPanel = false; // caixa de armas do treino (aberta pelo botão ARMAS)
+    private final float[] trainUsar = new float[6 * 4];   // botões USAR de cada arma (x, y, w, h)
+    private final float[] trainFechar = new float[4];
     // Itens: vida/energia/água, granadas, HUD dos itens e mapa
     private Survival survival;
     private Grenades grenades;
@@ -761,8 +765,7 @@ public class Main extends ApplicationAdapter {
         if (wallGhost == null) wallGhost = world.wallGhost();
         if (wallGhost == null) return;
         String aviso = world.wallSpot(player.pos.x, player.pos.z, yaw, wallDist, wallSpotNow);
-        wallGhost.transform.setToTranslation(wallSpotNow.x, wallSpotNow.groundY, wallSpotNow.z)
-                .rotate(Vector3.Y, wallSpotNow.yawDeg);
+        StoneWall.transform(wallSpotNow.x, wallSpotNow.groundY, wallSpotNow.z, wallSpotNow.yawDeg, wallGhost.transform);
         world.tintWallGhost(wallGhost, aviso == null);
     }
 
@@ -770,6 +773,17 @@ public class Main extends ApplicationAdapter {
         if (fullMapOpen) {   // o mapa inteiro fecha com qualquer toque
             fullMapOpen = false;
             return;
+        }
+        if (training && !inMenu && !settingsOpen) {
+            if (trainPanel) {
+                trainPress(x, yb);
+                return;
+            }
+            float[] b = trainButton(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+            if (x >= b[0] && x <= b[0] + b[2] && yb >= b[1] && yb <= b[1] + b[3]) {
+                trainPanel = true;
+                return;
+            }
         }
         if (settingsOpen) {
             settingsPress(x, yb);
@@ -789,7 +803,10 @@ public class Main extends ApplicationAdapter {
             return;
         }
         if (survival != null && survival.dead) {
-            if (survival.deadT > 3f) goMenu();
+            if (survival.deadT > 3f) {
+                if (training) respawnTraining();   // no treino, morrer só reaparece no galpão
+                else goMenu();
+            }
             return;
         }
         if (itemUi.panelOpen) {
@@ -998,6 +1015,7 @@ public class Main extends ApplicationAdapter {
         if (mapUi != null) mapUi.drawMap(batch, shapes, hud, player.facing);   // mapa por baixo da moldura
         hud.draw(batch, shapes, font);
         if (mapUi != null) mapUi.drawCompass(batch, shapes, font, hud, yaw);
+        if (training && !inMenu) drawTraining(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         if (fullMapOpen && mapUi != null && places != null)
             mapUi.drawFull(batch, shapes, font, Gdx.graphics.getWidth(), Gdx.graphics.getHeight(), player.pos, player.facing, places);
         if (fx != null && !hud.editing) {
@@ -1108,6 +1126,7 @@ public class Main extends ApplicationAdapter {
             float[] r = menuRects[i];
             if (x < r[0] || x > r[0] + r[2] || yb < r[1] || yb > r[1] + r[3]) continue;
             if (i == 0) startMatch();
+            else if (i == 1) startTraining();
             else settingsOpen = true;
             return;
         }
@@ -1115,14 +1134,145 @@ public class Main extends ApplicationAdapter {
 
     /** Jogar: partida nova (avião e alvo de volta ao começo). */
     private void startMatch() {
+        training = false;
         inMenu = false;
         respawn();
-        if (enemies != null) enemies.reset(world);
+        if (enemies != null) enemies.clear();
+    }
+
+    // ---------- Treinamento: caixa de armas ----------
+
+    /** Botão ARMAS, em cima e ao centro (abaixo da bússola). */
+    private float[] trainButton(int W, int H) {
+        float bw = W * 0.16f, bh = H * 0.075f;
+        return new float[]{W / 2f - bw / 2f, H * 0.84f, bw, bh};
+    }
+
+    /** Caixa com as seis armas: desenho, nome e USAR (leva a arma para a mão, com carregador cheio). */
+    private void drawTraining(int W, int H) {
+        float[] b = trainButton(W, H);
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        if (!trainPanel) {
+            shapes.setColor(0.42f, 0.26f, 0.13f, 0.92f);
+            shapes.rect(b[0], b[1], b[2], b[3]);
+            shapes.end();
+            shapes.begin(ShapeRenderer.ShapeType.Line);
+            shapes.setColor(0.95f, 0.8f, 0.45f, 1f);
+            shapes.rect(b[0], b[1], b[2], b[3]);
+            shapes.end();
+            batch.begin();
+            font.setColor(0.98f, 0.9f, 0.7f, 1f);
+            layout.setText(font, "ARMAS");
+            font.draw(batch, "ARMAS", b[0] + (b[2] - layout.width) / 2f, b[1] + (b[3] + layout.height) / 2f);
+            batch.end();
+            return;
+        }
+        float pw = W * 0.56f, ph = H * 0.80f, px = (W - pw) / 2f, py = (H - ph) / 2f;
+        shapes.setColor(0f, 0f, 0f, 0.6f);
+        shapes.rect(0, 0, W, H);
+        shapes.setColor(0.30f, 0.19f, 0.10f, 0.97f);
+        shapes.rect(px, py, pw, ph);
+        shapes.end();
+        float rowH = ph * 0.128f, top = py + ph - ph * 0.12f;
+        for (int i = 0; i < 6; i++) {
+            float ry = top - (i + 1) * rowH;
+            float ub = rowH * 0.5f, ux = px + pw - pw * 0.2f, uy = ry + (rowH - ub) / 2f;
+            trainUsar[i * 4] = ux;
+            trainUsar[i * 4 + 1] = uy;
+            trainUsar[i * 4 + 2] = pw * 0.16f;
+            trainUsar[i * 4 + 3] = ub;
+        }
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        for (int i = 0; i < 6; i++) {
+            shapes.setColor(0.18f, 0.12f, 0.07f, 0.9f);
+            shapes.rect(px + pw * 0.03f, top - (i + 1) * rowH + rowH * 0.08f, pw * 0.94f, rowH * 0.84f);
+            shapes.setColor(0.85f, 0.55f, 0.2f, 1f);
+            float[] u = trainUsar;
+            shapes.rect(u[i * 4], u[i * 4 + 1], u[i * 4 + 2], u[i * 4 + 3]);
+        }
+        trainFechar[0] = px + pw * 0.3f;
+        trainFechar[1] = py + ph * 0.025f;
+        trainFechar[2] = pw * 0.4f;
+        trainFechar[3] = ph * 0.075f;
+        shapes.setColor(0.62f, 0.4f, 0.2f, 1f);
+        shapes.rect(trainFechar[0], trainFechar[1], trainFechar[2], trainFechar[3]);
+        shapes.end();
+        batch.begin();
+        for (int i = 0; i < 6; i++) {
+            float ry = top - (i + 1) * rowH;
+            com.badlogic.gdx.graphics.g2d.TextureRegion ic = world.weapons != null ? world.weapons.iconOf(i) : null;
+            if (ic != null) {
+                float s = rowH * 0.7f;
+                batch.draw(ic, px + pw * 0.06f, ry + (rowH - s) / 2f, s * 1.6f, s);
+            }
+            font.getData().setScale(Math.max(0.9f, rowH / 80f));
+            font.setColor(1f, 0.95f, 0.85f, 1f);
+            font.draw(batch, Weapons.NAMES[i], px + pw * 0.34f, ry + rowH * 0.64f);
+            font.getData().setScale(1.1f);
+            float[] u = trainUsar;
+            layout.setText(font, "USAR");
+            font.setColor(0.1f, 0.06f, 0.03f, 1f);
+            font.draw(batch, "USAR", u[i * 4] + (u[i * 4 + 2] - layout.width) / 2f, u[i * 4 + 1] + (u[i * 4 + 3] + layout.height) / 2f);
+        }
+        layout.setText(font, "FECHAR");
+        font.setColor(1f, 0.95f, 0.85f, 1f);
+        font.draw(batch, "FECHAR", trainFechar[0] + (trainFechar[2] - layout.width) / 2f,
+                trainFechar[1] + (trainFechar[3] + layout.height) / 2f);
+        layout.setText(font, "ARMAS DO TREINO");
+        font.draw(batch, "ARMAS DO TREINO", px + (pw - layout.width) / 2f, py + ph - ph * 0.04f);
+        batch.end();
+    }
+
+    /** Toque dentro da caixa de armas: USAR leva a arma para a mão; FECHAR (ou fora) fecha. */
+    private void trainPress(float x, float yb) {
+        for (int i = 0; i < 6; i++) {
+            float[] u = trainUsar;
+            if (x >= u[i * 4] && x <= u[i * 4] + u[i * 4 + 2] && yb >= u[i * 4 + 1] && yb <= u[i * 4 + 1] + u[i * 4 + 3]) {
+                if (world.weapons != null) world.weapons.giveStart(i, character);
+                survival.say(Weapons.NAMES[i]);
+                trainPanel = false;
+                return;
+            }
+        }
+        trainPanel = false;   // FECHAR e qualquer toque fora da caixa
+    }
+
+    /** Treinamento: o jogador nasce dentro do galpão, com um rifle, e os dois bonecos ficam parados. */
+    private void startTraining() {
+        training = true;
+        inMenu = false;
+        respawnTraining();
+    }
+
+    private void respawnTraining() {
+        survival.reset();
+        if (world.items != null) world.items.clearBag();
+        if (grenades != null) grenades.clearAll();
+        if (world.weapons != null) {
+            world.weapons.unequip(character);
+            world.weapons.giveStart(0, character);   // AKM
+        }
+        adsOn = false;
+        dyingShown = false;
+        aiming = false;
+        prone = 0;
+        character.endOnce();
+        character.setTilt(0f, 0f, 0f);
+        skydiving = false;
+        parachuting = false;
+        landing = false;
+        inPlane = false;
+        yaw = 0f;
+        player.spawn(world.trainX, world.trainZ - 1.5f, world.heightAt(world.trainX, world.trainZ - 1.5f));
+        player.facing = 0f;
+        if (enemies != null) enemies.spawnDummies(world);
     }
 
     /** Morreu (ou quer sair): volta ao menu principal. */
     private void goMenu() {
         inMenu = true;
+        training = false;
+        trainPanel = false;
         settingsOpen = false;
         adsOn = false;
         aiming = false;

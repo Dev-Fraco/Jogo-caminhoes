@@ -102,6 +102,14 @@ final class Weapons {
     int heldReserve() { return reserveOf(heldType); }
     int heldMagazine() { return heldType >= 0 ? WeaponConfig.BY_TYPE[heldType].magazine : 1; }
 
+    /** Começa com uma arma na mão (modo treinamento). */
+    void giveStart(int type, Character ch) {
+        slot[0] = type;
+        slot[1] = -1;
+        activeSlot = 0;
+        equipNew(type, ch);
+    }
+
     /** Toque na caixa de uma das duas armas: leva essa arma para a mão. */
     void equipSlot(int s, Character ch) {
         if (s < 0 || s > 1 || slot[s] < 0) return;

@@ -125,28 +125,28 @@ final class WeaponConfig {
     //   intervalo, pente, reserva, recarga, alcance, queda a partir de, queda mínima, dispersão quadril, dispersão mira,
     //   coice vertical, coice lateral, chumbos, recuo visual (m), clarão, tempo de sacar
     static final WeaponConfig AKM = new WeaponConfig("AKM", Category.FUZIL, FireMode.AUTO, 1, 0f, 30f, 2.0f, 0.75f, 0.75f,
-            0.100f, 30, 120, 2.6f, 140f, 40f, 0.65f, 3.2f, 0.9f, 0.85f, 0.35f, 1, 0.075f, 1.1f, 0.55f);
+            0.100f, 30, 120, 1.4f, 140f, 40f, 0.65f, 3.2f, 0.9f, 0.85f, 0.35f, 1, 0.075f, 1.1f, 0.55f);
     static final WeaponConfig AUG = new WeaponConfig("AUG", Category.FUZIL, FireMode.AUTO, 1, 0f, 26f, 2.0f, 0.75f, 0.75f,
-            0.085f, 30, 120, 2.8f, 150f, 50f, 0.70f, 2.6f, 0.6f, 0.55f, 0.25f, 1, 0.055f, 1.0f, 0.50f);
+            0.085f, 30, 120, 1.6f, 150f, 50f, 0.70f, 2.6f, 0.6f, 0.55f, 0.25f, 1, 0.055f, 1.0f, 0.50f);
     static final WeaponConfig GROZA = new WeaponConfig("GROZA", Category.FUZIL, FireMode.AUTO, 1, 0f, 29f, 2.0f, 0.75f, 0.75f,
-            0.080f, 30, 120, 2.9f, 120f, 35f, 0.60f, 3.0f, 0.8f, 0.75f, 0.35f, 1, 0.070f, 1.1f, 0.55f);
+            0.080f, 30, 120, 1.7f, 120f, 35f, 0.60f, 3.0f, 0.8f, 0.75f, 0.35f, 1, 0.070f, 1.1f, 0.55f);
     static final WeaponConfig M16A4 = new WeaponConfig("M16A4", Category.FUZIL, FireMode.BURST, 3, 0.065f, 31f, 2.1f, 0.75f, 0.75f,
-            0.260f, 30, 120, 2.4f, 160f, 60f, 0.75f, 2.4f, 0.5f, 0.55f, 0.18f, 1, 0.065f, 1.0f, 0.55f);
+            0.260f, 30, 120, 1.2f, 160f, 60f, 0.75f, 2.4f, 0.5f, 0.55f, 0.18f, 1, 0.065f, 1.0f, 0.55f);
     static final WeaponConfig M416 = new WeaponConfig("M416", Category.FUZIL, FireMode.AUTO, 1, 0f, 27f, 2.0f, 0.75f, 0.75f,
-            0.090f, 30, 120, 2.3f, 150f, 50f, 0.70f, 2.5f, 0.6f, 0.55f, 0.22f, 1, 0.055f, 1.0f, 0.50f);
+            0.090f, 30, 120, 1.1f, 150f, 50f, 0.70f, 2.5f, 0.6f, 0.55f, 0.22f, 1, 0.055f, 1.0f, 0.50f);
     static final WeaponConfig SCARL = new WeaponConfig("SCAR-L", Category.FUZIL, FireMode.AUTO, 1, 0f, 28f, 2.0f, 0.75f, 0.75f,
-            0.095f, 30, 120, 2.5f, 150f, 50f, 0.70f, 2.6f, 0.6f, 0.62f, 0.25f, 1, 0.060f, 1.0f, 0.50f);
+            0.095f, 30, 120, 1.3f, 150f, 50f, 0.70f, 2.6f, 0.6f, 0.62f, 0.25f, 1, 0.060f, 1.0f, 0.50f);
     // Categorias que ainda não têm modelo 3D no jogo (prontas para quando a arma entrar)
     static final WeaponConfig PISTOLA = new WeaponConfig("Pistola", Category.PISTOLA, FireMode.SEMI, 1, 0f, 22f, 1.8f, 0.8f, 0.8f,
-            0.200f, 12, 48, 1.6f, 60f, 15f, 0.55f, 2.2f, 0.9f, 0.90f, 0.20f, 1, 0.050f, 0.7f, 0.35f);
+            0.200f, 12, 48, 0.4f, 60f, 15f, 0.55f, 2.2f, 0.9f, 0.90f, 0.20f, 1, 0.050f, 0.7f, 0.35f);
     static final WeaponConfig REVOLVER = new WeaponConfig("Revólver", Category.REVOLVER, FireMode.SEMI, 1, 0f, 45f, 2.0f, 0.8f, 0.8f,
-            0.550f, 6, 30, 3.2f, 70f, 20f, 0.6f, 2.4f, 0.7f, 2.20f, 0.30f, 1, 0.110f, 1.3f, 0.45f);
+            0.550f, 6, 30, 2.0f, 70f, 20f, 0.6f, 2.4f, 0.7f, 2.20f, 0.30f, 1, 0.110f, 1.3f, 0.45f);
     static final WeaponConfig SUBMETRALHADORA = new WeaponConfig("Submetralhadora", Category.SUBMETRALHADORA, FireMode.AUTO, 1, 0f, 19f, 1.8f, 0.8f, 0.8f,
-            0.065f, 32, 128, 2.0f, 70f, 18f, 0.55f, 3.0f, 1.2f, 0.40f, 0.30f, 1, 0.040f, 0.8f, 0.40f);
+            0.065f, 32, 128, 0.8f, 70f, 18f, 0.55f, 3.0f, 1.2f, 0.40f, 0.30f, 1, 0.040f, 0.8f, 0.40f);
     static final WeaponConfig ESPINGARDA = new WeaponConfig("Espingarda", Category.ESPINGARDA, FireMode.SEMI, 1, 0f, 18f, 1.5f, 0.8f, 0.8f,
-            0.850f, 5, 25, 4.0f, 35f, 8f, 0.25f, 5.5f, 4.0f, 3.00f, 0.50f, 8, 0.130f, 1.7f, 0.60f);
+            0.850f, 5, 25, 2.8f, 35f, 8f, 0.25f, 5.5f, 4.0f, 3.00f, 0.50f, 8, 0.130f, 1.7f, 0.60f);
     static final WeaponConfig PRECISAO = new WeaponConfig("Rifle de precisão", Category.PRECISAO, FireMode.SEMI, 1, 0f, 85f, 2.4f, 0.8f, 0.8f,
-            1.400f, 5, 20, 3.5f, 300f, 150f, 0.85f, 6.0f, 0.05f, 3.20f, 0.20f, 1, 0.140f, 1.4f, 0.70f);
+            1.400f, 5, 20, 2.3f, 300f, 150f, 0.85f, 6.0f, 0.05f, 3.20f, 0.20f, 1, 0.140f, 1.4f, 0.70f);
     // Arma dos bots (rifle de alavanca): lento e preciso
     static final WeaponConfig RIFLE_INIMIGO = new WeaponConfig("Rifle de alavanca", Category.FUZIL, FireMode.SEMI, 1, 0f, 11f, 2.0f, 0.75f, 0.75f,
             0.45f, 15, 999, 2.5f, 90f, 30f, 0.6f, 3.0f, 3.0f, 0.5f, 0.2f, 1, 0.06f, 1f, 0.5f);

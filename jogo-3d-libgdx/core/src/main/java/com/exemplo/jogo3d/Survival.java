@@ -42,11 +42,11 @@ final class Survival {
 
     static float duration(int type) {
         switch (type) {
-            case MEDKIT: return 8f;
+            case MEDKIT: return 2f;
             case BANDAGEM: return 4f;
             case ANALGESICO: return 6f;
             case INJECAO: return 6f;
-            case ENERGETICO: return 4f;
+            case ENERGETICO: return 2f;
             default: return 1f;
         }
     }

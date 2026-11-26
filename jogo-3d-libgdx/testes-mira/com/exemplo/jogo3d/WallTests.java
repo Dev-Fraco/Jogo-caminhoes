@@ -135,6 +135,16 @@ public class WallTests extends ApplicationAdapter {
         String msgInside = w.wallSpot(px, pz, 0f, 0f, sp);
         check("sombra vermelha: não cabe em cima de outro muro", msgInside != null, "");
 
+        // Tiro: o muro aguenta 600 de dano e quebra ao chegar a zero
+        int nBefore = w.walls.size;
+        StoneWall alvo = w.walls.get(0);
+        World.Obstacle pedra = alvo.cols.get(0);
+        w.damageObstacle(pedra, 300f);
+        check("muro aguenta 300 de dano", w.walls.size == nBefore && alvo.hp == 300f, "vida " + alvo.hp);
+        w.damageObstacle(pedra, 300f);
+        check("muro quebra com 600 de dano", w.walls.size == nBefore - 1 && w.walls.indexOf(alvo, true) < 0, "muros " + w.walls.size);
+        check("muro quebrado sai da colisão", w.obstacles.indexOf(pedra, true) < 0, "");
+
         // Limite: o mais antigo sai quando passa de MAX_WALLS
         int placed = 1;
         for (int t = 0; t < 40 * 40 && placed < World.MAX_WALLS + 2; t++) {

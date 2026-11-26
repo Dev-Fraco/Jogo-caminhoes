@@ -15,7 +15,7 @@ import java.util.Random;
  * Quando o bando todo cai, outro chega depois de um tempo.
  */
 final class Enemies {
-    static final int COUNT = 1;    // um só: alvo parado ao lado do cemitério, para ajustar a mira
+    static final int COUNT = 2;    // treinamento: dois bonecos
 
     final Array<Enemy> list = new Array<>();
     private final Model body;
@@ -29,37 +29,24 @@ final class Enemies {
     Enemies(World w, Model body, Model[] guns) {
         this.body = body;
         this.guns = guns;
-        spawnTarget(w);
     }
 
-    /** Põe o alvo parado: no chão, 5 m fora da cerca do cemitério, de frente para ele. */
-    void spawnTarget(World w) {
+    /** Modo treinamento: dois bonecos parados dentro do galpão, de frente para a entrada. */
+    void spawnDummies(World w) {
         list.clear();
-        float cx = w.hasCem ? w.cemX : 0f, cz = w.hasCem ? w.cemZ : 0f;
-        float[][] offs = {{World.CEM_HW + 5f, 0f}, {-(World.CEM_HW + 5f), 0f}, {0f, World.CEM_HD + 5f},
-                {0f, -(World.CEM_HD + 5f)}, {World.CEM_HW + 9f, 4f}};
-        float bx = cx + offs[0][0], bz = cz + offs[0][1];
-        for (float[] o : offs) {
-            if (!blocked(w, cx + o[0], cz + o[1])) { bx = cx + o[0]; bz = cz + o[1]; break; }
+        float px = w.trainX, pz = w.trainZ - 1.5f;   // onde o jogador nasce
+        float[][] pos = {{w.trainX - 2.2f, w.trainZ + 2f}, {w.trainX + 2.2f, w.trainZ + 2f}};
+        for (float[] p : pos) {
+            Enemy e = new Enemy(body, null, p[0], p[1], 0.3f);
+            e.dummy = true;
+            e.pos.y = w.groundAt(p[0], p[1]);
+            e.facing = MathUtils.atan2(px - p[0], pz - p[1]);
+            list.add(e);
         }
-        Enemy e = new Enemy(body, null, bx, bz, 0.3f);
-        e.dummy = true;
-        e.pos.y = w.groundAt(bx, bz);
-        e.facing = MathUtils.atan2(cx - bx, cz - bz);
-        list.add(e);
     }
 
-    /** Há algum obstáculo a menos de 1 m deste ponto? */
-    private static boolean blocked(World w, float x, float z) {
-        for (int i = 0; i < w.obstacles.size; i++) {
-            World.Obstacle o = w.obstacles.get(i);
-            if (Math.hypot(x - o.x, z - o.z) < o.radius + 1f) return true;
-        }
-        return false;
-    }
-
-    /** Partida nova: o alvo volta para o seu lugar. */
-    void reset(World w) { spawnTarget(w); }
+    /** Partida nova do battle royale: nenhum boneco no mundo. */
+    void clear() { list.clear(); }
 
     int alive() {
         int n = 0;

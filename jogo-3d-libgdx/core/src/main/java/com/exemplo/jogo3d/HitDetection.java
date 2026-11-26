@@ -14,6 +14,7 @@ import com.badlogic.gdx.math.Vector3;
 final class HitDetection {
     /** Resultado reutilizado (sem criar objetos a cada tiro). */
     static final class Result {
+        World.Obstacle obstacle;   // muro que parou o tiro (para o dano na parede), ou null
         Enemy enemy;
         WeaponConfig.Region region;
         int bone;            // cápsula atingida (diz qual membro)
@@ -35,11 +36,13 @@ final class HitDetection {
     Result shoot(Vector3 cam, Vector3 dir, Vector3 muzzle, float range, Enemies enemies, World w, Result out) {
         out.enemy = null;
         out.region = null;
+        out.obstacle = null;
         out.hitWorld = false;
         // começa na altura do personagem, ao longo do raio da câmera
         float skip = Math.max(0f, (muzzle.x - cam.x) * dir.x + (muzzle.y - cam.y) * dir.y + (muzzle.z - cam.z) * dir.z);
         start.set(cam).mulAdd(dir, skip);
         float tWorld = w.raycast(start, dir, range);
+        World.Obstacle firstHit = w.hitObstacle;
         out.surface = w.hitSurface;
         out.normal.set(w.hitNormal);
         Enemy e = enemies != null ? enemies.raycast(start, dir, tWorld, false, hit) : null;
@@ -50,6 +53,7 @@ final class HitDetection {
         } else {
             out.point.set(start).mulAdd(dir, tWorld);
             out.hitWorld = tWorld < range;
+            out.obstacle = out.hitWorld ? firstHit : null;
         }
         // Do cano até o ponto: parede no meio?
         toPoint.set(out.point).sub(muzzle);
@@ -61,6 +65,7 @@ final class HitDetection {
                 out.point.set(muzzle).mulAdd(toPoint, block);
                 out.hitWorld = true;
                 out.surface = w.hitSurface;   // a parede que o cano encontrou, não o alvo atrás dela
+                out.obstacle = w.hitObstacle;
                 out.normal.set(w.hitNormal);
                 e = null;
                 len = block;
@@ -68,6 +73,7 @@ final class HitDetection {
         }
         out.distance = len;
         if (e != null) {
+            out.obstacle = null;
             out.enemy = e;
             out.region = hit.region;
             out.bone = hit.bone;

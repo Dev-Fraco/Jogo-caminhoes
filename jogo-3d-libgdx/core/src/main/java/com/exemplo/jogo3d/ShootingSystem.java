@@ -135,6 +135,7 @@ final class ShootingSystem {
             float r = (float) Math.tan(Math.toRadians(spread * (float) Math.sqrt(MathUtils.random()))), a = MathUtils.random(MathUtils.PI2);
             shotDir.set(in.aim).mulAdd(side1, MathUtils.cos(a) * r).mulAdd(side2, MathUtils.sin(a) * r).nor();
             hitDetect.shoot(in.cam, shotDir, muzzle, c.range, enemies, world, res);
+            if (res.obstacle != null) world.damageObstacle(res.obstacle, c.damage);   // muro: a bala tira vida dele
             damage.register(c, res);
             if (p == 0 || c.pellets <= 3 || p % 3 == 0) fx.tracer(muzzle, res.point);
             if (res.hitWorld && shownImpacts < 4) {   // poucos efeitos por disparo (espingarda)

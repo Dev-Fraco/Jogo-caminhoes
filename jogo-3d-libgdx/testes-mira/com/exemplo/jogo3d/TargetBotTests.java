@@ -49,16 +49,11 @@ public class TargetBotTests extends ApplicationAdapter {
         w.create();
         Model jake = ModelIO.load("models/jake/jake.g3dj");
         Enemies en = new Enemies(w, jake, null);
-        check("só um alvo no mundo", en.list.size == 1 && Enemies.COUNT == 1, "" + en.list.size);
+        en.spawnDummies(w);
+        check("dois bonecos no treino", en.list.size == 2 && Enemies.COUNT == 2, "" + en.list.size);
         Enemy t = en.list.get(0);
-
-        // fica ao lado do cemitério, de frente para ele
-        float dc = (float) Math.hypot(t.pos.x - w.cemX, t.pos.z - w.cemZ);
-        check("alvo ao lado do cemitério (fora da cerca, perto)", w.hasCem && dc > World.CEM_HW && dc < World.CEM_HW + 12f,
-                String.format("%.1f m do centro do cemitério", dc));
-        float toCem = MathUtils.atan2(w.cemX - t.pos.x, w.cemZ - t.pos.z);
-        float dface = Math.abs(((t.facing - toCem) % MathUtils.PI2 + 3 * MathUtils.PI) % MathUtils.PI2 - MathUtils.PI);
-        check("alvo de frente para o cemitério", dface < 0.05f, String.format("erro %.3f rad", dface));
+        check("bonecos dentro do galpão", w.hasTrain && Math.abs(t.pos.x - w.trainX) < World.TR_HW
+                && Math.abs(t.pos.z - w.trainZ) < World.TR_HD && t.dummy && en.list.get(1).dummy, "");
 
         // parado: não anda nem atira, mesmo com o jogador perto
         PerspectiveCamera cam = new PerspectiveCamera(67, 1920, 1080);
