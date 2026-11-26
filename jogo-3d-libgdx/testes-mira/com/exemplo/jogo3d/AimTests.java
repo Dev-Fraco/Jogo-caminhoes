@@ -241,8 +241,14 @@ public class AimTests extends ApplicationAdapter {
         yaw += aa.dYaw;
         pitch += aa.dPitch;
         float e1 = errChest(ta);
-        check("apertar o tiro puxa a mira para o peito (80%)", e1 != 0f && Math.abs(e1) < Math.abs(e0) * 0.35f,
+        check("apertar o tiro sobe a mira em direção ao peito (assistência vertical 40%)", e1 != 0f && Math.abs(e1) < Math.abs(e0) * 0.7f,
                 String.format("erro %.3f -> %.3f rad", e0, e1));
+        // 1b. Desviada para o lado, a correção horizontal é pequena (assistência horizontal 10%)
+        aimAt(ta.hitbox.chest);
+        yaw += 0.03f;
+        aa.update(1f / 30f, cam, dir(), yaw, pitch, ta, fuzil, true, true, false);
+        check("assistência horizontal baixa: o puxão para o lado é pequeno", Math.abs(aa.dYaw) < 0.03f * 0.2f,
+                String.format("correção %.4f rad (desvio 0,030)", aa.dYaw));
         // 2. Sem apertar o tiro, nada muda
         aimAt(ta.hitbox.headCenter);
         aa.update(1f / 30f, cam, dir(), yaw, pitch, ta, fuzil, false, false, false);

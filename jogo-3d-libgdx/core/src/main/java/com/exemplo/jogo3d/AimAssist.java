@@ -22,8 +22,6 @@ final class AimAssist {
     float strengthNow;         // 0..1 (intensidade visual do indicador)
 
     private final Vector3 v = new Vector3();
-    /** Fração da correção lateral (para os lados) que sobra: 0,6 = 40% a menos de movimento lateral. */
-    static final float LATERAL = 0.6f;
     private float lastPitch;   // inclinação ao fim do último quadro (para saber o movimento do dedo)
     private boolean havePitch;
 
@@ -69,20 +67,20 @@ final class AimAssist {
 
         if (firePress) {
             // Instantânea: a mira vai para o peito na hora, na fração escolhida
-            dYaw += errYaw * AimSettings.chestPull * LATERAL;
-            dPitch += -errElev * AimSettings.chestPull;
+            dYaw += errYaw * AimSettings.horizAssist;
+            dPitch += -errElev * AimSettings.vertAssist;
         }
         // Enquanto segura: abaixo do peito, sobe até ele; acima, desconta parte do movimento para cima
         float k = Math.min(1f, 8f * dt);
         if (errElev > 0f) {
-            dPitch += -errElev * k * AimSettings.chestPull;        // abaixo do peito: crava nele
+            dPitch += -errElev * k * AimSettings.vertAssist;       // abaixo do peito: sobe até ele
         } else if (userDelta < 0f) {
             dPitch += -userDelta * AimSettings.upResist;           // o dedo subiu: a resistência devolve a maior parte
         }
-        dYaw += errYaw * k * AimSettings.chestPull * LATERAL;
+        dYaw += errYaw * k * AimSettings.horizAssist;
 
         active = true;
-        strengthNow = Math.max(strengthNow, 0.5f + 0.5f * AimSettings.chestPull);
+        strengthNow = Math.max(strengthNow, 0.5f + 0.5f * AimSettings.vertAssist);
         lastPitch = pitch + dPitch;
     }
 
