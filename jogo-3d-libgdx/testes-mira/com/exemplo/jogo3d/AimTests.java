@@ -120,7 +120,7 @@ public class AimTests extends ApplicationAdapter {
         HitDetection.Result r = shootAt(hb.headCenter, akm);
         check("tiro na cabeça → CABEÇA", r.enemy == e && r.region == WeaponConfig.Region.HEAD, "" + r.region);
         float dHead = akm.damageAt(r.region == null ? WeaponConfig.Region.TORSO : r.region, r.distance);
-        check("AKM: 30 no corpo vira 60 na cabeça", Math.abs(dHead - 60f) < 0.01f, "dano " + dHead);
+        check("AKM: 30 no corpo vira 72 na cabeça de perto (×2, +20% de perto)", Math.abs(dHead - 72f) < 0.01f, "dano " + dHead);
         r = shootAt(hb.chest, akm);
         check("tiro no peito → TRONCO", r.enemy == e && r.region == WeaponConfig.Region.TORSO, "" + r.region);
         Vector3 thigh = new Vector3(hb.a[8]).lerp(hb.b[8], 0.5f);
@@ -143,7 +143,7 @@ public class AimTests extends ApplicationAdapter {
         ds.register(akm, r);   // o mesmo resultado registrado 2× continua um inimigo só
         float before = e.health;
         ds.endShot(cam);
-        check("sobreposição: um disparo gera um dano só", before - e.health <= 60f && before - e.health > 0f,
+        check("sobreposição: um disparo gera um dano só", before - e.health <= 72f && before - e.health > 0f,
                 "tirou " + (before - e.health));
         e.health = Enemy.MAX_HEALTH;
         en.list.clear();

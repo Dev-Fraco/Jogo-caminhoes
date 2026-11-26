@@ -1,5 +1,7 @@
 package com.exemplo.jogo3d;
 
+import com.badlogic.gdx.math.MathUtils;
+
 /**
  * Configuração central das armas: todo dano, multiplicador, cadência, recuo e comportamento da
  * assistência de mira fica aqui (nada espalhado pelo código).
@@ -113,7 +115,11 @@ final class WeaponConfig {
     /** Dano de um acerto: base × região × queda com a distância. */
     float damageAt(Region r, float dist) {
         float fall = 1f;
-        if (dist > falloffStart) {
+        if (r == Region.HEAD || r == Region.TORSO) {
+            // Cabeça e peito: mais dano de perto (+20% até 10 m) e bem menos de longe (cai até 60% do mínimo)
+            float k = MathUtils.clamp((dist - 10f) / Math.max(1f, range - 10f), 0f, 1f);
+            fall = dist <= 10f ? 1.2f : 1.2f + (falloffMin * 0.6f - 1.2f) * k;
+        } else if (dist > falloffStart) {
             float k = Math.min(1f, (dist - falloffStart) / Math.max(1f, range - falloffStart));
             fall = 1f + (falloffMin - 1f) * k;
         }

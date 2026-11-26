@@ -291,7 +291,7 @@ public class ShootTests extends ApplicationAdapter {
         e1 = spawnEnemy(ax, az + 15f, MathUtils.PI, "Idle");
         events.clear();
         shootOnce(e1.hitbox.chest);
-        check("acerto no tronco: 30 de dano, a vida baixa", events.size() == 1 && events.get(0)[0] == 30f && e1.health == Enemy.MAX_HEALTH - 30f, events.isEmpty() ? "" : events.get(0)[0] + " dano");
+        check("acerto no tronco a 15 m: 35 de dano (peito cai pouco de longe), a vida baixa", events.size() == 1 && events.get(0)[0] == 35f && e1.health == Enemy.MAX_HEALTH - 35f, events.isEmpty() ? "" : events.get(0)[0] + " dano");
         check("o inimigo reage ao dano (recua e pisca)", e1.flinching() && e1.barT > 0f, "");
         boolean glow = e1.inst.materials.get(0).has(ColorAttribute.Emissive);
         check("o pano pisca vermelho", glow, "");
@@ -300,7 +300,10 @@ public class ShootTests extends ApplicationAdapter {
         check("a reação termina e o brilho some", !e1.flinching() && !e1.inst.materials.get(0).has(ColorAttribute.Emissive), "");
         events.clear();
         shootOnce(e1.hitbox.headCenter);
-        check("headshot: 60 de dano, marcado como cabeça", events.size() == 1 && events.get(0)[0] == 60f && events.get(0)[1] == 1f, events.isEmpty() ? "" : events.get(0)[0] + " dano");
+        check("headshot a 15 m: 70 de dano, marcado como cabeça", events.size() == 1 && events.get(0)[0] == 70f && events.get(0)[1] == 1f, events.isEmpty() ? "" : events.get(0)[0] + " dano");
+        // Inimigo novo com 30 de vida: um headshot a 15 m (70) mata e mostra a morte
+        e1 = spawnEnemy(ax, az + 15f, MathUtils.PI, "Idle");
+        e1.health = 30f;
         for (int i = 0; i < 12; i++) step(1f / 30f, false, false);
         events.clear();
         float hpBefore = e1.health;
