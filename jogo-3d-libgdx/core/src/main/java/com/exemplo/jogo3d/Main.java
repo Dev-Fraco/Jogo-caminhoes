@@ -67,6 +67,12 @@ public class Main extends ApplicationAdapter {
     private Riding mountTarget = null;            // montaria ao alcance (mostra o botão MONTAR)
     private HouseDecor doorTarget = null;         // porta ao alcance (mostra o botão da porta)
     private HouseDecor hammockTarget = null;      // rede ao alcance (mostra DEITAR)
+    private Cart cartTarget = null;               // carroça solta ao alcance (mostra PRENDER)
+    private Riding cartHorseTarget = null;        // cavalo que vai prender essa carroça
+    private Riding cartOptionsHorse = null;       // cavalo com carroça presa ao alcance (mostra as duas opções)
+    private Cart hitchCart = null;                // carroça sendo presa agora
+    private Riding hitchHorse = null;
+    private float hitchT = 0f;                    // tempo da animação de prender (s)
     private HouseDecor lyingIn = null;            // casa onde o personagem está deitado na rede
     private float camDist = CAMERA_DISTANCE;      // distância da câmera, suavizada
     private final Array<Riding> ridings = new Array<>();
@@ -208,6 +214,17 @@ public class Main extends ApplicationAdapter {
             r.update(dt, inX, inY, yaw, runPointer >= 0, jumpPressed, player, character);
             if (r.isMounted() || r.isBusy()) ridingActive = true;
         }
+        // Prender a carroça: a animação toca e, no fim, a carroça fica presa ao cavalo
+        if (hitchT > 0f) {
+            hitchT -= dt;
+            busy = true;
+            if (hitchT <= 0f) {
+                hitchHorse.attachCart(hitchCart);
+                hitchHorse = null;
+                hitchCart = null;
+                character.endOnce();
+            }
+        }
         boolean lying = lyingIn != null;
         if (!busy && !ridingActive && !lying) player.update(dt, inX, inY, yaw, jumpPressed, runToggle, world);
         if (lying) {
@@ -241,6 +258,31 @@ public class Main extends ApplicationAdapter {
             for (int i = 0; i < ridings.size && mountTarget == null; i++) {
                 if (ridings.get(i).canMount(player.pos)) mountTarget = ridings.get(i);
             }
+        }
+
+        // Carroça: prender uma carroça solta no cavalo, ou (com carroça presa) tirar ou sentar nela
+        cartTarget = null;
+        cartHorseTarget = null;
+        cartOptionsHorse = null;
+        if (prompt == null && doorTarget == null && hammockTarget == null && !busy && !ui && !ridingActive && !lying && hitchT <= 0f) {
+            for (int i = 0; i < ridings.size && cartOptionsHorse == null; i++) {
+                Riding r = ridings.get(i);
+                if (r.hasCart() && r.isNear(player.pos, 3.2f)) cartOptionsHorse = r;
+            }
+            if (cartOptionsHorse == null) {
+                for (int c = 0; c < world.carts.size && cartTarget == null; c++) {
+                    Cart ct = world.carts.get(c);
+                    if (ct.attached || Math.hypot(ct.pos.x - player.pos.x, ct.pos.z - player.pos.z) > 3.5) continue;
+                    for (int i = 0; i < ridings.size && cartTarget == null; i++) {
+                        Riding r = ridings.get(i);
+                        if (!r.hasCart() && !r.isMounted() && !r.isBusy() && r.distTo(ct.pos) < 6f) {
+                            cartTarget = ct;
+                            cartHorseTarget = r;
+                        }
+                    }
+                }
+            }
+            if (cartOptionsHorse != null || cartTarget != null) mountTarget = null;
         }
 
         // Direção da câmera (usada também para a câmera ficar atrás do jogador)
@@ -373,6 +415,18 @@ public class Main extends ApplicationAdapter {
                     // Levantar: animação de levantar e volta ao normal
                     lyingIn.lie = HouseDecor.Lie.GETTING_UP;
                     character.playOnce("GetUp");
+                } else if (cartOptionsHorse != null) {
+                    // Metade esquerda da caixa: tirar a carroça; metade direita: sentar nela
+                    if (x < W / 2f) cartOptionsHorse.detachCart();
+                    else cartOptionsHorse.sitCart(player);
+                    cartOptionsHorse = null;
+                } else if (cartTarget != null) {
+                    hitchCart = cartTarget;
+                    hitchHorse = cartHorseTarget;
+                    hitchT = 2.5f;
+                    character.playOnce("IdleKneel");
+                    cartTarget = null;
+                    cartHorseTarget = null;
                 } else if (mountTarget != null) {
                     mountTarget.startMount(player);
                     mountTarget = null;
@@ -409,8 +463,10 @@ public class Main extends ApplicationAdapter {
         hud.joyX = joyX;
         hud.joyY = joyY;
         boolean canGetUp = lyingIn != null && lyingIn.lie == HouseDecor.Lie.LYING;
-        hud.promptVisible = prompt != null || mountTarget != null || doorTarget != null || hammockTarget != null || canGetUp;
+        hud.promptVisible = prompt != null || mountTarget != null || doorTarget != null || hammockTarget != null || canGetUp || cartTarget != null || cartOptionsHorse != null;
         if (prompt != null) hud.promptText = prompt.label();
+        else if (cartOptionsHorse != null) hud.promptText = "TIRAR CARROÇA  |  SENTAR NA CARROÇA";
+        else if (cartTarget != null) hud.promptText = "PRENDER CARROÇA";
         else if (mountTarget != null) hud.promptText = "MONTAR";
         else if (doorTarget != null) hud.promptText = doorTarget.doorOpen() ? "FECHAR PORTA" : "ABRIR PORTA";
         else if (hammockTarget != null) hud.promptText = "DEITAR NA REDE";

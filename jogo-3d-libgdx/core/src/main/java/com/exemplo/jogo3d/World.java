@@ -65,6 +65,8 @@ public class World {
         House(Matrix4 t) { this.t = t; this.inv = new Matrix4(t).inv(); }
     }
     final Array<House> houses = new Array<>();
+    /** Carroças dos cercados (cada uma pode ser presa a um cavalo). */
+    final Array<Cart> carts = new Array<>();
     /** Cercados de arame farpado em volta das casas (com porteira). */
     final FenceSystem fences = new FenceSystem();
     private final Array<float[]> enclosureCenters = new Array<>();
@@ -673,7 +675,9 @@ public class World {
         ModelInstance cart = new ModelInstance(cartModel);
         cart.transform.setToTranslation(c.x, heightAt(c.x, c.z), c.z).rotate(Vector3.Y, yaw);
         instances.add(cart);
-        obstacles.add(new Obstacle(c.x, c.z, 1.5f, heightAt(c.x, c.z), 1.8f));
+        Obstacle cobs = new Obstacle(c.x, c.z, 1.5f, heightAt(c.x, c.z), 1.8f);
+        obstacles.add(cobs);
+        carts.add(new Cart(cart, cobs, new Vector3(c.x, heightAt(c.x, c.z), c.z)));
 
         // Cavalo em só algumas casas (3ª, 6ª e 8ª), parado dentro do cercado
         if (houses.size == 3 || houses.size == 6 || houses.size == 8) {

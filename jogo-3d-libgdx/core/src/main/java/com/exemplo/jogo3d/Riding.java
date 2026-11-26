@@ -201,7 +201,7 @@ public class Riding {
                 mountUpdate(dt, player, ch);
                 break;
             case MOUNTED:
-                if (jumpPressed) startDismount(player, ch);
+                if (jumpPressed) { if (driving) dismountCart(player, ch); else startDismount(player, ch); }
                 else rideUpdate(dt, inX, inY, camYaw, run, player, ch);
                 break;
             case DISMOUNTING:
@@ -209,6 +209,7 @@ public class Riding {
                 break;
         }
         m.anim.update(dt);
+        updateCart();
     }
 
     // ---------- Montar ----------
@@ -282,12 +283,75 @@ public class Riding {
         }
         placeAnimal();
         updateReins();
-        Vector3 seat = seatRoot();
+        updateCart();
+        Vector3 seat = driving ? cartSeat() : seatRoot();
         setPlayer(player, seat.x, seat.y, seat.z, true);
         player.speed = 0f;
         player.facing = m.facing;
         ch.setSitting(true);
         ch.setCrouch(0f);
+    }
+
+    // ---------- Carroça ----------
+
+    private Cart cart;
+    private boolean driving = false;   // o cavaleiro está sentado na carroça e conduz o cavalo
+
+    boolean hasCart() { return cart != null; }
+
+    boolean isNear(Vector3 p, float r) { return distTo(p) < r; }
+
+    float distTo(Vector3 p) {
+        float dx = p.x - m.pos.x, dz = p.z - m.pos.z;
+        return (float) Math.sqrt(dx * dx + dz * dz);
+    }
+
+    /** Prende a carroça atrás do cavalo: ela passa a seguir o cavalo. */
+    void attachCart(Cart c) {
+        cart = c;
+        c.attached = true;
+        world.obstacles.removeValue(c.obstacle, true);
+        updateCart();
+    }
+
+    /** Solta a carroça onde ela está (atrás do cavalo). */
+    void detachCart() {
+        if (cart == null) return;
+        cart.attached = false;
+        cart.obstacle = new World.Obstacle(cart.pos.x, cart.pos.z, 1.5f, cart.pos.y, 1.8f);
+        world.obstacles.add(cart.obstacle);
+        cart = null;
+    }
+
+    /** Sobe na carroça: o cavaleiro controla o cavalo, que puxa a carroça. */
+    void sitCart(Player p) {
+        if (cart == null || state != St.FREE) return;
+        driving = true;
+        state = St.MOUNTED;
+    }
+
+    private void dismountCart(Player player, Character ch) {
+        driving = false;
+        state = St.FREE;
+        Vector3 side = tmp2.set(1.8f, 0f, 0f).mul(cart.inst.transform);
+        setPlayer(player, side.x, world.heightAt(side.x, side.z), side.z, true);
+        player.speed = 0f;
+        ch.setSitting(false);
+        ch.setCrouch(0f);
+    }
+
+    /** Carroça presa: fica 3,4 m atrás do cavalo, com a mesma direção. */
+    private void updateCart() {
+        if (cart == null) return;
+        Vector3 p = tmp2.set(0f, 0f, -3.4f).mul(m.inst.transform);
+        float y = world.heightAt(p.x, p.z);
+        cart.inst.transform.setToTranslation(p.x, y, p.z).rotate(Vector3.Y, m.facing * MathUtils.radiansToDegrees);
+        cart.pos.set(p.x, y, p.z);
+    }
+
+    /** Lugar do cavaleiro na carroça (o banco). */
+    private Vector3 cartSeat() {
+        return new Vector3(0f, 0.9f, 0.2f).mul(cart.inst.transform);
     }
 
     // ---------- Rédeas ----------
