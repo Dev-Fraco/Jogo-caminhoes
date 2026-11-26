@@ -10,6 +10,7 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g3d.Environment;
+import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelBatch;
 import com.badlogic.gdx.graphics.g3d.shaders.DefaultShader;
 import com.badlogic.gdx.graphics.g3d.utils.DefaultShaderProvider;
@@ -131,6 +132,12 @@ public class Main extends ApplicationAdapter {
     private final TouchFire touchFire = new TouchFire();
     private final Camp camp = new Camp();
     private Scope scope;                          // luneta do fuzil de precisão
+    private Model mannequin;                      // boneco de treino (carregado só quando precisa)
+
+    private Model mannequin() {
+        if (mannequin == null) mannequin = ModelIO.load("models/mannequin.g3dj");
+        return mannequin;
+    }
     private boolean adsOn = false;                // mirando (botão de mira)
     private boolean combat = false;               // armado e no chão: câmera por cima do ombro
     private boolean overEnemy = false;
@@ -1184,7 +1191,7 @@ public class Main extends ApplicationAdapter {
         mapUi = training ? null : new MapUi(world);
         places = training ? null : new Places(world);
         enemies = character.model() != null
-                ? new Enemies(world, character.model(), world.weapons != null ? world.weapons.models() : null) : null;
+                ? new Enemies(world, character.model(), world.weapons != null ? world.weapons.models() : null, mannequin()) : null;
         if (grenades != null) grenades.enemies = enemies;
         if (world.weapons != null) {
             if (shooting != null) shooting.dispose();   // sons do sistema de tiro anterior
@@ -1597,6 +1604,7 @@ public class Main extends ApplicationAdapter {
     public void dispose() {
         modelBatch.dispose();
         if (scope != null) scope.dispose();
+        if (mannequin != null) mannequin.dispose();
         world.dispose();
         if (chute != null) chute.dispose();
         if (grenades != null) grenades.dispose();

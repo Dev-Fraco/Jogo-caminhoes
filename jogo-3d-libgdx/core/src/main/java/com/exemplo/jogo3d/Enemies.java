@@ -18,6 +18,7 @@ final class Enemies {
     static final int COUNT = 2;    // treinamento: dois bonecos
 
     final Array<Enemy> list = new Array<>();
+    private final Model dummyModel;   // boneco de treino (Mannequin); null = usa o modelo do personagem
     private final Model body;
     private final Model[] guns;
     private final Random rnd = new Random(1915);
@@ -27,15 +28,20 @@ final class Enemies {
     final Array<Vector3[]> shots = new Array<>();
 
     Enemies(World w, Model body, Model[] guns) {
+        this(w, body, guns, null);
+    }
+
+    Enemies(World w, Model body, Model[] guns, Model dummyModel) {
         this.body = body;
         this.guns = guns;
+        this.dummyModel = dummyModel;
     }
 
     /** Modo treinamento: dois bonecos parados no fundo do galpão, de frente para a porta. */
     void spawnDummies(World w) {
         list.clear();
         for (float x : new float[]{-3.5f, 3.5f}) {
-            Enemy e = new Enemy(body, null, x, World.TRAIN_DUMMY_Z, 0.3f);
+            Enemy e = new Enemy(dummyModel != null ? dummyModel : body, null, x, World.TRAIN_DUMMY_Z, 0.3f);
             e.dummy = true;
             e.pos.y = w.groundAt(x, World.TRAIN_DUMMY_Z);
             e.facing = MathUtils.atan2(World.TRAIN_PLAYER_X - x, World.TRAIN_PLAYER_Z - World.TRAIN_DUMMY_Z);

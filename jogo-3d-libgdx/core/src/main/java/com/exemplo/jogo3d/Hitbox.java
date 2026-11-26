@@ -34,6 +34,7 @@ final class Hitbox {
             WeaponConfig.Region.HEAD};
     private static final float HEAD_TOP = 0.20f;   // do osso Head até o topo do crânio (m)
 
+
     private final ModelInstance inst;
     private final Node[] na = new Node[N], nb = new Node[N];
     private final Node head, neck1;

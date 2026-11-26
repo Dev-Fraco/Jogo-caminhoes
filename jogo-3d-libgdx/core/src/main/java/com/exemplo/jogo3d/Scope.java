@@ -20,7 +20,7 @@ import com.badlogic.gdx.math.Matrix4;
  */
 final class Scope {
     static final float NORMAL_FOV = 67f;   // campo de visão normal da câmera
-    static final float ZOOM_FOV = 16f;     // campo de visão da lente (zoom forte, ~5x)
+    static final float ZOOM_FOV = (float) (2.0 * Math.toDegrees(Math.atan(Math.tan(Math.toRadians(NORMAL_FOV / 2.0)) / 6.0)));   // lente: zoom de 6x
 
     // Medidas da imagem da moldura (px): centro do anel, raio externo do anel e raio da lente
     private static final float IMG_W = 1536f, IMG_H = 1024f, CX = 765f, CY = 511f, RING_R = 503f, LENS_R = 391f;
