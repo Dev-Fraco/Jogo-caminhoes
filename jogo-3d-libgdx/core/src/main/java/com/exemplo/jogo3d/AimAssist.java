@@ -9,8 +9,8 @@ import com.badlogic.gdx.math.Vector3;
  * - Ao apertar para atirar, se o alvo estiver dentro do FOV, a mira vai na hora para o PEITO
  *   (fração "Atração ao peito" do caminho). O jogador é quem arrasta para cima até a cabeça.
  * - Enquanto segura o tiro: se a mira ficou abaixo do peito, sobe até ele; se subiu acima dele,
- *   a "Resistência para cima" desconta essa fração do movimento do dedo para cima (subir continua
- *   possível, só fica mais pesado; 0% = livre, 100% = não passa do peito).
+ *   a "Resistência para cima" (80% por padrão) devolve essa fração do movimento do dedo para cima:
+ *   subir 10% vira 8% para baixo, de volta ao peito. 0% = livre, 100% = não sai do peito.
  * - Nunca sobe sozinha para a cabeça.
  *
  * A assistência só soma correções à câmera (dYaw, dPitch); a sensibilidade do jogador não muda.

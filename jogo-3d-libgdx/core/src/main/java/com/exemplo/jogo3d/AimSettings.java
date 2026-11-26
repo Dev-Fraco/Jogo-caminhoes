@@ -9,7 +9,7 @@ import com.badlogic.gdx.math.MathUtils;
  * hora, sem reiniciar. Os valores padrão foram escolhidos para os primeiros testes.
  */
 final class AimSettings {
-    static final String PREFS = "aim_settings_v2";   // v2: os controles de assistência mudaram (porcentagens)
+    static final String PREFS = "aim_settings_v3";   // v3: resistência para cima padrão 80%
 
     static float general = 1.0f;       // sensibilidade geral
     static float horizontal = 1.0f;    // multiplica o giro para os lados
@@ -18,7 +18,7 @@ final class AimSettings {
     static boolean assistOn = true;
     static float chestPull = 0.8f;        // 0..1: atração instantânea ao peito quando aperta o tiro (e segura)
     static float fovPct = 0.4f;           // 0..1: raio do FOV do aim assist (2° a 15°)
-    static float upResist = 0.35f;        // 0..1: resistência a subir a mira em direção à cabeça
+    static float upResist = 0.8f;         // 0..1: fração do movimento para cima que volta para o peito (80%: sobe 10%, volta 8%)
     static float smoothing = 0.35f;       // 0 = cru, 1 = bem suavizado
     static final float[] category = {1f, 1f, 1f, 1f, 1f, 0.8f};   // por categoria (ordem do enum)
 
@@ -101,7 +101,7 @@ final class AimSettings {
 
     static void reset() {
         general = 1f; horizontal = 1f; vertical = 0.85f; ads = 0.6f; assistOn = true;
-        chestPull = 0.8f; fovPct = 0.4f; upResist = 0.35f; smoothing = 0.35f;
+        chestPull = 0.8f; fovPct = 0.4f; upResist = 0.8f; smoothing = 0.35f;
         for (int i = 0; i < category.length; i++) category[i] = i == 5 ? 0.8f : 1f;
     }
 }
