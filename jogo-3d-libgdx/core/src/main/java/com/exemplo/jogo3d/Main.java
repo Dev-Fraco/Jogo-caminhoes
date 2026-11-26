@@ -98,7 +98,6 @@ public class Main extends ApplicationAdapter {
     private com.badlogic.gdx.audio.Sound windSound;      // vento da queda (loop), com e sem paraquedas
     private long windSoundId = -1;
     private float windVol = 0f;
-    private boolean drinkTarget = false;          // perto do poço (mostra BEBER ÁGUA)
     private int prone = 0;                        // deitado no chão: 0 não, 1 deitando/deitado, 2 levantando
     // Combate: inimigos, mira, assistência, tiro e dano
     private Enemies enemies;
@@ -426,7 +425,7 @@ public class Main extends ApplicationAdapter {
             boolean moved = player.speed > 0.7f || jumpPressed || !player.grounded || ridingActive || skydiving || parachuting;
             survival.restBonus = camp.warmth(player.pos) + (lyingIn != null && lyingIn.lie == HouseDecor.Lie.LYING ? 3f : 0f);
             int done = survival.update(dt, moved);
-            if (done >= 0 && done != Survival.DRINK && world.items != null) world.items.consume(done);
+            if (done >= 0 && world.items != null) world.items.consume(done);
             player.speedMul = survival.speedMul();
         }
         boolean kneelUse = survival != null && survival.usingStill();
@@ -608,9 +607,6 @@ public class Main extends ApplicationAdapter {
             itemTarget = world.items.nearest(player.pos);
             if (itemTarget != null) mountTarget = null;
         }
-        drinkTarget = !busy && !ui && !ridingActive && !lying && prompt == null && doorTarget == null && itemTarget == null
-                && weaponTarget == null && survival != null && survival.water < 98f && survival.using != Survival.DRINK
-                && world.nearWater(player.pos);
 
         // Direção da câmera (usada também para a câmera ficar atrás do jogador)
         Vector3 forward = new Vector3(MathUtils.sin(yaw), 0f, MathUtils.cos(yaw));
@@ -912,10 +908,6 @@ public class Main extends ApplicationAdapter {
                     startSkydive();
                     return;
                 }
-                if (drinkTarget) {
-                    if (survival.canUse(Survival.DRINK)) survival.start(Survival.DRINK);
-                    return;
-                }
                 if (prompt != null) {
                     world.fences.startOperation(prompt, player);
                     prompt = null;
@@ -981,7 +973,7 @@ public class Main extends ApplicationAdapter {
         hud.joyY = joyY;
         boolean canGetUp = lyingIn != null && lyingIn.lie == HouseDecor.Lie.LYING;
         boolean dead = survival != null && survival.dead;
-        hud.show("abrir", !dead && (inPlane || drinkTarget || prompt != null || mountTarget != null || doorTarget != null
+        hud.show("abrir", !dead && (inPlane || prompt != null || mountTarget != null || doorTarget != null
                 || hammockTarget != null || canGetUp || cartTarget != null || cartOptionsHorse != null));
         hud.show("coletar", !dead && itemTarget != null);
         hud.show("trocar", !dead && world.weapons != null && world.weapons.hasWeapon());
@@ -996,7 +988,6 @@ public class Main extends ApplicationAdapter {
         hud.show("usar_kit", !dead && world.items != null && survival != null && survival.health < 75f && survival.using < 0
                 && (world.items.bag[Survival.MEDKIT] > 0 || world.items.bag[Survival.BANDAGEM] > 0));
         if (inPlane) hud.promptText = "SALTAR DO AVIÃO";
-        else if (drinkTarget) hud.promptText = "BEBER ÁGUA";
         else if (prompt != null) hud.promptText = prompt.label();
         else if (cartOptionsHorse != null) hud.promptText = "TIRAR CARROÇA  |  SENTAR NA CARROÇA";
         else if (cartTarget != null) hud.promptText = "PRENDER CARROÇA";
@@ -1152,10 +1143,6 @@ public class Main extends ApplicationAdapter {
 
     private void tryUse(int t) {
         if (world.items.bag[t] <= 0) { survival.say("SEM " + Items.NAMES[t]); return; }
-        if (t == Items.FRUTA) {   // comer
-            if (survival.eat()) world.items.consume(t);
-            return;
-        }
         if (t == Items.LENHA) {   // acender uma fogueira aqui
             if (camp.light(player.pos, world)) world.items.consume(t);
             else survival.say("JÁ TEM 3 FOGUEIRAS");

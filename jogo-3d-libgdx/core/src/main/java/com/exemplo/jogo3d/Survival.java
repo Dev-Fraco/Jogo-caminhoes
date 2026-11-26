@@ -5,39 +5,35 @@ import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.math.MathUtils;
 
 /**
- * Vida, energia (boost) e água do jogador, e o uso dos itens de cura.
+ * Vida e energia (boost) do jogador, e o uso dos itens de cura.
  *
  * Cura: bandagem (4 s, +15 até 75%) e kit médico (8 s, enche a vida) — o personagem se abaixa e,
- * se andar, correr ou pular, cancela. Energia: analgésico (+60), injeção (+100) e energético (+40 e
- * mata um pouco a sede) — dá para usar andando. Com energia, a vida volta devagar e, acima de 60%,
- * corre um pouco mais. Água: a sede vem com o tempo; com a água no fim, perde vida. Bebe no poço.
+ * se andar, correr ou pular, cancela. Energia: analgésico (+60), injeção (+100) e energético (+40) —
+ * dá para usar andando. Com energia, a vida volta devagar e, acima de 60%, corre um pouco mais.
+ * Descansar (fogueira, rede) recupera vida.
  */
 final class Survival {
     static final int MEDKIT = 0, BANDAGEM = 1, ANALGESICO = 2, INJECAO = 3, ENERGETICO = 4;
-    static final int DRINK = 100;   // beber água no poço
 
-    float health = 100f, boost = 0f, water = 100f;
-    int using = -1;           // item em uso (ou DRINK), -1 = nada
+    float health = 100f, boost = 0f;
+    int using = -1;           // item em uso, -1 = nada
     float useT, useDur;
     boolean dead = false;
     float deadT = 0f;
     float stun = 0f;          // clarão da granada atordoante (0..1 da tela branca)
-    float hurt = 0f;
+    float hurt = 0f;          // vermelho de dano na tela
     float shake = 0f;         // tremor da câmera ao levar tiro (m)
-    float hunger = 100f;      // fome (100 = cheio); zerada, tira vida
-    float restBonus = 0f;     // vida por segundo de descanso (fogueira, rede)          // vermelho de dano na tela
+    float restBonus = 0f;     // vida por segundo de descanso (fogueira, rede)
     String message = null;    // aviso curto (ex.: "VIDA JÁ ESTÁ CHEIA")
     float messageT = 0f;
 
-    private static Sound healSound, drinkSound;
+    private static Sound healSound;
 
     Survival() {
         try {
             healSound = Gdx.audio.newSound(Gdx.files.internal("audio/curativo.wav"));
-            drinkSound = Gdx.audio.newSound(Gdx.files.internal("audio/gole.wav"));
         } catch (Throwable t) {
             healSound = null;
-            drinkSound = null;
         }
     }
 
@@ -51,7 +47,6 @@ final class Survival {
             case ANALGESICO: return 6f;
             case INJECAO: return 6f;
             case ENERGETICO: return 4f;
-            case DRINK: return 2.2f;
             default: return 1f;
         }
     }
@@ -64,7 +59,7 @@ final class Survival {
         }
         if (type == BANDAGEM && health >= 75f) { say("BANDAGEM SÓ CURA ATÉ 75%"); return false; }
         if (type == MEDKIT && health >= 100f) { say("VIDA JÁ ESTÁ CHEIA"); return false; }
-        if (isBoost(type) && boost >= 100f && !(type == ENERGETICO && water < 90f)) { say("ENERGIA JÁ ESTÁ CHEIA"); return false; }
+        if (isBoost(type) && boost >= 100f) { say("ENERGIA JÁ ESTÁ CHEIA"); return false; }
         return using != type;
     }
 
@@ -72,8 +67,7 @@ final class Survival {
         using = type;
         useT = 0f;
         useDur = duration(type);
-        Sound s = type == DRINK ? drinkSound : healSound;
-        if (s != null) s.play(0.7f);
+        if (healSound != null) healSound.play(0.7f);
     }
 
     void cancel() {
@@ -81,14 +75,14 @@ final class Survival {
         using = -1;
     }
 
-    /** Uso em andamento que exige ficar parado (cura e beber). */
-    boolean usingStill() { return using >= 0 && (isHeal(using) || using == DRINK); }
+    /** Uso em andamento que exige ficar parado (cura). */
+    boolean usingStill() { return using >= 0 && isHeal(using); }
 
     float progress() { return using < 0 ? 0f : MathUtils.clamp(useT / useDur, 0f, 1f); }
 
     /**
      * Um quadro. Devolve o item que acabou de ser usado (para tirar da mochila), ou -1.
-     * moving = o jogador andou/correu/pulou (cancela cura e bebida).
+     * moving = o jogador andou/correu/pulou (cancela a cura).
      */
     int update(float dt, boolean moving) {
         if (messageT > 0f) messageT -= dt;
@@ -98,18 +92,11 @@ final class Survival {
             deadT += dt;
             return -1;
         }
-        // Sede e energia passam com o tempo
-        water = Math.max(0f, water - dt * 100f / 600f);      // 10 min para secar
-        if (water <= 0f) damage(dt * 0.6f, false);
         if (boost > 0f) {
             boost = Math.max(0f, boost - dt * 100f / 200f);  // ~3 min e meio de energia cheia
             health = Math.min(100f, health + dt * (boost > 60f ? 1.0f : 0.5f));
         }
-
-        // Fome: cai devagar (~15 min para zerar); zerada, tira vida. Descansar recupera vida se não estiver com fome
-        hunger = Math.max(0f, hunger - dt * 100f / 900f);
-        if (hunger <= 0f) damage(dt * 0.5f, false);
-        else if (restBonus > 0f && hunger > 10f) health = Math.min(100f, health + dt * restBonus);
+        if (restBonus > 0f) health = Math.min(100f, health + dt * restBonus);
 
         int done = -1;
         if (using >= 0) {
@@ -133,8 +120,7 @@ final class Survival {
             case BANDAGEM: health = Math.max(health, Math.min(75f, health + 15f)); break;
             case ANALGESICO: boost = Math.min(100f, boost + 60f); break;
             case INJECAO: boost = 100f; break;
-            case ENERGETICO: boost = Math.min(100f, boost + 40f); water = Math.min(100f, water + 25f); break;
-            case DRINK: water = 100f; break;
+            case ENERGETICO: boost = Math.min(100f, boost + 40f); break;
             default: break;
         }
     }
@@ -144,7 +130,7 @@ final class Survival {
 
     void damage(float amount, boolean flash) {
         if (dead) return;
-        if (flash) shake = Math.min(0.12f, shake + 0.02f + amount * 0.002f);   // tremor da câmera (tiro, não gás)
+        if (flash) shake = Math.min(0.12f, shake + 0.02f + amount * 0.002f);   // tremor da câmera (tiro)
         health -= amount;
         if (flash) hurt = Math.min(0.8f, hurt + 0.3f + amount / 100f);
         if (health <= 0f) {
@@ -153,17 +139,6 @@ final class Survival {
             deadT = 0f;
             using = -1;
         }
-    }
-
-    /** Come a fruta do xique-xique: a fome cai bem menos. */
-    boolean eat() {
-        if (hunger >= 100f) {
-            say("JÁ ESTÁ SATISFEITO");
-            return false;
-        }
-        hunger = Math.min(100f, hunger + 35f);
-        say("COMEU A FRUTA");
-        return true;
     }
 
     void say(String m) {
@@ -175,7 +150,6 @@ final class Survival {
     void reset() {
         health = 100f;
         boost = 0f;
-        water = 100f;
         using = -1;
         dead = false;
         deadT = 0f;
@@ -184,11 +158,10 @@ final class Survival {
     }
 
     static String verb(int type) {
-        return type == DRINK ? "BEBENDO ÁGUA" : "USANDO " + Items.NAMES[type];
+        return "USANDO " + Items.NAMES[type];
     }
 
     void dispose() {
         if (healSound != null) healSound.dispose();
-        if (drinkSound != null) drinkSound.dispose();
     }
 }

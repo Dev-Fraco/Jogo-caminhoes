@@ -9,7 +9,7 @@ import com.badlogic.gdx.math.Vector3;
 
 import java.lang.reflect.Proxy;
 
-/** Sobrevivência básica: fome, comer, descanso, fogueiras e os novos itens no mundo. */
+/** Sobrevivência básica: descanso, fogueiras, lenha e currais (sem fome nem sede). */
 public class SurvivalTests extends ApplicationAdapter {
     static int pass = 0, fail = 0;
 
@@ -39,29 +39,12 @@ public class SurvivalTests extends ApplicationAdapter {
     }
 
     void run() {
-        System.out.println("== Fome ==");
-        Survival s = new Survival();
-        for (int i = 0; i < 450; i++) s.update(1f, false);
-        check("a fome cai 100 em 15 min (metade depois de 7,5 min)", Math.abs(s.hunger - 50f) < 1f, String.format("%.1f", s.hunger));
-        s.hunger = 20f;
-        check("comer a fruta restaura a fome", s.eat() && Math.abs(s.hunger - 55f) < 0.01f, String.format("%.1f", s.hunger));
-        s.hunger = 100f;
-        check("sem fome, a fruta não é gasta", !s.eat(), "");
-        s.hunger = 0f;
-        float h0 = s.health;
-        for (int i = 0; i < 10; i++) s.update(1f, false);
-        check("com fome zerada, a vida cai", s.health < h0, String.format("%.1f → %.1f", h0, s.health));
-
         System.out.println("== Descanso ==");
         Survival r = new Survival();
         r.health = 50f;
         r.restBonus = 2f;
         for (int i = 0; i < 5; i++) r.update(1f, false);
         check("descansando (rede/fogueira) a vida sobe", r.health > 55f, String.format("%.1f", r.health));
-        r.hunger = 5f;
-        float h1 = r.health;
-        for (int i = 0; i < 5; i++) r.update(1f, false);
-        check("com muita fome não recupera ao descansar", r.health <= h1 + 0.01f, String.format("%.1f", r.health));
 
         System.out.println("== Fogueiras e itens no mundo ==");
         World w = new World();
@@ -73,13 +56,9 @@ public class SurvivalTests extends ApplicationAdapter {
         check("não acende a 4ª (máximo 3)", !c.light(new Vector3(100f, 0f, 10f), w) && c.count() == 3, "" + c.count());
         check("aquece perto da fogueira", c.warmth(new Vector3(11f, 0f, 11f)) > 0f, "");
         check("não aquece longe das fogueiras", c.warmth(new Vector3(-200f, 0f, -200f)) == 0f, "");
-        int lenha = 0, fruta = 0;
-        for (int i = 0; i < w.items.ground.size; i++) {
-            int t = w.items.ground.get(i).type;
-            if (t == Items.LENHA) lenha++;
-            if (t == Items.FRUTA) fruta++;
-        }
-        check("lenha e frutas do xique-xique espalhadas no mapa", lenha >= 30 && fruta >= 30, "lenha " + lenha + ", frutas " + fruta);
+        int lenha = 0;
+        for (int i = 0; i < w.items.ground.size; i++) if (w.items.ground.get(i).type == Items.LENHA) lenha++;
+        check("lenha espalhada no mapa", lenha >= 30, "lenha " + lenha);
         System.out.println("== Currais e cercas ==");
         check("um curral em cada fazenda", w.corralCount == Regions.FARM_X.length, "" + w.corralCount);
         check("25 trechos de cerca por curral", w.corralFenceCount == 25 * w.corralCount, "" + w.corralFenceCount);
@@ -93,7 +72,7 @@ public class SurvivalTests extends ApplicationAdapter {
         com.badlogic.gdx.math.Vector3 g2 = new com.badlogic.gdx.math.Vector3(gate);
         w.resolveCollisions(g2, 0.35f);
         check("a porteira deixa passar (lado sul)", g2.dst(gate) < 0.05f, String.format("empurrado %.2f m", g2.dst(gate)));
-        check("os itens têm nome", Items.NAMES[Items.LENHA].equals("LENHA") && Items.NAMES[Items.FRUTA].startsWith("FRUTA"), "");
+        check("os itens têm nome", Items.NAMES[Items.LENHA].equals("LENHA"), "");
     }
 
     public static void main(String[] args) {

@@ -26,10 +26,10 @@ import java.util.Random;
  */
 final class Items {
     static final String[] NAMES = {"KIT MÉDICO", "BANDAGEM", "ANALGÉSICO", "INJEÇÃO", "ENERGÉTICO",
-            "GRANADA", "GRANADA DE FUMAÇA", "GRANADA ATORDOANTE", "MOCHILA", "LENHA", "FRUTA DO XIQUE-XIQUE"};
+            "GRANADA", "GRANADA DE FUMAÇA", "GRANADA ATORDOANTE", "MOCHILA", "LENHA"};
     private static final String[] FILES = {"medkit", "bandagem", "analgesico", "injecao", "energetico",
-            "granada", "granada_fumaca", "granada_atordoante", "mochila", "lenha", "xique_fruta"};
-    static final int LENHA = 9, FRUTA = 10;   // sobrevivência: pegam do chão, viram fogueira e comida
+            "granada", "granada_fumaca", "granada_atordoante", "mochila", "lenha"};
+    static final int LENHA = 9;   // sobrevivência: pega do chão e vira fogueira
     private static final float PICK_RANGE = 1.6f;
 
     static final class Pickup {
@@ -54,8 +54,7 @@ final class Items {
 
     Items() {
         for (int i = 0; i < FILES.length; i++) {
-            models[i] = i == LENHA ? Props.lenha() : i == FRUTA ? Props.fruta()
-                    : ModelIO.load("models/itens/" + FILES[i] + ".g3dj");
+            models[i] = i == LENHA ? Props.lenha() : ModelIO.load("models/itens/" + FILES[i] + ".g3dj");
         }
     }
 
@@ -73,15 +72,11 @@ final class Items {
         return 8;
     }
 
-    /** Lenha e frutas do xique-xique espalhadas pelo sertão (no lugar aberto, como os demais). */
+    /** Lenha espalhada pelo sertão (no lugar aberto, como os demais). */
     void scatterSurvival(World w, Random rnd) {
         for (int i = 0; i < 40; i++) {
             float[] p = w.openSpot(rnd);
             drop(w, LENHA, p[0], p[1], rnd);
-        }
-        for (int i = 0; i < 40; i++) {
-            float[] p = w.openSpot(rnd);
-            drop(w, FRUTA, p[0], p[1], rnd);
         }
     }
 

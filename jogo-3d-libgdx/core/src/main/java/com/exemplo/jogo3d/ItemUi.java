@@ -86,12 +86,6 @@ final class ItemUi {
                 if (xf > bx0 + 1f) shapes.rect(bx0 + pad, y1 - pad * 3f, xf - bx0 - 2f * pad, pad * 1.5f);
             }
         }
-        // Água: filete azul-claro embaixo do painel
-        float wy = sr[1] - sr[3] * 0.09f, wh = sr[3] * 0.07f;
-        shapes.setColor(0.10f, 0.07f, 0.05f, 0.85f);
-        shapes.rect(bx0, wy, bx1 - bx0, wh);
-        shapes.setColor(water(sv) ? 0.95f : 0.45f, water(sv) ? 0.3f : 0.78f, water(sv) ? 0.2f : 1f, 1f);
-        shapes.rect(bx0, wy, (bx1 - bx0) * MathUtils.clamp(sv.water / 100f, 0f, 1f), wh);
         // Espaço com item em uso ou granada na mira: brilho
         for (int s = 0; s < 3; s++) {
             int t = current(s, items);
@@ -113,8 +107,6 @@ final class ItemUi {
         float tx = sr[0] + sr[2] * TEXT_X;
         font.draw(batch, hp, tx, sr[1] + sr[3] * 0.684f + layout.height / 2f);
         font.draw(batch, ep, tx, sr[1] + sr[3] * 0.337f + layout.height / 2f);
-        font.setColor(1f, 0.9f, 0.7f, 1f);
-        font.draw(batch, "FOME " + Math.round(sv.hunger), tx, sr[1] + sr[3] * 0.12f + layout.height / 2f);
         // Quantidade na bolinha de cada espaço e o nome do item escolhido ao lado
         for (int s = 0; s < 3; s++) {
             int t = current(s, items);
@@ -214,7 +206,6 @@ final class ItemUi {
     }
 
     /** Água no fim: o filete fica vermelho. */
-    private static boolean water(Survival sv) { return sv.water < 15f; }
 
     private void drawPanel(SpriteBatch batch, ShapeRenderer shapes, BitmapFont font, Items items, int W, int H) {
         float ph = H * 0.78f, pw = Math.min(W * 0.8f, ph * 1.35f), px = (W - pw) / 2f, py = (H - ph) / 2f;
