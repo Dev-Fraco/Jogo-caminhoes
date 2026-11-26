@@ -63,8 +63,8 @@ final class AimSettingsUi {
             layout.setText(font, v);
             font.setColor(1f, 0.8f, 0.35f, 1f);
             font.draw(batch, v, m[0] - layout.width - pad * 0.6f, m[1] + m[3] * 0.65f);
-            label(batch, font, minus[i], i == 4 ? "<" : "−");
-            label(batch, font, plus[i], i == 4 ? ">" : "+");
+            label(batch, font, minus[i], i == 3 ? "<" : "−");
+            label(batch, font, plus[i], i == 3 ? ">" : "+");
         }
         label(batch, font, back, "Voltar");
         label(batch, font, reset, "Padrão");

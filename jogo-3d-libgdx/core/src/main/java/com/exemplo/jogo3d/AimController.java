@@ -29,7 +29,7 @@ final class AimController {
         pendY -= oy;
         if (Math.abs(pendX) < 0.01f) pendX = 0f;
         if (Math.abs(pendY) < 0.01f) pendY = 0f;
-        float k = BASE / Math.max(1f, screenH) * AimSettings.general * (ads ? AimSettings.ads : 1f) * friction;
+        float k = BASE / Math.max(1f, screenH) * AimSettings.general * (ads ? AimSettings.adsMul() : 1f) * friction;
         if (cat != null) k *= AimSettings.category[cat.ordinal()];
         yawDelta = -ox * k * AimSettings.horizontal;     // dedo para a direita: câmera gira para a direita
         pitchDelta = oy * k * AimSettings.vertical;      // dedo para cima: mira sobe (pitch menor)

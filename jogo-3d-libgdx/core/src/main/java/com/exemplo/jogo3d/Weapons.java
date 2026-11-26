@@ -43,6 +43,7 @@ final class Weapons {
     private final Vector3 hand = new Vector3();
     // Munição de cada arma (fica com a arma ao trocar)
     private final int[] mag = new int[FILES.length], reserve = new int[FILES.length];
+    boolean infinite = false;    // munição infinita (modo treinamento)
     float reloadT = 0f;          // > 0: recarregando (s restantes)
     private float cooldown = 0f;
     final Vector3 muzzle = new Vector3();   // ponta do cano no mundo (segue o recuo e a animação)
@@ -184,7 +185,7 @@ final class Weapons {
         if (burstLeft > 0) {
             if (burstT > 0f) return 0;
             if (mag[heldType] <= 0) { burstLeft = 0; cooldown = c.fireInterval; return 0; }
-            mag[heldType]--;
+            if (!infinite) mag[heldType]--;   // treino: munição infinita
             burstLeft--;
             burstT = c.burstGap;
             if (burstLeft == 0) cooldown = c.fireInterval;
@@ -201,7 +202,7 @@ final class Weapons {
             startReload();   // pente vazio: clique e começa a recarregar sozinho (se tiver reserva)
             return -1;
         }
-        mag[heldType]--;
+        if (!infinite) mag[heldType]--;   // treino: munição infinita
         cooldown = c.fireInterval;
         kickPos = Math.min(kickPos + c.kick, c.kick * 2f);
         if (c.mode == WeaponConfig.FireMode.BURST) {

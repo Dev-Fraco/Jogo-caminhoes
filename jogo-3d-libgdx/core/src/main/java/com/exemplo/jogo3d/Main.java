@@ -1150,6 +1150,7 @@ public class Main extends ApplicationAdapter {
             errorText = "ERRO NO MUNDO:\n" + describe(t);
         }
         inPlane = !training && world.airplane != null;
+        if (world.weapons != null) world.weapons.infinite = training;   // treino: munição infinita
         grenades = world.items != null ? new Grenades(world.items) : null;
         mapUi = training ? null : new MapUi(world);
         places = training ? null : new Places(world);
