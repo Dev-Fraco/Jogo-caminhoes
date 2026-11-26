@@ -42,6 +42,10 @@ public class ScopeTests extends ApplicationAdapter {
         WeaponConfig cfg = WeaponConfig.BY_TYPE[awm];
         check("AWM é a última arma e tem luneta", Weapons.NAMES[awm].equals("AWM") && cfg.scope, "");
         check("só o AWM tem luneta", !WeaponConfig.AKM.scope && !WeaponConfig.PRECISAO.scope, "");
+        check("AWM: 120 em qualquer parte do corpo", cfg.damageAt(WeaponConfig.Region.TORSO, 5f) == 120f
+                && cfg.damageAt(WeaponConfig.Region.ARM, 80f) == 120f && cfg.damageAt(WeaponConfig.Region.LEG, 200f) == 120f, "");
+        check("AWM: 900 na cabeça, a qualquer distância", cfg.damageAt(WeaponConfig.Region.HEAD, 5f) == 900f
+                && cfg.damageAt(WeaponConfig.Region.HEAD, 250f) == 900f, "");
         check("recarga do tambor = 0,5 s", Math.abs(cfg.reloadTime - 0.5f) < 1e-6f, "" + cfg.reloadTime);
 
         World w = new World();

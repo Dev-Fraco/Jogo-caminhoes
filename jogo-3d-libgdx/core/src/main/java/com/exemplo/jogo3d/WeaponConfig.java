@@ -114,6 +114,8 @@ final class WeaponConfig {
 
     /** Dano de um acerto: base × região × queda com a distância. */
     float damageAt(Region r, float dist) {
+        // AWM: dano fixo, sem queda com a distância (cabeça 900, resto do corpo 120)
+        if (scope) return r == Region.HEAD ? 900f : 120f;
         float fall = 1f;
         if (r == Region.HEAD || r == Region.TORSO) {
             // Cabeça e peito: mais dano de perto (+20% até 10 m) e bem menos de longe (cai até 60% do mínimo)

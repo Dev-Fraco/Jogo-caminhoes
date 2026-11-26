@@ -493,7 +493,7 @@ final class Enemy {
         hitT = hitDur;
         hitMag = head ? 1.4f : 0.8f;
         if (bone >= 8 && bone <= 11) slowT = 1.2f;   // perna atingida: manca e anda mais devagar por um tempo
-        glow(true);
+        if (!dummy) glow(true);   // boneco de treino: a reação de recuo fica, sem o brilho vermelho
     }
 
     private void glow(boolean on) {
