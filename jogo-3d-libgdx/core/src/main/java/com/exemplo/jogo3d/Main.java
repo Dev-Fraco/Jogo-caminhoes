@@ -846,9 +846,19 @@ public class Main extends ApplicationAdapter {
             case "mira":
                 adsOn = !adsOn && combat;
                 return;
-            case "arma":
-                if (world.weapons != null && world.weapons.startReload()) adsOn = false;
+            case "arma": {
+                if (world.weapons == null) return;
+                float[] ar = hud.rect(e);
+                int area = WeaponPanel.hitArea((x - ar[0]) / ar[2], (yb - ar[1]) / ar[3]);
+                if (area == WeaponPanel.TOP) {
+                    if (world.weapons.startReload()) adsOn = false;
+                } else if (area == 0 || area == 1) {
+                    world.weapons.equipSlot(area, character);
+                } else if (area == WeaponPanel.FIST) {
+                    world.weapons.toggleHold(character);
+                }
                 return;
+            }
             case "deitar":
                 if (prone == 1) standUp();
                 else if (prone == 0 && player.grounded && !inPlane && !skydiving && !parachuting && !landing && lyingIn == null) {

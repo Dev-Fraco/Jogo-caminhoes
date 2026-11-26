@@ -64,7 +64,7 @@ public class Hud {
             new El("pular", "Pular", "hud2/pular.png", 186f / REF_H, 0f),
             new El("agachar", "Agachar", "hud2/agachar.png", 178f / REF_H, 0f),
             new El("deitar", "Deitar", "hud2/deitar.png", 200f / REF_H, 0f),
-            new El("arma", "Munição", "hud2/arma_painel.png", 162f / REF_H, 0f),
+            new El("arma", "Armas", null, 0.24f, 2.0f),
             new El("vivos", "Vivos", "hud2/vivos.png", 58f / REF_H, 0f),
             new El("abates", "Abates", "hud2/abates.png", 58f / REF_H, 0f),
             new El("mira", "Mirar", "hud2/mira.png", 132f / REF_H, 0f),

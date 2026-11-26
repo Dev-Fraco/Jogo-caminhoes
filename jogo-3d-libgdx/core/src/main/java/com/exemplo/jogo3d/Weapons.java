@@ -91,6 +91,32 @@ final class Weapons {
 
     com.badlogic.gdx.graphics.g2d.TextureRegion icon() { return heldType >= 0 ? icons[heldType] : null; }
 
+    // Painel de armas: as duas armas levadas e o punho
+    com.badlogic.gdx.graphics.g2d.TextureRegion iconOf(int type) { return type >= 0 ? icons[type] : null; }
+    int magOf(int type) { return type >= 0 ? mag[type] : 0; }
+    int reserveOf(int type) { return type >= 0 ? reserve[type] : 0; }
+    int slotType(int s) { return slot[s]; }
+    int activeSlotIndex() { return activeSlot; }
+    int heldType() { return heldType; }
+    int heldMag() { return magOf(heldType); }
+    int heldReserve() { return reserveOf(heldType); }
+    int heldMagazine() { return heldType >= 0 ? WeaponConfig.BY_TYPE[heldType].magazine : 1; }
+
+    /** Toque na caixa de uma das duas armas: leva essa arma para a mão. */
+    void equipSlot(int s, Character ch) {
+        if (s < 0 || s > 1 || slot[s] < 0) return;
+        if (!holstered && s == activeSlot) return;
+        activeSlot = s;
+        equipNew(slot[s], ch);
+    }
+
+    /** Toque no punho: guarda a arma na mão ou, guardada, saca de novo. */
+    void toggleHold(Character ch) {
+        if (heldType < 0) return;
+        if (!holstered) holster(ch);
+        else equipNew(heldType, ch);
+    }
+
     /** Configuração da arma na mão (null se desarmado). */
     WeaponConfig config() { return heldType >= 0 ? WeaponConfig.BY_TYPE[heldType] : null; }
 

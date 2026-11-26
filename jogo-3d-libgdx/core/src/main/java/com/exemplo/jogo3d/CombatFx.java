@@ -200,22 +200,15 @@ final class CombatFx implements DamageSystem.Listener {
                 shapes.rectLine(cx + ax * inner, cy + ay * inner, cx + ax * s, cy + ay * s, w);
             }
         }
-        // Painel da arma: barra de munição / recarga por cima da barra amarela
-        WeaponConfig cfg = weapons != null ? weapons.config() : null;
-        if (cfg != null && armedView) {
-            float[] r = hud.rect(hud.get("arma"));
-            float bx = r[0] + r[2] * 0.081f, bw = r[2] * 0.702f, by = r[1] + r[3] * 0.148f, bh = r[3] * 0.062f;
-            shapes.setColor(0.10f, 0.07f, 0.05f, 1f);
-            shapes.rect(bx, by, bw, bh);
-            float f = weapons.reloading() ? weapons.reloadProgress() : weapons.ammo() / (float) cfg.magazine;
-            if (weapons.reloading()) shapes.setColor(0.85f, 0.55f, 0.15f, 1f);
-            else if (weapons.ammo() <= cfg.magazine / 5) shapes.setColor(0.85f, 0.2f, 0.1f, 1f);
-            else shapes.setColor(0.98f, 0.78f, 0.12f, 1f);
-            shapes.rect(bx, by, bw * MathUtils.clamp(f, 0f, 1f), bh);
-        }
         shapes.end();
+        // Painel de armas (fundos e bordas em código; textos e ícones no batch)
+        WeaponConfig cfg = weapons != null ? weapons.config() : null;
+        boolean showPanel = cfg != null && armedView;
+        float[] pr = showPanel ? hud.rect(hud.get("arma")) : null;
+        if (showPanel) WeaponPanel.drawShapes(shapes, pr[0], pr[1], pr[2], pr[3], weapons, !weapons.holstered());
 
         batch.begin();
+        if (showPanel) WeaponPanel.drawBatch(batch, font, pr[0], pr[1], pr[2], pr[3], weapons, !weapons.holstered());
         // Números de dano
         float base = font.getData().scaleX;
         for (int i = 0; i < NUMBERS; i++) {
