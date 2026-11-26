@@ -64,6 +64,7 @@ public class World {
     Town town;
     Airplane airplane;
     Weapons weapons;
+    Items items;
 
     /** Ponto livre no mapa (fora da estrada, dos cercados e da cidade). */
     float[] openSpot(Random rnd) { return randomSpot(rnd, 8f); }
@@ -503,6 +504,9 @@ public class World {
         // Armas espalhadas: dentro das casas, na frente das casas da cidade e soltas pelo mapa
         weapons = new Weapons();
         weapons.scatter(this, rnd);
+        // Itens: cura, energético, granadas e mochila
+        items = new Items();
+        items.scatter(this, rnd);
     }
 
     private Model loadModel(String path) {
@@ -1001,6 +1005,7 @@ public class World {
         if (town != null) town.dispose();
         if (airplane != null) airplane.dispose();
         if (weapons != null) weapons.dispose();
+        if (items != null) items.dispose();
         casaModel.dispose();
         if (crackTexture != null) crackTexture.dispose();
         if (damModel != null) damModel.dispose();

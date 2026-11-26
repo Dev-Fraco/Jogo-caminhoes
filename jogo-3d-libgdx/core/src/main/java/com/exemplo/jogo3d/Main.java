@@ -74,6 +74,9 @@ public class Main extends ApplicationAdapter {
     private Riding hitchHorse = null;
     private float hitchT = 0f;                    // tempo da animação de prender (s)
     private Weapons.Pickup weaponTarget = null;   // arma no chão ao alcance (mostra PEGAR)
+    private Items.Pickup itemTarget = null;       // item no chão ao alcance (mostra PEGAR)
+    private Parachute chute;                      // paraquedas (abre a 100 m do chão)
+    private boolean parachuting = false;
     // Battle royale: começa dentro do avião, salta, cai de barriga para baixo e pousa
     private boolean inPlane = false, skydiving = false, landing = false;
     private final Vector3 fallVel = new Vector3();
@@ -138,6 +141,7 @@ public class Main extends ApplicationAdapter {
         try {
             if (world.town != null && character.model() != null) world.town.createNpcs(character.model());
             inPlane = world.airplane != null;   // o jogo começa dentro do avião
+            chute = new Parachute();
         } catch (Throwable t) {
             errorText = "ERRO NOS MORADORES:\n" + describe(t);
         }
@@ -217,6 +221,8 @@ public class Main extends ApplicationAdapter {
         boolean jumpPressed = !ui && (jumpRequested || Gdx.input.isKeyJustPressed(Input.Keys.SPACE));
         jumpRequested = false;
         if (!ui && Gdx.input.isKeyJustPressed(Input.Keys.SHIFT_LEFT)) runToggle = !runToggle;
+        // Correr: o botão faz correr sozinho; mexer no analógico desliga a corrida e devolve o controle
+        if (runToggle && inX * inX + inY * inY > 0.09f) runToggle = false;
 
         // Durante a abertura da porteira, o jogo controla o personagem
         boolean busy = world.fences.isBusy();
@@ -246,6 +252,23 @@ public class Main extends ApplicationAdapter {
         } else if (skydiving) {
             updateSkydive(dt, inX, inY);
             busy = true;
+        } else if (parachuting) {
+            // Paraquedas: analógico vira e acelera; o botão de correr leva para a frente da câmera
+            Vector3 f = chute.feet();
+            boolean landed = chute.fly(dt, inX, inY, yaw, runToggle, world.groundAt(f.x, f.z));
+            player.pos.set(chute.feet());
+            player.facing = chute.heading;
+            player.speed = 0f;
+            player.grounded = false;
+            character.setTilt(chute.pitchDeg(), chute.rollDeg(), Parachute.HARNESS_Y + Parachute.PIVOT);
+            busy = true;
+            if (landed) {
+                parachuting = false;
+                landing = true;
+                player.grounded = true;
+                character.setTilt(0f, 0f, 0f);
+                character.playOnce("HardLanding");
+            }
         } else if (landing) {
             player.speed = 0f;
             busy = true;
@@ -253,6 +276,10 @@ public class Main extends ApplicationAdapter {
                 landing = false;
                 character.endOnce();
             }
+        }
+        if (chute != null) {
+            if (chute.phase == Parachute.Phase.COLLAPSING) chute.updateCollapse(dt);
+            if (chute.active()) chute.place();
         }
         boolean lying = lyingIn != null;
         if (!busy && !ridingActive && !lying) player.update(dt, inX, inY, yaw, jumpPressed, runToggle, world);
@@ -322,14 +349,20 @@ public class Main extends ApplicationAdapter {
             weaponTarget = world.weapons.nearest(player.pos);
             if (weaponTarget != null) mountTarget = null;
         }
+        itemTarget = null;
+        if (world.items != null && weaponTarget == null && prompt == null && doorTarget == null && hammockTarget == null
+                && cartTarget == null && cartOptionsHorse == null && !busy && !ui && !ridingActive && !lying) {
+            itemTarget = world.items.nearest(player.pos);
+            if (itemTarget != null) mountTarget = null;
+        }
 
         // Direção da câmera (usada também para a câmera ficar atrás do jogador)
         Vector3 forward = new Vector3(MathUtils.sin(yaw), 0f, MathUtils.cos(yaw));
         // Dentro da casa a câmera chega perto e baixa um pouco, para enxergar o interior
         boolean inside = !inPlane && world.insideHouse(player.pos);
-        float targetDist = inPlane ? 48f : inside ? CAMERA_DISTANCE_INSIDE : CAMERA_DISTANCE;
+        float targetDist = inPlane ? 48f : parachuting ? 12f : inside ? CAMERA_DISTANCE_INSIDE : CAMERA_DISTANCE;
         Vector3 pivot = inPlane ? new Vector3(world.airplane.pos).add(0f, 3f, 0f)   // no avião: câmera segue o avião
-                : new Vector3(player.pos.x, player.pos.y + (inside ? 1.2f : 1.4f), player.pos.z);
+                : new Vector3(player.pos.x, player.pos.y + (parachuting ? 2.5f : inside ? 1.2f : 1.4f), player.pos.z);
         Vector3 back = new Vector3(
                 -forward.x * MathUtils.cos(pitch),
                 MathUtils.sin(pitch),
@@ -354,6 +387,7 @@ public class Main extends ApplicationAdapter {
         if (!inPlane) modelBatch.render(character.instances, environment);
         world.fences.render(modelBatch, environment);
         modelBatch.render(world.fireInstance(), environment);
+        if (chute != null && chute.active()) modelBatch.render(chute.inst, environment);   // paraquedas
         if (world.airplane != null) modelBatch.render(world.airplane.effects(), environment);   // rastros de vento
         modelBatch.end();
 
@@ -448,6 +482,11 @@ public class Main extends ApplicationAdapter {
                     weaponTarget = null;
                     return;
                 }
+                if (itemTarget != null) {
+                    world.items.pickUp(itemTarget, world);
+                    itemTarget = null;
+                    return;
+                }
                 if (prompt != null) {
                     world.fences.startOperation(prompt, player);
                     prompt = null;
@@ -512,9 +551,10 @@ public class Main extends ApplicationAdapter {
         hud.joyX = joyX;
         hud.joyY = joyY;
         boolean canGetUp = lyingIn != null && lyingIn.lie == HouseDecor.Lie.LYING;
-        hud.promptVisible = inPlane || weaponTarget != null || prompt != null || mountTarget != null || doorTarget != null || hammockTarget != null || canGetUp || cartTarget != null || cartOptionsHorse != null;
+        hud.promptVisible = inPlane || weaponTarget != null || itemTarget != null || prompt != null || mountTarget != null || doorTarget != null || hammockTarget != null || canGetUp || cartTarget != null || cartOptionsHorse != null;
         if (inPlane) hud.promptText = "SALTAR DO AVIÃO";
         else if (weaponTarget != null) hud.promptText = "PEGAR " + Weapons.NAMES[weaponTarget.type];
+        else if (itemTarget != null) hud.promptText = "PEGAR " + Items.NAMES[itemTarget.type];
         else if (prompt != null) hud.promptText = prompt.label();
         else if (cartOptionsHorse != null) hud.promptText = "TIRAR CARROÇA  |  SENTAR NA CARROÇA";
         else if (cartTarget != null) hud.promptText = "PRENDER CARROÇA";
@@ -528,6 +568,15 @@ public class Main extends ApplicationAdapter {
         font.setColor(0.35f, 0.2f, 0.1f, 0.9f);
         layout.setText(font, "Sertão do Ceará - 1915: a seca chegou");
         font.draw(batch, "Sertão do Ceará - 1915: a seca chegou", (w - layout.width) / 2f, 22f);
+        if (world.items != null) {
+            String bag = world.items.summary();
+            if (world.weapons != null && world.weapons.armed()) bag = world.weapons.heldName() + (bag.isEmpty() ? "" : "  ·  " + bag);
+            if (!bag.isEmpty()) {
+                font.setColor(0.25f, 0.12f, 0.05f, 0.95f);
+                layout.setText(font, "MOCHILA: " + bag);
+                font.draw(batch, "MOCHILA: " + bag, (w - layout.width) / 2f, 44f);
+            }
+        }
         if (UpdateChecker.available()) {
             font.setColor(0.6f, 0.1f, 0.05f, 1f);
             String msg = "Nova versão " + UpdateChecker.latestBuild() + " disponível: toque aqui para baixar";
@@ -588,6 +637,14 @@ public class Main extends ApplicationAdapter {
         player.speed = 0f;
         player.grounded = false;
         float ground = world.groundAt(player.pos.x, player.pos.z);
+        if (chute != null && player.pos.y - ground <= Parachute.DEPLOY_HEIGHT) {
+            // 100 m do chão: abre o paraquedas e passa a segurar os comandos
+            skydiving = false;
+            parachuting = true;
+            chute.deploy(player.pos, fallVel.x, fallVel.y, fallVel.z, player.facing);
+            character.playLoop("SentadoArreios");
+            return;
+        }
         if (player.pos.y <= ground) {
             player.pos.y = ground;
             player.grounded = true;
@@ -707,6 +764,7 @@ public class Main extends ApplicationAdapter {
     public void dispose() {
         modelBatch.dispose();
         world.dispose();
+        if (chute != null) chute.dispose();
         character.dispose();
         hud.dispose();
         shapes.dispose();

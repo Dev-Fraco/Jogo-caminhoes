@@ -41,7 +41,7 @@ import com.badlogic.gdx.utils.JsonReader;
  */
 final class Airplane {
     // Rota: volta larga em torno do mapa, com o raio variando (as curvas apertam e abrem)
-    private static final float PATH_R = 165f, PATH_AMP = 15f, ALT = 85f;
+    private static final float PATH_R = 165f, PATH_AMP = 15f, ALT = 170f;   // alto: dá tempo de queda livre antes do paraquedas
     static final float SPEED = 24f;
     private static final float LOOKAHEAD = 55f, MAX_YAW_RATE = 0.18f, GRAVITY = 9.8f;
     // Medidas do modelo convertido (nariz em +z, origem no centro)

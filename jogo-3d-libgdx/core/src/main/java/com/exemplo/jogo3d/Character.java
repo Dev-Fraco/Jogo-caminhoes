@@ -45,7 +45,15 @@ public class Character {
     private float onceT = 0f, onceDur = 1f;
     private boolean onceDone = false;
     private boolean onceLoop = false;
-    private boolean armed = false;      // com arma na mão: parado, fica mirando
+    private boolean armed = false;
+    private float tiltPitch, tiltRoll, tiltPivot;   // pêndulo do paraquedas (graus) e altura do eixo
+
+    /** Inclina o corpo em torno de um eixo acima dos pés (pendurado no paraquedas). */
+    public void setTilt(float pitchDeg, float rollDeg, float pivotY) {
+        tiltPitch = pitchDeg;
+        tiltRoll = rollDeg;
+        tiltPivot = pivotY;
+    }      // com arma na mão: parado, fica mirando
 
     public void setArmed(boolean a) {
         if (armed == a) return;
@@ -202,6 +210,11 @@ public class Character {
             // balança em torno de um eixo na altura do quadril (da rede), no sentido do corpo
             instance.transform.translate(0f, swingPivotY, 0f).rotate(Vector3.Z, swing * MathUtils.radiansToDegrees)
                     .translate(0f, -swingPivotY, 0f);
+        }
+        if (tiltPitch != 0f || tiltRoll != 0f) {
+            // pendurado no paraquedas: balança em torno do centro do velame
+            instance.transform.translate(0f, tiltPivot, 0f).rotate(Vector3.X, -tiltPitch).rotate(Vector3.Z, tiltRoll)
+                    .translate(0f, -tiltPivot, 0f);
         }
         instance.transform.scale(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
 
