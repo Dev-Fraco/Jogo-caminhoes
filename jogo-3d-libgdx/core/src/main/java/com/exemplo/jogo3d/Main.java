@@ -456,6 +456,14 @@ public class Main extends ApplicationAdapter {
             world.weapons.aimElev = -pitch;
             world.weapons.update(character, player);
         }
+        if (!inPlane && world.weapons != null) {
+            // Pose do braço: mirar, coice do tiro, recarga (ao peito), sacar (braço baixo) e tronco que recua ao levar tiro
+            float reloadPose = world.weapons.reloading() ? (float) Math.sin(Math.PI * world.weapons.reloadProgress()) : 0f;
+            float kickPose = shooting != null ? Math.min(1f, world.weapons.kickOffset() / 0.075f) : 0f;
+            float aimPose = combat && !parachuting ? (adsOn ? 1f : 0.45f) : 0f;
+            float leanPose = survival != null ? Math.min(1f, survival.shake / 0.12f) : 0f;
+            character.setArmPose(aimPose, kickPose, reloadPose, world.weapons.drawAmount(), leanPose);
+        }
         if (shooting != null) {
             shootIn.fireHeld = fireHeld;
             shootIn.firePressed = firePressed;

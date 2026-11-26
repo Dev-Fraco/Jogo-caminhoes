@@ -17,4 +17,5 @@ cd ../assets
 java -cp "$OUT:$CP" com.exemplo.jogo3d.AimTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.ShootTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.BotDropTests
+java -cp "$OUT:$CP" com.exemplo.jogo3d.AnimTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.AiSoak

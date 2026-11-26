@@ -123,6 +123,9 @@ final class Enemy {
     int botKills;
     float barT;                   // (sem barra de vida na tela: só o tempo da reação)
     float slowT;                  // s de manquejar (perna atingida)
+    private float headSnap;       // 1 no headshot, cai com o tempo
+    private com.badlogic.gdx.math.Matrix4 savedHead;
+    private final com.badlogic.gdx.math.Matrix4 headOv = new com.badlogic.gdx.math.Matrix4();
     private float hitT, hitDur = 0.18f, hitMag;   // reação ao dano (o corpo recua um pouco, o pano pisca)
     final Vector3 muzzle = new Vector3();
     boolean visibleToCam;   // dentro da distância de desenho (para não animar longe)
@@ -490,10 +493,25 @@ final class Enemy {
         if (fallVel.len2() > 0.25f && state != State.RIDE) facing = MathUtils.atan2(fallVel.x, fallVel.z);
         inst.transform.setToTranslation(pos).rotate(Vector3.Y, facing * MathUtils.radiansToDegrees);
         animAcc += dt;   // mesma economia do resto: o esqueleto só recalcula perto da câmera ou a cada 0,2 s
+        if (savedHead != null) {   // desfaz o estalo do quadro anterior antes da animação escrever de novo
+            com.badlogic.gdx.graphics.g3d.model.Node hn = inst.getNode("Head", true);
+            if (hn != null) hn.localTransform.set(savedHead);
+            savedHead = null;
+        }
         if (closeToCam || animAcc > 0.2f) {
             anim.update(animAcc);
             animAcc = 0f;
+            if (headSnap > 0.01f) {
+                com.badlogic.gdx.graphics.g3d.model.Node hn = inst.getNode("Head", true);
+                if (hn != null) {
+                    savedHead = new com.badlogic.gdx.math.Matrix4(hn.localTransform);
+                    headOv.idt().rotate(Vector3.X, -30f * headSnap);
+                    hn.localTransform.mul(headOv);
+                    inst.calculateTransforms();
+                }
+            }
         }
+        if (headSnap > 0f) headSnap = Math.max(0f, headSnap - dt * 4f);
         placeGun();
         return false;
     }
@@ -522,6 +540,7 @@ final class Enemy {
     /** Reação ao tiro: recuo curto do corpo e brilho vermelho do pano (mais forte na cabeça). */
     void flinch(boolean head, int bone) {
         if (state == State.DEAD) return;
+        if (head) headSnap = 1f;   // headshot: a cabeça estala para trás
         hitT = hitDur;
         hitMag = head ? 1.4f : 0.8f;
         if (bone >= 8 && bone <= 11) slowT = 1.2f;   // perna atingida: manca e anda mais devagar por um tempo

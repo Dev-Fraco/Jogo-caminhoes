@@ -185,6 +185,9 @@ final class Weapons {
     /** Tempo de sacar restante (0 = pronta). */
     boolean drawing() { return equipT > 0f; }
 
+    /** Quanto do sacar ainda falta (1 = começando a sacar, 0 = pronta). */
+    float drawAmount() { return equipT > 0f ? equipT / equipDur : 0f; }
+
     /** Lê e zera os eventos (som de trocar, recarregar, vazio). */
     int takeEvents() { int e = events; events = 0; return e; }
 

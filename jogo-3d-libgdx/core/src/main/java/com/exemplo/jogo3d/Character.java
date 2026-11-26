@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.g3d.loader.G3dModelLoader;
 import com.badlogic.gdx.graphics.g3d.model.Node;
 import com.badlogic.gdx.graphics.g3d.utils.AnimationController;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Quaternion;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
@@ -91,7 +92,7 @@ public class Character {
         instance = new ModelInstance(model);
         anim = new AnimationController(instance);
         instances.add(instance);
-        for (String n : new String[]{"RightUpperArm", "Hips", "Spine", "LeftUpperLeg", "RightUpperLeg", "LeftLowerLeg", "RightLowerLeg"}) {
+        for (String n : new String[]{"RightUpperArm", "RightForeArm", "Hips", "Spine", "Spine1", "LeftUpperLeg", "RightUpperLeg", "LeftLowerLeg", "RightLowerLeg"}) {
             Node node = instance.getNode(n);
             if (node != null) nodes.put(n, node);
         }
@@ -204,6 +205,7 @@ public class Character {
      * Se o personagem estiver montado (sitting), o Player não é usado para a pose de andar.
      */
     public void update(Player p, float dt) {
+        smoothArm(dt);
         instance.transform.setToTranslation(p.pos.x, p.pos.y, p.pos.z)
                 .rotate(Vector3.Y, p.facing * MathUtils.radiansToDegrees);
         if (swing != 0f) {
@@ -258,6 +260,8 @@ public class Character {
             nodes.get(e.getKey()).rotation.set(e.getValue());
         }
         saved.clear();
+        for (java.util.Map.Entry<Node, Matrix4> e : savedLocal.entrySet()) e.getKey().localTransform.set(e.getValue());
+        savedLocal.clear();
         if (onceClip != null) {
             if (onceLoop) {
                 anim.update(dt);
@@ -312,6 +316,13 @@ public class Character {
     private void applyPoses() {
         extra.clear();
         if (reach > 0.001f) addX("RightUpperArm", -reach * 69f);
+        // Braço da arma: mirar (à frente), coice (antebraço), recarga (ao peito), guardar/sacar (baixo).
+        // Os ossos animados são escritos pela animação a cada quadro: a pose vai sobre a transformação local.
+        if (armAim > 0.001f) localRot("RightUpperArm", ARM_AIM_AXIS, armAim * ARM_AIM_DEG);
+        if (armKick > 0.001f) localRot("RightForeArm", ARM_KICK_AXIS, armKick * ARM_KICK_DEG);
+        if (armReload > 0.001f) localRot("RightUpperArm", ARM_RELOAD_AXIS, armReload * ARM_RELOAD_DEG);
+        if (armLower > 0.001f) localRot("RightUpperArm", ARM_LOWER_AXIS, armLower * ARM_LOWER_DEG);
+        if (lean > 0.001f) localRot("Spine1", Vector3.X, lean * 16f);   // corpo inclina para trás ao levar tiro
         if (crouch > 0.001f || sitting) {
             float c = sitting ? 1f : crouch;
             addX("Hips", -25f * c);
@@ -330,6 +341,22 @@ public class Character {
         }
     }
 
+    // Eixos e ângulos da pose do braço (medidos no modelo: ver testes-mira/AnimTests)
+    static final Vector3 ARM_AIM_AXIS = new Vector3(1f, 0f, 0f), ARM_KICK_AXIS = new Vector3(1f, 0f, 0f),
+            ARM_RELOAD_AXIS = new Vector3(0f, 0f, 1f), ARM_LOWER_AXIS = new Vector3(0f, 0f, 1f);
+    static final float ARM_AIM_DEG = 75f, ARM_KICK_DEG = 12f, ARM_RELOAD_DEG = 45f, ARM_LOWER_DEG = 80f;
+    private final java.util.HashMap<Node, Matrix4> savedLocal = new java.util.HashMap<>();
+    private final Matrix4 ovM = new Matrix4();
+
+    /** Gira o osso em torno do eixo LOCAL dele, sobre a transformação que a animação escreveu (desfeito no quadro seguinte). */
+    private void localRot(String name, Vector3 axis, float deg) {
+        Node node = nodes.get(name);
+        if (node == null) return;
+        if (!savedLocal.containsKey(node)) savedLocal.put(node, new Matrix4(node.localTransform));
+        ovM.idt().rotate(axis, deg);
+        node.localTransform.mul(ovM);
+    }
+
     private void addX(String node, float deg) {
         if (!nodes.containsKey(node)) return;
         Quaternion q = extra.get(node);
@@ -339,6 +366,42 @@ public class Character {
         }
         tmpQ.setFromAxisRad(Vector3.X, deg * MathUtils.degreesToRadians);
         q.mulLeft(tmpQ);
+    }
+
+    // Pose do braço e do corpo, suavizada: os alvos vêm do jogo a cada quadro
+    private float armAim, armKick, armReload, armLower, lean;
+    private float tAim, tKick, tReload, tLower, tLean;
+
+    /**
+     * aim: 0..1 braço da arma à frente (mirando); kick: 0..1 coice do tiro (antebraço); reload: 0..1 arma ao peito;
+     * lower: 0..1 braço baixo (guardar, ou sacar no começo); lean: 0..1 corpo para trás (levou tiro).
+     */
+    public void setArmPose(float aim, float kick, float reload, float lower, float leanBack) {
+        tAim = MathUtils.clamp(aim, 0f, 1f);
+        tKick = MathUtils.clamp(kick, 0f, 1f);
+        tReload = MathUtils.clamp(reload, 0f, 1f);
+        tLower = MathUtils.clamp(lower, 0f, 1f);
+        tLean = MathUtils.clamp(leanBack, 0f, 1f);
+    }
+
+    /** Suaviza a pose: os braços não pulam de um quadro para o outro. */
+    private void smoothArm(float dt) {
+        float k = Math.min(1f, dt * 10f), kk = Math.min(1f, dt * 25f);   // coice é rápido; o resto é suave
+        armAim += (tAim - armAim) * k;
+        armKick += (tKick - armKick) * kk;
+        armReload += (tReload - armReload) * k;
+        armLower += (tLower - armLower) * k;
+        lean += (tLean - lean) * k;
+    }
+
+    /** Instância do modelo (testes). */
+    ModelInstance instance() { return instance; }
+
+    /** Posição mundial de um osso (testes e efeitos). */
+    public Vector3 nodeWorld(String name, Vector3 out) {
+        Node n = instance.getNode(name);
+        if (n == null) return out.set(0f, 0f, 0f);
+        return out.set(0f, 0f, 0f).mul(n.globalTransform).mul(instance.transform);
     }
 
     /** 0 = braço solto, 1 = braço totalmente esticado para a frente. */
