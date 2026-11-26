@@ -57,12 +57,12 @@ public class TargetBotTests extends ApplicationAdapter {
         check("treino: tem arma, itens e caixa de equipamentos", wt.weapons != null && wt.items != null
                 && Math.hypot(World.TRAIN_BOX_X - World.TRAIN_PLAYER_X, World.TRAIN_BOX_Z - World.TRAIN_PLAYER_Z) < 20f, "");
         // Câmera: a parede lateral do galpão (x = -15) fica entre o jogador e a câmera; do outro lado, a distância é livre
-        Vector3 pv = new Vector3(-13f, 1.5f, 0f);
+        Vector3 pv = new Vector3(-World.SHED_HW + 2f, 1.5f, 0f);
         float blocked = wt.cameraDistance(pv, new Vector3(-1f, 0f, 0f), 3f);
         float free = wt.cameraDistance(pv, new Vector3(1f, 0f, 0f), 3f);
         check("câmera para antes da parede (não atravessa)", blocked < 2.2f && blocked >= 0.15f, String.format("%.2f m", blocked));
         check("câmera com espaço livre vai à distância normal", Math.abs(free - 3f) < 1e-3f, String.format("%.2f m", free));
-        float close = wt.cameraDistance(new Vector3(-14.6f, 1.5f, 0f), new Vector3(-1f, 0f, 0f), 3f);
+        float close = wt.cameraDistance(new Vector3(-World.SHED_HW + 0.4f, 1.5f, 0f), new Vector3(-1f, 0f, 0f), 3f);
         check("câmera encostada na parede fica perto, sem entrar", close >= 0.15f && close < 0.3f, String.format("%.2f m", close));
         Enemy t = en.list.get(0);
         check("bonecos dentro do galpão", wt.training && Math.abs(t.pos.x) < World.SHED_HW

@@ -491,10 +491,10 @@ public class World {
     World(boolean training) { this.training = training; }
 
     // ---------- Modo treinamento ----------
-    static final float SHED_HW = 15f, SHED_HD = 8f, SHED_H = 8f;   // galpão: 30 x 16 m, 8 m de altura
-    static final float TRAIN_PLAYER_X = 0f, TRAIN_PLAYER_Z = -4f;  // onde o jogador nasce, virado para o fundo
-    static final float TRAIN_DUMMY_Z = 4f;                          // os bonecos ficam no fundo do galpão
-    static final float TRAIN_BOX_X = 11f, TRAIN_BOX_Z = -5f;        // caixa de equipamentos
+    static final float SHED_HW = 25f, SHED_HD = 12f, SHED_H = 8f;  // galpão fechado: 50 x 24 m, 8 m de altura
+    static final float TRAIN_PLAYER_X = 0f, TRAIN_PLAYER_Z = -6f;  // onde o jogador nasce, virado para o fundo
+    static final float TRAIN_DUMMY_Z = 6f;                          // os bonecos ficam no fundo do galpão
+    static final float TRAIN_BOX_X = 18f, TRAIN_BOX_Z = -9f;        // caixa de equipamentos, dentro do galpão
     static final float TRAIN_LIMIT = 60f;                          // o treino acaba numa cerca invisível
 
     /** Galpão, chão, caixa de equipamentos e limite. Sem terreno, cidade, casas nem avião. */
@@ -517,19 +517,17 @@ public class World {
         instances.add(gi);
         // Piso de tábuas
         addTrainVisual(mb, attrs, 2 * SHED_HW, 0.08f, 2 * SHED_HD, 0f, 0.04f, 0f, wood);
-        // Paredes: metal no fundo, madeira nos lados e na frente, com porta de 10 m (o lado sul)
+        // Paredes fechadas por todos os lados (sem porta): metal no fundo e na frente, madeira nos lados
         float t = 0.3f;
         addTrainWall(mb, attrs, 0f, SHED_HD, 2 * SHED_HW, t, false, 0f, SHED_H, metal);
+        addTrainWall(mb, attrs, 0f, -SHED_HD, 2 * SHED_HW, t, false, 0f, SHED_H, metal);
         addTrainWall(mb, attrs, -SHED_HW, 0f, 2 * SHED_HD, t, true, 0f, SHED_H, wood);
         addTrainWall(mb, attrs, SHED_HW, 0f, 2 * SHED_HD, t, true, 0f, SHED_H, wood);
-        addTrainWall(mb, attrs, -10f, -SHED_HD, 10f, t, false, 0f, SHED_H, wood);
-        addTrainWall(mb, attrs, 10f, -SHED_HD, 10f, t, false, 0f, SHED_H, wood);
-        addTrainWall(mb, attrs, 0f, -SHED_HD, 10f, t, false, 5.5f, SHED_H, wood);   // verga da porta
         // Cobertura de metal e estrutura: vigas de metal e pilares de madeira (só visual)
         addTrainWall(mb, attrs, 0f, 0f, 2 * SHED_HW + 1f, 2 * SHED_HD + 1f, false, SHED_H, SHED_H + 0.25f, metalDark);
-        for (float x = -10f; x <= 10.01f; x += 5f) addTrainVisual(mb, attrs, 0.25f, 0.4f, 2 * SHED_HD, x, SHED_H - 0.3f, 0f, metal);
+        for (float x = -20f; x <= 20.01f; x += 5f) addTrainVisual(mb, attrs, 0.25f, 0.4f, 2 * SHED_HD, x, SHED_H - 0.3f, 0f, metal);
         for (float z = -SHED_HD; z <= SHED_HD + 0.01f; z += 4f) addTrainVisual(mb, attrs, 2 * SHED_HW, 0.4f, 0.25f, 0f, SHED_H - 0.3f, z, metal);
-        for (float x : new float[]{-SHED_HW, SHED_HW, -5f, 5f}) for (float z : new float[]{-SHED_HD, SHED_HD})
+        for (float x : new float[]{-SHED_HW, SHED_HW, -12.5f, 12.5f}) for (float z : new float[]{-SHED_HD, SHED_HD})
             addTrainVisual(mb, attrs, 0.45f, SHED_H, 0.45f, x, SHED_H / 2f, z, woodDark);
         // Caixa de equipamentos: corpo verde-oliva e tampa
         addTrainVisual(mb, attrs, 1.6f, 0.9f, 1.0f, TRAIN_BOX_X, 0.45f, TRAIN_BOX_Z, olive);
