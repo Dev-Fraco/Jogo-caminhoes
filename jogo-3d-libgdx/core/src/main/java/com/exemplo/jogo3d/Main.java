@@ -91,8 +91,6 @@ public class Main extends ApplicationAdapter {
     private int aimType = -1, grenPointer = -1;
     private final Vector3 gFrom = new Vector3(), gVel = new Vector3();
     private boolean dyingShown = false;
-    private final Zone zone = new Zone(System.nanoTime());   // partida nova = centro novo
-    private float zoneMsgT = 0f;
     private com.badlogic.gdx.audio.Sound planeSound;     // motor do avião (loop)
     private long planeSoundId = -1;
     private com.badlogic.gdx.audio.Sound windSound;      // vento da queda (loop), com e sem paraquedas
@@ -209,7 +207,6 @@ public class Main extends ApplicationAdapter {
             if (character.model() != null)
                 enemies = new Enemies(world, character.model(), world.weapons != null ? world.weapons.models() : null);
             if (grenades != null) grenades.enemies = enemies;
-            if (enemies != null) enemies.zone = zone;
             if (world.weapons != null) {
                 shooting = new ShootingSystem(world, world.weapons, enemies, damage, fx, environment);
                 fx.setAudio(shooting.audio);
@@ -534,19 +531,6 @@ public class Main extends ApplicationAdapter {
                 gustP.set(player.pos.x + MathUtils.cos(a) * d, 0f, player.pos.z + MathUtils.sin(a) * d);
                 gustP.y = world.groundAt(gustP.x, gustP.z) + 0.05f;
                 shooting.impacts.hit(Surface.TERRA, gustP, Vector3.Y);
-            }
-        }
-        // Zona segura: encolhe com o tempo; fora dela a vida cai (não conta dentro do avião)
-        zone.update(dt);
-        String zoneEvent = zone.takeEvent();
-        if (zoneEvent != null && survival != null) survival.say(zoneEvent);
-        if (survival != null && !survival.dead && !inPlane && !zone.inside(player.pos.x, player.pos.z)) {
-            survival.damage(zone.damagePerSecond() * dt, false);
-            zoneMsgT -= dt;
-            if (zoneMsgT <= 0f) {
-                zoneMsgT = 2.5f;
-                survival.say("FORA DA ZONA SEGURA");
-                survival.hurt = Math.max(survival.hurt, 0.25f);
             }
         }
         // Motor do avião: alto dentro dele, e vai sumindo com a distância (ao saltar e no solo quase não se ouve)
@@ -954,21 +938,7 @@ public class Main extends ApplicationAdapter {
         else if (hammockTarget != null) hud.promptText = "DEITAR NA REDE";
         else if (canGetUp) hud.promptText = "LEVANTAR";
         if (mapUi != null) mapUi.drawMap(batch, shapes, hud, player.facing);   // mapa por baixo da moldura
-        if (mapUi != null) mapUi.drawZone(shapes, hud, player.pos, zone);
         hud.draw(batch, shapes, font);
-        {   // texto da faixa da zona (a arte vem sem texto)
-            float[] zr = hud.rect(hud.get("zona"));
-            batch.begin();
-            font.getData().setScale(Math.max(1f, zr[3] / 44f));
-            boolean out = !inPlane && !zone.inside(player.pos.x, player.pos.z);
-            if (out) font.setColor(1f, 0.35f, 0.25f, 1f);
-            else font.setColor(1f, 0.82f, 0.25f, 1f);
-            String zt = out ? "FORA DA ZONA SEGURA!" : zone.label();
-            layout.setText(font, zt);
-            font.draw(batch, zt, zr[0] + zr[2] * 0.56f - layout.width / 2f, zr[1] + (zr[3] + layout.height) / 2f);
-            font.getData().setScale(1.1f);
-            batch.end();
-        }
         if (mapUi != null) mapUi.drawCompass(batch, shapes, font, hud, yaw);
         if (fx != null && !hud.editing) {
             float spreadDeg = 0f;
@@ -1083,7 +1053,7 @@ public class Main extends ApplicationAdapter {
         }
     }
 
-    /** Jogar: partida nova (avião, zona e bando de volta ao começo). */
+    /** Jogar: partida nova (avião e alvo de volta ao começo). */
     private void startMatch() {
         inMenu = false;
         respawn();
@@ -1155,7 +1125,6 @@ public class Main extends ApplicationAdapter {
     /** Depois de morrer: tudo cheio de novo e volta para o avião (a mochila fica vazia). */
     private void respawn() {
         survival.reset();
-        zone.reset();
         if (world.items != null) world.items.clearBag();
         if (grenades != null) grenades.clearAll();
         if (world.weapons != null) world.weapons.unequip(character);
@@ -1182,7 +1151,6 @@ public class Main extends ApplicationAdapter {
     /** Salta do avião: sai por baixo dele, com o embalo do avião, e começa a queda livre de barriga para baixo. */
     private void startSkydive() {
         Airplane ap = world.airplane;
-        if (enemies != null) enemies.release();   // os bots saltam junto (no seu tempo)
         inPlane = false;
         skydiving = true;
         player.pos.set(ap.pos).add(0f, -4f, 0f);

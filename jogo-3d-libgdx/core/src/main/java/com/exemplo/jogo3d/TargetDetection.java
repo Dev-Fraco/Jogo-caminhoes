@@ -48,7 +48,7 @@ final class TargetDetection {
         for (int i = 0; i < 3; i++) { cand[i] = null; candScore[i] = Float.MAX_VALUE; }
         for (int i = 0; i < enemies.list.size; i++) {
             Enemy e = enemies.list.get(i);
-            if (!e.alive() || e.airborne()) continue;
+            if (!e.alive()) continue;
             float dist = cam.dst(e.pos);
             if (dist > range || dist < 0.8f) continue;
             // atrás da câmera ou fora do campo de visão: nem calcula as cápsulas

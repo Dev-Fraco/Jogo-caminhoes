@@ -163,6 +163,7 @@ final class Enemy {
     private float hitT, hitDur = 0.18f, hitMag;   // reação ao dano (o corpo recua um pouco, o pano pisca)
     final Vector3 muzzle = new Vector3();
     boolean visibleToCam;   // dentro da distância de desenho (para não animar longe)
+    boolean dummy;          // alvo parado para ajustar a mira: não anda, não atira e não morre
 
     Enemy(Model body, Model gunModel, float x, float z, float seed) {
         inst = new ModelInstance(body);
@@ -201,12 +202,10 @@ final class Enemy {
             placeGun();
             return false;
         }
-        if (airborne()) return dropUpdate(dt, w, all);
-        // Fora da zona segura o gás tira vida; o bot tenta voltar para o centro (sem atirar)
-        boolean outside = all.zone != null && !all.zone.inside(pos.x, pos.z);
-        if (outside) {
-            damage(all.zone.damagePerSecond() * dt, null);
-            if (state == State.DEAD) return false;
+        if (dummy) {   // alvo parado: fica no lugar, sem andar nem atirar
+            setClip("Idle", 1f);
+            pose(dt);
+            return false;
         }
         if (weapon == null && state == State.COMBAT) state = State.PATROL;   // sem arma não entra em combate
         if (targetEnemy != null && !targetEnemy.alive()) { targetEnemy = null; canSee = false; }
@@ -235,7 +234,7 @@ final class Enemy {
                     }
                     for (int i = 0; i < all.list.size; i++) {
                         Enemy o = all.list.get(i);
-                        if (o == this || !o.alive() || o.airborne()) continue;
+                        if (o == this || !o.alive()) continue;
                         float d = (float) Math.hypot(o.pos.x - pos.x, o.pos.z - pos.z);
                         if (d > prev && d < SIGHT && d < bd) { bd = d; be = o; bp = false; }
                     }
@@ -296,12 +295,6 @@ final class Enemy {
                     speed = RUN;
                 }
             }
-        }
-        if (outside) {
-            // fora da zona: anda para o centro do círculo, correndo, e não atira
-            seeking = true;
-            moveDir = MathUtils.atan2(all.zone.cx - pos.x, all.zone.cz - pos.z);
-            speed = RUN;
         }
         if (seeking) {
             // indo pegar uma arma ou fugindo do gás
@@ -438,7 +431,7 @@ final class Enemy {
 
     /** Ouviu um tiro vindo de "at": vai até lá procurar (não sabe quem é). */
     void hear(Vector3 at) {
-        if (state == State.DEAD || weapon == null || airborne()) return;
+        if (state == State.DEAD || weapon == null) return;
         if (state != State.COMBAT) { phaseT = 0f; shooting = false; fireT = 0.8f; }
         state = State.COMBAT;
         lostT = -2f;
@@ -470,88 +463,6 @@ final class Enemy {
     boolean closeToCam;   // perto da câmera (≤ 60 m): o esqueleto é atualizado a cada quadro
     private Weapons.Pickup seekPick;
     final Vector3 fallVel = new Vector3();
-
-    /** Põe o bot na fila do avião (ainda sentado); o salto sai quando o jogador salta. */
-    void planDrop(float delay, float along, float side, Airplane air) {
-        state = State.RIDE;
-        jumpT = delay;
-        offAlong = along;
-        offSide = side;
-        rideTo(air);
-    }
-
-    /** Posição na fila do avião (a frente do avião é (sin h, cos h); o lado, (cos h, -sin h)). */
-    private void rideTo(Airplane air) {
-        float h = air.heading(), fx = MathUtils.sin(h), fz = MathUtils.cos(h);
-        pos.set(air.pos.x + fx * offAlong + fz * offSide, air.pos.y - 3f, air.pos.z + fz * offAlong - fx * offSide);
-        facing = h;
-    }
-
-    boolean airborne() { return state == State.RIDE || state == State.FALL || state == State.CHUTE; }
-
-    /** Uma etapa da queda: sentado → caindo (embalo do avião some) → paraquedas (desce devagar) → pouso. */
-    private boolean dropUpdate(float dt, World w, Enemies all) {
-        Airplane air = all.air;
-        if (state == State.RIDE) {
-            if (air != null) rideTo(air);
-            setClip("SentadoArreios", 1f);
-            if (all.released) jumpT -= dt;
-            if (all.released && jumpT <= 0f && air != null) {
-                state = State.FALL;
-                float fx = MathUtils.sin(air.heading()), fz = MathUtils.cos(air.heading());
-                fallVel.set(fx * Airplane.SPEED, air.verticalSpeed(), fz * Airplane.SPEED);
-                setClip("Falling", 1f);
-            }
-        } else if (state == State.FALL) {
-            fallVel.y += (-9.8f - 9.8f / 22f * fallVel.y) * dt;   // resistência do ar, como no jogador
-            float k = Math.min(1f, dt * 0.8f);
-            fallVel.x += -fallVel.x * k;
-            fallVel.z += -fallVel.z * k;
-            pos.mulAdd(fallVel, dt);
-            if (pos.y - w.groundAt(pos.x, pos.z) <= DROP_OPEN) {
-                state = State.CHUTE;
-                float a = MathUtils.random(MathUtils.PI2);
-                fallVel.set(MathUtils.cos(a) * DRIFT, -CHUTE_FALL, MathUtils.sin(a) * DRIFT);
-                setClip("SentadoArreios", 1f);
-            }
-        } else if (state == State.CHUTE) {
-            fallVel.y += (-CHUTE_FALL - fallVel.y) * Math.min(1f, dt * 2f);
-            pos.mulAdd(fallVel, dt);
-            float ground = w.groundAt(pos.x, pos.z);
-            if (pos.y <= ground) {
-                pos.y = ground;
-                state = State.PATROL;
-                waitT = MathUtils.random(0.5f, 2f);
-                forceOnce("HardLanding");
-            }
-        }
-        pos.x = MathUtils.clamp(pos.x, -World.HALF + 3f, World.HALF - 3f);
-        pos.z = MathUtils.clamp(pos.z, -World.HALF + 3f, World.HALF - 3f);
-        if (fallVel.len2() > 0.25f && state != State.RIDE) facing = MathUtils.atan2(fallVel.x, fallVel.z);
-        inst.transform.setToTranslation(pos).rotate(Vector3.Y, facing * MathUtils.radiansToDegrees);
-        animAcc += dt;   // mesma economia do resto: o esqueleto só recalcula perto da câmera ou a cada 0,2 s
-        if (savedHead != null) {   // desfaz o estalo do quadro anterior antes da animação escrever de novo
-            com.badlogic.gdx.graphics.g3d.model.Node hn = inst.getNode("Head", true);
-            if (hn != null) hn.localTransform.set(savedHead);
-            savedHead = null;
-        }
-        if (closeToCam || animAcc > 0.2f) {
-            anim.update(animAcc);
-            animAcc = 0f;
-            if (headSnap > 0.01f) {
-                com.badlogic.gdx.graphics.g3d.model.Node hn = inst.getNode("Head", true);
-                if (hn != null) {
-                    savedHead = new com.badlogic.gdx.math.Matrix4(hn.localTransform);
-                    headOv.idt().rotate(Vector3.X, -30f * headSnap);
-                    hn.localTransform.mul(headOv);
-                    inst.calculateTransforms();
-                }
-            }
-        }
-        if (headSnap > 0f) headSnap = Math.max(0f, headSnap - dt * 4f);
-        placeGun();
-        return false;
-    }
 
     /** Procura a arma no chão mais próxima (até ~260 m). */
     private Weapons.Pickup nearestPickup(World w) {
@@ -594,7 +505,7 @@ final class Enemy {
 
     /** Leva dano; devolve true se morreu agora. */
     boolean damage(float amount, Vector3 from) {
-        if (state == State.DEAD) return false;
+        if (state == State.DEAD || dummy) return false;
         barT = 3f;
         health -= amount;
         // virou alvo: entra em combate (se tiver arma) e encara o atirador

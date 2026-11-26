@@ -503,42 +503,6 @@ public class ShootTests extends ApplicationAdapter {
         for (int i = 0; i < 40; i++) { sh.audio.impact(Surface.MADEIRA, 10f); sh.audio.impact(Surface.PEDRA, 10f); sh.audio.update(0.002f); }
         check("áudio: o limite de vozes por janela de 100 ms vale", sh.audio.played - p2 <= 16, (sh.audio.played - p2) + " sons em 80 ms");
 
-        System.out.println("== Zona segura ==");
-        Zone z = new Zone(1915);
-        float r0z = z.radius;
-        boolean startsInside = z.inside(z.cx, z.cz) && !z.inside(z.cx + r0z + 5f, z.cz);
-        check("zona começa grande e o centro está dentro dela", startsInside && r0z == Zone.RADII[0], "raio " + r0z);
-        for (int i = 0; i < 101 * 30; i++) z.update(1f / 30f);
-        check("depois da espera inicial ela começa a encolher", z.shrinking, z.label());
-        boolean monotone = true;
-        float prevR = z.radius, maxStep = 0f;
-        for (int i = 0; i < 45 * 30; i++) {
-            z.update(1f / 30f);
-            if (z.radius > prevR + 1e-3f) monotone = false;
-            maxStep = Math.max(maxStep, prevR - z.radius);
-            prevR = z.radius;
-        }
-        check("encolhe suave até o raio da fase 2, sem pular", monotone && Math.abs(z.radius - Zone.RADII[1]) < 0.5f && maxStep < 0.2f, String.format("raio %.1f, maior passo %.3f m", z.radius, maxStep));
-        check("o novo círculo cabe dentro do mapa", Math.hypot(z.cx, z.cz) < World.HALF, "");
-        for (int i = 0; i < 20 * 60 * 30; i++) z.update(1f / 30f);
-        check("termina na zona final pequena e para", z.finalPhase() && Math.abs(z.radius - Zone.RADII[Zone.RADII.length - 1]) < 0.5f && z.label().equals("Zona final"), String.format("raio %.1f", z.radius));
-        boolean allInside = true, varied = true;
-        float firstX = 0f;
-        for (int k = 0; k < 300; k++) {
-            Zone zk = new Zone(k * 7919L + 1);
-            if (k == 0) firstX = zk.cx;
-            else if (zk.cx == firstX) varied = false;
-            if (Math.abs(zk.cx) + zk.radius > Zone.MAP_HALF || Math.abs(zk.cz) + zk.radius > Zone.MAP_HALF) allInside = false;
-            if (zk.nextR() > 0 && Math.hypot(zk.nextCx() - zk.cx, zk.nextCz() - zk.cz) + zk.nextR() > zk.radius + 1e-3f) allInside = false;
-        }
-        check("300 partidas: centro aleatório e círculo sempre dentro do mapa", allInside && varied, "");
-        Zone zev = new Zone(5);
-        String evStart = zev.takeEvent();
-        for (int i = 0; i < 101 * 30; i++) zev.update(1f / 30f);
-        String ev1 = zev.takeEvent();
-        check("avisos: começo e 'zona diminuindo' aparecem na tela", evStart != null && ev1 != null && ev1.startsWith("ZONA DIMINUINDO"), String.valueOf(ev1));
-        check("o dano fora da zona cresce nas fases finais", z.damagePerSecond() > new Zone(1).damagePerSecond(), z.damagePerSecond() + " vida/s");
-
         System.out.println("== Desempenho e pool ==");
         setup(0, null);
         Enemy pf = spawnEnemy(ax, az + 8f, MathUtils.PI, "Idle");

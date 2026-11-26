@@ -15,18 +15,13 @@ import java.util.Random;
  * Quando o bando todo cai, outro chega depois de um tempo.
  */
 final class Enemies {
-    static final int COUNT = 80;   // bandos do battle royale: todos saltam do avião
-    private static final float WAVE_DELAY = 25f;
+    static final int COUNT = 1;    // um só: alvo parado ao lado do cemitério, para ajustar a mira
 
     final Array<Enemy> list = new Array<>();
     private final Model body;
     private final Model[] guns;
-    Airplane air;                  // avião de onde saltam os bots
-    boolean released;              // o jogador saltou: os bots também saltam (no seu tempo)
-    Zone zone;                     // zona segura: fora dela os bots levam dano e fogem para dentro
     private final Random rnd = new Random(1915);
     int kills = 0;
-    private float waveT = -1f;
     private long frame = 0;
     /** Disparos dos inimigos neste quadro (para o som e o rastro): muzzle → ponto. */
     final Array<Vector3[]> shots = new Array<>();
@@ -34,57 +29,37 @@ final class Enemies {
     Enemies(World w, Model body, Model[] guns) {
         this.body = body;
         this.guns = guns;
-        air = w.airplane;
-        spawnWave(w, null);
+        spawnTarget(w);
     }
 
-    void spawnWave(World w, Vector3 avoid) { spawnMore(w, avoid, COUNT); }
-
-    /** Põe mais n bots (longe do jogador). */
-    /** Partida nova: o bando volta ao avião, ainda sem saltar. */
-    void reset(World w) {
+    /** Põe o alvo parado: no chão, 5 m fora da cerca do cemitério, de frente para ele. */
+    void spawnTarget(World w) {
         list.clear();
-        released = false;
-        waveT = -1f;
-        air = w.airplane;
-        spawnWave(w, null);
+        float cx = w.hasCem ? w.cemX : 0f, cz = w.hasCem ? w.cemZ : 0f;
+        float[][] offs = {{World.CEM_HW + 5f, 0f}, {-(World.CEM_HW + 5f), 0f}, {0f, World.CEM_HD + 5f},
+                {0f, -(World.CEM_HD + 5f)}, {World.CEM_HW + 9f, 4f}};
+        float bx = cx + offs[0][0], bz = cz + offs[0][1];
+        for (float[] o : offs) {
+            if (!blocked(w, cx + o[0], cz + o[1])) { bx = cx + o[0]; bz = cz + o[1]; break; }
+        }
+        Enemy e = new Enemy(body, null, bx, bz, 0.3f);
+        e.dummy = true;
+        e.pos.y = w.groundAt(bx, bz);
+        e.facing = MathUtils.atan2(cx - bx, cz - bz);
+        list.add(e);
     }
 
-    /** Os bots saltam (chamado quando o jogador salta). */
-    void release() { released = true; }
-
-    /** Bando no avião: fila de saída, cada fileira salta um pouco depois da outra. */
-    void spawnDrop(int n) {
-        for (int i = 0; i < n; i++) {
-            Enemy e = new Enemy(body, null, 0f, 0f, rnd.nextFloat());
-            int row = i / 8, col = i % 8;
-            e.planDrop(row * 0.7f + MathUtils.random(0f, 0.4f), (row - 4.5f) * 5f, (col - 3.5f) * 3f, air);
-            list.add(e);
+    /** Há algum obstáculo a menos de 1 m deste ponto? */
+    private static boolean blocked(World w, float x, float z) {
+        for (int i = 0; i < w.obstacles.size; i++) {
+            World.Obstacle o = w.obstacles.get(i);
+            if (Math.hypot(x - o.x, z - o.z) < o.radius + 1f) return true;
         }
+        return false;
     }
 
-    void spawnMore(World w, Vector3 avoid, int n) {
-        if (air != null) {
-            spawnDrop(n);
-            return;
-        }
-        for (int i = 0; i < n; i++) {
-            float x = 0f, z = 0f;
-            for (int t = 0; t < 30; t++) {
-                if (i % 3 == 0 && w.houses.size > 0) {
-                    Vector3 hp = w.houses.get(rnd.nextInt(w.houses.size)).t.getTranslation(new Vector3());
-                    x = hp.x + (rnd.nextFloat() - 0.5f) * 14f;
-                    z = hp.z + 6f + rnd.nextFloat() * 4f;
-                } else {
-                    float[] p = w.openSpot(rnd);
-                    x = p[0];
-                    z = p[1];
-                }
-                if (avoid == null || Math.hypot(x - avoid.x, z - avoid.z) > 45f) break;
-            }
-            list.add(new Enemy(body, null, x, z, rnd.nextFloat()));   // sem arma: pega no chão
-        }
-    }
+    /** Partida nova: o alvo volta para o seu lugar. */
+    void reset(World w) { spawnTarget(w); }
 
     int alive() {
         int n = 0;
@@ -113,7 +88,7 @@ final class Enemies {
             e.visibleToCam = dx * dx + dz * dz < near;
             e.closeToCam = dx * dx + dz * dz < 60f * 60f;
             boolean fired;
-            if (!e.visibleToCam && !e.airborne() && e.alive()) {
+            if (!e.visibleToCam && e.alive()) {
                 // longe da câmera: atualiza a cada 3 quadros com o tempo acumulado (economia no celular)
                 e.lodT += dt;
                 if ((frame + i) % 3 != 0) continue;
@@ -130,18 +105,6 @@ final class Enemies {
                 list.removeIndex(i);
                 i--;
             }
-        }
-        // Sobraram poucos (eles se matam): depois de um tempo chegam mais jogadores
-        int left = alive();
-        if (left <= 2) {
-            if (waveT < 0f) waveT = WAVE_DELAY;
-            waveT -= dt;
-            if (waveT <= 0f) {
-                waveT = -1f;
-                spawnMore(w, playerPos, COUNT - left);
-            }
-        } else {
-            waveT = -1f;
         }
     }
 
@@ -189,7 +152,7 @@ final class Enemies {
         Enemy best = null;
         for (int i = 0; i < list.size; i++) {
             Enemy e = list.get(i);
-            if (!includeDead && (!e.alive() || e.airborne())) continue;
+            if (!includeDead && !e.alive()) continue;
             // teste rápido antes de atualizar as cápsulas
             float ox = e.pos.x - o.x, oy = e.pos.y + 0.9f - o.y, oz = e.pos.z - o.z;
             float along = ox * d.x + oy * d.y + oz * d.z;
