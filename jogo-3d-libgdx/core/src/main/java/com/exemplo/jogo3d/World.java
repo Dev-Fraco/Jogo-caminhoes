@@ -33,9 +33,13 @@ import java.util.Random;
  */
 public class World {
 
-    static final float SIZE = 180f;          // tamanho do terreno (metros)
+    static final float SIZE = 360f;          // tamanho do terreno (metros)
     static final float HALF = SIZE / 2f;
-    static final int GRID = 64;              // células por lado (64 = limite seguro de vértices)
+    static final int CHUNKS = 2;             // o terreno é feito em 2 x 2 pedaços (cada um dentro do limite de vértices)
+    static final int GRID = 64;              // células por lado de cada pedaço
+    static final float ROAD_HALF = 3.5f;     // estrada de barro: meia largura (7 m), no eixo x (z = 0)
+    static final float ROAD_SHOULDER = 5f;   // faixa em que o terreno se ajusta suavemente à estrada
+    static final float HOUSE_Z = 30f;        // casas ao lado da estrada (distância do eixo)
     static final float SPAWN_CLEAR = 9f;     // área plana no ponto de nascimento
     static final float TEXTURE_TILE = 14f;    // metros por repetição da textura de terra
 
@@ -67,7 +71,7 @@ public class World {
     /** Caixas das paredes da casa (coordenadas locais), lidas de models/casa_taipa_colisao.json. */
     private final Array<float[]> wallBoxes = new Array<>();
 
-    private Model terrainModel;
+    private final Array<Model> terrainModels = new Array<>();
     private Model casaModel;   // casa de taipa (modelo real importado)
     private Model troughModel; // cocho de madeira (1,84 m)
     private Model postModel;   // morão de madeira, para amarrar o animal
@@ -81,8 +85,9 @@ public class World {
     final Array<HouseDecor> decors = new Array<>();
     private Model stoveModel, hammockModel, benchModel, doorModel, treeModel, pole, floorModel;
     private Fire fire;
-    private ModelInstance terrainInstance;
-    ModelInstance terrainInstance() { return terrainInstance; }
+    /** Pedaços do terreno e a estrada: estes são sempre desenhados (a origem deles não serve para o corte por distância). */
+    private final Array<ModelInstance> terrainParts = new Array<>();
+    boolean isTerrainPart(ModelInstance mi) { return terrainParts.contains(mi, true); }
     /** Montarias do mundo: o donkey do estábulo e os cavalos (cada um pode ser montado). */
     final Array<Riding.Mount> mounts = new Array<>();
     private ModelInstance ropeInstance;
@@ -97,8 +102,17 @@ public class World {
     private Texture signTexture;
     private final Array<Model> loaded = new Array<>();
 
-    /** Altura do terreno em (x, z). Plana perto do spawn, colinas ao redor. */
+    /** Altura do terreno em (x, z). A estrada (z = 0) é plana, e o terreno se ajusta suavemente a ela. */
     public float heightAt(float x, float z) {
+        float road = baseHeight(x, 0f);
+        float t = MathUtils.clamp((Math.abs(z) - ROAD_HALF) / ROAD_SHOULDER, 0f, 1f);
+        float w = t * t * (3f - 2f * t);
+        float base = baseHeight(x, z);
+        return road + (base - road) * w;
+    }
+
+    /** Relevo natural (sem a estrada): plano perto do spawn, colinas ao redor. */
+    private float baseHeight(float x, float z) {
         float h = 2.8f * MathUtils.sin(x * 0.040f + 0.7f) * MathUtils.cos(z * 0.035f - 0.3f)
                 + 1.7f * MathUtils.sin(x * 0.100f - z * 0.070f + 2.1f)
                 + 0.8f * MathUtils.sin(x * 0.230f + 1.7f) * MathUtils.sin(z * 0.190f + 0.4f);
@@ -106,7 +120,7 @@ public class World {
         float t = MathUtils.clamp((r - SPAWN_CLEAR) / 14f, 0f, 1f);
         float flat = t * t * (3f - 2f * t);
         float edge = Math.max(Math.abs(x), Math.abs(z));
-        float k = MathUtils.clamp((edge - 40f) / 40f, 0f, 1f);
+        float k = MathUtils.clamp((edge - 80f) / 80f, 0f, 1f);
         k = k * k * (3f - 2f * k);
         float corners = 16f * k * (0.6f + 0.4f * MathUtils.sin(x * 0.07f + 0.5f) * MathUtils.cos(z * 0.06f - 0.9f));
         float y = h * flat + corners;
@@ -149,7 +163,8 @@ public class World {
     private void choosePlacesForLandmarks() {
         Random r = new Random(20261125L);
         for (int t = 0; t < 400 && (!hasDam || !hasWell); t++) {
-            float x = (r.nextFloat() * 2f - 1f) * 70f, z = (r.nextFloat() * 2f - 1f) * 70f;
+            float x = (r.nextFloat() * 2f - 1f) * 150f, z = (r.nextFloat() * 2f - 1f) * 130f;
+            if (Math.abs(z) < 50f) continue;                 // fora da faixa da estrada e das casas
             if (Math.hypot(x, z) < 30f) continue;
             if (!hasDam) {
                 if (!flatAround(x, z, 4f, 1.0f)) continue;   // açude em lugar plano
@@ -193,28 +208,52 @@ public class World {
 
         ModelBuilder mb = new ModelBuilder();
 
-        // Terreno: textura de terra + cor por altura/inclinação
-        mb.begin();
-        MeshPartBuilder part = mb.part("terrain", GL20.GL_TRIANGLES,
-                Usage.Position | Usage.Normal | Usage.ColorPacked | Usage.TextureCoordinates,
-                new Material(TextureAttribute.createDiffuse(dirtTexture)));
-        float step = SIZE / GRID;
-        for (int i = 0; i < GRID; i++) {
-            for (int j = 0; j < GRID; j++) {
-                float x0 = -HALF + i * step, x1 = x0 + step;
-                float z0 = -HALF + j * step, z1 = z0 + step;
-                // Boca da cacimba: sai do terreno toda célula que toca o círculo do poço (a plataforma cobre a borda)
-                if (hasWell && cellTouchesCircle(x0, z0, x1, z1, wellX, wellZ, Landmarks.WELL_R)) continue;
-                VertexInfo a = vertex(x0, z0), b = vertex(x1, z0);
-                VertexInfo c = vertex(x1, z1), d = vertex(x0, z1);
-                // ordem anti-horária vista de cima (para a face aparecer)
-                part.triangle(a, c, b);
-                part.triangle(a, d, c);
+        // Terreno em pedaços (2 x 2): textura de terra + cor por altura/inclinação
+        float chunk = SIZE / CHUNKS;
+        float step = chunk / GRID;
+        for (int ci = 0; ci < CHUNKS; ci++) {
+            for (int cj = 0; cj < CHUNKS; cj++) {
+                mb.begin();
+                MeshPartBuilder part = mb.part("terrain", GL20.GL_TRIANGLES,
+                        Usage.Position | Usage.Normal | Usage.ColorPacked | Usage.TextureCoordinates,
+                        new Material(TextureAttribute.createDiffuse(dirtTexture)));
+                for (int i = 0; i < GRID; i++) {
+                    for (int j = 0; j < GRID; j++) {
+                        float x0 = -HALF + ci * chunk + i * step, x1 = x0 + step;
+                        float z0 = -HALF + cj * chunk + j * step, z1 = z0 + step;
+                        // Boca da cacimba: sai do terreno toda célula que toca o círculo do poço (a plataforma cobre a borda)
+                        if (hasWell && cellTouchesCircle(x0, z0, x1, z1, wellX, wellZ, Landmarks.WELL_R)) continue;
+                        VertexInfo a = vertex(x0, z0), b = vertex(x1, z0);
+                        VertexInfo c = vertex(x1, z1), d = vertex(x0, z1);
+                        // ordem anti-horária vista de cima (para a face aparecer)
+                        part.triangle(a, c, b);
+                        part.triangle(a, d, c);
+                    }
+                }
+                Model m = mb.end();
+                terrainModels.add(m);
+                ModelInstance mi = new ModelInstance(m);
+                instances.add(mi);
+                terrainParts.add(mi);
             }
         }
-        terrainModel = mb.end();
-        terrainInstance = new ModelInstance(terrainModel);
-        instances.add(terrainInstance);
+
+        // Estrada de barro: faixa plana no eixo x, sobre o terreno (segmentos de 2 m)
+        mb.begin();
+        MeshPartBuilder road = mb.part("road", GL20.GL_TRIANGLES, Usage.Position | Usage.Normal,
+                new Material(com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute.createDiffuse(0.50f, 0.38f, 0.26f, 1f)));
+        for (int i = 0; i < (int) (SIZE / 2f); i++) {
+            float x0 = -HALF + i * 2f, x1 = x0 + 2f;
+            VertexInfo a = roadVertex(x0, -ROAD_HALF), b = roadVertex(x1, -ROAD_HALF);
+            VertexInfo c = roadVertex(x1, ROAD_HALF), d = roadVertex(x0, ROAD_HALF);
+            road.triangle(a, c, b);
+            road.triangle(a, d, c);
+        }
+        Model roadModel = mb.end();
+        loaded.add(roadModel);
+        ModelInstance roadInst = new ModelInstance(roadModel);
+        instances.add(roadInst);
+        terrainParts.add(roadInst);
 
         // Açude seco com rachaduras e cacimba funda com água no fundo
         if (hasDam) {
@@ -273,15 +312,20 @@ public class World {
         cartModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/carroca.g3dj"));
         horseModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/horse.g3dj"));
         donkeyModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/donkey.g3dj"));
-        for (int i = 0; i < 8; i++) addEnclosedHouse(rnd);
-        for (int i = 0; i < 18; i++) addCactus(rnd);
-        for (int i = 0; i < 9; i++) addTree(rnd, true);
-        for (int i = 0; i < 7; i++) addTree(rnd, false);
-        for (int i = 0; i < 12; i++) addProp(rnd, rockLarge, 2.2f, 0.9f, 1f);
-        for (int i = 0; i < 16; i++) addProp(rnd, rockSmall, 2.2f, 0.45f, 1f);
+        // Casas ao lado da estrada, nos dois lados, sempre longe uma da outra; a porta fica voltada para a estrada
+        final float[][] houseSpots = {
+                {-30f, 1f}, {30f, -1f}, {-90f, -1f}, {90f, 1f}, {-150f, 1f}, {150f, -1f},
+                {-30f, -1f}, {30f, 1f}, {-90f, 1f}, {90f, -1f}, {-150f, -1f}, {150f, 1f}};
+        for (float[] s : houseSpots) addEnclosedHouse(rnd, s[0], s[1] * HOUSE_Z, s[1] > 0f ? 180f : 0f);
+        // Objetos do cenário: o mapa dobrou, então dobrou a quantidade
+        for (int i = 0; i < 36; i++) addCactus(rnd);
+        for (int i = 0; i < 18; i++) addTree(rnd, true);
+        for (int i = 0; i < 14; i++) addTree(rnd, false);
+        for (int i = 0; i < 24; i++) addProp(rnd, rockLarge, 2.2f, 0.9f, 1f);
+        for (int i = 0; i < 32; i++) addProp(rnd, rockSmall, 2.2f, 0.45f, 1f);
         // Madeira morta: tocos e troncos caídos (no lugar das árvores mortas, que ainda não temos modelo)
-        for (int i = 0; i < 18; i++) addProp(rnd, stump, 2.6f, 0.35f, 1f);
-        for (int i = 0; i < 12; i++) addProp(rnd, log, 2.6f, 1.2f, 1f);
+        for (int i = 0; i < 36; i++) addProp(rnd, stump, 2.6f, 0.35f, 1f);
+        for (int i = 0; i < 24; i++) addProp(rnd, log, 2.6f, 1.2f, 1f);
     }
 
     private Model loadModel(String path) {
@@ -368,8 +412,22 @@ public class World {
         do {
             x = (rnd.nextFloat() * 2f - 1f) * (HALF - margin);
             z = (rnd.nextFloat() * 2f - 1f) * (HALF - margin);
-        } while (Math.sqrt(x * x + z * z) < 14f);
+        } while (Math.sqrt(x * x + z * z) < 14f || Math.abs(z) < ROAD_HALF + 6f || nearEnclosure(x, z));
         return new float[]{x, z};
+    }
+
+    /** Verdadeiro se o ponto está perto demais de um cercado (para não nascer objeto dentro dele). */
+    private boolean nearEnclosure(float x, float z) {
+        for (int k = 0; k < enclosureCenters.size; k++) {
+            float[] c = enclosureCenters.get(k);
+            if (Math.hypot(x - c[0], z - c[1]) < 16f) return true;
+        }
+        return false;
+    }
+
+    /** Vértice da estrada: plano, um pouco acima do terreno para não brigar com ele. */
+    private VertexInfo roadVertex(float x, float z) {
+        return new VertexInfo().setPos(x, heightAt(x, z) + 0.04f, z).setNor(0f, 1f, 0f);
     }
 
     /**
@@ -456,26 +514,18 @@ public class World {
      * Coloca a casa de taipa (modelo real, ~8,4 m x 6,4 m, porta na frente) num ponto plano e com rotação aleatória.
      * É um objeto independente: pode ser posicionado em qualquer lugar do mapa.
      */
-    private void addEnclosedHouse(Random rnd) {
-        float bestX = 0f, bestZ = 0f, bestRange = 1e9f;
-        for (int t = 0; t < 80; t++) {
-            float[] p = randomSpot(rnd, 14f);
-            if (Math.hypot(p[0], p[1]) < 20.0) continue;          // longe do início
-            if (nearWellOrDam(p[0], p[1], 16f)) continue;         // longe do açude e da cacimba
-            boolean near = false;
-            for (int k = 0; k < enclosureCenters.size; k++) {
-                float[] c = enclosureCenters.get(k);
-                if (Math.hypot(p[0] - c[0], p[1] - c[1]) < 34.0) near = true;   // cercados não se encostam
+    private void addEnclosedHouse(Random rnd, float tx, float tz, float yaw) {
+        // Perto do lugar combinado, escolhe o ponto mais plano para a casa
+        float bestX = tx, bestZ = tz, bestRange = 1e9f;
+        for (float dx = -4f; dx <= 4.01f; dx += 2f) {
+            for (float dz = -3f; dz <= 3.01f; dz += 3f) {
+                float range = flatRange(tx + dx, tz + dz);
+                if (range < bestRange) { bestRange = range; bestX = tx + dx; bestZ = tz + dz; }
             }
-            if (near) continue;
-            float range = flatRange(p[0], p[1]);
-            if (range < bestRange) { bestRange = range; bestX = p[0]; bestZ = p[1]; }
-            if (range < 0.5f) break;
         }
         enclosureCenters.add(new float[]{bestX, bestZ});
 
-        // Casa no centro do cercado, com a porta voltada para a porteira (frente +z)
-        float yaw = rnd.nextInt(4) * 90f;
+        // Casa no centro do cercado, com a porta voltada para a estrada (a porteira também)
         // Base da casa: no ponto mais alto da área, para o terreno não aparecer dentro dela
         float y = -1e9f;
         Matrix4 probe = new Matrix4().setToTranslation(bestX, 0f, bestZ).rotate(Vector3.Y, yaw);
@@ -708,7 +758,7 @@ public class World {
     }
 
     public void dispose() {
-        terrainModel.dispose();
+        for (Model m : terrainModels) m.dispose();
         casaModel.dispose();
         if (crackTexture != null) crackTexture.dispose();
         if (damModel != null) damModel.dispose();

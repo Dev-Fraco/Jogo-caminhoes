@@ -438,10 +438,9 @@ public class Main extends ApplicationAdapter {
         drawList.clear();
         float maxD2 = Settings.drawDistance() * Settings.drawDistance();
         Vector3 cp = camera.position;
-        ModelInstance terrain = world.terrainInstance();
         for (int i = 0; i < world.instances.size; i++) {
             ModelInstance mi = world.instances.get(i);
-            if (mi == terrain) { drawList.add(mi); continue; }
+            if (world.isTerrainPart(mi)) { drawList.add(mi); continue; }
             mi.transform.getTranslation(tmpT);
             float dx = tmpT.x - cp.x, dz = tmpT.z - cp.z;
             if (dx * dx + dz * dz <= maxD2) drawList.add(mi);
