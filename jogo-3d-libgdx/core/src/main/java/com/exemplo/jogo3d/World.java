@@ -111,7 +111,45 @@ public class World {
         float t = MathUtils.clamp((Math.abs(z - rz) - ROAD_HALF) / ROAD_SHOULDER, 0f, 1f);
         float w = t * t * (3f - 2f * t);
         float base = baseHeight(x, z);
-        return road + (base - road) * w;
+        float y = road + (base - road) * w;
+        if (w < 1f) y -= pothole(x, z);   // buracos e lombadas só na estrada
+        return y;
+    }
+
+    // Buracos (e algumas lombadas) na estrada: posição, raio e profundidade (negativa = lombada)
+    private static final float[] POT_X, POT_Z, POT_R, POT_D;
+    static {
+        java.util.Random r = new java.util.Random(1915L);
+        float[] px = new float[80], pz = new float[80], pr = new float[80], pd = new float[80];
+        int n = 0;
+        for (float x = -172f; x < 172f && n < 80; x += 6f + r.nextFloat() * 6f) {
+            if (Math.abs(x) < 12f) continue;   // perto do início a estrada é lisa
+            px[n] = x;
+            pz[n] = roadZ(x) + (r.nextFloat() * 2f - 1f) * 2.3f;
+            pr[n] = 0.7f + r.nextFloat() * 0.6f;
+            pd[n] = r.nextFloat() < 0.72f ? 0.14f + r.nextFloat() * 0.16f : -(0.08f + r.nextFloat() * 0.08f);
+            n++;
+        }
+        POT_X = java.util.Arrays.copyOf(px, n);
+        POT_Z = java.util.Arrays.copyOf(pz, n);
+        POT_R = java.util.Arrays.copyOf(pr, n);
+        POT_D = java.util.Arrays.copyOf(pd, n);
+    }
+
+    /** Profundidade do buraco (ou altura negativa da lombada) em (x, z). */
+    static float pothole(float x, float z) {
+        float sum = 0f;
+        for (int i = 0; i < POT_X.length; i++) {
+            float r = POT_R[i], dx = x - POT_X[i];
+            if (dx > r || dx < -r) continue;
+            float dz = z - POT_Z[i];
+            if (dz > r || dz < -r) continue;
+            float d = (float) Math.sqrt(dx * dx + dz * dz);
+            if (d >= r) continue;
+            float t = 1f - d / r;
+            sum += POT_D[i] * t * t * (3f - 2f * t);
+        }
+        return sum;
     }
 
     /** Linha central da estrada: curvas que passam pela origem (spawn). */
@@ -224,7 +262,7 @@ public class World {
     private VertexInfo vertex(float x, float z) {
         Vector3 n = normalAt(x, z);
         return new VertexInfo()
-                .setPos(x, heightAt(x, z), z)
+                .setPos(x, heightAt(x, z) - (Math.abs(z - roadZ(x)) < ROAD_HALF ? 0.45f : 0f), z)
                 .setNor(n.x, n.y, n.z)
                 .setCol(tintAt(x, z, n))
                 .setUV(x / TEXTURE_TILE, z / TEXTURE_TILE);
@@ -271,15 +309,19 @@ public class World {
 
         // Estrada de barro: faixa plana no eixo x, sobre o terreno (segmentos de 2 m)
         mb.begin();
-        MeshPartBuilder road = mb.part("road", GL20.GL_TRIANGLES, Usage.Position | Usage.Normal,
-                new Material(com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute.createDiffuse(0.50f, 0.38f, 0.26f, 1f)));
-        for (int i = 0; i < (int) (SIZE / 2f); i++) {
-            float x0 = -HALF + i * 2f, x1 = x0 + 2f;
+        MeshPartBuilder road = mb.part("road", GL20.GL_TRIANGLES, Usage.Position | Usage.Normal | Usage.ColorPacked,
+                new Material(ColorAttribute.createDiffuse(1f, 1f, 1f, 1f)));
+        int cols = 6;   // 1 m ao longo e ~1,2 m na largura: os buracos aparecem
+        for (int i = 0; i < (int) SIZE; i++) {
+            float x0 = -HALF + i, x1 = x0 + 1f;
             float z0 = roadZ(x0), z1 = roadZ(x1);
-            VertexInfo a = roadVertex(x0, z0 - ROAD_HALF), b = roadVertex(x1, z1 - ROAD_HALF);
-            VertexInfo c = roadVertex(x1, z1 + ROAD_HALF), d = roadVertex(x0, z0 + ROAD_HALF);
-            road.triangle(a, c, b);
-            road.triangle(a, d, c);
+            for (int j = 0; j < cols; j++) {
+                float o0 = -ROAD_HALF + 2f * ROAD_HALF * j / cols, o1 = -ROAD_HALF + 2f * ROAD_HALF * (j + 1) / cols;
+                VertexInfo a = roadVertex(x0, z0 + o0), b = roadVertex(x1, z1 + o0);
+                VertexInfo c = roadVertex(x1, z1 + o1), d = roadVertex(x0, z0 + o1);
+                road.triangle(a, c, b);
+                road.triangle(a, d, c);
+            }
         }
         Model roadModel = mb.end();
         loaded.add(roadModel);
@@ -512,7 +554,10 @@ public class World {
 
     /** Vértice da estrada: plano, um pouco acima do terreno para não brigar com ele. */
     private VertexInfo roadVertex(float x, float z) {
-        return new VertexInfo().setPos(x, heightAt(x, z) + 0.04f, z).setNor(0f, 1f, 0f);
+        float dark = MathUtils.clamp(pothole(x, z) / 0.3f, 0f, 1f) * 0.4f;   // fundo do buraco mais escuro
+        Vector3 n = normalAt(x, z);
+        return new VertexInfo().setPos(x, heightAt(x, z) + 0.04f, z).setNor(n.x, n.y, n.z)
+                .setCol(0.50f * (1f - dark), 0.38f * (1f - dark), 0.26f * (1f - dark), 1f);
     }
 
     /**
@@ -673,11 +718,12 @@ public class World {
         Matrix4 enc = new Matrix4().setToTranslation(bestX, y, bestZ).rotate(Vector3.Y, yaw);
         Vector3 c = new Vector3(6f, 0f, -3f).mul(enc);
         ModelInstance cart = new ModelInstance(cartModel);
-        cart.transform.setToTranslation(c.x, heightAt(c.x, c.z), c.z).rotate(Vector3.Y, yaw);
         instances.add(cart);
         Obstacle cobs = new Obstacle(c.x, c.z, 1.5f, heightAt(c.x, c.z), 1.8f);
         obstacles.add(cobs);
-        carts.add(new Cart(cart, cobs, new Vector3(c.x, heightAt(c.x, c.z), c.z)));
+        Cart cc = new Cart(cart, cobs);
+        cc.setRest(this, c.x, c.z, yaw * MathUtils.degreesToRadians);
+        carts.add(cc);
 
         // Cavalo em só algumas casas (3ª, 6ª e 8ª), parado dentro do cercado
         if (houses.size == 3 || houses.size == 6 || houses.size == 8) {

@@ -157,6 +157,13 @@ public class Character {
         applyClip();
     }
 
+    /** Posição da mão (osso da mão) no mundo; usada para as rédeas chegarem na mão. */
+    public Vector3 handWorld(boolean left, Vector3 out) {
+        Node n = instance.getNode(left ? "LeftHand" : "RightHand");
+        if (n == null) return instance.transform.getTranslation(out).add(0f, 1.2f, 0f);
+        return out.set(0f, 0f, 0f).mul(n.globalTransform).mul(instance.transform);
+    }
+
     /** Balanço da rede (radianos), em torno do quadril. */
     public void setSwing(float rad) {
         swing = rad;

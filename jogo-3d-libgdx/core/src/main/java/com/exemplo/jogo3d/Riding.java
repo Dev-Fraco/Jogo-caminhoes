@@ -209,7 +209,8 @@ public class Riding {
                 break;
         }
         m.anim.update(dt);
-        updateCart();
+        updateCart(dt);
+        if (reinsOn) updateReins(dt, ch);
     }
 
     // ---------- Montar ----------
@@ -282,8 +283,6 @@ public class Riding {
             setClip("Idle", 1f);
         }
         placeAnimal();
-        updateReins();
-        updateCart();
         if (driving && !posed) {
             // Entrando na carroça: animação de sentar toca uma vez, depois fica na pose de arreios
             posed = true;
@@ -322,14 +321,15 @@ public class Riding {
         cart = c;
         c.attached = true;
         world.obstacles.removeValue(c.obstacle, true);
-        updateCart();
+        c.beginTow(world);
     }
 
     /** Solta a carroça onde ela está (atrás do cavalo). */
     void detachCart() {
         if (cart == null) return;
         cart.attached = false;
-        cart.obstacle = new World.Obstacle(cart.pos.x, cart.pos.z, 1.5f, cart.pos.y, 1.8f);
+        cart.setRest(world, cart.ax, cart.az, cart.yaw);   // as varas descem até o chão
+        cart.obstacle = new World.Obstacle(cart.ax, cart.az, 1.5f, cart.pos.y, 1.8f);
         world.obstacles.add(cart.obstacle);
         cart = null;
     }
@@ -358,12 +358,15 @@ public class Riding {
         state = St.DISMOUNTING;
     }
 
-    /** Carroça presa: fica 3,4 m atrás do cavalo, com a mesma direção. */
-    private void updateCart() {
+    // Engate: ponta das varas presa ao cavalo, dos lados do corpo, na altura da barrigueira
+    static final float HITCH_Y = 0.9f, HITCH_Z = 0.0f;
+    private final Vector3 hitch = new Vector3();
+
+    /** Carroça presa: física de reboque, rodas e amortecedor (ver Cart). */
+    private void updateCart(float dt) {
         if (cart == null) return;
-        // Colada no cavalo: a carroça usa a mesma transformação do cavalo, 3,2 m atrás (as varas tocam a traseira)
-        cart.inst.transform.set(m.inst.transform).translate(0f, 0f, -3.2f);
-        cart.inst.transform.getTranslation(cart.pos);
+        hitch.set(0f, HITCH_Y, HITCH_Z).mul(m.inst.transform);
+        cart.tow(dt, hitch, world, m);
     }
 
     /** Lugar do cavaleiro na carroça (o banco). */
@@ -371,40 +374,41 @@ public class Riding {
         return new Vector3(0f, 0.9f, 0.2f).mul(cart.inst.transform);
     }
 
-    // ---------- Rédeas ----------
+    // ---------- Rédeas (corda com física) ----------
 
     private static Model reinModel;
-    private final ModelInstance[] reins = new ModelInstance[2];
-    private final Vector3 rA = new Vector3(), rB = new Vector3(), rD = new Vector3();
-    private final Quaternion rQ = new Quaternion();
-
-    /** Duas rédeas do focinho do cavalo até as mãos do cavaleiro (aparecem só montado). */
-    private void updateReins() {
-        if (reinModel == null) {
-            reinModel = new ModelBuilder().createBox(0.03f, 0.03f, 1f,
-                    new Material(ColorAttribute.createDiffuse(0.22f, 0.13f, 0.07f, 1f)), Usage.Position | Usage.Normal);
-        }
-        for (int i = 0; i < 2; i++) {
-            if (reins[i] == null) reins[i] = new ModelInstance(reinModel);
-            float s = i == 0 ? -1f : 1f;
-            rA.set(s * 0.04f, 2.9f, 2.1f).mul(m.inst.transform);            // focinho
-            if (driving) rB.set(s * 0.22f, 1.35f, 0.35f).mul(cart.inst.transform);      // mãos segurando os arreios, no banco
-            else rB.set(s * 0.25f, m.seatY + 0.35f, m.seatZ + 0.45f).mul(m.inst.transform);   // mão
-            rD.set(rB).sub(rA);
-            float len = rD.len();
-            rA.add(rB).scl(0.5f);
-            rQ.setFromCross(Vector3.Z, rD);
-            reins[i].transform.set(rA, rQ).scale(1f, 1f, Math.max(len, 0.01f));
-        }
-    }
+    private Rope[] reins;
+    private boolean reinsOn = false;
+    private final Vector3 rHead = new Vector3(), rMuzzle = new Vector3(), rHand = new Vector3();
 
     private void addReins() {
-        updateReins();
-        for (ModelInstance r : reins) if (!world.instances.contains(r, true)) world.instances.add(r);
+        if (reinModel == null) {
+            reinModel = new ModelBuilder().createBox(0.022f, 0.022f, 1f,
+                    new Material(ColorAttribute.createDiffuse(0.20f, 0.12f, 0.06f, 1f)), Usage.Position | Usage.Normal);
+        }
+        if (reins == null) reins = new Rope[]{new Rope(reinModel, 12), new Rope(reinModel, 12)};
+        for (Rope rp : reins) rp.addTo(world.instances);
+        reinsOn = true;
     }
 
     private void removeReins() {
-        for (ModelInstance r : reins) if (r != null) world.instances.removeValue(r, true);
+        if (reins != null) for (Rope rp : reins) rp.removeFrom(world.instances);
+        reinsOn = false;
+    }
+
+    /** Rédeas: do focinho do cavalo (osso da cabeça) até as mãos do personagem (ossos das mãos). */
+    private void updateReins(float dt, Character ch) {
+        com.badlogic.gdx.graphics.g3d.model.Node head = m.inst.getNode("Head");
+        float fx = MathUtils.sin(m.facing), fz = MathUtils.cos(m.facing);
+        float rx = fz, rz = -fx;
+        for (int i = 0; i < 2; i++) {
+            float side = i == 0 ? -1f : 1f;
+            if (head != null) rHead.set(0f, 0f, 0f).mul(head.globalTransform).mul(m.inst.transform);
+            else rHead.set(0f, 2.9f, 1.7f).mul(m.inst.transform);
+            rMuzzle.set(rHead).add(fx * 0.42f + rx * 0.07f * side, -0.22f, fz * 0.42f + rz * 0.07f * side);
+            ch.handWorld(i == 0, rHand);
+            reins[i].update(dt, rMuzzle, rHand);
+        }
     }
 
     // ---------- Descer ----------
