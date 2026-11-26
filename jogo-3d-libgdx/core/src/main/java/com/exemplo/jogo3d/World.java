@@ -154,13 +154,15 @@ public class World {
     private float donkeyStartFacingDeg = 0f;
     private Texture dirtTexture;
     // Açude seco e cacimba (escolhidos em create, antes do terreno)
-    private boolean hasDam = false, hasWell = false;
-    private float damX, damZ, wellX, wellZ;
+    boolean hasDam = false, hasWell = false;
+    float damX, damZ, wellX, wellZ;
     // Cemitério (escolhido antes do terreno, que fica plano embaixo dele)
     boolean hasCem = false;
     float cemX, cemZ, cemH, cemYaw;          // centro, altura do chão e giro (0 = portão para -z)
-    static final float CEM_HW = 10.67f, CEM_HD = 10.67f;   // meia largura e meio fundo (m)
+    static final float CEM_HW = 10.67f, CEM_HD = 10.67f;
+    static final float CEM_BLEND = 24f;      // metros em que o aterro volta ao relevo natural
     int cemColliders;
+    float campX, campZ;                      // acampamento de retirantes (nomes no mapa)
     private Texture crackTexture;
     private Model damModel, wellModel, guardModel, signModel;
     private Texture signTexture;
@@ -253,8 +255,8 @@ public class World {
         if (hasCem) {
             float cdx = Math.max(Math.abs(x - cemX) - CEM_HW - 2f, 0f), cdz = Math.max(Math.abs(z - cemZ) - CEM_HD - 2f, 0f);
             float cd = (float) Math.sqrt(cdx * cdx + cdz * cdz);
-            if (cd < 12f) {
-                float ct = cd / 12f, cs = ct * ct * (3f - 2f * ct);
+            if (cd < CEM_BLEND) {
+                float ct = cd / CEM_BLEND, cs = ct * ct * (3f - 2f * ct);
                 y = cemH + (y - cemH) * cs;
             }
         }
@@ -401,6 +403,7 @@ public class World {
 
     /** Lugar do cemitério: sertão longe da estrada, da vila e dos outros locais, no trecho mais plano. */
     private void chooseCemetery() {
+        // Lugar plano: o que menos varia de altura num raio de 30 m (o aterro de 24 m fica suave)
         Random r = new Random(19150402L);
         float best = 1e9f;
         for (int t = 0; t < 500; t++) {
@@ -409,17 +412,29 @@ public class World {
             if (Math.abs(z - roadZ(x)) < 90f || Math.abs(x - riverX(z)) < 30f) continue;
             if (Math.hypot(x - TOWN_X, z - TOWN_Z) < 150f || Math.hypot(x, z) < 60f) continue;
             if (nearWellOrDam(x, z, 50f) || Regions.farmDist(x, z) < 60f) continue;
-            float mn = 1e9f, mx = -1e9f, sum = 0f;
-            for (int i = -2; i <= 2; i++) for (int j = -2; j <= 2; j++) {
-                float h = heightAt(x + i * 7f, z + j * 7f);
-                mn = Math.min(mn, h); mx = Math.max(mx, h); sum += h;
+            float mn = 1e9f, mx = -1e9f;
+            for (int i = -4; i <= 4; i++) for (int j = -4; j <= 4; j++) {
+                float h = heightAt(x + i * 3.75f, z + j * 3.75f);
+                mn = Math.min(mn, h);
+                mx = Math.max(mx, h);
             }
             if (mx - mn < best) {
                 best = mx - mn;
-                cemX = x; cemZ = z; cemH = sum / 25f;   // hasCem só depois: heightAt ainda não pode nivelar
+                cemX = x;
+                cemZ = z;
             }
         }
         hasCem = best < 1e8f;
+        if (hasCem) {
+            // Altura do chão do cercado = média da área onde ficam as covas, antes de aplainar
+            float sum = 0f;
+            int n = 0;
+            for (float lx = -10f; lx <= 10.01f; lx += 2f) for (float lz = -10f; lz <= 10.01f; lz += 2f) {
+                sum += heightAt(cemX + lx, cemZ + lz);
+                n++;
+            }
+            cemH = sum / n;
+        }
         // portão voltado para o lado da estrada
         cemYaw = roadZ(cemX) < cemZ ? 0f : 180f;
     }
@@ -1054,6 +1069,8 @@ public class World {
         addCemetery();
         // Acampamento de retirantes: três tendas em volta de uma fogueira
         float[] camp = farFromRoad(rnd, 120f);
+        campX = camp[0];
+        campZ = camp[1];
         for (int k = 0; k < 3; k++) {
             float a = k * MathUtils.PI2 / 3f + 0.4f;
             placeStatic(tent, camp[0] + MathUtils.cos(a) * 4.5f, camp[1] + MathUtils.sin(a) * 4.5f,

@@ -86,6 +86,8 @@ public class Main extends ApplicationAdapter {
     private Grenades grenades;
     private final ItemUi itemUi = new ItemUi();
     private MapUi mapUi;
+    private Places places;
+    private boolean fullMapOpen = false;   // mapa inteiro (toque no minimapa; toque na tela fecha)
     private boolean iconsDirty = true;
     private boolean aiming = false;               // segurando o espaço da granada: mostra o arco
     private int aimType = -1, grenPointer = -1;
@@ -208,6 +210,7 @@ public class Main extends ApplicationAdapter {
             }
             if (world.items != null) grenades = new Grenades(world.items);
             mapUi = new MapUi(world);
+            places = new Places(world);
             AimSettings.load();
             fx = new CombatFx();
             damage = new DamageSystem(fx);
@@ -768,6 +771,10 @@ public class Main extends ApplicationAdapter {
     }
 
     private void onPress(int i, float x, float rawY, float yb, int W, int H) {
+        if (fullMapOpen) {   // o mapa inteiro fecha com qualquer toque
+            fullMapOpen = false;
+            return;
+        }
         if (settingsOpen) {
             settingsPress(x, yb);
             return;
@@ -825,6 +832,9 @@ public class Main extends ApplicationAdapter {
                 return;
             case "trocar":
                 if (world.weapons != null) world.weapons.swap(character);
+                return;
+            case "minimapa":
+                if (mapUi != null && places != null) fullMapOpen = true;
                 return;
             case "parede":
                 if (wallPointer < 0) {
@@ -997,6 +1007,8 @@ public class Main extends ApplicationAdapter {
         if (mapUi != null) mapUi.drawMap(batch, shapes, hud, player.facing);   // mapa por baixo da moldura
         hud.draw(batch, shapes, font);
         if (mapUi != null) mapUi.drawCompass(batch, shapes, font, hud, yaw);
+        if (fullMapOpen && mapUi != null && places != null)
+            mapUi.drawFull(batch, shapes, font, Gdx.graphics.getWidth(), Gdx.graphics.getHeight(), player.pos, player.facing, places);
         if (fx != null && !hud.editing) {
             float spreadDeg = 0f;
             WeaponConfig c = world.weapons != null ? world.weapons.config() : null;

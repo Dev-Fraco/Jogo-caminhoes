@@ -117,6 +117,22 @@ public class TargetBotTests extends ApplicationAdapter {
             Vector3 eye = new Vector3(p.x, w.cemH + 1.0f, p.z);
             float hit = w.raycast(eye, new Vector3(sn, 0f, cs), 30f);
             check("cemitério: lápides/cruzeiro param tiro no corredor", hit < 20f, String.format("%.1f m", hit));
+            // Lugar plano: o relevo em 30 m em volta é pequeno, e o aterro até 24 m do cercado é suave
+            float rel = 0f, slope = 0f;
+            for (float a3 = 0f; a3 < 6.28f; a3 += 0.1f) for (float d3 = 0f; d3 <= 30f; d3 += 2f) {
+                float hx = w.cemX + (float) Math.cos(a3) * d3, hz = w.cemZ + (float) Math.sin(a3) * d3;
+                rel = Math.max(rel, Math.abs(w.heightAt(hx, hz) - w.cemH));
+            }
+            for (float d4 = World.CEM_HW + 2f; d4 < World.CEM_HW + World.CEM_BLEND; d4 += 0.5f) {
+                float g = Math.abs(w.heightAt(w.cemX + d4 + 0.5f, w.cemZ) - w.heightAt(w.cemX + d4, w.cemZ)) / 0.5f;
+                slope = Math.max(slope, g);
+            }
+            check("cemitério: o relevo em 30 m em volta é pequeno", rel < 6f, String.format("desvio máx %.1f m", rel));
+            check("cemitério: o aterro até 24 m é suave", slope < 0.35f, String.format("inclinação máx %.2f", slope));
+            Places pl = new Places(w);
+            int named = 0;
+            for (int qi = 0; qi < pl.list.size; qi++) if (pl.list.get(qi).name != null && !pl.list.get(qi).name.isEmpty()) named++;
+            check("lugares do mapa com nome", named == pl.list.size && pl.list.size >= 10, named + " nomes");
             System.out.printf("  cemitério em (%.0f, %.0f) altura %.1f giro %.0f%n", w.cemX, w.cemZ, w.cemH, w.cemYaw);
         }
         check("acampamento de retirantes: 3 tendas e fogueira", w.tentCount == 3, "" + w.tentCount);

@@ -122,6 +122,74 @@ final class MapUi {
         shapes.end();
     }
 
+    private Texture fullTex;
+    private final float[] tmp = new float[2];
+
+    /** Mapa inteiro em tela cheia: o mundo todo, com os nomes dos lugares e a posição do jogador. */
+    void drawFull(SpriteBatch batch, ShapeRenderer shapes, BitmapFont font, int W, int H, Vector3 p, float facing, Places pl) {
+        if (fullTex == null) {
+            fullTex = new Texture(world);
+            fullTex.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        }
+        float S = Math.min(W, H) * 0.94f, x0 = (W - S) / 2f, y0 = (H - S) / 2f;
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        shapes.setColor(0f, 0f, 0f, 0.78f);
+        shapes.rect(0, 0, W, H);
+        shapes.setColor(0.22f, 0.15f, 0.08f, 1f);
+        shapes.rect(x0 - 8, y0 - 8, S + 16, S + 16);
+        shapes.end();
+        batch.begin();
+        batch.setColor(1f, 1f, 1f, 1f);
+        batch.draw(fullTex, x0, y0, S, S);
+        batch.end();
+        // Lugares: ponto colorido por tipo
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        for (int i = 0; i < pl.list.size; i++) {
+            Places.Place q = pl.list.get(i);
+            float sx = x0 + (q.x + World.HALF) / World.SIZE * S, sy = y0 + S - (q.z + World.HALF) / World.SIZE * S;
+            setKindColor(shapes, q.kind);
+            shapes.circle(sx, sy, S * 0.012f, 12);
+        }
+        // Jogador: seta na direção em que ele olha
+        float px = x0 + (p.x + World.HALF) / World.SIZE * S, py = y0 + S - (p.z + World.HALF) / World.SIZE * S;
+        float sx2 = MathUtils.sin(facing), sy2 = -MathUtils.cos(facing), qx = -sy2, qy = sx2, L = S * 0.035f;
+        shapes.setColor(1f, 0.97f, 0.9f, 1f);
+        shapes.triangle(px + sx2 * L * 1.6f, py + sy2 * L * 1.6f, px - sx2 * L * 0.8f + qx * L, py - sy2 * L * 0.8f + qy * L,
+                px - sx2 * L * 0.8f - qx * L, py - sy2 * L * 0.8f - qy * L);
+        shapes.end();
+        // Nomes
+        batch.begin();
+        float old = font.getData().scaleX;
+        font.getData().setScale(Math.max(0.8f, S / 900f));
+        for (int i = 0; i < pl.list.size; i++) {
+            Places.Place q = pl.list.get(i);
+            float sx = x0 + (q.x + World.HALF) / World.SIZE * S, sy = y0 + S - (q.z + World.HALF) / World.SIZE * S;
+            font.setColor(0.08f, 0.05f, 0.02f, 0.9f);
+            layout.setText(font, q.name);
+            font.draw(batch, q.name, sx - layout.width / 2f + 1f, sy - S * 0.018f - 1f);
+            font.setColor(1f, 0.95f, 0.8f, 1f);
+            font.draw(batch, q.name, sx - layout.width / 2f, sy - S * 0.018f);
+        }
+        font.setColor(1f, 0.9f, 0.6f, 1f);
+        String dica = "Toque para fechar";
+        layout.setText(font, dica);
+        font.draw(batch, dica, (W - layout.width) / 2f, y0 - 14f);
+        font.getData().setScale(old);
+        batch.end();
+    }
+
+    private static void setKindColor(ShapeRenderer shapes, int kind) {
+        switch (kind) {
+            case Places.CIDADE: shapes.setColor(1f, 0.85f, 0.3f, 1f); break;
+            case Places.FAZENDA: shapes.setColor(0.95f, 0.95f, 0.85f, 1f); break;
+            case Places.ACUDE: shapes.setColor(0.3f, 0.55f, 0.9f, 1f); break;
+            case Places.POCO: shapes.setColor(0.3f, 0.7f, 0.9f, 1f); break;
+            case Places.CEMITERIO: shapes.setColor(0.75f, 0.75f, 0.8f, 1f); break;
+            case Places.ACAMPAMENTO: shapes.setColor(1f, 0.55f, 0.2f, 1f); break;
+            default: shapes.setColor(0.55f, 0.75f, 0.9f, 1f); break;
+        }
+    }
+
     /** Marcas da bússola por cima da faixa de couro. camYaw = direção da câmera. */
     void drawCompass(SpriteBatch batch, ShapeRenderer shapes, BitmapFont font, Hud hud, float camYaw) {
         float[] r = hud.rect(hud.get("bussola"));
@@ -163,6 +231,7 @@ final class MapUi {
     }
 
     void dispose() {
+        if (fullTex != null) fullTex.dispose();
         world.dispose();
         view.dispose();
         viewTex.dispose();
