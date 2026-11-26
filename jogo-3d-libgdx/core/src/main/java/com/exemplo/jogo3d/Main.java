@@ -84,7 +84,7 @@ public class Main extends ApplicationAdapter {
     private boolean training = false;   // modo treinamento (galpão com dois bonecos) em vez do battle royale
     private boolean trainPanel = false; // caixa de equipamentos do treino (lista de armas)
     private boolean trainBoxNear = false;   // perto da caixa de equipamentos (mostra o botão de ação)
-    private final float[] trainUsar = new float[6 * 4];   // botões USAR de cada arma (x, y, w, h)
+    private final float[] trainUsar = new float[WeaponConfig.BY_TYPE.length * 4];   // botões USAR de cada arma (x, y, w, h)
     private final float[] trainFechar = new float[4];
     // Itens: vida/energia/água, granadas, HUD dos itens e mapa
     private Survival survival;
@@ -130,6 +130,7 @@ public class Main extends ApplicationAdapter {
     private boolean firePressed = false;          // acabou de apertar (armas sem automático)
     private final TouchFire touchFire = new TouchFire();
     private final Camp camp = new Camp();
+    private Scope scope;                          // luneta do fuzil de precisão
     private boolean adsOn = false;                // mirando (botão de mira)
     private boolean combat = false;               // armado e no chão: câmera por cima do ombro
     private boolean overEnemy = false;
@@ -158,6 +159,7 @@ public class Main extends ApplicationAdapter {
         // Sem descarte de faces: o shader padrão desligava o lado de dentro das paredes, do poço e do muro
         shaderConfig.defaultCullFace = 0;
         modelBatch = new ModelBatch(new DefaultShaderProvider(shaderConfig));
+        scope = new Scope();
 
         environment = new Environment();
         // Luz de sol forte e quente do sertão, com pouca luz de ambiente (sombras escuras)
@@ -440,7 +442,9 @@ public class Main extends ApplicationAdapter {
             float camYaw = MathUtils.atan2(aimDir.x, aimDir.z), camPitch = -(float) Math.asin(MathUtils.clamp(aimDir.y, -1f, 1f));
             targets.update(dt, camera.position, aimDir, enemies, world,
                     AimSettings.fovDeg() * cat.radiusScale, cfg.range);
-            assist.update(dt, camera.position, aimDir, camYaw, camPitch, targets.target, cat, fireHeld, firePressed, adsOn);
+            // Fuzil de precisão (luneta): nenhuma assistência; a mira é só do dedo
+            if (cfg.scope) assist.update(dt, camera.position, aimDir, camYaw, camPitch, null, cat, false, false, false);
+            else assist.update(dt, camera.position, aimDir, camYaw, camPitch, targets.target, cat, fireHeld, firePressed, adsOn);
             yaw += assist.dYaw;
             pitch += assist.dPitch;
         } else {
@@ -451,6 +455,7 @@ public class Main extends ApplicationAdapter {
         // clarão, som, impacto e dano. O coice e a volta da mira vêm dele.
         if (world.weapons != null) {
             world.weapons.ads = adsOn;
+            world.weapons.scopeAimUpdate(adsOn);
             world.weapons.aimElev = -pitch;
             world.weapons.update(character, player);
         }
@@ -613,7 +618,11 @@ public class Main extends ApplicationAdapter {
             float hy = prone > 0 ? 0.55f : crouchOn ? 1.15f : 1.55f;
             pivot.set(player.pos.x - MathUtils.cos(yaw) * sh, player.pos.y + hy, player.pos.z + MathUtils.sin(yaw) * sh);
         }
-        float fovT = combat && adsOn ? (cfg != null && cfg.category == WeaponConfig.Category.PRECISAO ? 30f : 50f) : 67f;
+        // Luneta: a câmera principal fica normal (o zoom é só dentro da lente); a transição é suave
+        boolean scoped = combat && adsOn && cfg != null && cfg.scope;
+        if (scope != null) scope.update(dt, scoped);
+        if (fx != null && scope != null) fx.hideCross = scope.t > 0.5f;
+        float fovT = combat && adsOn && !scoped ? (cfg != null && cfg.category == WeaponConfig.Category.PRECISAO ? 30f : 50f) : 67f;
         camera.fieldOfView += (fovT - camera.fieldOfView) * Math.min(1f, dt * 12f);
         Vector3 back = new Vector3(
                 -forward.x * MathUtils.cos(pitch),
@@ -637,7 +646,17 @@ public class Main extends ApplicationAdapter {
         camera.up.set(Vector3.Y);
         camera.update();
 
-        // Desenha o mundo 3D
+        // Desenha o mundo 3D. Com a luneta aberta há uma segunda passada: o mesmo mundo, com zoom, vai para
+        // o FBO da lente; a tela normal continua por fora do círculo.
+        boolean lensPass = scope != null && scope.visible();
+        float normalFov = camera.fieldOfView;
+        for (int pass = 0; pass < (lensPass ? 2 : 1); pass++) {
+        boolean lens = pass == 1;
+        if (lens) {
+            camera.fieldOfView = scope.lensFov();
+            camera.update();
+            scope.beginLens(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        }
         Gdx.gl.glClearColor(0.72f, 0.82f, 0.92f, 1f); // céu pálido de seca
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
         // Faces dos dois lados (paredes, telhado e poço visíveis de dentro e de fora)
@@ -663,6 +682,13 @@ public class Main extends ApplicationAdapter {
             modelBatch.render(shooting.flash.instances(), environment);                       // clarão, faíscas e fumaça do cano
         }
         modelBatch.end();
+        if (lens) {
+            scope.endLens();
+            camera.fieldOfView = normalFov;
+            camera.update();
+        }
+        }
+        if (lensPass) scope.draw(batch, hudCamera.combined, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
 
         drawHud();
     }
@@ -1213,7 +1239,7 @@ public class Main extends ApplicationAdapter {
         shapes.rect(px, py, pw, ph);
         shapes.end();
         float rowH = ph * 0.128f, top = py + ph - ph * 0.12f;
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < WeaponConfig.BY_TYPE.length; i++) {
             float ry = top - (i + 1) * rowH;
             float ub = rowH * 0.5f, ux = px + pw - pw * 0.2f, uy = ry + (rowH - ub) / 2f;
             trainUsar[i * 4] = ux;
@@ -1222,7 +1248,7 @@ public class Main extends ApplicationAdapter {
             trainUsar[i * 4 + 3] = ub;
         }
         shapes.begin(ShapeRenderer.ShapeType.Filled);
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < WeaponConfig.BY_TYPE.length; i++) {
             shapes.setColor(0.18f, 0.12f, 0.07f, 0.9f);
             shapes.rect(px + pw * 0.03f, top - (i + 1) * rowH + rowH * 0.08f, pw * 0.94f, rowH * 0.84f);
             shapes.setColor(0.85f, 0.55f, 0.2f, 1f);
@@ -1237,7 +1263,7 @@ public class Main extends ApplicationAdapter {
         shapes.rect(trainFechar[0], trainFechar[1], trainFechar[2], trainFechar[3]);
         shapes.end();
         batch.begin();
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < WeaponConfig.BY_TYPE.length; i++) {
             float ry = top - (i + 1) * rowH;
             com.badlogic.gdx.graphics.g2d.TextureRegion ic = world.weapons != null ? world.weapons.iconOf(i) : null;
             if (ic != null) {
@@ -1264,7 +1290,7 @@ public class Main extends ApplicationAdapter {
 
     /** Toque dentro da caixa de armas: USAR leva a arma para a mão; FECHAR (ou fora) fecha. */
     private void trainPress(float x, float yb) {
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < WeaponConfig.BY_TYPE.length; i++) {
             float[] u = trainUsar;
             if (x >= u[i * 4] && x <= u[i * 4] + u[i * 4 + 2] && yb >= u[i * 4 + 1] && yb <= u[i * 4 + 1] + u[i * 4 + 3]) {
                 if (world.weapons != null) world.weapons.giveStart(i, character);
@@ -1570,6 +1596,7 @@ public class Main extends ApplicationAdapter {
     @Override
     public void dispose() {
         modelBatch.dispose();
+        if (scope != null) scope.dispose();
         world.dispose();
         if (chute != null) chute.dispose();
         if (grenades != null) grenades.dispose();

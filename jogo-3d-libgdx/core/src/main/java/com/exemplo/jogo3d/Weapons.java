@@ -16,8 +16,8 @@ import java.util.Random;
  * cidade e soltos pelo mapa). Perto de uma, dá para pegar; a arma fica na mão direita do personagem.
  */
 final class Weapons {
-    static final String[] NAMES = {"AKM", "AUG", "GROZA", "M16A4", "M416", "SCAR-L"};
-    private static final String[] FILES = {"akm", "aug", "groza", "m16a4", "m416", "scarl"};
+    static final String[] NAMES = {"AKM", "AUG", "GROZA", "M16A4", "M416", "SCAR-L", "AWM"};
+    private static final String[] FILES = {"akm", "aug", "groza", "m16a4", "m416", "scarl", "awm"};
     private static final float PICK_RANGE = 1.8f;
 
     /** Arma no chão. */
@@ -45,6 +45,8 @@ final class Weapons {
     private final int[] mag = new int[FILES.length], reserve = new int[FILES.length];
     boolean infinite = false;    // munição infinita (modo treinamento)
     float reloadT = 0f;          // > 0: recarregando (s restantes)
+    private boolean spent = false;     // luneta: já atirou (tem de sair da mira para recarregar o tambor)
+    private boolean scopeAim = false;  // mirando na luneta agora
     private float cooldown = 0f;
     final Vector3 muzzle = new Vector3();   // ponta do cano no mundo (segue o recuo e a animação)
     final Vector3 barrel = new Vector3(0f, 0f, 1f);   // direção do cano
@@ -140,6 +142,16 @@ final class Weapons {
         return c == null || reloadT <= 0f ? 0f : 1f - reloadT / c.reloadTime;
     }
 
+    /** Luneta: ao largar a mira depois de um tiro, recarrega o tambor (0,5 s); só então mira e atira de novo. */
+    void scopeAimUpdate(boolean aimed) {
+        scopeAim = aimed;
+        WeaponConfig c = config();
+        if (c != null && c.scope && spent && !aimed) {
+            spent = false;
+            startReload();
+        }
+    }
+
     /** Começa a recarregar (se der). */
     boolean startReload() {
         WeaponConfig c = config();
@@ -181,6 +193,7 @@ final class Weapons {
     int tryFire(boolean held, boolean pressed) {
         WeaponConfig c = config();
         if (c == null || reloadT > 0f || equipT > 0f) return 0;
+        if (c.scope && (!scopeAim || spent)) return 0;   // luneta: só mirando, e um tiro por mira
         // Continuação da rajada (não precisa do botão)
         if (burstLeft > 0) {
             if (burstT > 0f) return 0;
@@ -199,11 +212,12 @@ final class Weapons {
             cooldown = 0.3f;
             emptyT = 0.25f;
             events |= EV_EMPTY;
-            startReload();   // pente vazio: clique e começa a recarregar sozinho (se tiver reserva)
+            if (!c.scope) startReload();   // pente vazio: clique e começa a recarregar sozinho (luneta: ao largar a mira)
             return -1;
         }
         if (!infinite) mag[heldType]--;   // treino: munição infinita
         cooldown = c.fireInterval;
+        if (c.scope) spent = true;
         kickPos = Math.min(kickPos + c.kick, c.kick * 2f);
         if (c.mode == WeaponConfig.FireMode.BURST) {
             burstLeft = Math.min(c.burstCount - 1, mag[heldType]);

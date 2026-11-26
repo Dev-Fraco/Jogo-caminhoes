@@ -126,6 +126,11 @@ final class WeaponConfig {
         return damage * multiplier(r) * fall;
     }
 
+    /** Luneta: a arma usa a mira com zoom, sem assistência, um tiro por mira. */
+    boolean scope = false;
+
+    WeaponConfig asScope() { scope = true; return this; }
+
     // ---------- Tabela das armas ----------
     // Os parâmetros, em ordem:  nome, categoria, modo, tiros/rajada, intervalo da rajada, dano, ×cabeça, ×braço, ×perna,
     //   intervalo, pente, reserva, recarga, alcance, queda a partir de, queda mínima, dispersão quadril, dispersão mira,
@@ -142,6 +147,9 @@ final class WeaponConfig {
             0.090f, 30, 120, 1.1f, 150f, 50f, 0.70f, 2.5f, 0.6f, 0.55f, 0.22f, 1, 0.055f, 1.0f, 0.50f);
     static final WeaponConfig SCARL = new WeaponConfig("SCAR-L", Category.FUZIL, FireMode.AUTO, 1, 0f, 28f, 2.0f, 0.75f, 0.75f,
             0.095f, 30, 120, 1.3f, 150f, 50f, 0.70f, 2.6f, 0.6f, 0.62f, 0.25f, 1, 0.060f, 1.0f, 0.50f);
+    // Fuzil de precisão AWM: luneta (zoom real), sem assistência de mira, um tiro por mira e recarga de 0,5 s
+    static final WeaponConfig AWM = new WeaponConfig("AWM", Category.PRECISAO, FireMode.SEMI, 1, 0f, 85f, 2.4f, 0.8f, 0.8f,
+            1.200f, 5, 20, 0.5f, 300f, 150f, 0.85f, 6.0f, 0.05f, 3.20f, 0.20f, 1, 0.140f, 1.4f, 0.70f).asScope();
     // Categorias que ainda não têm modelo 3D no jogo (prontas para quando a arma entrar)
     static final WeaponConfig PISTOLA = new WeaponConfig("Pistola", Category.PISTOLA, FireMode.SEMI, 1, 0f, 22f, 1.8f, 0.8f, 0.8f,
             0.200f, 12, 48, 0.4f, 60f, 15f, 0.55f, 2.2f, 0.9f, 0.90f, 0.20f, 1, 0.050f, 0.7f, 0.35f);
@@ -158,5 +166,5 @@ final class WeaponConfig {
             0.45f, 15, 999, 2.5f, 90f, 30f, 0.6f, 3.0f, 3.0f, 0.5f, 0.2f, 1, 0.06f, 1f, 0.5f);
 
     /** Configuração das armas do jogo, na ordem de Weapons.NAMES. */
-    static final WeaponConfig[] BY_TYPE = {AKM, AUG, GROZA, M16A4, M416, SCARL};
+    static final WeaponConfig[] BY_TYPE = {AKM, AUG, GROZA, M16A4, M416, SCARL, AWM};
 }

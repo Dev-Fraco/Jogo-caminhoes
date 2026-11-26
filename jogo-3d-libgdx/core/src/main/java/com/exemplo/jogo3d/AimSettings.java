@@ -25,16 +25,16 @@ final class AimSettings {
     static float horizAssist = 0.1f;      // 0..1: força da correção para os lados ao atirar (baixa: sem puxão lateral)
     static float fovPct = 0.4f;           // 0..1: raio do FOV do aim assist (2° a 15°)
     /** Abertura da mira por arma (ordem de Weapons.BY_TYPE): 1 = 100% da abertura padrão. */
-    static final float[] openPct = {1f, 1f, 1f, 1f, 1f, 1f};
+    static final float[] openPct = {1f, 1f, 1f, 1f, 1f, 1f, 1f};
     static float upResist = 0.95f;        // fixo: fração do movimento para cima que volta para o peito
 
     /** Ajuste da tela: nome, mínimo, máximo e passo. */
     static final String[] NAMES = {"Sensibilidade geral", "Mira 2x", "Mira 4x", "Assistência de mira",
             "Assistência vertical (subida)", "Assistência horizontal", "FOV do Aim Assist",
-            "Abertura AKM", "Abertura AUG", "Abertura GROZA", "Abertura M16A4", "Abertura M416", "Abertura SCAR-L"};
+            "Abertura AKM", "Abertura AUG", "Abertura GROZA", "Abertura M16A4", "Abertura M416", "Abertura SCAR-L", "Abertura AWM"};
     private static final float[][] RANGE = {{0.2f, 3f, 0.1f}, {0.1f, 2f, 0.05f}, {0.05f, 2f, 0.05f},
             {0f, 1f, 1f}, {0f, 1f, 0.05f}, {0f, 1f, 0.05f}, {0f, 1f, 0.05f},
-            {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}};
+            {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}};
 
     /** Abertura da mira da arma (ordem de BY_TYPE); fora da lista, o padrão. */
     static float openPct(int type) { return type >= 0 && type < openPct.length ? openPct[type] : 1f; }

@@ -134,6 +134,9 @@ final class CombatFx implements DamageSystem.Listener {
     private static final float DOT_SIZE = 99f;
 
     /** Atualiza a abertura da mira: corre abre, parar fecha (suave), cada tiro dá um coice temporário. */
+    /** Luneta aberta: some o retículo de mira (a lente tem o seu próprio). */
+    boolean hideCross = false;
+
     void crossUpdate(float dt, float speedFrac, boolean fired, float pct) {
         if (fired) kickNow = Math.min(1f, kickNow + 0.22f);
         kickNow = Math.max(0f, kickNow - dt * 3.2f);
@@ -241,7 +244,7 @@ final class CombatFx implements DamageSystem.Listener {
         if (showPanel) WeaponPanel.drawShapes(shapes, pr[0], pr[1], pr[2], pr[3], weapons, !weapons.holstered());
 
         batch.begin();
-        if (armedView && weapons != null) drawCross(batch, cx, cy, H, overEnemy);
+        if (armedView && weapons != null && !hideCross) drawCross(batch, cx, cy, H, overEnemy);
         if (showPanel) WeaponPanel.drawBatch(batch, font, pr[0], pr[1], pr[2], pr[3], weapons, !weapons.holstered());
         float base = font.getData().scaleX;
         // Números de dano: cada tiro tem o seu. Peito amarelo, cabeça vermelha e maior, parede azul.
