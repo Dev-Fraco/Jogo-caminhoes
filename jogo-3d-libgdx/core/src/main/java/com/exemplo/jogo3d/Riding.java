@@ -284,11 +284,17 @@ public class Riding {
         placeAnimal();
         updateReins();
         updateCart();
+        if (driving && !posed) {
+            // Sentado na carroça segurando os arreios: pose única, mantida até descer
+            posed = true;
+            ch.playOnce("SentadoArreios");
+            addReins();
+        }
         Vector3 seat = driving ? cartSeat() : seatRoot();
         setPlayer(player, seat.x, seat.y, seat.z, true);
         player.speed = 0f;
         player.facing = m.facing;
-        ch.setSitting(true);
+        ch.setSitting(!driving);
         ch.setCrouch(0f);
     }
 
@@ -296,6 +302,7 @@ public class Riding {
 
     private Cart cart;
     private boolean driving = false;   // o cavaleiro está sentado na carroça e conduz o cavalo
+    private boolean posed = false;     // pose de sentado com os arreios já tocando
 
     boolean hasCart() { return cart != null; }
 
@@ -332,6 +339,9 @@ public class Riding {
 
     private void dismountCart(Player player, Character ch) {
         driving = false;
+        posed = false;
+        removeReins();
+        ch.endOnce();
         state = St.FREE;
         Vector3 side = tmp2.set(1.8f, 0f, 0f).mul(cart.inst.transform);
         setPlayer(player, side.x, world.heightAt(side.x, side.z), side.z, true);
@@ -371,7 +381,8 @@ public class Riding {
             if (reins[i] == null) reins[i] = new ModelInstance(reinModel);
             float s = i == 0 ? -1f : 1f;
             rA.set(s * 0.04f, 2.9f, 2.1f).mul(m.inst.transform);            // focinho
-            rB.set(s * 0.25f, m.seatY + 0.35f, m.seatZ + 0.45f).mul(m.inst.transform);   // mão
+            if (driving) rB.set(s * 0.22f, 1.35f, 0.35f).mul(cart.inst.transform);      // mãos segurando os arreios, no banco
+            else rB.set(s * 0.25f, m.seatY + 0.35f, m.seatZ + 0.45f).mul(m.inst.transform);   // mão
             rD.set(rB).sub(rA);
             float len = rD.len();
             rA.add(rB).scl(0.5f);
