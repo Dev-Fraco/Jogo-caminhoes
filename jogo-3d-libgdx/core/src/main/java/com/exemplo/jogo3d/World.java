@@ -1756,29 +1756,54 @@ public class World {
     }
 
     public void dispose() {
-        for (Model m : terrainModels) m.dispose();
-        if (town != null) town.dispose();
-        if (airplane != null) airplane.dispose();
-        if (weapons != null) weapons.dispose();
-        if (items != null) items.dispose();
-        if (casaModel != null) casaModel.dispose();
+        // Cada modelo sai da memória uma única vez (alguns estão em mais de uma lista); falha num não para o resto
+        java.util.Set<Model> done = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<Model, Boolean>());
+        java.util.List<Model> all = new java.util.ArrayList<>();
+        for (int i = 0; i < terrainModels.size; i++) all.add(terrainModels.get(i));
+        all.add(casaModel);
+        all.add(troughModel);
+        all.add(postModel);
+        all.add(cartModel);
+        all.add(horseModel);
+        all.add(donkeyModel);
+        all.add(ropeModel);
+        all.add(damModel);
+        all.add(guardModel);
+        all.add(signModel);
+        all.add(wellModel);
+        all.add(stoveModel);
+        all.add(hammockModel);
+        all.add(benchModel);
+        all.add(treeModel);
+        all.add(pole);
+        all.add(floorModel);
+        all.add(doorModel);
+        if (cactusModels != null) all.addAll(java.util.Arrays.asList(cactusModels));
+        for (int i = 0; i < loaded.size; i++) all.add(loaded.get(i));
+        for (Model m : all) {
+            if (m != null && done.add(m)) {
+                try { m.dispose(); } catch (Throwable ignored) { }
+            }
+        }
+        disposeQuietly(town);
+        disposeQuietly(airplane);
+        disposeQuietly(weapons);
+        disposeQuietly(items);
+        disposeQuietly(fences);
+        disposeQuietly(fire);
         if (crackTexture != null) crackTexture.dispose();
-        if (damModel != null) damModel.dispose();
-        if (guardModel != null) guardModel.dispose();
-        if (signModel != null) signModel.dispose();
         if (signTexture != null) signTexture.dispose();
-        if (wellModel != null) wellModel.dispose();
-        fences.dispose();
-        if (fire != null) fire.dispose();
-        for (Model m : new Model[]{stoveModel, hammockModel, benchModel, treeModel, pole}) if (m != null) m.dispose();
-        if (troughModel != null) troughModel.dispose();
-        if (postModel != null) postModel.dispose();
-        if (cartModel != null) cartModel.dispose();
-        if (cactusModels != null) for (Model m : cactusModels) m.dispose();
-        if (horseModel != null) horseModel.dispose();
-        if (donkeyModel != null) donkeyModel.dispose();
-        if (ropeModel != null) ropeModel.dispose();
         if (dirtTexture != null) dirtTexture.dispose();
-        for (int i = 0; i < loaded.size; i++) loaded.get(i).dispose();
+    }
+
+    private static void disposeQuietly(Object o) {
+        try {
+            if (o instanceof Town) ((Town) o).dispose();
+            else if (o instanceof Airplane) ((Airplane) o).dispose();
+            else if (o instanceof Weapons) ((Weapons) o).dispose();
+            else if (o instanceof Items) ((Items) o).dispose();
+            else if (o instanceof FenceSystem) ((FenceSystem) o).dispose();
+            else if (o instanceof Fire) ((Fire) o).dispose();
+        } catch (Throwable ignored) { }
     }
 }
