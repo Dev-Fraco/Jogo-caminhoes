@@ -273,10 +273,8 @@ public class AimTests extends ApplicationAdapter {
         float resistIn = climbOffset(ta, aa, fuzil, 0.95f, 0.02f, 0.0015f, 20);
         float gainFree = freeIn - 0.02f, gainResist = resistIn - 0.02f;
         float kept = gainFree > 1e-4f ? gainResist / gainFree : -1f;
-        check("resistência padrão 95%: subir 10% volta 9,5% (sobra 5%)", Math.abs(AimSettings.upResist - 0.95f) < 1e-6f && kept > 0.0f && kept < 0.12f,
-                String.format("sobra %.0f%% do movimento", kept * 100f));
-        check("resistência para cima: dentro do FOV, a mira sobe menos", resistIn < freeIn - 0.003f,
-                String.format("sem %.4f, com 95%% %.4f rad acima do peito", freeIn, resistIn));
+        check("subir dentro do FOV: a mira volta ao peito com força total", Math.abs(resistIn) < 0.003f,
+                String.format("%.4f rad em relação ao peito depois de subir", resistIn));
         // 5b. Fora do FOV a assistência não age: a subida é livre mesmo com resistência máxima
         float outStart = (AimSettings.fovDeg() * MathUtils.degreesToRadians) + 0.1f;
         float outFree = climbOffset(ta, aa, fuzil, 0f, outStart, 0.002f, 20);

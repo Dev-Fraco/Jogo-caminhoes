@@ -74,14 +74,12 @@ final class AimAssist {
             dYaw += errYaw;
             dPitch += -errElev;
         }
-        if (inFov) {
-            // Enquanto segura: abaixo do peito, sobe até ele
-            float k = Math.min(1f, 8f * dt);
-            if (errElev > 0f) dPitch += -errElev * k * AimSettings.vertAssist;
-            dYaw += errYaw * k * AimSettings.horizAssist;
+        if (inFov && !(firePress)) {
+            // Segurando o tiro com o boneco no FOV: a mira vai para o peito com força total, abaixo ou acima dele
+            // (ao subir, ela desce de volta ao peito na hora)
+            dPitch += -errElev * Math.min(1f, 30f * dt);
+            dYaw += errYaw * Math.min(1f, 8f * dt) * AimSettings.horizAssist;
         }
-        // Acima do peito (até o topo da cabeça): a resistência devolve a maior parte do movimento para cima
-        if (errElev <= 0f && userDelta < 0f && inHead) dPitch += -userDelta * AimSettings.upResist;
 
         active = true;
         strengthNow = Math.max(strengthNow, 0.5f + 0.5f * AimSettings.vertAssist);

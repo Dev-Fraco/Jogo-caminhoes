@@ -136,6 +136,8 @@ final class CombatFx implements DamageSystem.Listener {
     private static final float MIRA_RAIO = 0.058f;    // raio da mira em relação à altura da tela
     private static final float MIRA_ABRE = 0.6f;      // afastamento das laterais (fração do raio)
     private static final float MIRA_ESPESSURA = 1.3f; // espessura do traço (px da textura)
+    private static Texture miraPonto;                 // pontinho branco no centro da mira
+    private static final float MIRA_PONTO = 0.008f;   // diâmetro do pontinho em relação à altura da tela
 
     /** Atualiza a abertura da mira: corre abre, parar fecha (suave), cada tiro dá um coice temporário. */
     /** Luneta aberta: some o retículo de mira (a lente tem o seu próprio). */
@@ -176,6 +178,15 @@ final class CombatFx implements DamageSystem.Listener {
         if (miraEsq == null) {
             miraEsq = gerarArcos(true);
             miraDir = gerarArcos(false);
+            Pixmap pp = new Pixmap(16, 16, Pixmap.Format.RGBA8888);
+            for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
+                float d = (float) Math.sqrt((x + 0.5f - 8f) * (x + 0.5f - 8f) + (y + 0.5f - 8f) * (y + 0.5f - 8f));
+                float cov = MathUtils.clamp(6.5f - d, 0f, 1f);
+                if (cov > 0f) pp.drawPixel(x, y, Color.rgba8888(1f, 1f, 1f, cov));
+            }
+            miraPonto = new Texture(pp);
+            miraPonto.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+            pp.dispose();
         }
         float raio = MIRA_RAIO * H;
         float escala = raio / MIRA_PX;                        // px da textura -> px da tela
@@ -185,6 +196,8 @@ final class CombatFx implements DamageSystem.Listener {
         else batch.setColor(1f, 1f, 1f, 0.95f);
         batch.draw(miraEsq, cx - tam / 2f - abre, cy - tam / 2f, tam, tam);
         batch.draw(miraDir, cx - tam / 2f + abre, cy - tam / 2f, tam, tam);
+        float p = MIRA_PONTO * H;
+        batch.draw(miraPonto, cx - p / 2f, cy - p / 2f, p, p);
         batch.setColor(1f, 1f, 1f, 1f);
     }
 
