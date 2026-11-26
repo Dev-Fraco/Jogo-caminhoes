@@ -34,7 +34,8 @@ import com.badlogic.gdx.utils.Array;
  * Tudo reaproveitado de listas fixas (sem criar objetos por quadro).
  */
 final class CombatFx implements DamageSystem.Listener {
-    private static final int TRACERS = 24, NUMBERS = 12;
+    private static final int TRACERS = 24, NUMBERS = 24;
+    private static final float NUM_LIFE = 1.0f;   // segundos que cada número fica na tela
 
     private final Model tracerModel;
     private final ModelInstance[] tracer = new ModelInstance[TRACERS];
@@ -46,6 +47,7 @@ final class CombatFx implements DamageSystem.Listener {
     private final Vector3[] numPos = new Vector3[NUMBERS];
     private final float[] numT = new float[NUMBERS], numVal = new float[NUMBERS];
     private final boolean[] numHead = new boolean[NUMBERS];
+    private final boolean[] numWall = new boolean[NUMBERS];   // dano na parede (azul)
     private int numNext;
     private float markT, markHead, killT;
     private boolean killHead;
@@ -107,7 +109,8 @@ final class CombatFx implements DamageSystem.Listener {
         numPos[k].set(at);
         numVal[k] = damage;
         numHead[k] = isHead;
-        numT[k] = 0.9f;
+        numWall[k] = false;
+        numT[k] = NUM_LIFE;
         markT = 0.2f;
         markHead = isHead ? 1f : 0f;
         play(isHead ? head : hit, isHead ? 0.9f : 0.7f);
@@ -118,6 +121,17 @@ final class CombatFx implements DamageSystem.Listener {
             killHead = isHead;
             play(kill, 0.75f);
         }
+    }
+
+    /** Dano numa parede de proteção: número azul no ponto do impacto. */
+    void wallHit(Vector3 at, float damage) {
+        int k = numNext++ % NUMBERS;
+        numPos[k].set(at);
+        numVal[k] = damage;
+        numHead[k] = false;
+        numWall[k] = true;
+        numT[k] = NUM_LIFE;
+        play(hit, 0.5f);
     }
 
     private void addTracer(Vector3 a, Vector3 b, float life) {
@@ -139,6 +153,8 @@ final class CombatFx implements DamageSystem.Listener {
         killT -= dt;
         for (int i = 0; i < TRACERS; i++) if (tracerT[i] > 0f) tracerT[i] -= dt;
         for (int i = 0; i < NUMBERS; i++) if (numT[i] > 0f) numT[i] -= dt;
+        // Dano na parede de proteção: número azul no ponto do impacto
+        // (chamado pelo ShootingSystem, que já aplicou o dano no muro)
     }
 
     Array<ModelInstance> instances() {
@@ -209,33 +225,34 @@ final class CombatFx implements DamageSystem.Listener {
 
         batch.begin();
         if (showPanel) WeaponPanel.drawBatch(batch, font, pr[0], pr[1], pr[2], pr[3], weapons, !weapons.holstered());
-        // Números de dano
         float base = font.getData().scaleX;
+        // Números de dano: cada tiro tem o seu. Peito amarelo, cabeça vermelha e maior, parede azul.
+        // Tamanho cresce com o dano; sobe devagar, aparece rápido e some suavemente, ao lado do alvo.
         for (int i = 0; i < NUMBERS; i++) {
             if (numT[i] <= 0f) continue;
-            tmp.set(numPos[i]).add(0f, (0.9f - numT[i]) * 0.9f, 0f);
+            float age = 1f - numT[i] / NUM_LIFE;                 // 0 no acerto, 1 no fim
+            tmp.set(numPos[i]);
             cam.project(tmp);
-            if (tmp.z > 1f) continue;   // atrás da câmera
-            float a = Math.min(1f, numT[i] * 2.5f);
-            font.getData().setScale(numHead[i] ? 1.9f * u / 1.6f : 1.5f * u / 1.6f);
-            // Números que aparecem juntos sobem uns sobre os outros (não se sobrepõem)
-            int stack = 0;
-            for (int j = 0; j < i; j++) {
-                if (numT[j] > 0f && numPos[j].dst2(numPos[i]) < 0.8f * 0.8f) stack++;
-            }
-            tmp.add(0f, stack * 0.28f, 0f);
-            cam.project(tmp);
-            if (numHead[i]) font.setColor(0.95f, 0.14f, 0.10f, a);   // headshot: vermelho
-            else font.setColor(0.98f, 0.95f, 0.88f, a);
-            String t = String.valueOf(Math.round(numVal[i]));
+            if (tmp.z > 1f) continue;                            // atrás da câmera
+            float rise = (1f - (1f - age) * (1f - age)) * 46f * u;   // sobe rápido no começo e desacelera
+            float side = (numHead[i] ? 30f : 42f) * u * (1f + 0.3f * (i % 3 - 1));   // ao lado do alvo, sem sobrepor
+            float fadeIn = Math.min(1f, age / 0.08f), fadeOut = Math.min(1f, (1f - age) / 0.35f);
+            float a = Math.min(fadeIn, fadeOut);
+            float dmg = numVal[i];
+            float scale = MathUtils.clamp(0.9f + dmg / 55f, 0.9f, 2.2f) * (numHead[i] ? 1.35f : 1f);
+            font.getData().setScale(scale * u / 1.6f * 1.2f);
+            String t = String.valueOf(Math.round(dmg));
             layout.setText(font, t);
-            font.draw(batch, t, tmp.x - layout.width / 2f, tmp.y + layout.height);
-            if (numHead[i]) {   // etiqueta discreta acima do número
-                font.getData().setScale(0.9f * u / 1.6f);
-                font.setColor(0.95f, 0.14f, 0.10f, a);
-                layout.setText(font, "HEADSHOT");
-                font.draw(batch, "HEADSHOT", tmp.x - layout.width / 2f, tmp.y + layout.height * 3.2f);
-                font.getData().setScale(1.9f * u / 1.6f);
+            float x = tmp.x + side - layout.width / 2f, y = tmp.y + rise;
+            if (numWall[i]) font.setColor(0.25f, 0.6f, 1f, a);            // parede: azul
+            else if (numHead[i]) font.setColor(1f, 0.16f, 0.1f, a);      // cabeça: vermelho
+            else font.setColor(1f, 0.86f, 0.18f, a);                     // peito: amarelo
+            font.draw(batch, t, x, y + layout.height);
+            if (numHead[i] && !numWall[i]) {   // etiqueta discreta
+                font.getData().setScale(0.8f * u / 1.6f);
+                font.setColor(1f, 0.16f, 0.1f, a);
+                layout.setText(font, "CABEÇA");
+                font.draw(batch, "CABEÇA", tmp.x + side - layout.width / 2f, y + layout.height * 3.4f);
             }
         }
         // Pente e reserva vazios: aviso
