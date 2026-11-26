@@ -39,7 +39,22 @@ public class AiSoak extends ApplicationAdapter {
     }
     double ms = (System.nanoTime() - t0) / 1e6 / (30 * 180);
     System.out.printf("3 min simulados: %d tiros inimigos, %d quadros-inimigo em combate, vivos agora %d, %.2f ms por quadro (10 inimigos, PC)%n", shots, combat, en.alive(), ms);
-    System.exit(0);
+    // Bots entre si: jogador longe e morto de vista; eles precisam se encontrar e lutar
+    sv.reset();
+    Enemies e2 = new Enemies(w, jake, wp.models());
+    Vector3 far = new Vector3(-170f, 0f, -170f);
+    int total = e2.list.size, botShots = 0, ever = 0;
+    int engaged = 0;
+    for (int f = 0; f < 30 * 240; f++) {
+      e2.update(1f/30f, w, far, sv, 0f, 0, cam, 90f);
+      botShots += e2.shots.size;
+      if (f == 30 * 60) for (Enemy e : e2.list) if (e.targetEnemy != null) engaged++;
+      // nenhum bot pode ter o jogador como alvo (ele está a centenas de metros)
+      for (Enemy e : e2.list) if (e.targetPlayer) throw new RuntimeException("bot perseguindo jogador distante");
+    }
+    int botKills = 0; for (Enemy e : e2.list) botKills += e.botKills;
+    System.out.println("bots entre si (4 min): " + botShots + " tiros, " + botKills + " abates entre bots, vivos " + e2.alive() + ", mirando outro bot no 1º min: " + engaged);
+    System.exit(botKills > 0 ? 0 : 3);
   }
   public static void main(String[] a) { new HeadlessApplication(new AiSoak(), new HeadlessApplicationConfiguration()); }
 }

@@ -171,7 +171,6 @@ public class Main extends ApplicationAdapter {
         }
         // Moradores da cidade (usam o modelo do personagem, com roupas de outras cores)
         try {
-            if (world.town != null && character.model() != null) world.town.createNpcs(character.model());
             inPlane = world.airplane != null;   // o jogo começa dentro do avião
             chute = new Parachute();
             survival = new Survival();
@@ -951,7 +950,7 @@ public class Main extends ApplicationAdapter {
             if (p == 0 || c.pellets <= 3 || p % 2 == 0) fx.playerShot(muzzle, shotRes.point, shotRes.hitWorld);
         }
         damage.endShot(player.pos);
-        if (enemies != null) enemies.alert(player.pos, 70f);   // o estampido chama o bando
+        if (enemies != null) enemies.alert(player.pos, 45f);   // o estampido chama o bando
         float k = adsOn ? 0.7f : 1f;
         recoilPitch += (float) Math.toRadians(c.recoilPitch) * k;
         recoilYaw += (float) Math.toRadians(c.recoilYaw) * MathUtils.random(-1f, 1f) * k;

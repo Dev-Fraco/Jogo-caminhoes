@@ -177,8 +177,14 @@ final class ItemUi {
         if (sv.hurt > 0f || stunAlpha > 0f || sv.dead) {
             shapes.begin(ShapeRenderer.ShapeType.Filled);
             if (sv.hurt > 0f) {
-                shapes.setColor(0.8f, 0f, 0f, 0.4f * sv.hurt);
-                shapes.rect(0, 0, W, H);
+                // só nas bordas (vinheta), bem fina: dá para continuar enxergando e mirando
+                float t = H * 0.12f, a = 0.35f * sv.hurt;
+                com.badlogic.gdx.graphics.Color in = new com.badlogic.gdx.graphics.Color(0.55f, 0f, 0f, 0f);
+                com.badlogic.gdx.graphics.Color out = new com.badlogic.gdx.graphics.Color(0.55f, 0f, 0f, a);
+                shapes.rect(0, H - t, W, t, in, in, out, out);
+                shapes.rect(0, 0, W, t, out, out, in, in);
+                shapes.rect(0, 0, t, H, out, in, in, out);
+                shapes.rect(W - t, 0, t, H, in, out, out, in);
             }
             if (stunAlpha > 0f) {
                 shapes.setColor(1f, 1f, 0.97f, Math.min(1f, stunAlpha));

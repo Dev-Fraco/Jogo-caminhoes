@@ -34,12 +34,14 @@ final class Enemies {
         spawnWave(w, null);
     }
 
-    void spawnWave(World w, Vector3 avoid) {
-        list.clear();
-        for (int i = 0; i < COUNT; i++) {
+    void spawnWave(World w, Vector3 avoid) { spawnMore(w, avoid, COUNT); }
+
+    /** Põe mais n bots (longe do jogador). */
+    void spawnMore(World w, Vector3 avoid, int n) {
+        for (int i = 0; i < n; i++) {
             float x = 0f, z = 0f;
             for (int t = 0; t < 30; t++) {
-                if (i < 4 && w.houses.size > 0) {
+                if (i % 3 == 0 && w.houses.size > 0) {
                     Vector3 hp = w.houses.get(rnd.nextInt(w.houses.size)).t.getTranslation(new Vector3());
                     x = hp.x + (rnd.nextFloat() - 0.5f) * 14f;
                     z = hp.z + 6f + rnd.nextFloat() * 4f;
@@ -80,21 +82,45 @@ final class Enemies {
             Enemy e = list.get(i);
             float dx = e.pos.x - cam.position.x, dz = e.pos.z - cam.position.z;
             e.visibleToCam = dx * dx + dz * dz < near;
-            if (e.update(dt, w, playerPos, alive, near)) enemyShot(e, playerPos, sv, playerMove, stance);
+            if (e.update(dt, w, this, playerPos, alive)) enemyShot(e, playerPos, sv, playerMove, stance);
             // corpos somem depois de um tempo
             if (!e.alive() && e.deadT > 40f) { list.removeIndex(i); i--; }
         }
-        if (alive() == 0) {
+        // Sobraram poucos (eles se matam): depois de um tempo chegam mais jogadores
+        int left = alive();
+        if (left <= 2) {
             if (waveT < 0f) waveT = WAVE_DELAY;
             waveT -= dt;
             if (waveT <= 0f) {
                 waveT = -1f;
-                spawnWave(w, playerPos);
+                spawnMore(w, playerPos, COUNT - left);
             }
+        } else {
+            waveT = -1f;
         }
     }
 
+    /** Bot atirando em outro bot: acerta ou erra pela distância e movimento do alvo; o atingido revida. */
+    private void botShot(Enemy e, Enemy t) {
+        float d = e.pos.dst(t.pos);
+        float p = MathUtils.clamp(0.55f - d * 0.009f - t.vel.len() * 0.04f, 0.06f, 0.5f);
+        Vector3 to = new Vector3(t.pos).add(0f, 1.2f, 0f);
+        boolean hit = MathUtils.random() < p;
+        if (!hit) to.add(MathUtils.random(-1.2f, 1.2f), MathUtils.random(-0.6f, 1.2f), MathUtils.random(-1.2f, 1.2f));
+        shots.add(new Vector3[]{new Vector3(e.muzzle), to});
+        if (hit) {
+            WeaponConfig.Region r = MathUtils.random() < 0.12f ? WeaponConfig.Region.HEAD : WeaponConfig.Region.TORSO;
+            if (t.damage(WeaponConfig.RIFLE_INIMIGO.damageAt(r, d), e.pos)) e.botKills++;
+            else t.retaliate(e);
+        }
+        alert(e.muzzle, 35f, e);   // o tiro chama quem estiver perto
+    }
+
     private void enemyShot(Enemy e, Vector3 player, Survival sv, float playerMove, int stance) {
+        if (e.targetEnemy != null) {
+            botShot(e, e.targetEnemy);
+            return;
+        }
         float d = e.pos.dst(player);
         float p = 0.62f - d * 0.009f - playerMove * 0.05f - (stance == 1 ? 0.08f : stance == 2 ? 0.18f : 0f);
         p = MathUtils.clamp(p, 0.06f, 0.6f);
@@ -132,17 +158,19 @@ final class Enemies {
     }
 
     /** Barulho de tiro/explosão: quem estiver no raio vem atrás. */
-    void alert(Vector3 at, float radius) {
+    void alert(Vector3 at, float radius) { alert(at, radius, null); }
+
+    void alert(Vector3 at, float radius, Enemy except) {
         for (int i = 0; i < list.size; i++) {
             Enemy e = list.get(i);
-            if (e.alive() && e.pos.dst2(at) < radius * radius) e.hear();
+            if (e != except && e.alive() && e.pos.dst2(at) < radius * radius) e.hear(at);
         }
     }
 
     /** Explosão de granada: dano pela distância em todos que estiverem perto. */
     int explosion(Vector3 at, float radius, float maxDamage) {
         int killed = 0;
-        alert(at, 90f);
+        alert(at, 60f);
         for (int i = 0; i < list.size; i++) {
             Enemy e = list.get(i);
             if (!e.alive()) continue;

@@ -90,7 +90,7 @@ final class Survival {
     int update(float dt, boolean moving) {
         if (messageT > 0f) messageT -= dt;
         stun = Math.max(0f, stun - dt * 0.28f);
-        hurt = Math.max(0f, hurt - dt * 1.5f);
+        hurt = Math.max(0f, hurt - dt * 2.2f);
         if (dead) {
             deadT += dt;
             return -1;
@@ -137,7 +137,7 @@ final class Survival {
     void damage(float amount, boolean flash) {
         if (dead) return;
         health -= amount;
-        if (flash) hurt = Math.min(1f, hurt + amount / 40f + 0.3f);
+        if (flash) hurt = Math.min(0.8f, hurt + 0.3f + amount / 100f);
         if (health <= 0f) {
             health = 0f;
             dead = true;

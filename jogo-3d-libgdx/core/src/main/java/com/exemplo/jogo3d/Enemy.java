@@ -25,6 +25,14 @@ final class Enemy {
     private static final float WALK = 1.3f, RUN = 4.2f, SIGHT = 60f;
     private static final float RUN_CLIP_SPEED = 5.5f, WALK_CLIP_SPEED = 1.8f;
 
+    private static final Color[] SHIRTS = {new Color(0.42f, 0.27f, 0.14f, 1f), new Color(0.75f, 0.70f, 0.60f, 1f),
+            new Color(0.55f, 0.25f, 0.18f, 1f), new Color(0.35f, 0.45f, 0.55f, 1f), new Color(0.45f, 0.50f, 0.32f, 1f),
+            new Color(0.25f, 0.22f, 0.20f, 1f), new Color(0.80f, 0.62f, 0.30f, 1f)};
+    private static final Color[] PANTS = {new Color(0.55f, 0.48f, 0.33f, 1f), new Color(0.30f, 0.25f, 0.20f, 1f),
+            new Color(0.35f, 0.42f, 0.58f, 1f), new Color(0.50f, 0.42f, 0.30f, 1f), new Color(0.22f, 0.22f, 0.24f, 1f)};
+    private static final Color[] HAIR = {new Color(0.10f, 0.07f, 0.05f, 1f), new Color(0.30f, 0.20f, 0.12f, 1f),
+            new Color(0.55f, 0.40f, 0.22f, 1f), new Color(0.65f, 0.63f, 0.60f, 1f)};
+
     final ModelInstance inst;
     final ModelInstance gun;
     private final AnimationController anim;
@@ -42,6 +50,12 @@ final class Enemy {
     private float animAcc;
     private int side = 1;
     boolean canSee;
+    // Alvo: outro bot ou o jogador. Sem alvo à vista, vai ao último lugar conhecido (não sabe onde o jogador está).
+    Enemy targetEnemy;
+    boolean targetPlayer;
+    final Vector3 lastKnown = new Vector3(), tgt = new Vector3();
+    boolean hasLast;
+    int botKills;
     final Vector3 muzzle = new Vector3();
     boolean visibleToCam;   // dentro da distância de desenho (para não animar longe)
 
@@ -55,11 +69,12 @@ final class Enemy {
         home.set(x, 0f, z);
         facing = seed * MathUtils.PI2;
         // Roupa de couro e cáqui, cabelo escuro
-        tint("mat21", new Color(0.42f, 0.27f, 0.14f, 1f));
-        tint("mat17", new Color(0.55f, 0.48f, 0.33f, 1f));
-        tint("mat18", new Color(0.30f, 0.19f, 0.10f, 1f));
-        tint("mat19", new Color(0.10f, 0.07f, 0.05f, 1f));
-        tint("mat20", new Color(0.10f, 0.07f, 0.05f, 1f));
+        int k = (int) (seed * 997f) % SHIRTS.length;
+        tint("mat21", SHIRTS[k]);
+        tint("mat17", PANTS[(k + 2) % PANTS.length]);
+        tint("mat18", PANTS[(k + 2) % PANTS.length].cpy().mul(0.8f, 0.8f, 0.8f, 1f));
+        tint("mat19", HAIR[k % HAIR.length]);
+        tint("mat20", HAIR[k % HAIR.length]);
         setClip("Idle", 1f);
         waitT = 1f + seed * 3f;
     }
@@ -74,39 +89,77 @@ final class Enemy {
     /**
      * Um passo do comportamento. Devolve true se disparou neste quadro (o Enemies decide se acertou).
      */
-    boolean update(float dt, World w, Vector3 player, boolean playerAlive, float near) {
+    boolean update(float dt, World w, Enemies all, Vector3 player, boolean playerAlive) {
         if (state == State.DEAD) {
             deadT += dt;
             if (visibleToCam) anim.update(dt);
             placeGun();
             return false;
         }
-        float dx = player.x - pos.x, dz = player.z - pos.z;
-        float dist = (float) Math.sqrt(dx * dx + dz * dz);
-        float toPlayer = MathUtils.atan2(dx, dz);
+        if (targetEnemy != null && !targetEnemy.alive()) { targetEnemy = null; canSee = false; }
+        if (targetPlayer && !playerAlive) { targetPlayer = false; canSee = false; }
+        boolean haveTarget = targetEnemy != null || targetPlayer;
+        if (targetEnemy != null) tgt.set(targetEnemy.pos);
+        else if (targetPlayer) tgt.set(player);
 
-        // Visão: checa algumas vezes por segundo (raio custa)
+        // Visão: algumas vezes por segundo (raio custa). Mantém o alvo atual se ainda o vê; senão procura
+        // entre os 3 mais próximos (outros bots e o jogador), na frente ou muito perto.
         lookT -= dt;
         if (lookT <= 0f) {
             lookT = 0.25f + MathUtils.random(0.1f);
             canSee = false;
-            if (playerAlive && dist < SIGHT) {
-                float ahead = MathUtils.cos(wrap(toPlayer - facing));
-                if (dist < 14f || ahead > 0.2f || state == State.COMBAT) {
-                    eye.set(pos).add(0f, 1.6f, 0f);
-                    tmp.set(player).add(0f, 1.2f, 0f);
-                    canSee = w.lineOfSight(eye, tmp);
+            eye.set(pos).add(0f, 1.6f, 0f);
+            if (haveTarget) canSee = see(w, tgt);
+            if (!canSee) {
+                float prev = -1f;
+                for (int round = 0; round < 3 && !canSee; round++) {
+                    float bd = Float.MAX_VALUE;
+                    Enemy be = null;
+                    boolean bp = false;
+                    if (playerAlive) {
+                        float d = (float) Math.hypot(player.x - pos.x, player.z - pos.z);
+                        if (d > prev && d < SIGHT && d < bd) { bd = d; bp = true; }
+                    }
+                    for (int i = 0; i < all.list.size; i++) {
+                        Enemy o = all.list.get(i);
+                        if (o == this || !o.alive()) continue;
+                        float d = (float) Math.hypot(o.pos.x - pos.x, o.pos.z - pos.z);
+                        if (d > prev && d < SIGHT && d < bd) { bd = d; be = o; bp = false; }
+                    }
+                    if (bd == Float.MAX_VALUE) break;
+                    prev = bd;
+                    Vector3 at = bp ? player : be.pos;
+                    float ahead = MathUtils.cos(wrap(MathUtils.atan2(at.x - pos.x, at.z - pos.z) - facing));
+                    if ((bd < 14f || ahead > 0.2f || state == State.COMBAT) && see(w, at)) {
+                        canSee = true;
+                        targetEnemy = bp ? null : be;
+                        targetPlayer = bp;
+                        tgt.set(at);
+                    }
                 }
             }
         }
-        if (canSee) {
+        haveTarget = targetEnemy != null || targetPlayer;
+        if (canSee && haveTarget) {
             if (state != State.COMBAT) { phaseT = 0f; shooting = false; fireT = 0.6f + MathUtils.random(0.6f); }
             state = State.COMBAT;
             lostT = 0f;
+            lastKnown.set(tgt);
+            hasLast = true;
         } else if (state == State.COMBAT) {
             lostT += dt;
-            if (lostT > 8f || !playerAlive) state = State.PATROL;
+            if (lostT > 10f || !hasLast) {
+                state = State.PATROL;
+                targetEnemy = null;
+                targetPlayer = false;
+                hasLast = false;
+                waitT = 1f;
+            }
         }
+        Vector3 aim = canSee && haveTarget ? tgt : lastKnown;
+        float dx = aim.x - pos.x, dz = aim.z - pos.z;
+        float dist = (float) Math.sqrt(dx * dx + dz * dz);
+        float toPlayer = MathUtils.atan2(dx, dz);   // (direção do alvo)
 
         boolean fired = false;
         float speed = 0f;
@@ -141,10 +194,13 @@ final class Enemy {
                     fired = true;
                 }
             } else {
-                if (dist > 28f || !canSee) moveDir = toPlayer;                 // avança
-                else if (dist < 9f) moveDir = toPlayer + MathUtils.PI + side * 0.5f;   // recua
-                else moveDir = toPlayer + side * MathUtils.HALF_PI;            // corre de lado
-                speed = RUN;
+                if (!canSee && dist < 2.5f) {                                  // chegou e não achou ninguém: olha em volta
+                    setClip("IdleLook", 1f);
+                    lostT += dt * 2f;
+                    speed = 0f;
+                } else if (dist > 28f || !canSee) { moveDir = toPlayer; speed = RUN; }   // avança
+                else if (dist < 9f) { moveDir = toPlayer + MathUtils.PI + side * 0.5f; speed = RUN; }   // recua
+                else { moveDir = toPlayer + side * MathUtils.HALF_PI; speed = RUN; }                   // corre de lado
             }
         }
         if (speed > 0f) {
@@ -183,12 +239,34 @@ final class Enemy {
         muzzle.set(tmp).add(MathUtils.sin(facing) * 0.62f, 0.05f, MathUtils.cos(facing) * 0.62f);
     }
 
-    /** Ouviu tiro: vai atrás do barulho por alguns segundos, mesmo sem ver o jogador. */
-    void hear() {
+    /** Linha de visão até o alvo (peito). */
+    private boolean see(World w, Vector3 at) {
+        tmp.set(at).add(0f, 1.2f, 0f);
+        return w.lineOfSight(eye, tmp);
+    }
+
+    /** Ouviu um tiro vindo de "at": vai até lá procurar (não sabe quem é). */
+    void hear(Vector3 at) {
         if (state == State.DEAD) return;
         if (state != State.COMBAT) { phaseT = 0f; shooting = false; fireT = 0.8f; }
         state = State.COMBAT;
-        lostT = Math.min(lostT, -4f);   // 12 s procurando
+        lostT = -2f;
+        lastKnown.set(at);
+        hasLast = true;
+    }
+
+    /** Levou tiro de outro bot: passa a reagir contra ele. */
+    void retaliate(Enemy shooter) {
+        if (state == State.DEAD) return;
+        if (!canSee || targetEnemy == null) {
+            targetEnemy = shooter;
+            targetPlayer = false;
+            lastKnown.set(shooter.pos);
+            hasLast = true;
+            canSee = false;
+            lookT = 0f;
+        }
+        hear(shooter.pos);
     }
 
     /** Leva dano; devolve true se morreu agora. */
@@ -198,7 +276,12 @@ final class Enemy {
         // virou alvo: entra em combate e encara o atirador
         state = State.COMBAT;
         lostT = 0f;
-        if (from != null) facing = MathUtils.atan2(from.x - pos.x, from.z - pos.z);
+        if (from != null) {
+            facing = MathUtils.atan2(from.x - pos.x, from.z - pos.z);
+            lastKnown.set(from);
+            hasLast = true;
+            lookT = 0f;
+        }
         if (health <= 0f) {
             health = 0f;
             state = State.DEAD;
