@@ -39,29 +39,57 @@ public class Hud {
         }
     }
 
-    static final String[] ORDER = {"status", "itens", "joystick", "mochila", "config", "correr", "pular", "agachar", "abrir"};
+    static final String[] ORDER = {"minimapa", "bussola", "status", "config", "mochila", "slot_cura", "slot_granada",
+            "slot_energia", "joystick", "correr", "coletar", "pegar_arma", "usar_kit", "pular", "agachar", "deitar", "abrir"};
     static final float MIN_SCALE = 0.4f, MAX_SCALE = 2.2f;
-    static final String PREFS = "hud_layout";
+    static final String PREFS = "hud_layout_v2";
+    // Tela de referência da arte do HUD (posições padrão saem dela)
+    private static final float REF_W = 1672f, REF_H = 941f;
 
     private final El[] els = {
-            new El("status", "Status", "hud/painel_status.png", 0.24f, 0f),
-            new El("itens", "Itens", "hud/barra_itens.png", 0.17f, 0f),
-            new El("joystick", "Joystick", "hud/joystick_base.png", 0.40f, 0f),
-            new El("mochila", "Mochila", "hud/botao_mochila.png", 0.10f, 0f),
-            new El("config", "Config", "hud/botao_config.png", 0.11f, 0f),
-            new El("correr", "Correr", "hud/botao_correr.png", 0.17f, 0f),
-            new El("pular", "Pular", "hud/botao_pular.png", 0.15f, 0f),
-            new El("agachar", "Agachar", "hud/botao_agachar.png", 0.12f, 0f),
-            new El("abrir", "Porteira", null, 0.10f, 4.6f),
+            new El("minimapa", "Mapa", "hud2/minimapa_moldura.png", 319f / REF_H, 0f),
+            new El("bussola", "Bússola", "hud2/bussola.png", 85f / REF_H, 0f),
+            new El("status", "Vida", "hud2/status.png", 117f / REF_H, 0f),
+            new El("config", "Config", "hud2/config.png", 83f / REF_H, 0f),
+            new El("mochila", "Mochila", "hud2/mochila.png", 168f / REF_H, 0f),
+            new El("slot_cura", "Cura", "hud2/slot_cura.png", 143f / REF_H, 0f),
+            new El("slot_granada", "Granada", "hud2/slot_granada.png", 143f / REF_H, 0f),
+            new El("slot_energia", "Energia", "hud2/slot_energia.png", 152f / REF_H, 0f),
+            new El("joystick", "Joystick", "hud2/joystick.png", 302f / REF_H, 0f),
+            new El("correr", "Correr", "hud2/correr.png", 222f / REF_H, 0f),
+            new El("coletar", "Coletar", "hud2/coletar.png", 169f / REF_H, 0f),
+            new El("pegar_arma", "Pegar arma", "hud2/pegar_arma.png", 169f / REF_H, 0f),
+            new El("usar_kit", "Usar kit", "hud2/usar_kit.png", 165f / REF_H, 0f),
+            new El("pular", "Pular", "hud2/pular.png", 186f / REF_H, 0f),
+            new El("agachar", "Agachar", "hud2/agachar.png", 178f / REF_H, 0f),
+            new El("deitar", "Deitar", "hud2/deitar.png", 200f / REF_H, 0f),
+            new El("abrir", "Ação", null, 0.085f, 4.6f),
     };
+    // Centro de cada peça na arte de referência (pixels, origem em cima)
+    private static final float[][] REF_POS = {
+            {163, 162}, {797, 46}, {949, 848}, {353, 53}, {93, 403}, {85, 556}, {81, 696}, {83, 840},
+            {311, 736}, {291, 467}, {680, 514}, {891, 514}, {901, 685}, {1566, 462}, {1539, 643}, {1539, 831}, {836, 330}};
+    private final java.util.HashSet<String> shown = new java.util.HashSet<>();   // botões que só aparecem às vezes
+    private static final String[] OPTIONAL = {"coletar", "pegar_arma", "usar_kit", "abrir"};
     private Texture knobTex;
+
+    /** Mostra ou esconde um botão que depende da situação (coletar, pegar arma, usar kit, ação). */
+    void show(String id, boolean on) {
+        if (on) shown.add(id);
+        else shown.remove(id);
+    }
+
+    boolean visible(El e) {
+        if (editing) return true;
+        for (String o : OPTIONAL) if (o.equals(e.id)) return shown.contains(o);
+        return true;
+    }
 
     // Estado que o Main preenche a cada quadro
     boolean editing = false;
     boolean runOn = false;
     boolean crouchOn = false;
     boolean jumpDown = false;
-    boolean promptVisible = false;   // botão da porteira aparece
     String promptText = "ABRIR PORTEIRA";
     float joyX = 0f, joyY = 0f;      // -1..1 (posição do polegar no joystick)
 
@@ -80,7 +108,7 @@ public class Hud {
                 e.tex.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
             }
         }
-        knobTex = new Texture(Gdx.files.internal("hud/joystick_knob.png"));
+        knobTex = new Texture(Gdx.files.internal("hud2/joystick_knob.png"));
         knobTex.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
         resetLayout(false);
         load();
@@ -111,30 +139,22 @@ public class Hud {
         return null;
     }
 
-    /** Posições padrão (canto superior esquerdo, direito e inferior), sem escala do jogador. */
+    /** Posições padrão: as mesmas da arte do HUD, proporcionais à tela. */
     void resetLayout(boolean onlyDefaultsOfMissing) {
-        float W = Gdx.graphics.getWidth(), H = Gdx.graphics.getHeight(), m = 0.02f * H;
-        for (El e : els) e.scale = 1f;
-        El config = get("config"), status = get("status"), mochila = get("mochila"), itens = get("itens");
-        El joy = get("joystick"), pular = get("pular"), agachar = get("agachar"), correr = get("correr"), abrir = get("abrir");
-
-        float wC = width(config), hC = height(config);
-        place(config, m + wC / 2f, H - m - hC / 2f, W, H);
-        float wS = width(status), hS = height(status);
-        place(status, m + wC + m + wS / 2f, H - m - hS / 2f, W, H);
-        float wM = width(mochila), hM = height(mochila);
-        place(mochila, m + wM / 2f, H - m - hC - m - hM / 2f, W, H);
-        float wI = width(itens), hI = height(itens);
-        place(itens, W - m - wI / 2f, H - m - hI / 2f, W, H);
-        float hJ = height(joy), wJ = width(joy);
-        place(joy, m + wJ / 2f, m + hJ / 2f, W, H);
-        float wP = width(pular), hP = height(pular);
-        place(pular, W - m - wP / 2f, m + hP / 2f, W, H);
-        float wA = width(agachar), hA = height(agachar);
-        place(agachar, W - m - wA / 2f, m + hP + m + hA / 2f, W, H);
-        float wR = width(correr), hR = height(correr);
-        place(correr, W - m - wP - m - wR / 2f, m + hR / 2f, W, H);
-        place(abrir, W / 2f, 0.22f * H, W, H);
+        for (int i = 0; i < els.length; i++) {
+            els[i].scale = 1f;
+            els[i].fx = REF_POS[i][0] / REF_W;
+            els[i].fy = 1f - REF_POS[i][1] / REF_H;
+        }
+        // Telas mais largas que a arte: encosta os botões da direita na borda direita
+        float W = Gdx.graphics.getWidth(), H = Gdx.graphics.getHeight();
+        float extra = W / H - REF_W / REF_H;
+        if (extra > 0f) {
+            for (El e : els) {
+                if (e.fx > 0.75f) e.fx = 1f - (1f - e.fx) * (REF_W / REF_H) / (W / H);
+                else if (e.fx < 0.3f) e.fx = e.fx * (REF_W / REF_H) / (W / H);
+            }
+        }
     }
 
     private void place(El e, float cx, float cy, float W, float H) {
@@ -179,7 +199,7 @@ public class Hud {
     El hitTest(float x, float y) {
         for (int i = ORDER.length - 1; i >= 0; i--) {
             El e = get(ORDER[i]);
-            if (e.id.equals("abrir") && !promptVisible) continue;
+            if (!visible(e)) continue;
             float[] r = rect(e);
             if (x >= r[0] && x <= r[0] + r[2] && y >= r[1] && y <= r[1] + r[3]) return e;
         }
@@ -274,7 +294,7 @@ public class Hud {
         computeEditRects(W, H);
 
         // Fundo do botão "abrir porteira" (couro escuro com borda)
-        if (promptVisible || editing) {
+        if (visible(get("abrir"))) {
             float[] r = rect(get("abrir"));
             shapes.begin(ShapeRenderer.ShapeType.Filled);
             shapes.setColor(0.42f, 0.26f, 0.13f, 0.92f);
@@ -288,7 +308,7 @@ public class Hud {
 
         batch.begin();
         for (El e : els) {
-            if (e.id.equals("abrir") && !promptVisible && !editing) continue;
+            if (!visible(e)) continue;
             float[] r = rect(e);
             float a = 1f;
             float tint = 1f;
@@ -303,7 +323,7 @@ public class Hud {
         // Bolinha do joystick: acompanha o polegar
         El joy = get("joystick");
         float[] jr = rect(joy);
-        float knobSize = jr[2] * 0.5f;
+        float knobSize = jr[2] * 0.36f;
         float kx = centerX(joy) + joyX * jr[2] * 0.3f;
         float ky = centerY(joy) + joyY * jr[3] * 0.3f;
         batch.setColor(1f, 1f, 1f, 0.95f);
@@ -311,7 +331,7 @@ public class Hud {
         batch.setColor(1f, 1f, 1f, 1f);
 
         // Botão "abrir porteira": desenhado em código, com texto
-        if (promptVisible || editing) {
+        if (visible(get("abrir"))) {
             El abrir = get("abrir");
             float[] r = rect(abrir);
             font.setColor(0.98f, 0.9f, 0.7f, 1f);

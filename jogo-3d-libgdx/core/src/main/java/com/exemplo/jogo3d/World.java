@@ -43,6 +43,12 @@ public class World {
     static final float TOWN_X = 100f;        // cidade: centro (onde a estrada é quase reta)
     static final float TOWN_Z = roadZ(TOWN_X);
 
+    /** Perto de um poço (dá para beber água). */
+    boolean nearWater(Vector3 p) {
+        if (hasWell && Math.hypot(p.x - wellX, p.z - wellZ) < Landmarks.WELL_OUT + 1.6f) return true;
+        return town != null && Math.hypot(p.x - TOWN_X, p.z - town.wellZ()) < 2.8f;
+    }
+
     /** Dentro da área da cidade (casas, praça e roçado). */
     static boolean inTown(float x, float z) {
         return Math.abs(x - TOWN_X) < 48f && Math.abs(z - TOWN_Z - 5f) < 52f;

@@ -1,6 +1,16 @@
 package com.exemplo.jogo3d;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Camera;
+import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.PerspectiveCamera;
+import com.badlogic.gdx.graphics.Pixmap;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.graphics.g3d.Environment;
+import com.badlogic.gdx.graphics.g3d.ModelBatch;
+import com.badlogic.gdx.graphics.glutils.FrameBuffer;
+import com.badlogic.gdx.math.collision.BoundingBox;
 import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.loader.G3dModelLoader;
@@ -36,6 +46,10 @@ final class Items {
     private final Model[] models = new Model[FILES.length];
     final Array<Pickup> ground = new Array<>();
     final int[] bag = new int[FILES.length];   // quantos de cada na mochila
+    static final int BACKPACK = 8;
+    static final int CAP_BASE = 12, CAP_BACKPACK = 30;   // itens que cabem sem e com a mochila
+    private final FrameBuffer[] iconFbo = new FrameBuffer[FILES.length];
+    final TextureRegion[] icons = new TextureRegion[FILES.length];
 
     Items() {
         for (int i = 0; i < FILES.length; i++) {
@@ -98,11 +112,80 @@ final class Items {
         return best;
     }
 
-    /** Pega e põe na mochila. */
-    void pickUp(Pickup g, World w) {
+    Model model(int type) { return models[type]; }
+
+    /** Itens carregados (a mochila em si não conta). */
+    int carried() {
+        int n = 0;
+        for (int i = 0; i < bag.length; i++) if (i != BACKPACK) n += bag[i];
+        return n;
+    }
+
+    int capacity() { return bag[BACKPACK] > 0 ? CAP_BACKPACK : CAP_BASE; }
+
+    /** Pega e põe na mochila. Devolve false se não couber. */
+    boolean pickUp(Pickup g, World w) {
+        if (g.type == BACKPACK && bag[BACKPACK] > 0) return false;   // já tem mochila
+        if (g.type != BACKPACK && carried() >= capacity()) return false;
         ground.removeValue(g, true);
         w.instances.removeValue(g.inst, true);
         bag[g.type]++;
+        return true;
+    }
+
+    /** Gasta um item da mochila. */
+    void consume(int type) {
+        if (bag[type] > 0) bag[type]--;
+    }
+
+    /** Larga tudo (ao morrer). */
+    void clearBag() {
+        for (int i = 0; i < bag.length; i++) bag[i] = 0;
+    }
+
+    /**
+     * Desenha cada item numa textura pequena (ícone 3D de verdade, visto de lado e de cima).
+     * Chamado no início e quando o app volta do segundo plano (o Android apaga as texturas).
+     */
+    void renderIcons(ModelBatch batch, Environment env) {
+        int size = 128;
+        PerspectiveCamera cam = new PerspectiveCamera(30f, size, size);
+        BoundingBox bb = new BoundingBox();
+        Vector3 c = new Vector3(), dim = new Vector3();
+        for (int i = 0; i < FILES.length; i++) {
+            if (iconFbo[i] == null) iconFbo[i] = new FrameBuffer(Pixmap.Format.RGBA8888, size, size, true);
+            ModelInstance mi = new ModelInstance(models[i]);
+            mi.transform.idt().rotate(Vector3.Y, 35f);
+            mi.calculateBoundingBox(bb);
+            bb.mul(mi.transform);
+            bb.getCenter(c);
+            bb.getDimensions(dim);
+            float r = dim.len() * 0.5f;
+            aim(cam, c, r);
+            iconFbo[i].begin();
+            Gdx.gl.glViewport(0, 0, size, size);
+            Gdx.gl.glClearColor(0f, 0f, 0f, 0f);
+            Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
+            batch.begin(cam);
+            batch.render(mi, env);
+            batch.end();
+            iconFbo[i].end();
+            Texture t = iconFbo[i].getColorBufferTexture();
+            t.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+            icons[i] = new TextureRegion(t);
+            icons[i].flip(false, true);
+        }
+        Gdx.gl.glViewport(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight());
+    }
+
+    private static void aim(Camera cam, Vector3 c, float r) {
+        float dist = r / (float) Math.sin(Math.toRadians(15.0)) * 1.05f;
+        cam.position.set(c).add(new Vector3(0f, 0.55f, 1f).nor().scl(dist));
+        cam.lookAt(c);
+        cam.up.set(Vector3.Y);
+        cam.near = dist * 0.1f;
+        cam.far = dist * 3f;
+        cam.update();
     }
 
     /** Resumo da mochila, ex.: "KIT MÉDICO 1 · ENERGÉTICO 2". */
@@ -118,5 +201,6 @@ final class Items {
 
     void dispose() {
         for (Model m : models) if (m != null) m.dispose();
+        for (FrameBuffer f : iconFbo) if (f != null) f.dispose();
     }
 }

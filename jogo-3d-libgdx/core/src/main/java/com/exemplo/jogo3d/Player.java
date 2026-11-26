@@ -35,6 +35,7 @@ public class Player {
     public float facing = 0f;         // direção para onde o personagem olha (radianos)
     public float speed = 0f;          // velocidade horizontal atual (m/s)
     private float jumpBuffer = 0f;
+    public float speedMul = 1f;       // energia alta: corre um pouco mais
 
     public void spawn(float x, float z, float groundY) {
         pos.set(x, groundY, z);
@@ -70,6 +71,7 @@ public class Player {
             targetSpeed = inMag <= 0.02f ? 0f
                 : MathUtils.lerp(WALK_SPEED, RUN_SPEED, MathUtils.clamp((inMag - 0.3f) / 0.7f, 0f, 1f));
         }
+        targetSpeed *= speedMul;
         speed = approach(speed, targetSpeed, ACCEL * dt);
 
         // 3) Anda e desvia de obstáculos

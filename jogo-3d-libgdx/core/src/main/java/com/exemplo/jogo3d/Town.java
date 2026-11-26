@@ -34,6 +34,9 @@ final class Town {
     private float ht;            // altura do chão da cidade (plano)
     private float sqZ;           // centro da pracinha (z); x = X
 
+    /** Poço da praça (x = X). */
+    float wellZ() { return sqZ; }
+
     // Cores
     private static final Color[] WALLS = {
             new Color(0.93f, 0.91f, 0.86f, 1f), new Color(0.93f, 0.80f, 0.45f, 1f), new Color(0.55f, 0.70f, 0.85f, 1f),

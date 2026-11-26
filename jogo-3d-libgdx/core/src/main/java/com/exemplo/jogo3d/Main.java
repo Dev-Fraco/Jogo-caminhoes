@@ -77,6 +77,18 @@ public class Main extends ApplicationAdapter {
     private Items.Pickup itemTarget = null;       // item no chão ao alcance (mostra PEGAR)
     private Parachute chute;                      // paraquedas (abre a 100 m do chão)
     private boolean parachuting = false;
+    // Itens: vida/energia/água, granadas, HUD dos itens e mapa
+    private Survival survival;
+    private Grenades grenades;
+    private final ItemUi itemUi = new ItemUi();
+    private MapUi mapUi;
+    private boolean iconsDirty = true;
+    private boolean aiming = false;               // segurando o espaço da granada: mostra o arco
+    private int aimType = -1, grenPointer = -1;
+    private final Vector3 gFrom = new Vector3(), gVel = new Vector3();
+    private boolean dyingShown = false;
+    private boolean drinkTarget = false;          // perto do poço (mostra BEBER ÁGUA)
+    private int prone = 0;                        // deitado no chão: 0 não, 1 deitando/deitado, 2 levantando
     // Battle royale: começa dentro do avião, salta, cai de barriga para baixo e pousa
     private boolean inPlane = false, skydiving = false, landing = false;
     private final Vector3 fallVel = new Vector3();
@@ -142,6 +154,9 @@ public class Main extends ApplicationAdapter {
             if (world.town != null && character.model() != null) world.town.createNpcs(character.model());
             inPlane = world.airplane != null;   // o jogo começa dentro do avião
             chute = new Parachute();
+            survival = new Survival();
+            if (world.items != null) grenades = new Grenades(world.items);
+            mapUi = new MapUi(world);
         } catch (Throwable t) {
             errorText = "ERRO NOS MORADORES:\n" + describe(t);
         }
@@ -203,6 +218,10 @@ public class Main extends ApplicationAdapter {
 
     private void renderGame() {
         float dt = Math.min(Gdx.graphics.getDeltaTime(), 0.05f);
+        if (iconsDirty && world.items != null) {
+            world.items.renderIcons(modelBatch, environment);   // ícones 3D dos itens
+            iconsDirty = false;
+        }
 
         updateTouch();
 
@@ -221,6 +240,11 @@ public class Main extends ApplicationAdapter {
         boolean jumpPressed = !ui && (jumpRequested || Gdx.input.isKeyJustPressed(Input.Keys.SPACE));
         jumpRequested = false;
         if (!ui && Gdx.input.isKeyJustPressed(Input.Keys.SHIFT_LEFT)) runToggle = !runToggle;
+        if (!ui && Gdx.input.isKeyJustPressed(Input.Keys.NUM_1)) useSlot(0);
+        if (!ui && Gdx.input.isKeyJustPressed(Input.Keys.NUM_2)) useSlot(1);
+        if (!ui && Gdx.input.isKeyJustPressed(Input.Keys.NUM_3)) startAim(-1, itemUi.current(2, world.items));
+        if (aiming && grenPointer < 0 && !Gdx.input.isKeyPressed(Input.Keys.NUM_3)) throwGrenade();
+        if (!ui && Gdx.input.isKeyJustPressed(Input.Keys.TAB)) itemUi.panelOpen = !itemUi.panelOpen;
         // Correr: o botão faz correr sozinho; mexer no analógico desliga a corrida e devolve o controle
         if (runToggle && inX * inX + inY * inY > 0.09f) runToggle = false;
 
@@ -240,6 +264,28 @@ public class Main extends ApplicationAdapter {
                 hitchHorse.attachCart(hitchCart);
                 hitchHorse = null;
                 hitchCart = null;
+                character.endOnce();
+            }
+        }
+        // Morto: fica caído até tocar na tela
+        if (survival != null && survival.dead) {
+            busy = true;
+            player.speed = 0f;
+            if (!dyingShown) {
+                dyingShown = true;
+                aiming = false;
+                if (grenades != null) grenades.clearAim();
+                character.setTilt(0f, 0f, 0f);
+                character.playOnce("Dying");
+            }
+        }
+        // Deitado no chão (botão deitar): levanta ao mexer, pular ou apertar de novo
+        if (prone > 0) {
+            busy = true;
+            player.speed = 0f;
+            if (prone == 1 && (inX * inX + inY * inY > 0.09f || jumpPressed || runToggle)) standUp();
+            if (prone == 2 && character.onceFinished()) {
+                prone = 0;
                 character.endOnce();
             }
         }
@@ -300,12 +346,36 @@ public class Main extends ApplicationAdapter {
         } else {
             character.setSwing(0f);
         }
-        if (!ridingActive) character.setCrouch(crouchOn && player.speed < 0.25f ? 1f : 0f);
+        // Itens em uso: cura e beber se abaixam e cancelam ao andar
+        if (survival != null) {
+            boolean moved = player.speed > 0.7f || jumpPressed || !player.grounded || ridingActive || skydiving || parachuting;
+            int done = survival.update(dt, moved);
+            if (done >= 0 && done != Survival.DRINK && world.items != null) world.items.consume(done);
+            player.speedMul = survival.speedMul();
+        }
+        boolean kneelUse = survival != null && survival.usingStill();
+        if (!ridingActive) character.setCrouch((crouchOn && player.speed < 0.25f) || kneelUse ? 1f : 0f);
         character.setReach(world.fences.reach());
         if (!inPlane) character.update(player, dt);
         if (world.weapons != null) world.weapons.update(character, player);   // arma na mão
         world.fences.update(dt, player);
         world.update(dt, camera);
+        // Granada: mira (arco) e as que estão voando/explodindo
+        if (grenades != null) {
+            if (aiming) {
+                if (inPlane || skydiving || survival.dead || world.items.bag[aimType] <= 0) {
+                    aiming = false;
+                    grenades.clearAim();
+                } else {
+                    if (player.grounded && !ridingActive) player.facing = yaw;
+                    gFrom.set(player.pos).add(MathUtils.sin(player.facing) * 0.35f, 1.75f, MathUtils.cos(player.facing) * 0.35f);
+                    Grenades.throwVelocity(camera, gVel);
+                    grenades.aim(world, gFrom, gVel);
+                }
+            }
+            grenades.update(dt, world, camera, survival, player.pos);
+        }
+        if (mapUi != null) mapUi.update(dt, player.pos);
 
         prompt = (busy || ui || ridingActive || lying) ? null : world.fences.nearPrompt(player.pos);
         doorTarget = (busy || ui || ridingActive || lying || prompt != null) ? null : world.nearDoor(player.pos);
@@ -355,6 +425,9 @@ public class Main extends ApplicationAdapter {
             itemTarget = world.items.nearest(player.pos);
             if (itemTarget != null) mountTarget = null;
         }
+        drinkTarget = !busy && !ui && !ridingActive && !lying && prompt == null && doorTarget == null && itemTarget == null
+                && weaponTarget == null && survival != null && survival.water < 98f && survival.using != Survival.DRINK
+                && world.nearWater(player.pos);
 
         // Direção da câmera (usada também para a câmera ficar atrás do jogador)
         Vector3 forward = new Vector3(MathUtils.sin(yaw), 0f, MathUtils.cos(yaw));
@@ -373,6 +446,10 @@ public class Main extends ApplicationAdapter {
         camera.position.set(pivot).mulAdd(back, camDist);
         float camGround = world.heightAt(camera.position.x, camera.position.z) + 0.5f;
         if (camera.position.y < camGround) camera.position.y = camGround;
+        if (grenades != null && grenades.shake > 0f) {
+            float s = grenades.shake * 0.22f;
+            camera.position.add(MathUtils.random(-s, s), MathUtils.random(-s, s), MathUtils.random(-s, s));
+        }
         camera.lookAt(pivot);
         camera.up.set(Vector3.Y);
         camera.update();
@@ -389,6 +466,7 @@ public class Main extends ApplicationAdapter {
         modelBatch.render(world.fireInstance(), environment);
         if (chute != null && chute.active()) modelBatch.render(chute.inst, environment);   // paraquedas
         if (world.airplane != null) modelBatch.render(world.airplane.effects(), environment);   // rastros de vento
+        if (grenades != null) modelBatch.render(grenades.instances(), environment);           // granadas e explosões
         modelBatch.end();
 
         drawHud();
@@ -409,6 +487,10 @@ public class Main extends ApplicationAdapter {
                 if (i == lookPointer) lookPointer = -1;
                 if (i == runPointer) runPointer = -1;
                 if (i == jumpPointer) jumpPointer = -1;
+                if (i == grenPointer) {
+                    grenPointer = -1;
+                    if (aiming) throwGrenade();
+                }
                 hud.editRelease(i);
                 continue;
             }
@@ -453,6 +535,25 @@ public class Main extends ApplicationAdapter {
             Gdx.net.openURI(UpdateChecker.downloadUrl());
             return;
         }
+        if (survival != null && survival.dead) {
+            if (survival.deadT > 3f) respawn();
+            return;
+        }
+        if (itemUi.panelOpen) {
+            int k = itemUi.panelHit(x, yb);
+            if (k == -2) itemUi.panelOpen = false;
+            else if (k >= 0 && k != Items.BACKPACK) {
+                int slot = ItemUi.slotOf(k);
+                itemUi.selected[slot] = k;
+                if (slot != 2 && world.items.bag[k] > 0) {
+                    tryUse(k);
+                    itemUi.panelOpen = false;
+                } else if (slot == 2) {
+                    itemUi.panelOpen = false;
+                }
+            }
+            return;
+        }
         Hud.El e = hud.hitTest(x, yb);
         String id = e == null ? "" : e.id;
         switch (id) {
@@ -472,19 +573,51 @@ public class Main extends ApplicationAdapter {
             case "agachar":
                 crouchOn = !crouchOn;
                 return;
+            case "deitar":
+                if (prone == 1) standUp();
+                else if (prone == 0 && player.grounded && !inPlane && !skydiving && !parachuting && !landing && lyingIn == null) {
+                    prone = 1;
+                    crouchOn = false;
+                    runToggle = false;
+                    character.playOnce("LieDown");
+                }
+                return;
+            case "mochila":
+                itemUi.panelOpen = true;
+                return;
+            case "slot_cura":
+                useSlot(0);
+                return;
+            case "slot_energia":
+                useSlot(1);
+                return;
+            case "slot_granada":
+                startAim(i, itemUi.current(2, world.items));
+                return;
+            case "usar_kit":
+                useSlot(0);
+                return;
+            case "coletar":
+                if (itemTarget != null) {
+                    if (!world.items.pickUp(itemTarget, world)) {
+                        survival.say(itemTarget.type == Items.BACKPACK ? "JÁ TEM MOCHILA" : "MOCHILA CHEIA");
+                    }
+                    itemTarget = null;
+                }
+                return;
+            case "pegar_arma":
+                if (weaponTarget != null) {
+                    world.weapons.pickUp(weaponTarget, world, character, player);
+                    weaponTarget = null;
+                }
+                return;
             case "abrir":
                 if (inPlane) {
                     startSkydive();
                     return;
                 }
-                if (weaponTarget != null) {
-                    world.weapons.pickUp(weaponTarget, world, character, player);
-                    weaponTarget = null;
-                    return;
-                }
-                if (itemTarget != null) {
-                    world.items.pickUp(itemTarget, world);
-                    itemTarget = null;
+                if (drinkTarget) {
+                    if (survival.canUse(Survival.DRINK)) survival.start(Survival.DRINK);
                     return;
                 }
                 if (prompt != null) {
@@ -551,10 +684,15 @@ public class Main extends ApplicationAdapter {
         hud.joyX = joyX;
         hud.joyY = joyY;
         boolean canGetUp = lyingIn != null && lyingIn.lie == HouseDecor.Lie.LYING;
-        hud.promptVisible = inPlane || weaponTarget != null || itemTarget != null || prompt != null || mountTarget != null || doorTarget != null || hammockTarget != null || canGetUp || cartTarget != null || cartOptionsHorse != null;
+        boolean dead = survival != null && survival.dead;
+        hud.show("abrir", !dead && (inPlane || drinkTarget || prompt != null || mountTarget != null || doorTarget != null
+                || hammockTarget != null || canGetUp || cartTarget != null || cartOptionsHorse != null));
+        hud.show("coletar", !dead && itemTarget != null);
+        hud.show("pegar_arma", !dead && weaponTarget != null);
+        hud.show("usar_kit", !dead && world.items != null && survival != null && survival.health < 75f && survival.using < 0
+                && (world.items.bag[Survival.MEDKIT] > 0 || world.items.bag[Survival.BANDAGEM] > 0));
         if (inPlane) hud.promptText = "SALTAR DO AVIÃO";
-        else if (weaponTarget != null) hud.promptText = "PEGAR " + Weapons.NAMES[weaponTarget.type];
-        else if (itemTarget != null) hud.promptText = "PEGAR " + Items.NAMES[itemTarget.type];
+        else if (drinkTarget) hud.promptText = "BEBER ÁGUA";
         else if (prompt != null) hud.promptText = prompt.label();
         else if (cartOptionsHorse != null) hud.promptText = "TIRAR CARROÇA  |  SENTAR NA CARROÇA";
         else if (cartTarget != null) hud.promptText = "PRENDER CARROÇA";
@@ -562,21 +700,13 @@ public class Main extends ApplicationAdapter {
         else if (doorTarget != null) hud.promptText = doorTarget.doorOpen() ? "FECHAR PORTA" : "ABRIR PORTA";
         else if (hammockTarget != null) hud.promptText = "DEITAR NA REDE";
         else if (canGetUp) hud.promptText = "LEVANTAR";
+        if (mapUi != null) mapUi.drawMap(batch, shapes, hud, player.facing);   // mapa por baixo da moldura
         hud.draw(batch, shapes, font);
+        if (mapUi != null) mapUi.drawCompass(batch, shapes, font, hud, yaw);
+        if (world.items != null && survival != null && !hud.editing)
+            itemUi.draw(batch, shapes, font, hud, world.items, survival, aiming, Math.min(1f, survival.stun));
 
         batch.begin();
-        font.setColor(0.35f, 0.2f, 0.1f, 0.9f);
-        layout.setText(font, "Sertão do Ceará - 1915: a seca chegou");
-        font.draw(batch, "Sertão do Ceará - 1915: a seca chegou", (w - layout.width) / 2f, 22f);
-        if (world.items != null) {
-            String bag = world.items.summary();
-            if (world.weapons != null && world.weapons.armed()) bag = world.weapons.heldName() + (bag.isEmpty() ? "" : "  ·  " + bag);
-            if (!bag.isEmpty()) {
-                font.setColor(0.25f, 0.12f, 0.05f, 0.95f);
-                layout.setText(font, "MOCHILA: " + bag);
-                font.draw(batch, "MOCHILA: " + bag, (w - layout.width) / 2f, 44f);
-            }
-        }
         if (UpdateChecker.available()) {
             font.setColor(0.6f, 0.1f, 0.05f, 1f);
             String msg = "Nova versão " + UpdateChecker.latestBuild() + " disponível: toque aqui para baixar";
@@ -602,6 +732,71 @@ public class Main extends ApplicationAdapter {
             if (dx * dx + dz * dz <= maxD2) drawList.add(mi);
         }
         return drawList;
+    }
+
+    // ---------- Itens ----------
+
+    /** Usa o item do espaço (0 = cura, 1 = energia). Tocar de novo durante o uso cancela. */
+    private void useSlot(int slot) {
+        if (world.items == null || survival == null) return;
+        int t = itemUi.current(slot, world.items);
+        if (survival.using == t) { survival.cancel(); return; }
+        if (inPlane || skydiving || survival.dead) { survival.say("NÃO DÁ PARA USAR AGORA"); return; }
+        tryUse(t);
+    }
+
+    private void tryUse(int t) {
+        if (world.items.bag[t] <= 0) { survival.say("SEM " + Items.NAMES[t]); return; }
+        if (survival.canUse(t)) {
+            if (Survival.isHeal(t)) runToggle = false;
+            survival.start(t);
+        }
+    }
+
+    /** Segura o espaço da granada: tira o pino e mostra o arco; solta para jogar. */
+    private void startAim(int pointer, int type) {
+        if (grenades == null || aiming) return;
+        if (world.items.bag[type] <= 0) { survival.say("SEM " + Items.NAMES[type]); return; }
+        if (inPlane || skydiving || survival.dead || prone > 0) { survival.say("NÃO DÁ PARA JOGAR AGORA"); return; }
+        aiming = true;
+        aimType = type;
+        grenPointer = pointer;
+        grenades.pullPin();
+    }
+
+    private void throwGrenade() {
+        aiming = false;
+        grenades.clearAim();
+        if (aimType < 0 || world.items.bag[aimType] <= 0) return;
+        world.items.consume(aimType);
+        grenades.throwIt(aimType, gFrom, gVel);
+    }
+
+    private void standUp() {
+        prone = 2;
+        character.playOnce("GetUp");
+    }
+
+    /** Depois de morrer: tudo cheio de novo e volta para o avião (a mochila fica vazia). */
+    private void respawn() {
+        survival.reset();
+        if (world.items != null) world.items.clearBag();
+        if (grenades != null) grenades.clearAll();
+        dyingShown = false;
+        aiming = false;
+        prone = 0;
+        character.endOnce();
+        character.setTilt(0f, 0f, 0f);
+        skydiving = false;
+        parachuting = false;
+        landing = false;
+        inPlane = world.airplane != null;
+        if (!inPlane) player.spawn(0f, 0f, world.heightAt(0f, 0f));
+    }
+
+    @Override
+    public void resume() {
+        iconsDirty = true;   // o Android apaga as texturas ao sair do app
     }
 
     // ---------- Battle royale: salto do avião ----------
@@ -649,6 +844,7 @@ public class Main extends ApplicationAdapter {
             player.pos.y = ground;
             player.grounded = true;
             skydiving = false;
+            if (survival != null) survival.damage(-fallVel.y > 15f ? 200f : -fallVel.y * 6f, true);   // sem paraquedas
             landing = true;
             fallVel.setZero();
             character.playOnce("HardLanding");
@@ -765,6 +961,9 @@ public class Main extends ApplicationAdapter {
         modelBatch.dispose();
         world.dispose();
         if (chute != null) chute.dispose();
+        if (grenades != null) grenades.dispose();
+        if (survival != null) survival.dispose();
+        if (mapUi != null) mapUi.dispose();
         character.dispose();
         hud.dispose();
         shapes.dispose();
