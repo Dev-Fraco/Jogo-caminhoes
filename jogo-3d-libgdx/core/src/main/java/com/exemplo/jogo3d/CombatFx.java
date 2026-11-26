@@ -181,39 +181,31 @@ final class CombatFx implements DamageSystem.Listener {
         float cx = W / 2f, cy = H / 2f, u = H / 400f;
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         if (armedView) {
-            // Mira: 4 traços com contorno escuro
-            float g = Math.max(4f * u, spreadPx), L = 7f * u, th = 1.6f * u;
-            for (int pass = 0; pass < 2; pass++) {
-                float o = pass == 0 ? th * 0.9f : 0f;
-                if (pass == 0) shapes.setColor(0.1f, 0.06f, 0.03f, 0.75f);
-                else if (overEnemy) shapes.setColor(0.86f, 0.25f, 0.15f, 1f);
+            // Mira: círculo (o raio cresce com a dispersão da arma); branco, vermelho sobre inimigo
+            float R = Math.max(7f * u, spreadPx);
+            shapes.end();
+            shapes.begin(ShapeRenderer.ShapeType.Line);
+            for (int k = -1; k <= 1; k++) {
+                shapes.setColor(0.1f, 0.06f, 0.03f, 0.6f);
+                shapes.circle(cx, cy, R + k * 0.6f * u + 0.8f * u, 48);
+            }
+            for (int k = -1; k <= 1; k++) {
+                if (overEnemy) shapes.setColor(0.86f, 0.25f, 0.15f, 1f);
                 else shapes.setColor(0.96f, 0.92f, 0.82f, 0.95f);
-                shapes.rect(cx - th / 2f - o, cy + g - o, th + 2 * o, L + 2 * o);
-                shapes.rect(cx - th / 2f - o, cy - g - L - o, th + 2 * o, L + 2 * o);
-                shapes.rect(cx + g - o, cy - th / 2f - o, L + 2 * o, th + 2 * o);
-                shapes.rect(cx - g - L - o, cy - th / 2f - o, L + 2 * o, th + 2 * o);
-                shapes.circle(cx, cy, (pass == 0 ? 1.6f : 1f) * u, 10);
+                shapes.circle(cx, cy, R + k * 0.6f * u, 48);
             }
-            // Assistência agindo: colchetes cor de latão, discretos
-            if (assist != null && assist.strengthNow > 0.02f) {
-                float a = 0.55f * assist.strengthNow, r = g + L + 6f * u, s = 5f * u, t2 = 1.3f * u;
-                shapes.setColor(0.85f, 0.65f, 0.3f, a);
-                for (int sx = -1; sx <= 1; sx += 2) {
-                    float x = cx + sx * r;
-                    shapes.rect(x - t2 / 2f, cy - s, t2, 2 * s);
-                    shapes.rect(sx < 0 ? x : x - s * 0.7f, cy + s - t2, s * 0.7f, t2);
-                    shapes.rect(sx < 0 ? x : x - s * 0.7f, cy - s, s * 0.7f, t2);
-                }
-            }
+            shapes.end();
+            shapes.begin(ShapeRenderer.ShapeType.Filled);
+            shapes.setColor(0.96f, 0.92f, 0.82f, 0.95f);
+            shapes.circle(cx, cy, 1.1f * u, 10);
         }
-        // Marcador de acerto (X)
+        // Acerto: X vermelho pequeno no meio do círculo
         if (markT > 0f) {
-            float k = markT / 0.2f, s = (markHead > 0f ? 15f : 10f) * u, inner = 4f * u, w = (markHead > 0f ? 2.6f : 1.8f) * u;
-            if (markHead > 0f) shapes.setColor(0.85f, 0.12f, 0.08f, k);
-            else shapes.setColor(0.97f, 0.93f, 0.85f, k);
+            float k = markT / 0.2f, sz = 3.5f * u, inner = 1.2f * u, w = 1.4f * u;
+            shapes.setColor(0.9f, 0.12f, 0.08f, k);
             for (int q = 0; q < 4; q++) {
                 float ax = (q == 0 || q == 3) ? 1f : -1f, ay = q < 2 ? 1f : -1f;
-                shapes.rectLine(cx + ax * inner, cy + ay * inner, cx + ax * s, cy + ay * s, w);
+                shapes.rectLine(cx + ax * inner, cy + ay * inner, cx + ax * sz, cy + ay * sz, w);
             }
         }
         shapes.end();
