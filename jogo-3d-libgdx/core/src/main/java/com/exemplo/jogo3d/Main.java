@@ -113,6 +113,13 @@ public class Main extends ApplicationAdapter {
     private CombatFx fx;
     private final AimSettingsUi aimUi = new AimSettingsUi();
     private int firePointer = -1;
+    // Muro (botão PAREDE): toque põe na frente; segurar mostra a sombra, e soltar põe onde ela está
+    private static final float WALL_HOLD = 0.25f;   // segundos segurando para virar sombra
+    private int wallPointer = -1;
+    private float wallHoldT = 0f, wallDist = 3f, wallLastY;
+    private boolean wallGhostOn = false;
+    private com.badlogic.gdx.graphics.g3d.ModelInstance wallGhost;
+    private final World.WallSpot wallSpotNow = new World.WallSpot();
     private float fireLastX, fireLastY;
     private boolean firePressed = false;          // acabou de apertar (armas sem automático)
     private final TouchFire touchFire = new TouchFire();
@@ -646,7 +653,9 @@ public class Main extends ApplicationAdapter {
         // Faces dos dois lados (paredes, telhado e poço visíveis de dentro e de fora)
         Gdx.gl.glDisable(GL20.GL_CULL_FACE);
         modelBatch.begin(camera);
+        updateWallGhost();
         modelBatch.render(visibleWorldInstances(), environment);
+        if (wallGhostOn && wallGhost != null) modelBatch.render(wallGhost, environment);   // sombra do muro
         if (!inPlane) modelBatch.render(character.instances, environment);
         world.fences.render(modelBatch, environment);
         modelBatch.render(world.fireInstance(), environment);
@@ -684,6 +693,7 @@ public class Main extends ApplicationAdapter {
                 if (i == runPointer) runPointer = -1;
                 if (i == jumpPointer) jumpPointer = -1;
                 if (i == firePointer) firePointer = -1;
+                if (i == wallPointer) releaseWall();
                 if (i == grenPointer) {
                     grenPointer = -1;
                     if (aiming) throwGrenade();
@@ -697,6 +707,12 @@ public class Main extends ApplicationAdapter {
             float yb = H - rawY;   // origem embaixo, como o HUD
 
             if (pressed) onPress(i, x, rawY, yb, W, H);
+            if (i == wallPointer) {
+                if (!wallGhostOn && (wallHoldT += Gdx.graphics.getDeltaTime()) > WALL_HOLD) wallGhostOn = true;
+                // arrastar para cima aumenta a distância da sombra (para baixo, diminui)
+                if (wallGhostOn) wallDist = MathUtils.clamp(wallDist - (rawY - wallLastY) * 0.02f, 0.5f, 10f);
+                wallLastY = rawY;
+            }
 
             if (hud.editing) {
                 hud.editDrag(i, x, yb);
@@ -722,6 +738,33 @@ public class Main extends ApplicationAdapter {
                 fireLastY = rawY;
             }
         }
+    }
+
+    /** Soltou o botão PAREDE: toque põe na frente do jogador; sombra põe onde ela está. */
+    private void releaseWall() {
+        boolean ghost = wallGhostOn;
+        wallPointer = -1;
+        wallGhostOn = false;
+        if (survival == null || survival.dead) return;
+        String aviso;
+        if (ghost) {
+            aviso = world.wallSpot(player.pos.x, player.pos.z, yaw, wallDist, wallSpotNow);
+            if (aviso == null) world.placeWallSpot(wallSpotNow);
+        } else {
+            aviso = world.placeWall(player.pos.x, player.pos.z, yaw);
+        }
+        survival.say(aviso != null ? aviso : "MURO LEVANTADO");
+    }
+
+    /** Posiciona a sombra do muro na distância escolhida; verde se cabe, vermelho se não. */
+    private void updateWallGhost() {
+        if (!wallGhostOn || survival == null || survival.dead) return;
+        if (wallGhost == null) wallGhost = world.wallGhost();
+        if (wallGhost == null) return;
+        String aviso = world.wallSpot(player.pos.x, player.pos.z, yaw, wallDist, wallSpotNow);
+        wallGhost.transform.setToTranslation(wallSpotNow.x, wallSpotNow.groundY, wallSpotNow.z)
+                .rotate(Vector3.Y, wallSpotNow.yawDeg);
+        world.tintWallGhost(wallGhost, aviso == null);
     }
 
     private void onPress(int i, float x, float rawY, float yb, int W, int H) {
@@ -783,11 +826,15 @@ public class Main extends ApplicationAdapter {
             case "trocar":
                 if (world.weapons != null) world.weapons.swap(character);
                 return;
-            case "parede": {
-                String aviso = world.placeWall(player.pos.x, player.pos.z, yaw);
-                survival.say(aviso != null ? aviso : "MURO DE PEDRA E TAIPA LEVANTADO");
+            case "parede":
+                if (wallPointer < 0) {
+                    wallPointer = i;
+                    wallHoldT = 0f;
+                    wallGhostOn = false;
+                    wallDist = 3f;
+                    wallLastY = rawY;
+                }
                 return;
-            }
             case "atirar":
                 if (firePointer < 0) {
                     firePointer = i;
@@ -918,7 +965,7 @@ public class Main extends ApplicationAdapter {
                 || hammockTarget != null || canGetUp || cartTarget != null || cartOptionsHorse != null));
         hud.show("coletar", !dead && itemTarget != null);
         hud.show("trocar", !dead && world.weapons != null && world.weapons.hasWeapon());
-        hud.show("parede", !dead && player.grounded && !inPlane && !skydiving && !parachuting && !landing);
+        hud.show("parede", !dead && !inPlane && !skydiving && !parachuting && !landing);
         hud.swapText = world.weapons != null ? world.weapons.swapLabel() : "TROCAR";
         hud.show("arma", combat);
         hud.show("mira", combat);

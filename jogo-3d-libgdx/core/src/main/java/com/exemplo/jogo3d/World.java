@@ -684,34 +684,46 @@ public class World {
             wallCircles[i] = new float[]{c.getFloat(0), c.getFloat(1), c.getFloat(2)};
     }
 
+    /** Onde um muro ficaria: centro da boca do U, giro e base. */
+    static final class WallSpot {
+        float x, z, yawDeg, groundY;
+    }
+
+    /** Distância entre dois muros encostados lado a lado (ponta com ponta). */
+    static final float WALL_PITCH = 4.10f;
+
     /**
-     * Põe um muro na frente do jogador, com a curva virada para o que está à frente dele e o jogador
-     * dentro do U. Devolve null se deu certo, ou o aviso para mostrar na tela.
+     * Onde o muro ficaria com a boca do U 'dist' metros à frente do jogador (dist 0 = jogador dentro do U).
+     * Perto de outro muro, encaixa na mesma linha, encostado nele. Preenche 'out' (mesmo se não couber) e
+     * devolve null se cabe, senão o aviso para mostrar na tela.
      */
-    String placeWall(float px, float pz, float yawRad) {
+    String wallSpot(float px, float pz, float yawRad, float dist, WallSpot out) {
         if (wallCircles == null) return "MURO NÃO CARREGOU";
         float fx = MathUtils.sin(yawRad), fz = MathUtils.cos(yawRad);
-        float ox = px - fx * WALL_BACK, oz = pz - fz * WALL_BACK;   // origem do modelo: boca do U
-        float yawDeg = MathUtils.radiansToDegrees * yawRad + 180f;
-        float c = MathUtils.cosDeg(yawDeg), s = MathUtils.sinDeg(yawDeg);
+        out.x = px + fx * (dist - WALL_BACK);     // origem do modelo: boca do U
+        out.z = pz + fz * (dist - WALL_BACK);
+        out.yawDeg = MathUtils.radiansToDegrees * yawRad + 180f;
+        snapToWall(out);
+        float c = MathUtils.cosDeg(out.yawDeg), s = MathUtils.sinDeg(out.yawDeg);
         // Base: o chão mais baixo sob a pegada; o lado mais alto fica enterrado, sem vão
         float lo = Float.MAX_VALUE, hi = -Float.MAX_VALUE;
         for (float lx = -2.2f; lx <= 2.2f; lx += 0.4f) for (float lz = -2.0f; lz <= 0.2f; lz += 0.4f) {
-            float h = heightAt(ox + lx * c + lz * s, oz - lx * s + lz * c);
+            float h = heightAt(out.x + lx * c + lz * s, out.z - lx * s + lz * c);
             lo = Math.min(lo, h);
             hi = Math.max(hi, h);
         }
+        out.groundY = lo;
         if (hi - lo > 1.2f) return "CHÃO MUITO INCLINADO PARA O MURO";
-        // Nada pode estar dentro do muro: jogador, obstáculos, casas de taipa e casas da cidade
+        // Nada pode estar dentro do muro: jogador, obstáculos (inclusive outros muros), casas de taipa e casas da cidade
         for (float[] k : wallCircles) {
-            float wx = ox + k[0] * c + k[1] * s, wz = oz - k[0] * s + k[1] * c;
+            float wx = out.x + k[0] * c + k[1] * s, wz = out.z - k[0] * s + k[1] * c;
             if (Math.hypot(wx - px, wz - pz) < k[2] + 0.4f) return "SEM ESPAÇO PARA O MURO";
             for (int i = 0; i < obstacles.size; i++) {
                 Obstacle o = obstacles.get(i);
                 if (Math.hypot(wx - o.x, wz - o.z) < k[2] + o.radius) return "SEM ESPAÇO PARA O MURO";
             }
             for (int h = 0; h < houses.size; h++) {
-                Vector3 lp = new Vector3(wx, lo, wz).mul(houses.get(h).inv);
+                Vector3 lp = new Vector3(wx, out.groundY, wz).mul(houses.get(h).inv);
                 for (int b = 0; b < wallBoxes.size; b++) {
                     float[] bx = wallBoxes.get(b);
                     if (lp.x >= bx[0] - k[2] && lp.x <= bx[1] + k[2] && lp.y >= bx[2] - 1f && lp.y <= bx[3] + 1f
@@ -719,17 +731,67 @@ public class World {
                 }
             }
         }
+        return null;
+    }
+
+    /** Muro já no mesmo plano e perto: o novo vai para a linha dele, encostado (múltiplos de WALL_PITCH). */
+    private void snapToWall(WallSpot s) {
+        StoneWall best = null;
+        float bd = 6f;
+        for (int i = 0; i < walls.size; i++) {
+            StoneWall w = walls.get(i);
+            float d = (float) Math.hypot(s.x - w.x, s.z - w.z);
+            if (d < bd) { bd = d; best = w; }
+        }
+        if (best == null) return;
+        float c = MathUtils.cosDeg(best.yawDeg), sn = MathUtils.sinDeg(best.yawDeg);
+        float dx = s.x - best.x, dz = s.z - best.z;
+        float lx = c * dx - sn * dz, lz = sn * dx + c * dz;   // posição no sistema do muro encontrado
+        if (Math.abs(lz) > 3f || Math.abs(lx) < 1f || Math.abs(lx) > 6f) return;   // só lado a lado, na mesma linha
+        float steps = Math.max(1f, Math.round(Math.abs(lx) / WALL_PITCH));
+        float snapped = Math.signum(lx) * steps * WALL_PITCH;
+        s.x = best.x + snapped * c;
+        s.z = best.z - snapped * sn;
+        s.yawDeg = best.yawDeg;
+    }
+
+    /** Põe o muro no lugar calculado por wallSpot (já sabendo que cabe). */
+    void placeWallSpot(WallSpot s) {
         if (walls.size >= MAX_WALLS) removeWall(walls.first());
-        StoneWall w = new StoneWall(wallModel, ox, lo, oz, yawDeg);
+        float c = MathUtils.cosDeg(s.yawDeg), sn = MathUtils.sinDeg(s.yawDeg);
+        StoneWall w = new StoneWall(wallModel, s.x, s.groundY, s.z, s.yawDeg);
         instances.add(w.mi);
         for (float[] k : wallCircles) {
-            Obstacle o = new Obstacle(ox + k[0] * c + k[1] * s, oz - k[0] * s + k[1] * c, k[2], lo, StoneWall.HEIGHT);
+            Obstacle o = new Obstacle(s.x + k[0] * c + k[1] * sn, s.z - k[0] * sn + k[1] * c, k[2], s.groundY, StoneWall.HEIGHT);
             o.surface = Surface.PEDRA;
             addObstacle(o);
             w.cols.add(o);
         }
         walls.add(w);
-        return null;
+    }
+
+    /** Toque no botão: o muro na frente do jogador, com ele dentro do U. Devolve null ou o aviso. */
+    String placeWall(float px, float pz, float yawRad) {
+        WallSpot s = new WallSpot();
+        String aviso = wallSpot(px, pz, yawRad, 0f, s);
+        if (aviso == null) placeWallSpot(s);
+        return aviso;
+    }
+
+    /** Sombra do muro (ao segurar o botão): o mesmo modelo, meio transparente. */
+    ModelInstance wallGhost() {
+        if (wallModel == null) return null;
+        ModelInstance g = new ModelInstance(wallModel);
+        for (int i = 0; i < g.materials.size; i++)
+            g.materials.get(i).set(new com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute(0.45f));
+        return g;
+    }
+
+    /** Verde se cabe aqui, vermelho se não. */
+    void tintWallGhost(ModelInstance g, boolean ok) {
+        for (int i = 0; i < g.materials.size; i++)
+            g.materials.get(i).set(com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute.createDiffuse(
+                    ok ? 0.4f : 1f, ok ? 1f : 0.25f, ok ? 0.4f : 0.25f, 1f));
     }
 
     /** Tira um muro: o modelo e a colisão. */
@@ -745,10 +807,9 @@ public class World {
         return m;
     }
 
-    /** Atualiza enfeites (porta, rede), o fogo e os muros que estão subindo. Chame todo quadro. */
+    /** Atualiza enfeites (porta, rede) e o fogo. Chame todo quadro. */
     public void update(float dt, com.badlogic.gdx.graphics.PerspectiveCamera cam) {
         for (int i = 0; i < decors.size; i++) decors.get(i).update(dt);
-        for (int i = 0; i < walls.size; i++) walls.get(i).update(dt);
         fire.update(dt, cam);
         updateBirds(dt);
         if (town != null) town.update(dt);

@@ -71,7 +71,7 @@ public class Hud {
             new El("atirar", "Atirar", "hud2/atirar.png", 293f / REF_H, 0f),
             new El("trocar", "Trocar", null, 0.085f, 2.4f),
             new El("abrir", "Ação", null, 0.085f, 4.6f),
-            new El("parede", "Parede", null, 0.085f, 2.4f),
+            new El("parede", "Parede", "hud2/parede.png", 0.11f, 0f),
     };
     // Centro de cada peça na arte de referência (pixels, origem em cima)
     private static final float[][] REF_POS = {
@@ -304,18 +304,6 @@ public class Hud {
         int W = Gdx.graphics.getWidth(), H = Gdx.graphics.getHeight();
         computeEditRects(W, H);
 
-        if (visible(get("parede"))) {   // botão PAREDE: levanta um muro de pedra e taipa na frente
-            float[] pr = rect(get("parede"));
-            shapes.begin(ShapeRenderer.ShapeType.Filled);
-            shapes.setColor(0.42f, 0.26f, 0.13f, 0.92f);
-            shapes.rect(pr[0], pr[1], pr[2], pr[3]);
-            shapes.end();
-            shapes.begin(ShapeRenderer.ShapeType.Line);
-            shapes.setColor(0.95f, 0.8f, 0.45f, 1f);
-            shapes.rect(pr[0], pr[1], pr[2], pr[3]);
-            shapes.end();
-        }
-
         if (visible(get("trocar"))) {   // botão TROCAR/GUARDAR/SACAR (caixa de couro com borda)
             float[] tr = rect(get("trocar"));
             shapes.begin(ShapeRenderer.ShapeType.Filled);
@@ -374,12 +362,6 @@ public class Hud {
             font.setColor(0.98f, 0.9f, 0.7f, 1f);
             layout.setText(font, promptText);
             font.draw(batch, promptText, r[0] + (r[2] - layout.width) / 2f, r[1] + (r[3] + layout.height) / 2f);
-        }
-        if (visible(get("parede"))) {
-            float[] pr = rect(get("parede"));
-            font.setColor(0.98f, 0.9f, 0.7f, 1f);
-            layout.setText(font, "PAREDE");
-            font.draw(batch, "PAREDE", pr[0] + (pr[2] - layout.width) / 2f, pr[1] + (pr[3] + layout.height) / 2f);
         }
         if (visible(get("trocar"))) {
             float[] tr = rect(get("trocar"));

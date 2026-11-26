@@ -63,16 +63,9 @@ public class WallTests extends ApplicationAdapter {
         StoneWall wall = w.walls.get(0);
         check("o muro entra na lista do mundo", w.walls.size == 1, "" + w.walls.size);
 
-        // Surgindo do chão: começa abaixo, sobe e para na altura certa
-        wall.update(0f);
+        // Aparece de uma vez, sem animação: já está na base do terreno
         float y0 = wall.mi.transform.getTranslation(new Vector3()).y;
-        check("sai de baixo do chão", y0 < wall.groundY - 1.5f, String.format("y %.2f, chão %.2f", y0, wall.groundY));
-        wall.update(0.7f);
-        float ym = wall.mi.transform.getTranslation(new Vector3()).y;
-        check("sobe no meio do caminho", ym > y0 + 0.5f && ym < wall.groundY, String.format("y %.2f", ym));
-        for (int i = 0; i < 30; i++) wall.update(0.1f);
-        float y1 = wall.mi.transform.getTranslation(new Vector3()).y;
-        check("termina na base do terreno e para", wall.risen() && Math.abs(y1 - wall.groundY) < 1e-3f, String.format("y %.3f", y1));
+        check("aparece de uma vez, sem subir do chão", Math.abs(y0 - wall.groundY) < 1e-4f, String.format("y %.3f, chão %.3f", y0, wall.groundY));
 
         // Pegada: o chão sob o muro não varia tanto (o lado alto fica enterrado)
         float px = first[0], pz = first[1];
@@ -127,6 +120,20 @@ public class WallTests extends ApplicationAdapter {
         // Sem espaço: nada de muro em cima de outro
         String overlap = tryPlace(w, px, pz);
         check("não põe muro em cima de outro", overlap != null, overlap == null ? "" : overlap);
+
+        // Encaixe: um muro a 4,4 m (0,3 m longe do encaixe) vai para a linha do outro, encostado, e cabe
+        World.WallSpot sp = new World.WallSpot();
+        String msgEnc = w.wallSpot(wall.x + 4.4f, wall.z, 0f, 0.55f, sp);
+        check("encaixe: muro ao lado, encostado na ponta, cabe", msgEnc == null, msgEnc == null ? "" : msgEnc);
+        check("encaixe: vai para a distância certa (4,10 m), na mesma linha",
+                Math.abs(Math.abs(sp.x - wall.x) - World.WALL_PITCH) < 0.01f && Math.abs(sp.z - wall.z) < 0.01f,
+                String.format("dx %.2f dz %.2f", sp.x - wall.x, sp.z - wall.z));
+        int wallsBefore = w.walls.size;
+        if (msgEnc == null) w.placeWallSpot(sp);
+        check("encaixe: o segundo muro entra no mundo", msgEnc == null && w.walls.size == wallsBefore + 1, "" + w.walls.size);
+        // Sombra: onde a mira aponta, longe do muro: cabe; em cima do muro: não cabe (fica vermelha)
+        String msgInside = w.wallSpot(px, pz, 0f, 0f, sp);
+        check("sombra vermelha: não cabe em cima de outro muro", msgInside != null, "");
 
         // Limite: o mais antigo sai quando passa de MAX_WALLS
         int placed = 1;
