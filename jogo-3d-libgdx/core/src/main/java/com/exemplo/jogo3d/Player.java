@@ -93,7 +93,7 @@ public class Player {
         if (jumpPressed) jumpBuffer = JUMP_BUFFER;
         else jumpBuffer = Math.max(0f, jumpBuffer - dt);
 
-        float groundY = world.heightAt(pos.x, pos.z);
+        float groundY = world.groundAt(pos.x, pos.z);
 
         if (grounded && jumpBuffer > 0f) {
             verticalVel = JUMP_VELOCITY;

@@ -28,10 +28,10 @@ final class HouseDecor {
     static final float OPEN_DEG = 90f, CLEAR_DEG = 80f;
     // Rede e deitar
     // Centro da rede na casa: longe do fogão (parede de fundo) e no meio do cômodo
-    static final float HAMMOCK_CZ = 0.3f, HAMMOCK_ANCHOR_Y = 1.9f;
+    static final float HAMMOCK_CZ = 0.3f, HAMMOCK_ANCHOR_Y = 1.9f, HAMMOCK_BASE_Y = 0.45f;
     static final float HAMMOCK_HALF = 3.85f, HAMMOCK_SAG = 0.55f, HAMMOCK_HALF_W = 0.75f;
     // Altura do pano da rede no centro (o pano fica por volta de 1,6 m do chão)
-    static final float LIE_Y = 1.35f;   // barriga do pano (centro da rede)
+    static final float LIE_Y = 0.95f;   // barriga do pano (centro da rede)
     static final float LIE_RANGE = 1.8f;
     // Fogão e banco
     static final float STOVE_X = 2.5f, STOVE_Z = -2.48f;
@@ -46,6 +46,12 @@ final class HouseDecor {
 
     /** Rede: pano com barriga entre duas pontas presas nas paredes laterais. Origem no centro, eixo x = corda. */
     static Model buildHammock() {
+        // Rede original (modelo enviado): o pano fica mais baixo que a versão em código
+        return new com.badlogic.gdx.graphics.g3d.loader.G3dModelLoader(new com.badlogic.gdx.utils.JsonReader())
+                .loadModel(com.badlogic.gdx.Gdx.files.internal("models/rede.g3dj"));
+    }
+
+    static Model buildHammockProcedural() {
         ModelBuilder mb = new ModelBuilder();
         mb.begin();
         MeshPartBuilder pb = mb.part("pano", GL20.GL_TRIANGLES, Usage.Position | Usage.Normal,
@@ -210,7 +216,7 @@ final class HouseDecor {
         // Depois de girar, o centro do modelo fica em (0,04; -1,78): desloca para o centro desejado.
         float phi = -139.7f;
         // Pontas presas em (±3,85; 1,9) no centro da rede; balança de lado, em torno da linha das pontas
-        tmp.set(house).translate(0f, HAMMOCK_ANCHOR_Y, HAMMOCK_CZ).rotate(Vector3.X, swing * MathUtils.radiansToDegrees);
+        tmp.set(house).translate(0f, HAMMOCK_BASE_Y, HAMMOCK_CZ).rotate(Vector3.X, swing * MathUtils.radiansToDegrees);
         hammock.transform.set(tmp);
     }
 

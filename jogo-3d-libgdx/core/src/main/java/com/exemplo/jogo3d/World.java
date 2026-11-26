@@ -148,6 +148,20 @@ public class World {
         return y;
     }
 
+    /** Altura do chão para o personagem: o piso da casa, se ele estiver dentro de uma casa. */
+    public float groundAt(float x, float z) {
+        float y = heightAt(x, z);
+        for (int k = 0; k < houses.size; k++) {
+            House h = houses.get(k);
+            Vector3 l = new Vector3(x, 0f, z).mul(h.inv);
+            if (Math.abs(l.x) < 4.2f && Math.abs(l.z) < 3.2f) {
+                float floorY = h.t.getTranslation(new Vector3()).y + 0.03f;
+                return Math.max(y, floorY);
+            }
+        }
+        return y;
+    }
+
     /** Verdadeiro se o retângulo da célula toca o círculo (cx, cz, r). */
     private static boolean cellTouchesCircle(float x0, float z0, float x1, float z1, float cx, float cz, float r) {
         float dx = Math.max(Math.max(x0 - cx, 0f), cx - x1);
