@@ -148,39 +148,45 @@ final class Items {
      * Chamado no início e quando o app volta do segundo plano (o Android apaga as texturas).
      */
     void renderIcons(ModelBatch batch, Environment env) {
-        int size = 128;
-        PerspectiveCamera cam = new PerspectiveCamera(30f, size, size);
+        for (int i = 0; i < FILES.length; i++) {
+            if (iconFbo[i] == null) iconFbo[i] = new FrameBuffer(Pixmap.Format.RGBA8888, 128, 128, true);
+            icons[i] = renderIcon(batch, env, models[i], iconFbo[i], 35f);
+        }
+    }
+
+    /** Desenha um modelo numa textura (ícone), enquadrado pelo tamanho dele. Usado também pelas armas. */
+    static TextureRegion renderIcon(ModelBatch batch, Environment env, Model model, FrameBuffer fbo, float yawDeg) {
+        int w = fbo.getWidth(), h = fbo.getHeight();
+        PerspectiveCamera cam = new PerspectiveCamera(30f, w, h);
         BoundingBox bb = new BoundingBox();
         Vector3 c = new Vector3(), dim = new Vector3();
-        for (int i = 0; i < FILES.length; i++) {
-            if (iconFbo[i] == null) iconFbo[i] = new FrameBuffer(Pixmap.Format.RGBA8888, size, size, true);
-            ModelInstance mi = new ModelInstance(models[i]);
-            mi.transform.idt().rotate(Vector3.Y, 35f);
-            mi.calculateBoundingBox(bb);
-            bb.mul(mi.transform);
-            bb.getCenter(c);
-            bb.getDimensions(dim);
-            float r = dim.len() * 0.5f;
-            aim(cam, c, r);
-            iconFbo[i].begin();
-            Gdx.gl.glViewport(0, 0, size, size);
-            Gdx.gl.glClearColor(0f, 0f, 0f, 0f);
-            Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
-            batch.begin(cam);
-            batch.render(mi, env);
-            batch.end();
-            iconFbo[i].end();
-            Texture t = iconFbo[i].getColorBufferTexture();
-            t.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
-            icons[i] = new TextureRegion(t);
-            icons[i].flip(false, true);
-        }
+        ModelInstance mi = new ModelInstance(model);
+        mi.transform.idt().rotate(Vector3.Y, yawDeg);
+        mi.calculateBoundingBox(bb);
+        bb.mul(mi.transform);
+        bb.getCenter(c);
+        bb.getDimensions(dim);
+        float r = (w > h ? Math.max(dim.y, Math.max(dim.x, dim.z) * h / w) : dim.len()) * 0.5f;
+        aim(cam, c, w > h ? r * 1.2f : r);
+        fbo.begin();
+        Gdx.gl.glViewport(0, 0, w, h);
+        Gdx.gl.glClearColor(0f, 0f, 0f, 0f);
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
+        batch.begin(cam);
+        batch.render(mi, env);
+        batch.end();
+        fbo.end();
+        Texture t = fbo.getColorBufferTexture();
+        t.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        TextureRegion reg = new TextureRegion(t);
+        reg.flip(false, true);
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight());
+        return reg;
     }
 
     private static void aim(Camera cam, Vector3 c, float r) {
         float dist = r / (float) Math.sin(Math.toRadians(15.0)) * 1.05f;
-        cam.position.set(c).add(new Vector3(0f, 0.55f, 1f).nor().scl(dist));
+        cam.position.set(c).add(new Vector3(0f, 0.35f, 1f).nor().scl(dist));
         cam.lookAt(c);
         cam.up.set(Vector3.Y);
         cam.near = dist * 0.1f;

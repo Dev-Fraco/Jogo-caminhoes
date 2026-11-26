@@ -51,7 +51,10 @@ final class Grenades {
         float age, life, r0, r1, grow, alpha, fadeIn;
         boolean flat;   // marca no chão: não cresce na altura
 
-        Puff(ModelInstance inst) {
+        final Model model;
+
+        Puff(Model model, ModelInstance inst) {
+            this.model = model;
             this.inst = inst;
             Material m = inst.materials.get(0);
             color = (ColorAttribute) m.get(ColorAttribute.Diffuse);
@@ -69,6 +72,9 @@ final class Grenades {
     float shake = 0f;   // tremor da câmera (m)
     private final Vector3 wind = new Vector3(0.6f, 0f, 0.3f);
     private Sound boom, hiss, bang, pin, bounce;
+    private final Array<Puff> freeSphere = new Array<>();   // reaproveita as nuvens (poeira dos tiros)
+    Enemies enemies;    // a explosão também fere os cangaceiros
+    int kills;          // abates por granada
 
     Grenades(Items items) {
         this.items = items;
@@ -205,6 +211,7 @@ final class Grenades {
             p.age += dt;
             if (p.age >= p.life) {
                 puffs.removeIndex(i);
+                if (p.model == sphere) freeSphere.add(p);
                 continue;
             }
             p.pos.mulAdd(p.vel, dt);
@@ -241,6 +248,7 @@ final class Grenades {
                 float k = 1f - d / FRAG_RADIUS;
                 sv.damage(115f * k * k + 8f * k, true);
             }
+            if (enemies != null) kills += enemies.explosion(g.pos, FRAG_RADIUS, 115f);
         } else if (g.type == SMOKE) {
             play(hiss, 0.9f, g.pos, playerPos);
             for (int i = 0; i < 26; i++) {
@@ -267,7 +275,9 @@ final class Grenades {
 
     private Puff puff(Model m, Vector3 at, float vx, float vy, float vz, float r0, float r1, float grow, float alpha,
                       float fadeIn, float cr, float cg, float cb) {
-        Puff p = new Puff(new ModelInstance(m));
+        Puff p = m == sphere && freeSphere.size > 0 ? freeSphere.pop() : new Puff(m, new ModelInstance(m));
+        p.age = 0f;
+        p.flat = false;
         p.pos.set(at);
         p.vel.set(vx, vy, vz);
         p.r0 = r0;
@@ -281,6 +291,18 @@ final class Grenades {
         if (p.blend != null) p.blend.opacity = 0f;
         puffs.add(p);
         return p;
+    }
+
+    /** Ponto atingido por bala: poeira de terra, ou sangue seco escuro num inimigo. */
+    void impact(Vector3 at, boolean flesh) {
+        for (int i = 0; i < 2; i++) {
+            Puff p = flesh
+                    ? puff(sphere, at, MathUtils.random(-0.4f, 0.4f), MathUtils.random(0.1f, 0.6f), MathUtils.random(-0.4f, 0.4f),
+                    0.04f, 0.16f, 9f, 0.85f, 0.02f, 0.38f, 0.07f, 0.05f)
+                    : puff(sphere, at, MathUtils.random(-0.5f, 0.5f), MathUtils.random(0.4f, 1.2f), MathUtils.random(-0.5f, 0.5f),
+                    0.05f, 0.35f, 5f, 0.7f, 0.03f, 0.6f, 0.5f, 0.36f);
+            p.life = flesh ? 0.35f : 0.9f;
+        }
     }
 
     private void play(Sound s, float vol, Vector3 at, Vector3 listener) {

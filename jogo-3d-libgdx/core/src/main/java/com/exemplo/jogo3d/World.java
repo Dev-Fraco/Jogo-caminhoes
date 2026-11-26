@@ -567,6 +567,112 @@ public class World {
         return maxDist;
     }
 
+    // ---------- Raio (tiros e linha de visão) ----------
+    private final Vector3 rayO = new Vector3(), rayD = new Vector3(), rayT = new Vector3();
+
+    /**
+     * Distância até o primeiro obstáculo sólido no raio (chão, paredes das casas, casas da cidade,
+     * árvores/pedras/poço). Devolve maxDist se nada bloquear. Sem criar objetos (roda a cada tiro).
+     * dir precisa estar normalizado.
+     */
+    float raycast(Vector3 origin, Vector3 dir, float maxDist) {
+        float best = maxDist;
+        // Paredes das casas de taipa: caixas no sistema da casa
+        for (int k = 0; k < houses.size; k++) {
+            House h = houses.get(k);
+            rayO.set(origin).mul(h.inv);
+            rayT.set(origin).add(dir).mul(h.inv);
+            rayD.set(rayT).sub(rayO);   // a casa não tem escala: continua com comprimento 1
+            for (int w = 0; w < wallBoxes.size; w++) {
+                float[] b = wallBoxes.get(w);
+                float t = slab(rayO, rayD, b[0], b[1], b[2], b[3], b[4], b[5], best);
+                if (t < best) best = t;
+            }
+        }
+        // Casas da cidade feitas em código
+        for (int k = 0; k < boxes.size; k++) {
+            Box bx = boxes.get(k);
+            rayO.set(origin).mul(bx.inv);
+            rayT.set(origin).add(dir).mul(bx.inv);
+            rayD.set(rayT).sub(rayO);
+            float t = slab(rayO, rayD, -bx.hx, bx.hx, 0f, bx.h, -bx.hz, bx.hz, best);
+            if (t < best) best = t;
+        }
+        // Obstáculos: cilindros em pé
+        for (int k = 0; k < obstacles.size; k++) {
+            Obstacle ob = obstacles.get(k);
+            float ox = origin.x - ob.x, oz = origin.z - ob.z;
+            float a = dir.x * dir.x + dir.z * dir.z;
+            if (a < 1e-8f) continue;
+            float b = ox * dir.x + oz * dir.z, c = ox * ox + oz * oz - ob.radius * ob.radius;
+            float disc = b * b - a * c;
+            if (disc < 0f) continue;
+            float t = (-b - (float) Math.sqrt(disc)) / a;
+            if (t < 0f) t = c < 0f ? 0f : -1f;   // começou dentro
+            if (t < 0f || t >= best) continue;
+            float y = origin.y + dir.y * t;
+            if (y >= ob.baseY && y <= ob.baseY + ob.height) best = t;
+        }
+        // Chão: anda em passos e refina
+        float step = 0.6f, prev = 0f;
+        for (float t = step; t < best + step; t += step) {
+            float tt = Math.min(t, best);
+            float x = origin.x + dir.x * tt, z = origin.z + dir.z * tt, y = origin.y + dir.y * tt;
+            if (y < heightAt(x, z)) {
+                float lo = prev, hi = tt;
+                for (int i = 0; i < 8; i++) {
+                    float m = (lo + hi) * 0.5f;
+                    if (origin.y + dir.y * m < heightAt(origin.x + dir.x * m, origin.z + dir.z * m)) hi = m;
+                    else lo = m;
+                }
+                return Math.min(best, hi);
+            }
+            prev = tt;
+            if (tt >= best) break;
+        }
+        return best;
+    }
+
+    /** Raio contra caixa alinhada (método das placas). Devolve a entrada ou Float.MAX_VALUE. */
+    private static float slab(Vector3 o, Vector3 d, float x0, float x1, float y0, float y1, float z0, float z1, float max) {
+        float tmin = 0f, tmax = max;
+        // eixo x
+        if (Math.abs(d.x) < 1e-8f) { if (o.x < x0 || o.x > x1) return Float.MAX_VALUE; }
+        else {
+            float t1 = (x0 - o.x) / d.x, t2 = (x1 - o.x) / d.x;
+            if (t1 > t2) { float k = t1; t1 = t2; t2 = k; }
+            tmin = Math.max(tmin, t1); tmax = Math.min(tmax, t2);
+            if (tmin > tmax) return Float.MAX_VALUE;
+        }
+        // eixo y
+        if (Math.abs(d.y) < 1e-8f) { if (o.y < y0 || o.y > y1) return Float.MAX_VALUE; }
+        else {
+            float t1 = (y0 - o.y) / d.y, t2 = (y1 - o.y) / d.y;
+            if (t1 > t2) { float k = t1; t1 = t2; t2 = k; }
+            tmin = Math.max(tmin, t1); tmax = Math.min(tmax, t2);
+            if (tmin > tmax) return Float.MAX_VALUE;
+        }
+        // eixo z
+        if (Math.abs(d.z) < 1e-8f) { if (o.z < z0 || o.z > z1) return Float.MAX_VALUE; }
+        else {
+            float t1 = (z0 - o.z) / d.z, t2 = (z1 - o.z) / d.z;
+            if (t1 > t2) { float k = t1; t1 = t2; t2 = k; }
+            tmin = Math.max(tmin, t1); tmax = Math.min(tmax, t2);
+            if (tmin > tmax) return Float.MAX_VALUE;
+        }
+        return tmin;
+    }
+
+    /** Linha de visão livre entre dois pontos. */
+    boolean lineOfSight(Vector3 a, Vector3 b) {
+        float len = a.dst(b);
+        if (len < 1e-3f) return true;
+        rayT.set(b).sub(a).scl(1f / len);
+        losDir.set(rayT);
+        return raycast(a, losDir, len) >= len - 0.05f;
+    }
+    private final Vector3 losDir = new Vector3();
+
     /** Ponto que a câmera não pode ocupar: chão, parede de casa, obstáculo ou cerca. */
     private boolean cameraBlocked(Vector3 p) {
         if (p.y < heightAt(p.x, p.z) + 0.15f) return true;

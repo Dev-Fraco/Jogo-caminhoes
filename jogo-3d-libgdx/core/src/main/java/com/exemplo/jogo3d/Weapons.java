@@ -38,11 +38,99 @@ final class Weapons {
     private int heldType = -1;
     private ModelInstance held;
     private final Vector3 hand = new Vector3();
+    // Munição de cada arma (fica com a arma ao trocar)
+    private final int[] mag = new int[FILES.length], reserve = new int[FILES.length];
+    float reloadT = 0f;          // > 0: recarregando (s restantes)
+    private float cooldown = 0f;
+    final Vector3 muzzle = new Vector3();
+    boolean ads = false;         // mirando (o cano fica reto)
 
     Weapons() {
         for (int i = 0; i < FILES.length; i++) {
             models[i] = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/armas/" + FILES[i] + ".g3dj"));
+            mag[i] = WeaponConfig.BY_TYPE[i].magazine;
+            reserve[i] = WeaponConfig.BY_TYPE[i].reserve;
         }
+    }
+
+    Model[] models() { return models; }
+
+    private final com.badlogic.gdx.graphics.glutils.FrameBuffer[] iconFbo = new com.badlogic.gdx.graphics.glutils.FrameBuffer[FILES.length];
+    final com.badlogic.gdx.graphics.g2d.TextureRegion[] icons = new com.badlogic.gdx.graphics.g2d.TextureRegion[FILES.length];
+
+    /** Ícone de cada arma (de lado, cano para a direita) para o painel de munição. */
+    void renderIcons(com.badlogic.gdx.graphics.g3d.ModelBatch batch, com.badlogic.gdx.graphics.g3d.Environment env) {
+        for (int i = 0; i < FILES.length; i++) {
+            if (iconFbo[i] == null)
+                iconFbo[i] = new com.badlogic.gdx.graphics.glutils.FrameBuffer(com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888, 256, 128, true);
+            icons[i] = Items.renderIcon(batch, env, models[i], iconFbo[i], 90f);
+        }
+    }
+
+    com.badlogic.gdx.graphics.g2d.TextureRegion icon() { return heldType >= 0 ? icons[heldType] : null; }
+
+    /** Configuração da arma na mão (null se desarmado). */
+    WeaponConfig config() { return heldType >= 0 ? WeaponConfig.BY_TYPE[heldType] : null; }
+
+    int ammo() { return heldType >= 0 ? mag[heldType] : 0; }
+
+    int reserveAmmo() { return heldType >= 0 ? reserve[heldType] : 0; }
+
+    boolean reloading() { return reloadT > 0f; }
+
+    float reloadProgress() {
+        WeaponConfig c = config();
+        return c == null || reloadT <= 0f ? 0f : 1f - reloadT / c.reloadTime;
+    }
+
+    /** Começa a recarregar (se der). */
+    boolean startReload() {
+        WeaponConfig c = config();
+        if (c == null || reloadT > 0f || mag[heldType] >= c.magazine || reserve[heldType] <= 0) return false;
+        reloadT = c.reloadTime;
+        return true;
+    }
+
+    /** Tempo: cadência e recarga. */
+    void tick(float dt) {
+        cooldown = Math.max(0f, cooldown - dt);
+        if (reloadT > 0f) {
+            reloadT -= dt;
+            if (reloadT <= 0f && heldType >= 0) {
+                reloadT = 0f;
+                int need = WeaponConfig.BY_TYPE[heldType].magazine - mag[heldType];
+                int take = Math.min(need, reserve[heldType]);
+                mag[heldType] += take;
+                reserve[heldType] -= take;
+            }
+        }
+    }
+
+    /**
+     * Tenta disparar. held = dedo no botão; pressed = acabou de apertar (armas sem automático só
+     * atiram no toque). Devolve 1 se disparou, -1 se o pente está vazio (clique), 0 se não.
+     */
+    int tryFire(boolean held, boolean pressed) {
+        WeaponConfig c = config();
+        if (c == null || reloadT > 0f || cooldown > 0f) return 0;
+        if (!(c.automatic ? held : pressed)) return 0;
+        if (mag[heldType] <= 0) {
+            cooldown = 0.3f;
+            if (!startReload()) return -1;
+            return -1;
+        }
+        mag[heldType]--;
+        cooldown = c.fireInterval;
+        return 1;
+    }
+
+    /** Larga tudo (ao morrer): volta desarmado. */
+    void unequip(Character ch) {
+        if (held != null) ch.instances.removeValue(held, true);
+        held = null;
+        heldType = -1;
+        reloadT = 0f;
+        ch.setArmed(false);
     }
 
     boolean armed() { return heldType >= 0; }
@@ -106,6 +194,7 @@ final class Weapons {
                     player.pos.z + 0.6f * MathUtils.cos(player.facing + 1.2f), r);
         }
         heldType = g.type;
+        reloadT = 0f;   // trocar de arma cancela a recarga
         held = new ModelInstance(models[heldType]);
         ch.instances.add(held);
         ch.setArmed(true);
@@ -115,12 +204,15 @@ final class Weapons {
     void update(Character ch, Player player) {
         if (held == null) return;
         ch.handWorld(false, hand);
-        float down = player.speed > 0.25f ? 28f : 4f;
+        float down = ads ? 0f : player.speed > 0.25f ? 28f : 4f;
+        if (reloadT > 0f) down = 40f;   // recarregando: cano para baixo
         held.transform.setToTranslation(hand).rotate(Vector3.Y, player.facing * MathUtils.radiansToDegrees)
                 .rotate(Vector3.X, down);
+        muzzle.set(hand).add(MathUtils.sin(player.facing) * 0.62f, 0.05f, MathUtils.cos(player.facing) * 0.62f);
     }
 
     void dispose() {
         for (Model m : models) if (m != null) m.dispose();
+        for (com.badlogic.gdx.graphics.glutils.FrameBuffer f : iconFbo) if (f != null) f.dispose();
     }
 }

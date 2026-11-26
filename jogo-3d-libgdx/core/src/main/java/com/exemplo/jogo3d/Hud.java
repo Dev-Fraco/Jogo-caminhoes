@@ -40,7 +40,8 @@ public class Hud {
     }
 
     static final String[] ORDER = {"minimapa", "bussola", "status", "config", "mochila", "slot_cura", "slot_granada",
-            "slot_energia", "joystick", "correr", "coletar", "pegar_arma", "usar_kit", "pular", "agachar", "deitar", "abrir"};
+            "slot_energia", "joystick", "correr", "coletar", "pegar_arma", "usar_kit", "pular", "agachar", "deitar",
+            "arma", "vivos", "abates", "mira", "atirar", "abrir"};
     static final float MIN_SCALE = 0.4f, MAX_SCALE = 2.2f;
     static final String PREFS = "hud_layout_v2";
     // Tela de referência da arte do HUD (posições padrão saem dela)
@@ -63,14 +64,20 @@ public class Hud {
             new El("pular", "Pular", "hud2/pular.png", 186f / REF_H, 0f),
             new El("agachar", "Agachar", "hud2/agachar.png", 178f / REF_H, 0f),
             new El("deitar", "Deitar", "hud2/deitar.png", 200f / REF_H, 0f),
+            new El("arma", "Munição", "hud2/arma_painel.png", 162f / REF_H, 0f),
+            new El("vivos", "Vivos", "hud2/vivos.png", 58f / REF_H, 0f),
+            new El("abates", "Abates", "hud2/abates.png", 58f / REF_H, 0f),
+            new El("mira", "Mirar", "hud2/mira.png", 132f / REF_H, 0f),
+            new El("atirar", "Atirar", "hud2/atirar.png", 293f / REF_H, 0f),
             new El("abrir", "Ação", null, 0.085f, 4.6f),
     };
     // Centro de cada peça na arte de referência (pixels, origem em cima)
     private static final float[][] REF_POS = {
             {163, 162}, {797, 46}, {949, 848}, {353, 53}, {93, 403}, {85, 556}, {81, 696}, {83, 840},
-            {311, 736}, {291, 467}, {680, 514}, {891, 514}, {901, 685}, {1566, 462}, {1539, 643}, {1539, 831}, {836, 330}};
+            {311, 736}, {291, 467}, {680, 514}, {891, 514}, {901, 685}, {1566, 462}, {1539, 643}, {1539, 831},
+            {1415, 143}, {1368, 33}, {1565, 33}, {1385, 453}, {1276, 653}, {836, 330}};
     private final java.util.HashSet<String> shown = new java.util.HashSet<>();   // botões que só aparecem às vezes
-    private static final String[] OPTIONAL = {"coletar", "pegar_arma", "usar_kit", "abrir"};
+    private static final String[] OPTIONAL = {"coletar", "pegar_arma", "usar_kit", "abrir", "arma", "mira", "atirar"};
     private Texture knobTex;
 
     /** Mostra ou esconde um botão que depende da situação (coletar, pegar arma, usar kit, ação). */
@@ -90,6 +97,7 @@ public class Hud {
     boolean runOn = false;
     boolean crouchOn = false;
     boolean jumpDown = false;
+    boolean adsOn = false, fireDown = false;
     String promptText = "ABRIR PORTEIRA";
     float joyX = 0f, joyY = 0f;      // -1..1 (posição do polegar no joystick)
 
@@ -315,6 +323,8 @@ public class Hud {
             if (e.id.equals("correr") && runOn) tint = 1.25f;
             if (e.id.equals("pular") && jumpDown) tint = 1.25f;
             if (e.id.equals("agachar") && crouchOn) tint = 1.25f;
+            if (e.id.equals("mira") && adsOn) tint = 1.3f;
+            if (e.id.equals("atirar") && fireDown) tint = 1.2f;
             batch.setColor(tint, tint, tint, a);
             if (e.tex != null) {
                 batch.draw(e.tex, r[0], r[1], r[2], r[3]);

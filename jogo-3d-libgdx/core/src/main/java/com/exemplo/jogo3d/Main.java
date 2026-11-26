@@ -89,6 +89,26 @@ public class Main extends ApplicationAdapter {
     private boolean dyingShown = false;
     private boolean drinkTarget = false;          // perto do poço (mostra BEBER ÁGUA)
     private int prone = 0;                        // deitado no chão: 0 não, 1 deitando/deitado, 2 levantando
+    // Combate: inimigos, mira, assistência, tiro e dano
+    private Enemies enemies;
+    private final TargetDetection targets = new TargetDetection();
+    private final AimAssist assist = new AimAssist();
+    private final AimController aimCtl = new AimController();
+    private final HitDetection hitDetect = new HitDetection();
+    private final HitDetection.Result shotRes = new HitDetection.Result();
+    private final Hitbox.Hit overHit = new Hitbox.Hit();
+    private DamageSystem damage;
+    private CombatFx fx;
+    private final AimSettingsUi aimUi = new AimSettingsUi();
+    private int firePointer = -1;
+    private float fireLastX, fireLastY;
+    private boolean firePressed = false;          // acabou de apertar (armas sem automático)
+    private boolean adsOn = false;                // mirando (botão de mira)
+    private boolean combat = false;               // armado e no chão: câmera por cima do ombro
+    private float spreadBloom = 0f, recoilPitch = 0f, recoilYaw = 0f;
+    private boolean overEnemy = false;
+    private final Vector3 aimDir = new Vector3(), shotDir = new Vector3(), side1 = new Vector3(), side2 = new Vector3(), tmpA = new Vector3();
+    private final Array<ModelInstance> enemyDraw = new Array<>();
     // Battle royale: começa dentro do avião, salta, cai de barriga para baixo e pousa
     private boolean inPlane = false, skydiving = false, landing = false;
     private final Vector3 fallVel = new Vector3();
@@ -157,6 +177,13 @@ public class Main extends ApplicationAdapter {
             survival = new Survival();
             if (world.items != null) grenades = new Grenades(world.items);
             mapUi = new MapUi(world);
+            AimSettings.load();
+            fx = new CombatFx();
+            damage = new DamageSystem(fx);
+            fx.setDust(grenades);
+            if (character.model() != null)
+                enemies = new Enemies(world, character.model(), world.weapons != null ? world.weapons.models() : null);
+            if (grenades != null) grenades.enemies = enemies;
         } catch (Throwable t) {
             errorText = "ERRO NOS MORADORES:\n" + describe(t);
         }
@@ -220,6 +247,7 @@ public class Main extends ApplicationAdapter {
         float dt = Math.min(Gdx.graphics.getDeltaTime(), 0.05f);
         if (iconsDirty && world.items != null) {
             world.items.renderIcons(modelBatch, environment);   // ícones 3D dos itens
+            if (world.weapons != null) world.weapons.renderIcons(modelBatch, environment);
             iconsDirty = false;
         }
 
@@ -245,6 +273,10 @@ public class Main extends ApplicationAdapter {
         if (!ui && Gdx.input.isKeyJustPressed(Input.Keys.NUM_3)) startAim(-1, itemUi.current(2, world.items));
         if (aiming && grenPointer < 0 && !Gdx.input.isKeyPressed(Input.Keys.NUM_3)) throwGrenade();
         if (!ui && Gdx.input.isKeyJustPressed(Input.Keys.TAB)) itemUi.panelOpen = !itemUi.panelOpen;
+        if (!ui && Gdx.input.isKeyJustPressed(Input.Keys.Q)) adsOn = !adsOn;
+        if (!ui && Gdx.input.isKeyJustPressed(Input.Keys.R) && world.weapons != null && world.weapons.startReload()) fx.reloadSound();
+        if (!ui && Gdx.input.isKeyJustPressed(Input.Keys.F)) firePressed = true;
+        boolean fireHeld = !ui && (firePointer >= 0 || Gdx.input.isKeyPressed(Input.Keys.F));
         // Correr: o botão faz correr sozinho; mexer no analógico desliga a corrida e devolve o controle
         if (runToggle && inX * inX + inY * inY > 0.09f) runToggle = false;
 
@@ -357,7 +389,69 @@ public class Main extends ApplicationAdapter {
         if (!ridingActive) character.setCrouch((crouchOn && player.speed < 0.25f) || kneelUse ? 1f : 0f);
         character.setReach(world.fences.reach());
         if (!inPlane) character.update(player, dt);
-        if (world.weapons != null) world.weapons.update(character, player);   // arma na mão
+        // ---------- Combate ----------
+        boolean dead = survival != null && survival.dead;
+        combat = world.weapons != null && world.weapons.armed() && !inPlane && !skydiving && !parachuting && !landing
+                && !ridingActive && !lying && !dead && !ui;
+        if (!combat) adsOn = false;
+        if (combat) {
+            player.facing = yaw;   // armado: o corpo acompanha a mira
+            if (world.weapons.reloading()) adsOn = false;
+        }
+        WeaponConfig cfg = world.weapons != null ? world.weapons.config() : null;
+        WeaponConfig.Category cat = cfg != null ? cfg.category : WeaponConfig.Category.FUZIL;
+        // Câmera pelo toque (com o atrito da assistência do quadro anterior)
+        aimCtl.update(dt, Gdx.graphics.getHeight(), adsOn, combat ? cat : null, combat ? assist.friction : 1f);
+        yaw += aimCtl.yawDelta;
+        pitch += aimCtl.pitchDelta;
+        aimDir.set(camera.direction).nor();
+        if (combat && enemies != null && cfg != null) {
+            float camYaw = MathUtils.atan2(aimDir.x, aimDir.z), camPitch = -(float) Math.asin(MathUtils.clamp(aimDir.y, -1f, 1f));
+            targets.update(dt, camera.position, aimDir, enemies, world,
+                    AimSettings.assistRadius * cat.radiusScale, cfg.range);
+            boolean engaged = fireHeld || lookPointer >= 0 || Math.abs(aimCtl.yawDelta) + Math.abs(aimCtl.pitchDelta) > 1e-4f;
+            assist.update(dt, camera.position, aimDir, camYaw, camPitch, targets.target, cat, engaged, adsOn);
+            yaw += assist.dYaw;
+            pitch += assist.dPitch;
+        } else {
+            targets.drop();
+            assist.update(dt, camera.position, aimDir, yaw, pitch, null, cat, false, false);
+        }
+        // Coice: chega em ~60 ms (sobe a mira; o jogador compensa)
+        float rk = Math.min(1f, dt * 16f);
+        pitch -= recoilPitch * rk;
+        yaw += recoilYaw * rk;
+        recoilPitch -= recoilPitch * rk;
+        recoilYaw -= recoilYaw * rk;
+        pitch = combat ? MathUtils.clamp(pitch, -0.75f, 1.1f) : MathUtils.clamp(pitch, Math.min(pitch, 0.05f), 1.2f);
+        if (!combat && pitch < 0.05f) pitch += (0.05f - pitch) * Math.min(1f, dt * 5f);
+        spreadBloom = Math.max(0f, spreadBloom - dt * 6f);
+        if (world.weapons != null) {
+            world.weapons.ads = adsOn;
+            world.weapons.tick(dt);
+            world.weapons.update(character, player);   // arma na mão
+        }
+        if (combat && cfg != null) {
+            int r = world.weapons.tryFire(fireHeld, firePressed);
+            if (r == 1) fireShot(cfg);
+            else if (r == -1) {
+                fx.emptySound();
+                if (world.weapons.reloading()) fx.reloadSound();
+            }
+            // A mira está em cima de alguém? (um raio só, para a cor da mira)
+            overEnemy = enemies != null && enemies.raycast(camera.position, aimDir, cfg.range, false, overHit) != null
+                    && world.raycast(camera.position, aimDir, overHit.t) >= overHit.t - 0.05f;
+        } else {
+            overEnemy = false;
+        }
+        firePressed = false;
+        // Inimigos
+        if (enemies != null) {
+            int stance = prone > 0 ? 2 : (crouchOn ? 1 : 0);
+            enemies.update(dt, world, player.pos, survival, player.speed, stance, camera, Settings.drawDistance());
+            for (int k = 0; k < enemies.shots.size; k++) fx.enemyShot(enemies.shots.get(k)[0], enemies.shots.get(k)[1], player.pos);
+        }
+        if (fx != null) fx.update(dt);
         world.fences.update(dt, player);
         world.update(dt, camera);
         // Granada: mira (arco) e as que estão voando/explodindo
@@ -433,9 +527,18 @@ public class Main extends ApplicationAdapter {
         Vector3 forward = new Vector3(MathUtils.sin(yaw), 0f, MathUtils.cos(yaw));
         // Dentro da casa a câmera chega perto e baixa um pouco, para enxergar o interior
         boolean inside = !inPlane && world.insideHouse(player.pos);
-        float targetDist = inPlane ? 48f : parachuting ? 12f : inside ? CAMERA_DISTANCE_INSIDE : CAMERA_DISTANCE;
+        float targetDist = inPlane ? 48f : parachuting ? 12f : combat ? (adsOn ? 1.9f : 3.0f)
+                : inside ? CAMERA_DISTANCE_INSIDE : CAMERA_DISTANCE;
         Vector3 pivot = inPlane ? new Vector3(world.airplane.pos).add(0f, 3f, 0f)   // no avião: câmera segue o avião
                 : new Vector3(player.pos.x, player.pos.y + (parachuting ? 2.5f : inside ? 1.2f : 1.4f), player.pos.z);
+        if (combat) {
+            // Por cima do ombro direito: a mira (centro da tela) fica livre do personagem
+            float sh = adsOn ? 0.45f : 0.62f;
+            float hy = prone > 0 ? 0.55f : crouchOn ? 1.15f : 1.55f;
+            pivot.set(player.pos.x - MathUtils.cos(yaw) * sh, player.pos.y + hy, player.pos.z + MathUtils.sin(yaw) * sh);
+        }
+        float fovT = combat && adsOn ? (cfg != null && cfg.category == WeaponConfig.Category.PRECISAO ? 30f : 50f) : 67f;
+        camera.fieldOfView += (fovT - camera.fieldOfView) * Math.min(1f, dt * 12f);
         Vector3 back = new Vector3(
                 -forward.x * MathUtils.cos(pitch),
                 MathUtils.sin(pitch),
@@ -466,7 +569,13 @@ public class Main extends ApplicationAdapter {
         modelBatch.render(world.fireInstance(), environment);
         if (chute != null && chute.active()) modelBatch.render(chute.inst, environment);   // paraquedas
         if (world.airplane != null) modelBatch.render(world.airplane.effects(), environment);   // rastros de vento
+        if (enemies != null) {
+            enemyDraw.clear();
+            enemies.collect(enemyDraw);
+            modelBatch.render(enemyDraw, environment);                                           // cangaceiros
+        }
         if (grenades != null) modelBatch.render(grenades.instances(), environment);           // granadas e explosões
+        if (fx != null) modelBatch.render(fx.instances(), environment);                       // rastros e clarão do cano
         modelBatch.end();
 
         drawHud();
@@ -487,6 +596,7 @@ public class Main extends ApplicationAdapter {
                 if (i == lookPointer) lookPointer = -1;
                 if (i == runPointer) runPointer = -1;
                 if (i == jumpPointer) jumpPointer = -1;
+                if (i == firePointer) firePointer = -1;
                 if (i == grenPointer) {
                     grenPointer = -1;
                     if (aiming) throwGrenade();
@@ -513,10 +623,16 @@ public class Main extends ApplicationAdapter {
                 joyY = MathUtils.clamp((yb - cy) / joyRadius, -1f, 1f);
             }
             if (i == lookPointer) {
-                yaw -= (x - lookLastX) * LOOK_SENSITIVITY;
-                pitch = MathUtils.clamp(pitch + (rawY - lookLastY) * LOOK_SENSITIVITY, 0.05f, 1.2f);
+                // Área da direita: câmera e mira (sensibilidade e suavização no AimController)
+                aimCtl.addDrag(x - lookLastX, rawY - lookLastY);
                 lookLastX = x;
                 lookLastY = rawY;
+            }
+            if (i == firePointer) {
+                // Arrastar o dedo no botão de atirar também mira (atirar e mirar ao mesmo tempo)
+                aimCtl.addDrag(x - fireLastX, rawY - fireLastY);
+                fireLastX = x;
+                fireLastY = rawY;
             }
         }
     }
@@ -572,6 +688,24 @@ public class Main extends ApplicationAdapter {
                 return;
             case "agachar":
                 crouchOn = !crouchOn;
+                return;
+            case "atirar":
+                if (firePointer < 0) {
+                    firePointer = i;
+                    firePressed = true;
+                    fireLastX = x;
+                    fireLastY = rawY;
+                    runToggle = false;
+                }
+                return;
+            case "mira":
+                adsOn = !adsOn && combat;
+                return;
+            case "arma":
+                if (world.weapons != null && world.weapons.startReload()) {
+                    fx.reloadSound();
+                    adsOn = false;
+                }
                 return;
             case "deitar":
                 if (prone == 1) standUp();
@@ -688,6 +822,11 @@ public class Main extends ApplicationAdapter {
         hud.show("abrir", !dead && (inPlane || drinkTarget || prompt != null || mountTarget != null || doorTarget != null
                 || hammockTarget != null || canGetUp || cartTarget != null || cartOptionsHorse != null));
         hud.show("coletar", !dead && itemTarget != null);
+        hud.show("arma", combat);
+        hud.show("mira", combat);
+        hud.show("atirar", combat);
+        hud.adsOn = adsOn;
+        hud.fireDown = firePointer >= 0;
         hud.show("pegar_arma", !dead && weaponTarget != null);
         hud.show("usar_kit", !dead && world.items != null && survival != null && survival.health < 75f && survival.using < 0
                 && (world.items.bag[Survival.MEDKIT] > 0 || world.items.bag[Survival.BANDAGEM] > 0));
@@ -703,6 +842,16 @@ public class Main extends ApplicationAdapter {
         if (mapUi != null) mapUi.drawMap(batch, shapes, hud, player.facing);   // mapa por baixo da moldura
         hud.draw(batch, shapes, font);
         if (mapUi != null) mapUi.drawCompass(batch, shapes, font, hud, yaw);
+        if (fx != null && !hud.editing) {
+            float spreadDeg = 0f;
+            WeaponConfig c = world.weapons != null ? world.weapons.config() : null;
+            if (c != null) spreadDeg = currentSpread(c);
+            float spreadPx = (float) (Math.tan(Math.toRadians(spreadDeg)) / Math.tan(Math.toRadians(camera.fieldOfView / 2f)) * h / 2f);
+            int alive = (enemies != null ? enemies.alive() : 0) + (dead ? 0 : 1);
+            int kills = (damage != null ? damage.kills : 0) + (grenades != null ? grenades.kills : 0);
+            fx.drawHud(batch, shapes, font, camera, hud, world.weapons, assist, spreadPx, overEnemy, alive, kills,
+                    world.weapons != null ? world.weapons.icon() : null, combat);
+        }
         if (world.items != null && survival != null && !hud.editing)
             itemUi.draw(batch, shapes, font, hud, world.items, survival, aiming, Math.min(1f, survival.stun));
 
@@ -772,6 +921,43 @@ public class Main extends ApplicationAdapter {
         grenades.throwIt(aimType, gFrom, gVel);
     }
 
+    /** Dispersão atual (graus): mira/quadril, andando, no ar e o "abrir" dos tiros seguidos. */
+    private float currentSpread(WeaponConfig c) {
+        float s = adsOn ? c.spreadAds : c.spreadHip;
+        s *= 1f + MathUtils.clamp(player.speed / Player.RUN_SPEED, 0f, 1f) * 0.8f;
+        if (!player.grounded) s *= 2f;
+        if (crouchOn || prone > 0) s *= 0.8f;
+        return s + spreadBloom;
+    }
+
+    /**
+     * Um disparo: raio(s) da câmera pela mira com a dispersão, conferido a partir do cano
+     * (HitDetection), dano somado por inimigo (DamageSystem), efeitos (CombatFx) e coice.
+     */
+    private void fireShot(WeaponConfig c) {
+        Vector3 muzzle = world.weapons.muzzle;
+        float spread = currentSpread(c);
+        // base perpendicular à mira para espalhar o tiro
+        side1.set(aimDir).crs(Vector3.Y);
+        if (side1.len2() < 1e-6f) side1.set(1f, 0f, 0f);
+        side1.nor();
+        side2.set(side1).crs(aimDir).nor();
+        damage.beginShot();
+        for (int p = 0; p < c.pellets; p++) {
+            float r = (float) Math.tan(Math.toRadians(spread * (float) Math.sqrt(MathUtils.random()))), a = MathUtils.random(MathUtils.PI2);
+            shotDir.set(aimDir).mulAdd(side1, MathUtils.cos(a) * r).mulAdd(side2, MathUtils.sin(a) * r).nor();
+            hitDetect.shoot(camera.position, shotDir, muzzle, c.range, enemies, world, shotRes);
+            damage.register(c, shotRes);
+            if (p == 0 || c.pellets <= 3 || p % 2 == 0) fx.playerShot(muzzle, shotRes.point, shotRes.hitWorld);
+        }
+        damage.endShot(player.pos);
+        if (enemies != null) enemies.alert(player.pos, 70f);   // o estampido chama o bando
+        float k = adsOn ? 0.7f : 1f;
+        recoilPitch += (float) Math.toRadians(c.recoilPitch) * k;
+        recoilYaw += (float) Math.toRadians(c.recoilYaw) * MathUtils.random(-1f, 1f) * k;
+        spreadBloom = Math.min(spreadBloom + c.spreadHip * 0.18f, c.spreadHip * 1.2f);
+    }
+
     private void standUp() {
         prone = 2;
         character.playOnce("GetUp");
@@ -782,6 +968,8 @@ public class Main extends ApplicationAdapter {
         survival.reset();
         if (world.items != null) world.items.clearBag();
         if (grenades != null) grenades.clearAll();
+        if (world.weapons != null) world.weapons.unequip(character);
+        adsOn = false;
         dyingShown = false;
         aiming = false;
         prone = 0;
@@ -886,9 +1074,10 @@ public class Main extends ApplicationAdapter {
         }
         // Botões de baixo
         float rowB = py + pad;
-        float bw2 = (pw - 2 * pad - gap) / 2f;
+        float bw2 = (pw - 2 * pad - 2 * gap) / 3f;
         settingsRect(setN++, px + pad, rowB, bw2, bh, "editHud");
-        settingsRect(setN++, px + pad + bw2 + gap, rowB, bw2, bh, "fechar");
+        settingsRect(setN++, px + pad + bw2 + gap, rowB, bw2, bh, "mira");
+        settingsRect(setN++, px + pad + 2 * (bw2 + gap), rowB, bw2, bh, "fechar");
 
         // Botões (selecionado em dourado)
         shapes.begin(ShapeRenderer.ShapeType.Filled);
@@ -917,6 +1106,7 @@ public class Main extends ApplicationAdapter {
             if (id.startsWith("fps")) label = id.substring(3) + " FPS";
             else if (id.equals("editHud")) label = "Editar HUD";
             else if (id.equals("fechar")) label = "Fechar";
+            else if (id.equals("mira")) label = "Mira e sensibilidade";
             else label = Settings.QUALITY_NAMES[Integer.parseInt(id.substring(1))];
             layout.setText(font, label);
             float[] r = setRects[i];
@@ -924,9 +1114,14 @@ public class Main extends ApplicationAdapter {
             font.draw(batch, label, r[0] + (r[2] - layout.width) / 2f, r[1] + (r[3] + layout.height) / 2f);
         }
         batch.end();
+        if (aimUi.open) aimUi.draw(batch, shapes, font, W, H);
     }
 
     private void settingsPress(float x, float yb) {
+        if (aimUi.open) {
+            aimUi.press(x, yb);
+            return;
+        }
         for (int i = 0; i < setN; i++) {
             float[] r = setRects[i];
             if (x < r[0] || x > r[0] + r[2] || yb < r[1] || yb > r[1] + r[3]) continue;
@@ -944,6 +1139,8 @@ public class Main extends ApplicationAdapter {
                 hud.editing = true;
             } else if (id.equals("fechar")) {
                 settingsOpen = false;
+            } else if (id.equals("mira")) {
+                aimUi.open = true;
             }
             return;
         }
@@ -964,6 +1161,7 @@ public class Main extends ApplicationAdapter {
         if (grenades != null) grenades.dispose();
         if (survival != null) survival.dispose();
         if (mapUi != null) mapUi.dispose();
+        if (fx != null) fx.dispose();
         character.dispose();
         hud.dispose();
         shapes.dispose();
