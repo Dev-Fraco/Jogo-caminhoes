@@ -104,11 +104,22 @@ public class World {
 
     /** Altura do terreno em (x, z). A estrada (z = 0) é plana, e o terreno se ajusta suavemente a ela. */
     public float heightAt(float x, float z) {
-        float road = baseHeight(x, 0f);
-        float t = MathUtils.clamp((Math.abs(z) - ROAD_HALF) / ROAD_SHOULDER, 0f, 1f);
+        float rz = roadZ(x);
+        float road = baseHeight(x, rz);
+        float t = MathUtils.clamp((Math.abs(z - rz) - ROAD_HALF) / ROAD_SHOULDER, 0f, 1f);
         float w = t * t * (3f - 2f * t);
         float base = baseHeight(x, z);
         return road + (base - road) * w;
+    }
+
+    /** Linha central da estrada: curvas que passam pela origem (spawn). */
+    static float roadZ(float x) {
+        return 40f * MathUtils.sin(x * 0.011f) + 14f * MathUtils.sin(x * 0.027f);
+    }
+
+    /** Eixo do rio seco: corre no sentido z e cruza a estrada. */
+    static float riverX(float z) {
+        return -70f + 15f * MathUtils.sin(z * 0.025f);
     }
 
     /** Relevo natural (sem a estrada): plano perto do spawn, colinas ao redor. */
@@ -130,6 +141,10 @@ public class World {
             float w = d <= 2.6f ? 1f : d >= 3.8f ? 0f : (3.8f - d) / 1.2f;
             y -= 0.35f * w * w * (3f - 2f * w);
         }
+        // Rio seco: leito de 4,5 m de meia largura, 2,2 m abaixo, com margens suaves
+        float dr = Math.abs(x - riverX(z));
+        float rise = MathUtils.clamp((dr - 4.5f) / 5f, 0f, 1f);
+        y -= 2.2f * (1f - rise * rise * (3f - 2f * rise));
         return y;
     }
 
@@ -164,7 +179,7 @@ public class World {
         Random r = new Random(20261125L);
         for (int t = 0; t < 400 && (!hasDam || !hasWell); t++) {
             float x = (r.nextFloat() * 2f - 1f) * 150f, z = (r.nextFloat() * 2f - 1f) * 130f;
-            if (Math.abs(z) < 50f) continue;                 // fora da faixa da estrada e das casas
+            if (Math.abs(z - roadZ(x)) < 50f) continue;      // fora da faixa da estrada e das casas
             if (Math.hypot(x, z) < 30f) continue;
             if (!hasDam) {
                 if (!flatAround(x, z, 4f, 1.0f)) continue;   // açude em lugar plano
@@ -244,8 +259,9 @@ public class World {
                 new Material(com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute.createDiffuse(0.50f, 0.38f, 0.26f, 1f)));
         for (int i = 0; i < (int) (SIZE / 2f); i++) {
             float x0 = -HALF + i * 2f, x1 = x0 + 2f;
-            VertexInfo a = roadVertex(x0, -ROAD_HALF), b = roadVertex(x1, -ROAD_HALF);
-            VertexInfo c = roadVertex(x1, ROAD_HALF), d = roadVertex(x0, ROAD_HALF);
+            float z0 = roadZ(x0), z1 = roadZ(x1);
+            VertexInfo a = roadVertex(x0, z0 - ROAD_HALF), b = roadVertex(x1, z1 - ROAD_HALF);
+            VertexInfo c = roadVertex(x1, z1 + ROAD_HALF), d = roadVertex(x0, z0 + ROAD_HALF);
             road.triangle(a, c, b);
             road.triangle(a, d, c);
         }
@@ -254,6 +270,24 @@ public class World {
         ModelInstance roadInst = new ModelInstance(roadModel);
         instances.add(roadInst);
         terrainParts.add(roadInst);
+
+        // Leito do rio seco: faixa de areia clara cruzando a estrada
+        mb.begin();
+        MeshPartBuilder bed = mb.part("riverbed", GL20.GL_TRIANGLES, Usage.Position | Usage.Normal,
+                new Material(com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute.createDiffuse(0.74f, 0.66f, 0.50f, 1f)));
+        for (int j = 0; j < (int) (SIZE / 2f); j++) {
+            float z0 = -HALF + j * 2f, z1 = z0 + 2f;
+            float c0 = riverX(z0), c1 = riverX(z1);
+            VertexInfo a = riverVertex(c0 - 4.5f, z0), b = riverVertex(c1 - 4.5f, z1);
+            VertexInfo c = riverVertex(c1 + 4.5f, z1), d = riverVertex(c0 + 4.5f, z0);
+            bed.triangle(a, c, b);
+            bed.triangle(a, d, c);
+        }
+        Model bedModel = mb.end();
+        loaded.add(bedModel);
+        ModelInstance bedInst = new ModelInstance(bedModel);
+        instances.add(bedInst);
+        terrainParts.add(bedInst);
 
         // Açude seco com rachaduras e cacimba funda com água no fundo
         if (hasDam) {
@@ -322,7 +356,21 @@ public class World {
         final float[][] houseSpots = {
                 {-30f, 1f}, {30f, -1f}, {-90f, -1f}, {90f, 1f}, {-150f, 1f}, {150f, -1f},
                 {-30f, -1f}, {30f, 1f}, {-90f, 1f}, {90f, -1f}, {-150f, -1f}, {150f, 1f}};
-        for (float[] s : houseSpots) addEnclosedHouse(rnd, s[0], s[1] * HOUSE_Z, s[1] > 0f ? 180f : 0f);
+        for (float[] s : houseSpots) {
+            float hx = s[0], hz = roadZ(hx) + s[1] * HOUSE_Z;
+            if (Math.abs(hx - riverX(hz)) < 14f) hx += 22f;   // não encosta no leito do rio
+            addEnclosedHouse(rnd, hx, hz, s[1] > 0f ? 180f : 0f);
+        }
+        // Pedras grandes nas margens da estrada (trechos difíceis de passar)
+        for (int i = 0; i < 14; i++) {
+            float x = (rnd.nextFloat() * 2f - 1f) * 150f;
+            float side = rnd.nextBoolean() ? 1f : -1f;
+            float cz = roadZ(x) + side * (ROAD_HALF + 4f + rnd.nextFloat() * 4f);
+            for (int k = 0; k < 3; k++) {
+                float px = x + (rnd.nextFloat() - 0.5f) * 5f, pz = cz + (rnd.nextFloat() - 0.5f) * 3f;
+                if (!nearEnclosure(px, pz)) addRockAt(rockLarge, px, pz, 2.2f, 0.9f);
+            }
+        }
         // Objetos do cenário: o mapa dobrou, então dobrou a quantidade
         for (int i = 0; i < 36; i++) addCactus(rnd);
         for (int i = 0; i < 18; i++) addTree(rnd, true);
@@ -418,8 +466,18 @@ public class World {
         do {
             x = (rnd.nextFloat() * 2f - 1f) * (HALF - margin);
             z = (rnd.nextFloat() * 2f - 1f) * (HALF - margin);
-        } while (Math.sqrt(x * x + z * z) < 14f || Math.abs(z) < ROAD_HALF + 6f || nearEnclosure(x, z));
+        } while (Math.sqrt(x * x + z * z) < 14f || Math.abs(z - roadZ(x)) < ROAD_HALF + 6f
+                || Math.abs(x - riverX(z)) < 6f || nearEnclosure(x, z));
         return new float[]{x, z};
+    }
+
+    /** Pedra grande num ponto escolhido, com colisão. */
+    private void addRockAt(Model model, float x, float z, float scale, float radius) {
+        float y = heightAt(x, z);
+        ModelInstance mi = new ModelInstance(model);
+        mi.transform.setToTranslation(x, y, z).scale(scale, scale, scale);
+        instances.add(mi);
+        obstacles.add(new Obstacle(x, z, radius, y, 1.5f));
     }
 
     /** Verdadeiro se o ponto está perto demais de um cercado (para não nascer objeto dentro dele). */
@@ -429,6 +487,11 @@ public class World {
             if (Math.hypot(x - c[0], z - c[1]) < 16f) return true;
         }
         return false;
+    }
+
+    /** Vértice do leito do rio seco, um pouco acima do fundo. */
+    private VertexInfo riverVertex(float x, float z) {
+        return new VertexInfo().setPos(x, heightAt(x, z) + 0.03f, z).setNor(0f, 1f, 0f);
     }
 
     /** Vértice da estrada: plano, um pouco acima do terreno para não brigar com ele. */
