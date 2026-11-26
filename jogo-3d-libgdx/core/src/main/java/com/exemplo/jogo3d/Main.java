@@ -79,7 +79,7 @@ public class Main extends ApplicationAdapter {
     private boolean parachuting = false;
     // Menu principal: o jogo abre aqui; morrer ou sair da partida volta para cá
     private boolean inMenu = true;
-    private final float[][] menuRects = new float[2][4];
+    private final float[][] menuRects = new float[MENU_ITEMS.length][4];
     private static final String[] MENU_ITEMS = {"BATTLE ROYALE", "TREINAMENTO", "CONFIGURAÇÕES"};
     private boolean training = false;   // modo treinamento (galpão com dois bonecos) em vez do battle royale
     private boolean trainPanel = false; // caixa de armas do treino (aberta pelo botão ARMAS)

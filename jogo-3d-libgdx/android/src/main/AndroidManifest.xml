@@ -5,6 +5,7 @@
 
     <application
         android:allowBackup="true"
+        android:largeHeap="true"
         android:icon="@mipmap/ic_launcher"
         android:label="Jogo 3D"
         android:supportsRtl="true"
