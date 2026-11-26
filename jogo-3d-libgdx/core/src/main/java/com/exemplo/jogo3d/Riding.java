@@ -341,18 +341,21 @@ public class Riding {
         state = St.MOUNTED;
     }
 
+    private boolean cartExit = false;   // saindo da carroça: animação de pular para fora
+
     private void dismountCart(Player player, Character ch) {
         driving = false;
         posed = false;
         seated = false;
         removeReins();
-        ch.endOnce();
-        state = St.FREE;
         Vector3 side = tmp2.set(1.8f, 0f, 0f).mul(cart.inst.transform);
         setPlayer(player, side.x, world.heightAt(side.x, side.z), side.z, true);
         player.speed = 0f;
         ch.setSitting(false);
         ch.setCrouch(0f);
+        ch.playOnce("SairCarroca");
+        cartExit = true;
+        state = St.DISMOUNTING;
     }
 
     /** Carroça presa: fica 3,4 m atrás do cavalo, com a mesma direção. */
@@ -415,6 +418,15 @@ public class Riding {
     }
 
     private void dismountUpdate(float dt, Player player, Character ch) {
+        if (cartExit) {
+            // Saindo da carroça: espera a animação de pular para fora terminar
+            if (ch.onceFinished()) {
+                cartExit = false;
+                state = St.FREE;
+                ch.endOnce();
+            }
+            return;
+        }
         t += dt;
         Vector3 side = sidePoint();
         float s = Math.min(1f, t / DISMOUNT_END);
