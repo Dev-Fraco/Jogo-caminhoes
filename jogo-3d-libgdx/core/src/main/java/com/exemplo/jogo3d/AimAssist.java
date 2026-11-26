@@ -41,8 +41,10 @@ final class AimAssist {
         friction = 1f;
         active = false;
         strengthNow = Math.max(0f, strengthNow - dt * 4f);
+        // Sem tiro apertado, não há referência: o próximo tiro começa do zero (salto de mira não conta como dedo)
+        if (!firing) havePitch = false;
         // Movimento do dedo neste quadro (inclinação que mudou desde o último quadro, sem a nossa correção)
-        float userDelta = havePitch ? MathUtils.clamp(pitch - lastPitch, -0.05f, 0.05f) : 0f;
+        float userDelta = havePitch ? MathUtils.clamp(pitch - lastPitch, -0.3f, 0.3f) : 0f;
         havePitch = true;
         if (!AimSettings.assistOn || target == null || !target.alive() || !firing || dt <= 0f) {
             lastPitch = pitch;
@@ -56,28 +58,30 @@ final class AimAssist {
         float dist = v.len();
         if (dist < 0.5f) return;
         float ang = (float) Math.toDegrees(Math.acos(MathUtils.clamp(v.dot(dir) / dist, -1f, 1f)));
-        if (ang > fov) {
+        float tYaw = MathUtils.atan2(v.x, v.z);
+        float errYaw = wrap(tYaw - yaw);
+        float errElev = elev(cam, c) - (-pitch);   // > 0: o peito está acima da mira
+        // Faixa da cabeça: a mira entre o peito e o topo da cabeça também conta (de perto a cabeça sai do FOV)
+        boolean inFov = ang <= fov;
+        boolean inHead = -pitch <= elev(cam, target.hitbox.headTop) + 0.03f;
+        if (!inFov && !inHead) {
             lastPitch = pitch;
             return;
         }
 
-        float tYaw = MathUtils.atan2(v.x, v.z);
-        float errYaw = wrap(tYaw - yaw);
-        float errElev = elev(cam, c) - (-pitch);   // > 0: o peito está acima da mira
-
-        if (firePress) {
-            // Instantânea: a mira vai para o peito na hora, na fração escolhida
-            dYaw += errYaw * AimSettings.horizAssist;
-            dPitch += -errElev * AimSettings.vertAssist;
+        if (firePress && inFov) {
+            // Ao apertar o tiro, com o boneco no FOV: a mira gruda no peito na hora
+            dYaw += errYaw;
+            dPitch += -errElev;
         }
-        // Enquanto segura: abaixo do peito, sobe até ele; acima, desconta parte do movimento para cima
-        float k = Math.min(1f, 8f * dt);
-        if (errElev > 0f) {
-            dPitch += -errElev * k * AimSettings.vertAssist;       // abaixo do peito: sobe até ele
-        } else if (userDelta < 0f) {
-            dPitch += -userDelta * AimSettings.upResist;           // o dedo subiu: a resistência devolve a maior parte
+        if (inFov) {
+            // Enquanto segura: abaixo do peito, sobe até ele
+            float k = Math.min(1f, 8f * dt);
+            if (errElev > 0f) dPitch += -errElev * k * AimSettings.vertAssist;
+            dYaw += errYaw * k * AimSettings.horizAssist;
         }
-        dYaw += errYaw * k * AimSettings.horizAssist;
+        // Acima do peito (até o topo da cabeça): a resistência devolve a maior parte do movimento para cima
+        if (errElev <= 0f && userDelta < 0f && inHead) dPitch += -userDelta * AimSettings.upResist;
 
         active = true;
         strengthNow = Math.max(strengthNow, 0.5f + 0.5f * AimSettings.vertAssist);

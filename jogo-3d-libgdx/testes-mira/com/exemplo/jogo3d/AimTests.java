@@ -241,12 +241,12 @@ public class AimTests extends ApplicationAdapter {
         yaw += aa.dYaw;
         pitch += aa.dPitch;
         float e1 = errChest(ta);
-        check("apertar o tiro sobe a mira em direção ao peito (assistência vertical 40%)", e1 != 0f && Math.abs(e1) < Math.abs(e0) * 0.7f,
+        check("apertar o tiro gruda a mira no peito na hora", Math.abs(e1) < Math.abs(e0) * 0.05f,
                 String.format("erro %.3f -> %.3f rad", e0, e1));
         // 1b. Desviada para o lado, a correção horizontal é pequena (assistência horizontal 10%)
         aimAt(ta.hitbox.chest);
         yaw += 0.03f;
-        aa.update(1f / 30f, cam, dir(), yaw, pitch, ta, fuzil, true, true, false);
+        aa.update(1f / 30f, cam, dir(), yaw, pitch, ta, fuzil, true, false, false);   // segurando, sem apertar
         check("assistência horizontal baixa: o puxão para o lado é pequeno", Math.abs(aa.dYaw) < 0.03f * 0.2f,
                 String.format("correção %.4f rad (desvio 0,030)", aa.dYaw));
         // 2. Sem apertar o tiro, nada muda
@@ -255,6 +255,7 @@ public class AimTests extends ApplicationAdapter {
         check("sem atirar a assistência não mexe na mira", aa.dYaw == 0f && aa.dPitch == 0f, "");
         // 3. Fora do FOV: não puxa
         aimAt(new Vector3(ax + 40f, gy + 1.7f, az));
+        aa.reset();
         aa.update(1f / 30f, cam, dir(), yaw, pitch, ta, fuzil, true, true, false);
         check("alvo fora do FOV: a mira não é puxada", aa.dYaw == 0f && aa.dPitch == 0f, "");
         // 4. Mira no peito e segurando o tiro: não sobe sozinha para a cabeça
@@ -282,6 +283,15 @@ public class AimTests extends ApplicationAdapter {
         float outResist = climbOffset(ta, aa, fuzil, 1f, outStart, 0.002f, 20);
         check("fora do FOV a mira sobe livre, mesmo com resistência máxima", Math.abs(outResist - outFree) < 1e-3f,
                 String.format("livre %.4f, resistência 100%% %.4f", outFree, outResist));
+        // 5c. De perto (3 m), com arrasto rápido para cima: a resistência segura a mira fora da faixa do peito
+        cam.set(ax, gy + 1.7f, az - 3f);
+        Enemy tc = spawn(ax, az, MathUtils.PI, "Idle");
+        aa.reset();
+        aimAt(tc.hitbox.chest);
+        aa.reset();
+        float closeOff = climbOffset(tc, aa, fuzil, 0.95f, 0.0f, 0.03f, 8);   // arrasto de ~50°/s
+        check("de perto, arrasto rápido para cima não sobe fácil até a cabeça", closeOff < 0.05f,
+                String.format("%.3f rad acima do peito (cabeça ~%.3f)", closeOff, elev(tc.hitbox.headTop) - elev(tc.hitbox.chest)));
         // 6. FOV em porcentagem: 0% = 2°, 100% = 15°
         float savedFov = AimSettings.fovPct;
         AimSettings.fovPct = 0f;
@@ -306,6 +316,11 @@ public class AimTests extends ApplicationAdapter {
         }
         float us = (System.nanoTime() - t0) / 1000f / N;
         check("tiro (raio no mundo + 10 inimigos) leva menos de 1 ms", us < 1000f, String.format("%.0f µs por tiro (PC)", us));
+    }
+
+    float elev(Vector3 p) {
+        float dx = p.x - cam.x, dy = p.y - cam.y, dz = p.z - cam.z;
+        return MathUtils.atan2(dy, (float) Math.sqrt(dx * dx + dz * dz));
     }
 
     /** Erro de elevação entre o peito do alvo e a mira (positivo = peito acima da mira). */
