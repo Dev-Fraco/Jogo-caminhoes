@@ -22,7 +22,8 @@ final class Survival {
     boolean dead = false;
     float deadT = 0f;
     float stun = 0f;          // clarão da granada atordoante (0..1 da tela branca)
-    float hurt = 0f;          // vermelho de dano na tela
+    float hurt = 0f;
+    float shake = 0f;         // tremor da câmera ao levar tiro (m)          // vermelho de dano na tela
     String message = null;    // aviso curto (ex.: "VIDA JÁ ESTÁ CHEIA")
     float messageT = 0f;
 
@@ -136,6 +137,7 @@ final class Survival {
 
     void damage(float amount, boolean flash) {
         if (dead) return;
+        if (flash) shake = Math.min(0.12f, shake + 0.02f + amount * 0.002f);   // tremor da câmera (tiro, não gás)
         health -= amount;
         if (flash) hurt = Math.min(0.8f, hurt + 0.3f + amount / 100f);
         if (health <= 0f) {

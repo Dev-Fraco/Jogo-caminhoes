@@ -107,6 +107,8 @@ public class Main extends ApplicationAdapter {
     private final AimController aimCtl = new AimController();
     private ShootingSystem shooting;               // disparo: modos, dispersão, efeitos e dano
     private final Vector3 whizP = new Vector3();
+    private float gustT = 3f;
+    private final Vector3 gustP = new Vector3();
     private final ShootingSystem.Input shootIn = new ShootingSystem.Input();
     private final Hitbox.Hit overHit = new Hitbox.Hit();
     private DamageSystem damage;
@@ -509,6 +511,18 @@ public class Main extends ApplicationAdapter {
             grenades.update(dt, world, camera, survival, player.pos);
         }
         if (mapUi != null) mapUi.update(dt, player.pos);
+        if (survival != null) survival.shake = Math.max(0f, survival.shake - dt * 2.5f);
+        // Vento de fundo: de vez em quando levanta poeira perto do jogador
+        if (shooting != null && !inPlane && !skydiving && !parachuting) {
+            gustT -= dt;
+            if (gustT <= 0f) {
+                gustT = MathUtils.random(2.5f, 6f);
+                float a = MathUtils.random(MathUtils.PI2), d = MathUtils.random(6f, 14f);
+                gustP.set(player.pos.x + MathUtils.cos(a) * d, 0f, player.pos.z + MathUtils.sin(a) * d);
+                gustP.y = world.groundAt(gustP.x, gustP.z) + 0.05f;
+                shooting.impacts.hit(Surface.TERRA, gustP, Vector3.Y);
+            }
+        }
         // Zona segura: encolhe com o tempo; fora dela a vida cai (não conta dentro do avião)
         zone.update(dt);
         String zoneEvent = zone.takeEvent();
@@ -533,6 +547,7 @@ public class Main extends ApplicationAdapter {
             float target = 0f;
             if (skydiving) target = 0.35f + 0.65f * MathUtils.clamp(-fallVel.y / TERMINAL, 0f, 1f);
             else if (parachuting) target = 0.30f + 0.10f * MathUtils.clamp(-chute.vy / 8f, 0f, 1f);
+            else if (!inPlane) target = 0.12f;   // vento de fundo no chão
             windVol += (target - windVol) * Math.min(1f, dt * (target > windVol ? 2.5f : 1.2f));   // entra e sai suave
             windSound.setVolume(windSoundId, windVol);
             windSound.setPitch(windSoundId, 0.9f + 0.3f * windVol);
@@ -616,6 +631,10 @@ public class Main extends ApplicationAdapter {
         camera.position.set(pivot).mulAdd(back, camDist);
         float camGround = world.heightAt(camera.position.x, camera.position.z) + 0.5f;
         if (camera.position.y < camGround) camera.position.y = camGround;
+        if (survival != null && survival.shake > 0f) {   // tremor ao levar tiro
+            float s = survival.shake;
+            camera.position.add(MathUtils.random(-s, s), MathUtils.random(-s, s) * 0.6f, MathUtils.random(-s, s));
+        }
         if (grenades != null && grenades.shake > 0f) {
             float s = grenades.shake * 0.22f;
             camera.position.add(MathUtils.random(-s, s), MathUtils.random(-s, s), MathUtils.random(-s, s));

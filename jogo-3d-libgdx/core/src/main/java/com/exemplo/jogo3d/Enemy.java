@@ -35,6 +35,10 @@ final class Enemy {
 
     final ModelInstance inst;
     ModelInstance gun;                       // arma na mão (null = desarmado)
+    static final int BOT_MAGAZINE = 15;      // balas no pente do bot
+    static final float BOT_RELOAD = 2.5f;    // s para recarregar
+    int ammo = BOT_MAGAZINE;
+    float reloadT;
     WeaponConfig weapon;                     // arma que o bot pegou no chão (null = sem arma)
     private final AnimationController anim;
     final Hitbox hitbox;
@@ -225,13 +229,27 @@ final class Enemy {
                 phaseT = shooting ? MathUtils.random(1.4f, 2.8f) : MathUtils.random(1.0f, 2.2f);
                 if (!shooting && MathUtils.randomBoolean(0.6f)) side = -side;
             }
-            if (shooting) {
+            boolean hurt = weapon != null && health < MAX_HEALTH * 0.3f && canSee;
+            if (hurt) {
+                // ferido: recua para longe de quem o atira (sai da linha de tiro)
+                moveDir = toPlayer + MathUtils.PI;
+                speed = RUN;
+            } else if (shooting) {
                 facing += wrap(toPlayer - facing) * Math.min(1f, dt * 8f);
                 setClip("Mirar", 1f);
                 fireT -= dt;
-                if (fireT <= 0f && canSee) {
-                    fireT = WeaponConfig.RIFLE_INIMIGO.fireInterval + MathUtils.random(0.25f, 0.8f);
-                    fired = true;
+                if (reloadT > 0f) {
+                    // recarregando: não atira até terminar
+                    reloadT -= dt;
+                    if (reloadT <= 0f) ammo = BOT_MAGAZINE;
+                } else if (fireT <= 0f && canSee) {
+                    if (ammo <= 0) {
+                        reloadT = BOT_RELOAD;
+                    } else {
+                        fireT = WeaponConfig.RIFLE_INIMIGO.fireInterval + MathUtils.random(0.25f, 0.8f);
+                        ammo--;
+                        fired = true;
+                    }
                 }
             } else {
                 if (!canSee && dist < 2.5f) {                                  // chegou e não achou ninguém: olha em volta

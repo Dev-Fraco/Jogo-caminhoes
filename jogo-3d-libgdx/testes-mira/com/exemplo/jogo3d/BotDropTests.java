@@ -139,6 +139,39 @@ public class BotDropTests extends ApplicationAdapter {
         check("bot fora da zona perde vida pelo gás", placed && out.health < 100f, String.format("vida %.1f", out.health));
         check("bot fora da zona foge para dentro do círculo", placed && d1 < d0 - 20f, String.format("de %.0f m para %.0f m do centro", d0, d1));
         check("bot dentro da zona não perde vida", in2.health == 100f, String.format("vida %.1f", in2.health));
+        // plantas, cemitério e acampamento existem no mundo
+        check("mandacarus, xique-xiques e macambiras espalhados", w.mandacaruCount == 70 && w.xiqueCount == 70 && w.macambiraCount == 90,
+                w.mandacaruCount + "/" + w.xiqueCount + "/" + w.macambiraCount);
+        check("cemitério rural: 20 túmulos com cruz", w.crossCount == 20, "" + w.crossCount);
+        check("acampamento de retirantes: 3 tendas e fogueira", w.tentCount == 3, "" + w.tentCount);
+        // bot ferido com linha de tiro livre recua para longe do jogador
+        float[] open = null;
+        for (int t = 0; t < 41 * 41 && open == null; t++) {
+            float px = -500f + (t % 41) * 25f, pz = -500f + (t / 41) * 25f;
+            boolean flat = true;
+            for (float dx = -25; dx <= 25 && flat; dx += 5) for (float dz = -25; dz <= 25 && flat; dz += 5)
+                if (Math.abs(w.heightAt(px + dx, pz + dz) - w.heightAt(px, pz)) > 0.6f) flat = false;
+            if (!flat) continue;
+            Vector3 o = new Vector3(px, w.heightAt(px, pz) + 1.6f, pz);
+            boolean clear = true;
+            for (int a2 = 0; a2 < 16 && clear; a2++) if (w.raycast(o, new Vector3(MathUtils.cosDeg(a2 * 22.5f), 0f, MathUtils.sinDeg(a2 * 22.5f)), 12f) < 12f) clear = false;
+            if (clear) open = new float[]{px, pz};
+        }
+        if (open != null) {
+            en.list.clear();
+            Vector3 pl = new Vector3(open[0], w.groundAt(open[0], open[1]), open[1]);
+            Enemy hb = new Enemy(jake, null, open[0] + 12f, open[1], 0.1f);
+            hb.pos.y = w.groundAt(hb.pos.x, hb.pos.z);
+            hb.weapon = WeaponConfig.RIFLE_INIMIGO;
+            hb.health = 20f;
+            en.list.add(hb);
+            float rd0 = hb.pos.dst(pl);
+            for (int f = 0; f < 90; f++) { en.update(1f / 30f, w, pl, null, 0f, 0, cam, 90f); }
+            float rd1 = (float) Math.hypot(hb.pos.x - pl.x, hb.pos.z - pl.z);
+            check("bot ferido (vida 20%) com o jogador à vista recua para longe", rd1 > rd0 + 2f, String.format("de %.1f m para %.1f m", rd0, rd1));
+        } else {
+            check("área aberta para o teste de recuo", false, "não encontrada");
+        }
         System.out.printf("  (info) armados: %d de 80; armas no chão: %d de %d no começo%n", armedNow, onGround, pickups0);
     }
 

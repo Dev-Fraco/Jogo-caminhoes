@@ -600,6 +600,7 @@ public class World {
                 placeStatic(stump, fx + MathUtils.cos(a) * d, fz + MathUtils.sin(a) * d, rnd.nextFloat() * 360f, 2.6f, 0.35f);
             }
         }
+        addPlacesAndPlants(rnd);
         // Armas espalhadas: dentro das casas, na frente das casas da cidade e soltas pelo mapa
         weapons = new Weapons();
         weapons.scatter(this, rnd);
@@ -822,6 +823,62 @@ public class World {
             if (r == a || r == b) return p;
         }
         return p;
+    }
+
+    // Contagens das plantas e dos locais (para os testes)
+    int mandacaruCount, xiqueCount, macambiraCount, crossCount, tentCount;
+
+    /** Ponto de caatinga longe da estrada (e de casas) para um local de exploração. */
+    private float[] farFromRoad(Random rnd, float minDist) {
+        float[] p = null;
+        for (int t = 0; t < 60; t++) {
+            p = spotIn(rnd, 20f, Regions.Region.SERTAO, Regions.Region.SERRA);
+            if (Math.abs(p[1] - roadZ(p[0])) > minDist && !nearLandmark(p[0], p[1])) break;
+        }
+        return p;
+    }
+
+    /** Plantas do sertão (mandacaru, xique-xique, macambira), cemitério rural e acampamento de retirantes. */
+    private void addPlacesAndPlants(Random rnd) {
+        Model mand = Props.mandacaru(), xq = Props.xique(), mac = Props.macambira();
+        Model cross = Props.cross(), mound = Props.mound(), tent = Props.tent();
+        for (Model m : new Model[]{mand, xq, mac, cross, mound, tent}) loaded.add(m);
+        for (int i = 0; i < 70; i++) {
+            float[] p = spotIn(rnd, 8f, Regions.Region.SERTAO, Regions.Region.SERRA);
+            placeStatic(mand, p[0], p[1], rnd.nextFloat() * 360f, 0.9f + 0.3f * rnd.nextFloat(), 0.5f);
+            mandacaruCount++;
+        }
+        for (int i = 0; i < 70; i++) {
+            float[] p = spotIn(rnd, 8f, Regions.Region.SERTAO, Regions.Region.SERRA);
+            placeStatic(xq, p[0], p[1], rnd.nextFloat() * 360f, 0.9f + 0.2f * rnd.nextFloat(), 0f);
+            xiqueCount++;
+        }
+        for (int i = 0; i < 90; i++) {
+            float[] p = spotIn(rnd, 8f, Regions.Region.SERTAO, Regions.Region.SERRA);
+            placeStatic(mac, p[0], p[1], rnd.nextFloat() * 360f, 0.9f + 0.3f * rnd.nextFloat(), 0f);
+            macambiraCount++;
+        }
+        // Cemitério rural: quatro fileiras de cinco túmulos, cada um com sua cruz
+        float[] c = farFromRoad(rnd, 200f);
+        float cy = heightAt(c[0], c[1]);
+        for (int r = 0; r < 4; r++) {
+            for (int k = 0; k < 5; k++) {
+                float x = c[0] + (k - 2) * 3.2f, z = c[1] + (r - 1.5f) * 3.6f;
+                placeStatic(mound, x, z, 90f, 1f, 0f);
+                placeStatic(cross, x, z - 0.2f, rnd.nextFloat() * 20f - 10f, 1f, 0.12f);
+                crossCount++;
+            }
+        }
+        // Acampamento de retirantes: três tendas em volta de uma fogueira
+        float[] camp = farFromRoad(rnd, 120f);
+        for (int k = 0; k < 3; k++) {
+            float a = k * MathUtils.PI2 / 3f + 0.4f;
+            placeStatic(tent, camp[0] + MathUtils.cos(a) * 4.5f, camp[1] + MathUtils.sin(a) * 4.5f,
+                    a * MathUtils.radiansToDegrees, 1f, 0.9f);
+            tentCount++;
+        }
+        float fy = heightAt(camp[0], camp[1]);
+        fire.addSource(new Vector3(camp[0], fy + 0.3f, camp[1]), new Vector3(camp[0], fy + 3.5f, camp[1]));
     }
 
     /** Objeto estático com colisão circular (carroça parada, cocho, toco). */
