@@ -25,3 +25,5 @@ Fontes:
 
 - **Som do avião** (`audio/aviao.mp3`): "Airplane engine sound 2" de freesound_community (Freesound), enviado pelo autor do projeto. Toca em loop, mais alto perto do avião.
 - **Vento da queda** (`audio/vento_queda.mp3`): "Harsh wind" de dragon-studio (Pixabay/Freesound), enviado pelo autor do projeto. Toca na queda livre e, mais baixo, com o paraquedas aberto.
+
+- **Cemitério** (`models/cemiterio.g3dj`, texturas em `models/cemiterio/`, colisão em `models/cemiterio_colisao.json`): pacote "Cemetery" (Blender) fornecido pelo autor do projeto — cerca e portão antigos, lápides, cruzes de madeira, covas e caixões. Montado em um cercado de 21 x 21 m com 24 túmulos, juntado num modelo só (um material por textura), texturas de cor reduzidas para 512 px e a grade de ferro com cor sólida para ficar leve no celular.

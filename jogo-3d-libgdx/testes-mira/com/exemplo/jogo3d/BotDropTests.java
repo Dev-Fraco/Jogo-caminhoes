@@ -142,7 +142,33 @@ public class BotDropTests extends ApplicationAdapter {
         // plantas, cemitério e acampamento existem no mundo
         check("mandacarus, xique-xiques e macambiras espalhados", w.mandacaruCount == 70 && w.xiqueCount == 70 && w.macambiraCount == 90,
                 w.mandacaruCount + "/" + w.xiqueCount + "/" + w.macambiraCount);
-        check("cemitério rural: 20 túmulos com cruz", w.crossCount == 20, "" + w.crossCount);
+        check("cemitério montado: 24 túmulos", w.hasCem && w.crossCount == 24, "" + w.crossCount);
+        check("cemitério: colisão de cerca, portão, lápides e caixões", w.cemColliders == 250, "" + w.cemColliders);
+        {
+            float sn = MathUtils.sinDeg(w.cemYaw), cs = MathUtils.cosDeg(w.cemYaw);
+            float maxDev = 0f;
+            for (float a2 = -11f; a2 <= 11f; a2 += 1f) for (float b2 = -11f; b2 <= 11f; b2 += 1f)
+                maxDev = Math.max(maxDev, Math.abs(w.heightAt(w.cemX + a2, w.cemZ + b2) - w.cemH));
+            check("cemitério: chão plano dentro do cercado", maxDev < 0.01f, String.format("desvio %.3f m", maxDev));
+            int strays = 0;
+            for (World.Obstacle o : w.obstacles)
+                if (Math.abs(o.x - w.cemX) < 9.5f && Math.abs(o.z - w.cemZ) < 9.5f && o.radius > 0.45f) strays++;
+            check("cemitério: sem cacto, árvore ou pedra dentro", strays == 0, strays + " obstáculos grandes");
+            // entra pelo portão: anda do lado de fora até o centro
+            Vector3 p = new Vector3(w.cemX - sn * (World.CEM_HD + 4f), 0f, w.cemZ - cs * (World.CEM_HD + 4f));
+            for (int f = 0; f < 400; f++) { p.x += sn * 0.05f; p.z += cs * 0.05f; w.resolveCollisions(p, 0.35f); }
+            float inside = (p.x - w.cemX) * sn + (p.z - w.cemZ) * cs + World.CEM_HD;   // distância do portão para dentro
+            check("cemitério: dá para entrar pelo portão e andar no corredor", inside > 12f, String.format("%.1f m para dentro", inside));
+            // pela lateral a cerca segura
+            Vector3 q = new Vector3(w.cemX + cs * (World.CEM_HW + 3f), 0f, w.cemZ - sn * (World.CEM_HW + 3f));
+            for (int f = 0; f < 200; f++) { q.x -= cs * 0.05f; q.z += sn * 0.05f; w.resolveCollisions(q, 0.35f); }
+            float side = (float) Math.hypot(q.x - w.cemX, q.z - w.cemZ);
+            check("cemitério: a cerca não deixa atravessar", side > World.CEM_HW, String.format("%.1f m do centro", side));
+            Vector3 eye = new Vector3(p.x, w.cemH + 1.0f, p.z);
+            float hit = w.raycast(eye, new Vector3(sn, 0f, cs), 30f);
+            check("cemitério: lápides/cruzeiro param tiro no corredor", hit < 20f, String.format("%.1f m", hit));
+            System.out.printf("  cemitério em (%.0f, %.0f) altura %.1f giro %.0f%n", w.cemX, w.cemZ, w.cemH, w.cemYaw);
+        }
         check("acampamento de retirantes: 3 tendas e fogueira", w.tentCount == 3, "" + w.tentCount);
         check("trilhas das fazendas até a estrada", w.trailCount == Regions.FARM_X.length, "" + w.trailCount);
         check("manchas de solo rachado no sertão", w.crackCount == 25, "" + w.crackCount);

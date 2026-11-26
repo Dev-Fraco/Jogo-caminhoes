@@ -156,6 +156,11 @@ public class World {
     // Açude seco e cacimba (escolhidos em create, antes do terreno)
     private boolean hasDam = false, hasWell = false;
     private float damX, damZ, wellX, wellZ;
+    // Cemitério (escolhido antes do terreno, que fica plano embaixo dele)
+    boolean hasCem = false;
+    float cemX, cemZ, cemH, cemYaw;          // centro, altura do chão e giro (0 = portão para -z)
+    static final float CEM_HW = 10.67f, CEM_HD = 10.67f;   // meia largura e meio fundo (m)
+    int cemColliders;
     private Texture crackTexture;
     private Model damModel, wellModel, guardModel, signModel;
     private Texture signTexture;
@@ -243,6 +248,15 @@ public class World {
         if (td < 16f) {
             float tt = td / 16f, s = tt * tt * (3f - 2f * tt), th = townHeight();
             y = th + (y - th) * s;
+        }
+        // Cemitério: chão plano no cercado, voltando ao relevo em 12 m
+        if (hasCem) {
+            float cdx = Math.max(Math.abs(x - cemX) - CEM_HW - 2f, 0f), cdz = Math.max(Math.abs(z - cemZ) - CEM_HD - 2f, 0f);
+            float cd = (float) Math.sqrt(cdx * cdx + cdz * cdz);
+            if (cd < 12f) {
+                float ct = cd / 12f, cs = ct * ct * (3f - 2f * ct);
+                y = cemH + (y - cemH) * cs;
+            }
         }
         return y;
     }
@@ -382,6 +396,37 @@ public class World {
                 wellX = x; wellZ = z; hasWell = true;
             }
         }
+        chooseCemetery();
+    }
+
+    /** Lugar do cemitério: sertão longe da estrada, da vila e dos outros locais, no trecho mais plano. */
+    private void chooseCemetery() {
+        Random r = new Random(19150402L);
+        float best = 1e9f;
+        for (int t = 0; t < 500; t++) {
+            float x = (r.nextFloat() * 2f - 1f) * (HALF - 80f), z = (r.nextFloat() * 2f - 1f) * (HALF - 80f);
+            if (Regions.at(x, z) != Regions.Region.SERTAO) continue;
+            if (Math.abs(z - roadZ(x)) < 90f || Math.abs(x - riverX(z)) < 30f) continue;
+            if (Math.hypot(x - TOWN_X, z - TOWN_Z) < 150f || Math.hypot(x, z) < 60f) continue;
+            if (nearWellOrDam(x, z, 50f) || Regions.farmDist(x, z) < 60f) continue;
+            float mn = 1e9f, mx = -1e9f, sum = 0f;
+            for (int i = -2; i <= 2; i++) for (int j = -2; j <= 2; j++) {
+                float h = heightAt(x + i * 7f, z + j * 7f);
+                mn = Math.min(mn, h); mx = Math.max(mx, h); sum += h;
+            }
+            if (mx - mn < best) {
+                best = mx - mn;
+                cemX = x; cemZ = z; cemH = sum / 25f;   // hasCem só depois: heightAt ainda não pode nivelar
+            }
+        }
+        hasCem = best < 1e8f;
+        // portão voltado para o lado da estrada
+        cemYaw = roadZ(cemX) < cemZ ? 0f : 180f;
+    }
+
+    /** Dentro (ou a 'margin' metros) do cemitério. */
+    boolean nearCemetery(float x, float z, float margin) {
+        return hasCem && Math.abs(x - cemX) < CEM_HW + margin && Math.abs(z - cemZ) < CEM_HD + margin;
     }
 
     /** Verdadeiro se o terreno num raio 'r' varia no máximo 'maxRange' metros. */
@@ -854,8 +899,8 @@ public class World {
     /** Plantas do sertão (mandacaru, xique-xique, macambira), cemitério rural e acampamento de retirantes. */
     private void addPlacesAndPlants(Random rnd) {
         Model mand = Props.mandacaru(), xq = Props.xique(), mac = Props.macambira();
-        Model cross = Props.cross(), mound = Props.mound(), tent = Props.tent();
-        for (Model m : new Model[]{mand, xq, mac, cross, mound, tent}) loaded.add(m);
+        Model tent = Props.tent();
+        for (Model m : new Model[]{mand, xq, mac, tent}) loaded.add(m);
         for (int i = 0; i < 70; i++) {
             float[] p = spotIn(rnd, 8f, Regions.Region.SERTAO, Regions.Region.SERRA);
             placeStatic(mand, p[0], p[1], rnd.nextFloat() * 360f, 0.9f + 0.3f * rnd.nextFloat(), 0.5f);
@@ -871,17 +916,7 @@ public class World {
             placeStatic(mac, p[0], p[1], rnd.nextFloat() * 360f, 0.9f + 0.3f * rnd.nextFloat(), 0f);
             macambiraCount++;
         }
-        // Cemitério rural: quatro fileiras de cinco túmulos, cada um com sua cruz
-        float[] c = farFromRoad(rnd, 200f);
-        float cy = heightAt(c[0], c[1]);
-        for (int r = 0; r < 4; r++) {
-            for (int k = 0; k < 5; k++) {
-                float x = c[0] + (k - 2) * 3.2f, z = c[1] + (r - 1.5f) * 3.6f;
-                placeStatic(mound, x, z, 90f, 1f, 0f);
-                placeStatic(cross, x, z - 0.2f, rnd.nextFloat() * 20f - 10f, 1f, 0.12f);
-                crossCount++;
-            }
-        }
+        addCemetery();
         // Acampamento de retirantes: três tendas em volta de uma fogueira
         float[] camp = farFromRoad(rnd, 120f);
         for (int k = 0; k < 3; k++) {
@@ -1012,6 +1047,35 @@ public class World {
         corralCount++;
     }
 
+    /**
+     * Cemitério montado com as peças importadas (cerca e portão antigos, lápides, cruzes de madeira,
+     * covas, cruzeiro e caixões): um modelo só, com a colisão lida de models/cemiterio_colisao.json
+     * (coordenadas do cemitério: portão em z = 0, fundo em z = 'fundo').
+     */
+    private void addCemetery() {
+        if (!hasCem) return;
+        Model m = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cemiterio.g3dj"));
+        loaded.add(m);
+        JsonValue j = new JsonReader().parse(Gdx.files.internal("models/cemiterio_colisao.json"));
+        float depth = j.getFloat("fundo");
+        float cos = MathUtils.cosDeg(cemYaw), sin = MathUtils.sinDeg(cemYaw);
+        // origem do modelo (meio do portão): centro menos meio fundo, girado
+        float ox = cemX - sin * depth / 2f, oz = cemZ - cos * depth / 2f;
+        ModelInstance mi = new ModelInstance(m);
+        mi.transform.setToTranslation(ox, cemH, oz).rotate(Vector3.Y, cemYaw);
+        instances.add(mi);
+        for (JsonValue c = j.get("colisao").child; c != null; c = c.next) {
+            float lx = c.getFloat(0), lz = c.getFloat(1);
+            float wx = ox + lx * cos + lz * sin, wz = oz - lx * sin + lz * cos;
+            Obstacle o = new Obstacle(wx, wz, c.getFloat(2), cemH, c.getFloat(3));
+            String k = c.getString(4);
+            o.surface = k.equals("M") ? Surface.METAL : k.equals("W") ? Surface.MADEIRA : Surface.PEDRA;
+            addObstacle(o);
+            cemColliders++;
+        }
+        crossCount = j.getInt("tumulos");
+    }
+
     /** Objeto estático com colisão circular (carroça parada, cocho, toco). */
     private void placeStatic(Model m, float x, float z, float yawDeg, float scale, float radius) {
         float y = heightAt(x, z);
@@ -1027,7 +1091,7 @@ public class World {
             x = (rnd.nextFloat() * 2f - 1f) * (HALF - margin);
             z = (rnd.nextFloat() * 2f - 1f) * (HALF - margin);
         } while (Math.sqrt(x * x + z * z) < 14f || Math.abs(z - roadZ(x)) < ROAD_HALF + 6f
-                || Math.abs(x - riverX(z)) < 6f || nearEnclosure(x, z) || inTown(x, z));
+                || Math.abs(x - riverX(z)) < 6f || nearEnclosure(x, z) || inTown(x, z) || nearCemetery(x, z, 6f));
         return new float[]{x, z};
     }
 
@@ -1113,7 +1177,7 @@ public class World {
 
     /** Perto de casa, cercado, poço ou açude: os cactos não nascem ali. */
     private boolean nearLandmark(float x, float z) {
-        if (nearWellOrDam(x, z, 10f)) return true;
+        if (nearWellOrDam(x, z, 10f) || nearCemetery(x, z, 12f)) return true;
         for (int k = 0; k < enclosureCenters.size; k++) {
             float[] c = enclosureCenters.get(k);
             if (Math.hypot(x - c[0], z - c[1]) < 14f) return true;
