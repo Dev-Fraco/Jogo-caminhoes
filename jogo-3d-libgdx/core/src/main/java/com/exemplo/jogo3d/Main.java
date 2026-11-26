@@ -460,7 +460,8 @@ public class Main extends ApplicationAdapter {
             float kickPose = shooting != null ? Math.min(1f, world.weapons.kickOffset() / 0.075f) : 0f;
             float aimPose = combat && !parachuting ? (adsOn ? 1f : 0.45f) : 0f;
             float leanPose = survival != null ? Math.min(1f, survival.shake / 0.12f) : 0f;
-            character.setArmPose(aimPose, kickPose, reloadPose, world.weapons.holstered() ? 1f : world.weapons.drawAmount(), leanPose);
+            // Arma guardada: o braço fica no lugar de descanso (a pose de guardar só vale ao sacar/guardar)
+            character.setArmPose(aimPose, kickPose, reloadPose, world.weapons.holstered() ? 0f : world.weapons.drawAmount(), leanPose);
         }
         if (shooting != null) {
             shootIn.fireHeld = fireHeld;

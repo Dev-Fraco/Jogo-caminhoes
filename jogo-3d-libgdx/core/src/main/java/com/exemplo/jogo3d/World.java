@@ -499,6 +499,7 @@ public class World {
 
     /** Galpão, chão, caixa de equipamentos e limite. Sem terreno, cidade, casas nem avião. */
     private void buildTraining() {
+        loadWallModel();   // o muro de proteção também funciona no treino
         ModelBuilder mb = new ModelBuilder();
         long attrs = Usage.Position | Usage.Normal | Usage.TextureCoordinates;
         Color wood = new Color(0.45f, 0.30f, 0.18f, 1f), woodDark = new Color(0.30f, 0.19f, 0.11f, 1f);
