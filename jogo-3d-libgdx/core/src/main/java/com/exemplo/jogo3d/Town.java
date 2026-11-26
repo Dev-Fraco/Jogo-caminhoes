@@ -237,7 +237,9 @@ final class Town {
         ModelInstance well = new ModelInstance(poco);
         well.transform.setToTranslation(X, ht + 0.12f, sqZ);
         w.instances.add(well);
-        w.obstacles.add(new World.Obstacle(X, sqZ, 1.1f, ht, 3f));
+        World.Obstacle wellObs = new World.Obstacle(X, sqZ, 1.1f, ht, 3f);
+        wellObs.surface = Surface.PEDRA;
+        w.obstacles.add(wellObs);
         // Bancos virados para o poço
         for (int i = 0; i < 4; i++) {
             float a = i * 90f + 45f;

@@ -56,6 +56,8 @@ final class Enemy {
     final Vector3 lastKnown = new Vector3(), tgt = new Vector3();
     boolean hasLast;
     int botKills;
+    float barT;                   // barra de vida visível (s restantes) depois de levar tiro
+    private float hitT, hitDur = 0.18f, hitMag;   // reação ao dano (o corpo recua um pouco, o pano pisca)
     final Vector3 muzzle = new Vector3();
     boolean visibleToCam;   // dentro da distância de desenho (para não animar longe)
 
@@ -221,6 +223,14 @@ final class Enemy {
         }
         pos.y = w.groundAt(pos.x, pos.z);
         inst.transform.setToTranslation(pos).rotate(Vector3.Y, facing * MathUtils.radiansToDegrees);
+        if (barT > 0f) barT -= dt;
+        if (hitT > 0f) {
+            hitT -= dt;
+            float k = Math.max(0f, hitT / hitDur);
+            // recua para trás a partir do quadril e volta (o osso e as hitboxes acompanham)
+            inst.transform.translate(0f, 0.9f, 0f).rotate(Vector3.X, -hitMag * 11f * MathUtils.sin(k * MathUtils.PI)).translate(0f, -0.9f, 0f);
+            if (hitT <= 0f) glow(false);
+        }
         // longe da câmera: anima em passos maiores (economia); a pose continua válida para as hitboxes
         animAcc += dt;
         if (visibleToCam || animAcc > 0.2f) {
@@ -269,9 +279,28 @@ final class Enemy {
         hear(shooter.pos);
     }
 
+    boolean flinching() { return hitT > 0f; }
+
+    /** Reação ao tiro: recuo curto do corpo e brilho vermelho do pano (mais forte na cabeça). */
+    void flinch(boolean head) {
+        if (state == State.DEAD) return;
+        hitT = hitDur;
+        hitMag = head ? 1.4f : 0.8f;
+        glow(true);
+    }
+
+    private void glow(boolean on) {
+        for (int i = 0; i < inst.materials.size; i++) {
+            Material m = inst.materials.get(i);
+            if (on) m.set(ColorAttribute.createEmissive(0.55f, 0.04f, 0.02f, 1f));
+            else m.remove(ColorAttribute.Emissive);
+        }
+    }
+
     /** Leva dano; devolve true se morreu agora. */
     boolean damage(float amount, Vector3 from) {
         if (state == State.DEAD) return false;
+        barT = 3f;
         health -= amount;
         // virou alvo: entra em combate e encara o atirador
         state = State.COMBAT;
@@ -286,6 +315,8 @@ final class Enemy {
             health = 0f;
             state = State.DEAD;
             deadT = 0f;
+            hitT = 0f;     // a reação de dano para: vale só a animação de morte
+            glow(false);
             clip = "Dying";
             anim.animate("Dying", 1, 1f, null, 0.12f);
             return true;

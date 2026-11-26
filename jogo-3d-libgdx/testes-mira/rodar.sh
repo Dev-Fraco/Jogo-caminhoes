@@ -15,4 +15,5 @@ OUT=$(mktemp -d)
 javac -encoding UTF-8 -d "$OUT" -cp "$CP" ../core/src/main/java/com/exemplo/jogo3d/*.java com/exemplo/jogo3d/*.java
 cd ../assets
 java -cp "$OUT:$CP" com.exemplo.jogo3d.AimTests
+java -cp "$OUT:$CP" com.exemplo.jogo3d.ShootTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.AiSoak

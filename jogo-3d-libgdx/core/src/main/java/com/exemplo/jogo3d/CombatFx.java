@@ -36,13 +36,11 @@ import com.badlogic.gdx.utils.Array;
 final class CombatFx implements DamageSystem.Listener {
     private static final int TRACERS = 24, NUMBERS = 12;
 
-    private final Model tracerModel, flashModel;
+    private final Model tracerModel;
     private final ModelInstance[] tracer = new ModelInstance[TRACERS];
     private final float[] tracerT = new float[TRACERS];
     private final BlendingAttribute[] tracerBlend = new BlendingAttribute[TRACERS];
     private int tracerNext;
-    private final ModelInstance flash;
-    private float flashT;
     private final Array<ModelInstance> draw = new Array<>();
 
     private final Vector3[] numPos = new Vector3[NUMBERS];
@@ -55,62 +53,52 @@ final class CombatFx implements DamageSystem.Listener {
     private final Vector3 tmp = new Vector3(), dir = new Vector3();
     private final Quaternion rot = new Quaternion();
     private final Vector3 scl = new Vector3();
-    private Grenades dust;
-    private Sound shot, farShot, hit, head, kill, reload, empty, impact;
+    private ImpactEffects impacts;
+    private WeaponAudio weaponAudio;
+    private final Vector3 shotNormal = new Vector3(0f, 1f, 0f);
+    private Sound hit, head, kill;
 
     CombatFx() {
         ModelBuilder mb = new ModelBuilder();
         long attr = VertexAttributes.Usage.Position | VertexAttributes.Usage.Normal;
         tracerModel = mb.createBox(0.018f, 0.018f, 1f, new Material(ColorAttribute.createDiffuse(1f, 0.9f, 0.6f, 1f),
                 ColorAttribute.createEmissive(1f, 0.85f, 0.5f, 1f), new BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE, 0.8f)), attr);
-        flashModel = mb.createSphere(0.22f, 0.22f, 0.32f, 8, 6, new Material(ColorAttribute.createDiffuse(1f, 0.75f, 0.3f, 1f),
-                ColorAttribute.createEmissive(1f, 0.7f, 0.25f, 1f), new BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE, 0.9f)), attr);
         for (int i = 0; i < TRACERS; i++) {
             tracer[i] = new ModelInstance(tracerModel);
             tracerBlend[i] = (BlendingAttribute) tracer[i].materials.get(0).get(BlendingAttribute.Type);
         }
-        flash = new ModelInstance(flashModel);
         for (int i = 0; i < NUMBERS; i++) numPos[i] = new Vector3();
         try {
-            shot = load("tiro.wav");
-            farShot = load("tiro_longe.wav");
             hit = load("acerto.wav");
             head = load("cabeca.wav");
             kill = load("abate.wav");
-            reload = load("recarga.wav");
-            empty = load("vazio.wav");
-            impact = load("impacto.wav");
         } catch (Throwable t) {
-            shot = farShot = hit = head = kill = reload = empty = impact = null;
+            hit = head = kill = null;
         }
     }
 
     private static Sound load(String f) { return Gdx.audio.newSound(Gdx.files.internal("audio/" + f)); }
 
-    void setDust(Grenades g) { dust = g; }
+    void setImpacts(ImpactEffects e) { impacts = e; }
+
+    void setAudio(WeaponAudio a) { weaponAudio = a; }
+
+    /** Direção do tiro atual (de onde saem os respingos no inimigo). */
+    void setShotNormal(Vector3 aim) { shotNormal.set(aim).scl(-1f); }
 
     // ---------- Eventos ----------
 
-    /** Disparo do jogador: rastro, clarão e o que foi atingido. */
-    void playerShot(Vector3 muzzle, Vector3 end, boolean hitWorld) {
+    /** Rastro curto da bala, do cano até o ponto atingido. */
+    void tracer(Vector3 muzzle, Vector3 end) {
         addTracer(muzzle, end, 0.07f);
-        flash.transform.setToTranslation(muzzle).scale(MathUtils.random(0.8f, 1.2f), MathUtils.random(0.8f, 1.2f), 1f);
-        flashT = 0.05f;
-        play(shot, 0.8f);
-        if (hitWorld && dust != null) dust.impact(end, false);
-        if (hitWorld && end.dst(muzzle) < 25f) play(impact, 0.25f);
     }
 
-    void reloadSound() { play(reload, 0.7f); }
-
-    void emptySound() { play(empty, 0.7f); }
-
-    /** Tiro de inimigo: rastro e estampido mais baixo com a distância. */
+    /** Tiro de bot: rastro, estampido distante e poeira onde bate. */
     void enemyShot(Vector3 from, Vector3 to, Vector3 listener) {
         addTracer(from, to, 0.06f);
         float d = from.dst(listener);
-        if (farShot != null) farShot.play(MathUtils.clamp(1f - d / 140f, 0.08f, 0.9f));
-        if (dust != null && MathUtils.randomBoolean(0.5f)) dust.impact(to, false);
+        if (weaponAudio != null) weaponAudio.distantShot(d);
+        if (impacts != null && MathUtils.randomBoolean(0.5f)) impacts.hit(Surface.TERRA, to, Vector3.Y);
     }
 
     @Override
@@ -123,7 +111,8 @@ final class CombatFx implements DamageSystem.Listener {
         markT = 0.2f;
         markHead = isHead ? 1f : 0f;
         play(isHead ? head : hit, isHead ? 0.9f : 0.7f);
-        if (dust != null) dust.impact(at, true);
+        if (impacts != null) impacts.hit(Surface.CARNE, at, shotNormal);
+        e.flinch(isHead);   // o inimigo reage ao tiro
         if (killed) {
             killT = 2.4f;
             killHead = isHead;
@@ -146,7 +135,6 @@ final class CombatFx implements DamageSystem.Listener {
     private void play(Sound s, float v) { if (s != null) s.play(v); }
 
     void update(float dt) {
-        flashT -= dt;
         markT -= dt;
         killT -= dt;
         for (int i = 0; i < TRACERS; i++) if (tracerT[i] > 0f) tracerT[i] -= dt;
@@ -161,7 +149,6 @@ final class CombatFx implements DamageSystem.Listener {
                 draw.add(tracer[i]);
             }
         }
-        if (flashT > 0f) draw.add(flash);
         return draw;
     }
 
@@ -172,7 +159,8 @@ final class CombatFx implements DamageSystem.Listener {
      * @param overEnemy  a mira está em cima de um inimigo
      */
     void drawHud(SpriteBatch batch, ShapeRenderer shapes, BitmapFont font, Camera cam, Hud hud, Weapons weapons,
-                 AimAssist assist, float spreadPx, boolean overEnemy, int alive, int kills, TextureRegion gunIcon, boolean armedView) {
+                 AimAssist assist, float spreadPx, boolean overEnemy, int alive, int kills, TextureRegion gunIcon, boolean armedView,
+                 Enemies enemies) {
         int W = Gdx.graphics.getWidth(), H = Gdx.graphics.getHeight();
         float cx = W / 2f, cy = H / 2f, u = H / 400f;
         shapes.begin(ShapeRenderer.ShapeType.Filled);
@@ -200,6 +188,21 @@ final class CombatFx implements DamageSystem.Listener {
                     shapes.rect(sx < 0 ? x : x - s * 0.7f, cy + s - t2, s * 0.7f, t2);
                     shapes.rect(sx < 0 ? x : x - s * 0.7f, cy - s, s * 0.7f, t2);
                 }
+            }
+        }
+        // Barras de vida dos inimigos atingidos (alguns segundos depois do tiro)
+        if (enemies != null) {
+            for (int i = 0; i < enemies.list.size; i++) {
+                Enemy en = enemies.list.get(i);
+                if (en.barT <= 0f || !en.alive()) continue;
+                tmp.set(en.pos.x, en.pos.y + 2.05f, en.pos.z);
+                cam.project(tmp);
+                if (tmp.z > 1f) continue;
+                float bw = 46f * u, bh = 5f * u, a = Math.min(1f, en.barT * 2f), f = MathUtils.clamp(en.health / Enemy.MAX_HEALTH, 0f, 1f);
+                shapes.setColor(0.08f, 0.05f, 0.03f, 0.85f * a);
+                shapes.rect(tmp.x - bw / 2f - u, tmp.y - u, bw + 2f * u, bh + 2f * u);
+                shapes.setColor(0.85f - 0.4f * (1f - f), 0.15f + 0.5f * f, 0.08f, a);
+                shapes.rect(tmp.x - bw / 2f, tmp.y, bw * f, bh);
             }
         }
         // Marcador de acerto (X)
@@ -243,6 +246,14 @@ final class CombatFx implements DamageSystem.Listener {
             layout.setText(font, t);
             font.draw(batch, t, tmp.x - layout.width / 2f, tmp.y + layout.height);
         }
+        // Pente e reserva vazios: aviso
+        if (cfg != null && armedView && weapons.ammo() == 0 && !weapons.reloading()) {
+            font.getData().setScale(1.3f * u / 1.6f);
+            font.setColor(0.9f, 0.3f, 0.15f, 0.6f + 0.4f * MathUtils.sin(System.nanoTime() * 1e-9f * 6f));
+            String t = weapons.reserveAmmo() > 0 ? "SEM MUNIÇÃO — RECARREGAR" : "SEM MUNIÇÃO";
+            layout.setText(font, t);
+            font.draw(batch, t, cx - layout.width / 2f, cy - 26f * u);
+        }
         // Abate
         if (killT > 0f) {
             float a = Math.min(1f, killT * 2f);
@@ -262,7 +273,7 @@ final class CombatFx implements DamageSystem.Listener {
             font.draw(batch, ammo, r[0] + r[2] * 0.07f, r[1] + r[3] * 0.86f);
             font.getData().setScale(Math.max(1f, r[3] / 120f));
             font.setColor(0.95f, 0.85f, 0.6f, 1f);
-            String sub = weapons.reloading() ? "Recarregando..." : cfg.name + "  ·  " + cfg.category.label;
+            String sub = weapons.reloading() ? "Recarregando..." : cfg.name + "  ·  " + weapons.modeLabel();
             font.draw(batch, sub, r[0] + r[2] * 0.07f, r[1] + r[3] * 0.44f);
             if (gunIcon != null) {
                 float iw = r[2] * 0.42f, ih = iw * 0.5f;
@@ -286,7 +297,6 @@ final class CombatFx implements DamageSystem.Listener {
 
     void dispose() {
         tracerModel.dispose();
-        flashModel.dispose();
-        for (Sound s : new Sound[]{shot, farShot, hit, head, kill, reload, empty, impact}) if (s != null) s.dispose();
+        for (Sound s : new Sound[]{hit, head, kill}) if (s != null) s.dispose();
     }
 }

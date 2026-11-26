@@ -19,6 +19,8 @@ final class HitDetection {
         final Vector3 point = new Vector3();
         float distance;      // do cano até o ponto (para a queda de dano)
         boolean hitWorld;    // acertou chão/parede (para a poeira)
+        Surface surface = Surface.TERRA;   // material atingido (mundo ou carne)
+        final Vector3 normal = new Vector3(0f, 1f, 0f);
     }
 
     private final Hitbox.Hit hit = new Hitbox.Hit();
@@ -37,9 +39,13 @@ final class HitDetection {
         float skip = Math.max(0f, (muzzle.x - cam.x) * dir.x + (muzzle.y - cam.y) * dir.y + (muzzle.z - cam.z) * dir.z);
         start.set(cam).mulAdd(dir, skip);
         float tWorld = w.raycast(start, dir, range);
+        out.surface = w.hitSurface;
+        out.normal.set(w.hitNormal);
         Enemy e = enemies != null ? enemies.raycast(start, dir, tWorld, false, hit) : null;
         if (e != null) {
             out.point.set(hit.point);
+            out.surface = Surface.CARNE;
+            out.normal.set(dir).scl(-1f);
         } else {
             out.point.set(start).mulAdd(dir, tWorld);
             out.hitWorld = tWorld < range;
@@ -53,6 +59,8 @@ final class HitDetection {
             if (block < len - 0.06f) {
                 out.point.set(muzzle).mulAdd(toPoint, block);
                 out.hitWorld = true;
+                out.surface = w.hitSurface;   // a parede que o cano encontrou, não o alvo atrás dela
+                out.normal.set(w.hitNormal);
                 e = null;
                 len = block;
             }

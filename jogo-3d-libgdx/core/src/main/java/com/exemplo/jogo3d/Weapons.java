@@ -42,14 +42,33 @@ final class Weapons {
     private final int[] mag = new int[FILES.length], reserve = new int[FILES.length];
     float reloadT = 0f;          // > 0: recarregando (s restantes)
     private float cooldown = 0f;
-    final Vector3 muzzle = new Vector3();
+    final Vector3 muzzle = new Vector3();   // ponta do cano no mundo (segue o recuo e a animação)
+    final Vector3 barrel = new Vector3(0f, 0f, 1f);   // direção do cano
     boolean ads = false;         // mirando (o cano fica reto)
+    float aimElev = 0f;          // elevação da mira (rad, + para cima): o cano acompanha
+    // Modos de disparo
+    private int burstLeft = 0;
+    private float burstT = 0f;
+    // Animação da arma
+    private float kickPos = 0f;      // recuo visual (m), volta em ~0,1 s
+    private float equipT = 0f, equipDur = 0.5f;
+    private float emptyT = 0f;
+    private float swayT = 0f;
+    // Eventos para o áudio e os efeitos (consumidos pelo ShootingSystem)
+    static final int EV_EQUIP = 1, EV_RELOAD = 2, EV_RELOAD_DONE = 4, EV_EMPTY = 8;
+    int events = 0;
+    private final Vector3[] muzzleLocal = new Vector3[FILES.length];
+    private final Vector3 tmpV = new Vector3();
 
     Weapons() {
         for (int i = 0; i < FILES.length; i++) {
             models[i] = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/armas/" + FILES[i] + ".g3dj"));
             mag[i] = WeaponConfig.BY_TYPE[i].magazine;
             reserve[i] = WeaponConfig.BY_TYPE[i].reserve;
+            // Ponta do cano: o fim do modelo (+z), na altura do cano (acima do punho)
+            com.badlogic.gdx.math.collision.BoundingBox bb = new com.badlogic.gdx.math.collision.BoundingBox();
+            models[i].calculateBoundingBox(bb);
+            muzzleLocal[i] = new Vector3(0f, Math.min(0.055f, bb.max.y * 0.5f), bb.max.z);
         }
     }
 
@@ -88,6 +107,8 @@ final class Weapons {
         WeaponConfig c = config();
         if (c == null || reloadT > 0f || mag[heldType] >= c.magazine || reserve[heldType] <= 0) return false;
         reloadT = c.reloadTime;
+        burstLeft = 0;
+        events |= EV_RELOAD;
         return true;
     }
 
@@ -102,27 +123,70 @@ final class Weapons {
                 int take = Math.min(need, reserve[heldType]);
                 mag[heldType] += take;
                 reserve[heldType] -= take;
+                events |= EV_RELOAD_DONE;
             }
         }
+        if (burstT > 0f) burstT -= dt;
+        if (emptyT > 0f) emptyT -= dt;
+        if (equipT > 0f) equipT -= dt;
+        kickPos -= kickPos * Math.min(1f, dt * 16f);   // volta ao lugar
+        swayT += dt;
     }
 
     /**
-     * Tenta disparar. held = dedo no botão; pressed = acabou de apertar (armas sem automático só
-     * atiram no toque). Devolve 1 se disparou, -1 se o pente está vazio (clique), 0 se não.
+     * Tenta disparar, respeitando o modo da arma e o tempo entre tiros (nunca um por quadro):
+     * AUTO continua enquanto o botão estiver pressionado; SEMI um por toque; RAJADA dispara a
+     * quantidade configurada por toque (os tiros seguintes saem sozinhos, no ritmo da rajada).
+     * held = dedo no botão; pressed = acabou de apertar. Devolve 1 se disparou, -1 se o pente está
+     * vazio (clique) e 0 se não.
      */
     int tryFire(boolean held, boolean pressed) {
         WeaponConfig c = config();
-        if (c == null || reloadT > 0f || cooldown > 0f) return 0;
-        if (!(c.automatic ? held : pressed)) return 0;
+        if (c == null || reloadT > 0f || equipT > 0f) return 0;
+        // Continuação da rajada (não precisa do botão)
+        if (burstLeft > 0) {
+            if (burstT > 0f) return 0;
+            if (mag[heldType] <= 0) { burstLeft = 0; cooldown = c.fireInterval; return 0; }
+            mag[heldType]--;
+            burstLeft--;
+            burstT = c.burstGap;
+            if (burstLeft == 0) cooldown = c.fireInterval;
+            kickPos = Math.min(kickPos + c.kick, c.kick * 2f);
+            return 1;
+        }
+        if (cooldown > 0f) return 0;
+        boolean wants = c.mode == WeaponConfig.FireMode.AUTO ? held : pressed;
+        if (!wants) return 0;
         if (mag[heldType] <= 0) {
             cooldown = 0.3f;
-            if (!startReload()) return -1;
+            emptyT = 0.25f;
+            events |= EV_EMPTY;
+            startReload();   // pente vazio: clique e começa a recarregar sozinho (se tiver reserva)
             return -1;
         }
         mag[heldType]--;
         cooldown = c.fireInterval;
+        kickPos = Math.min(kickPos + c.kick, c.kick * 2f);
+        if (c.mode == WeaponConfig.FireMode.BURST) {
+            burstLeft = Math.min(c.burstCount - 1, mag[heldType]);
+            burstT = c.burstGap;
+            if (burstLeft == 0) cooldown = c.fireInterval;
+            else cooldown = 0f;   // enquanto durar a rajada o controle é do burstLeft
+        }
         return 1;
     }
+
+    /** Recuo visual atual da arma (m). */
+    float kickOffset() { return kickPos; }
+
+    /** Modo de disparo da arma na mão (para o painel). */
+    String modeLabel() { WeaponConfig c = config(); return c == null ? "" : c.mode.label; }
+
+    /** Tempo de sacar restante (0 = pronta). */
+    boolean drawing() { return equipT > 0f; }
+
+    /** Lê e zera os eventos (som de trocar, recarregar, vazio). */
+    int takeEvents() { int e = events; events = 0; return e; }
 
     /** Larga tudo (ao morrer): volta desarmado. */
     void unequip(Character ch) {
@@ -130,6 +194,7 @@ final class Weapons {
         held = null;
         heldType = -1;
         reloadT = 0f;
+        burstLeft = 0;
         ch.setArmed(false);
     }
 
@@ -195,20 +260,60 @@ final class Weapons {
         }
         heldType = g.type;
         reloadT = 0f;   // trocar de arma cancela a recarga
+        burstLeft = 0;
+        cooldown = 0.1f;
+        kickPos = 0f;
+        equipDur = Math.max(0.1f, WeaponConfig.BY_TYPE[heldType].equipTime);
+        equipT = equipDur;   // anima o sacar e bloqueia o tiro até terminar
+        events |= EV_EQUIP;
         held = new ModelInstance(models[heldType]);
         ch.instances.add(held);
         ch.setArmed(true);
     }
 
-    /** A arma na mão direita: cano para a frente; baixa ao andar, reta ao mirar parado. */
+    private static float smooth(float x) {
+        x = MathUtils.clamp(x, 0f, 1f);
+        return x * x * (3f - 2f * x);
+    }
+
+    /**
+     * A arma na mão direita. O cano acompanha a mira (para cima e para baixo); baixa ao andar. Por cima:
+     * recuo do tiro (para trás e o cano sobe), recarga (cano desce, o pente sai e entra), sacar (sobe
+     * de baixo), pente vazio (sacudida). O cano calculado (muzzle/barrel) segue tudo isso.
+     */
     void update(Character ch, Player player) {
         if (held == null) return;
+        WeaponConfig c = WeaponConfig.BY_TYPE[heldType];
         ch.handWorld(false, hand);
-        float down = ads ? 0f : player.speed > 0.25f ? 28f : 4f;
-        if (reloadT > 0f) down = 40f;   // recarregando: cano para baixo
+        float down = ads ? 0f : player.speed > 0.25f ? 24f : 4f;
+        down -= aimElev * MathUtils.radiansToDegrees * 0.85f;
+        float roll = 0f, drop = 0f, back = 0f;
+        if (reloadT > 0f) {
+            // 0..1: abaixa, tira o pente, enfia o novo, levanta
+            float p = 1f - reloadT / c.reloadTime;
+            float lowered = smooth(p / 0.18f) * (1f - smooth((p - 0.82f) / 0.18f));
+            down += 42f * lowered;
+            drop = 0.10f * lowered;
+            roll = lowered * (14f * MathUtils.sin(p * MathUtils.PI * 5f) * (p > 0.25f && p < 0.8f ? 1f : 0.3f));
+            back = 0.05f * lowered * (p > 0.4f && p < 0.65f ? 1f : 0f);
+        }
+        if (equipT > 0f) {
+            float q = equipT / equipDur;   // 1 → 0
+            down += 75f * q * q;
+            drop += 0.18f * q;
+            roll += 12f * q;
+        }
+        if (emptyT > 0f) roll += 6f * MathUtils.sin(emptyT * 90f) * (emptyT / 0.25f);
+        // respiração leve parado (não deixa a arma completamente imóvel)
+        float breath = player.speed < 0.25f && reloadT <= 0f ? 0.4f * MathUtils.sin(swayT * 1.7f) : 0f;
         held.transform.setToTranslation(hand).rotate(Vector3.Y, player.facing * MathUtils.radiansToDegrees)
-                .rotate(Vector3.X, down);
-        muzzle.set(hand).add(MathUtils.sin(player.facing) * 0.62f, 0.05f, MathUtils.cos(player.facing) * 0.62f);
+                .rotate(Vector3.X, down + breath)
+                .rotate(Vector3.Z, roll)
+                .translate(0f, -drop, -kickPos - back)
+                .rotate(Vector3.X, -kickPos * 110f);   // no tiro o cano sobe
+        Vector3 ml = muzzleLocal[heldType];
+        muzzle.set(ml).mul(held.transform);
+        barrel.set(ml.x, ml.y, ml.z + 1f).mul(held.transform).sub(muzzle).nor();
     }
 
     void dispose() {

@@ -93,6 +93,7 @@ public class World {
     /** Objeto com colisão circular. */
     static class Obstacle {
         final float x, z, radius, baseY, height;
+        Surface surface = Surface.MADEIRA;   // árvores, cactos, bancos, carroças; poço e pedras são PEDRA
         Obstacle(float x, float z, float radius, float baseY, float height) {
             this.x = x;
             this.z = z;
@@ -270,10 +271,14 @@ public class World {
     }
 
     private Vector3 normalAt(float x, float z) {
+        return normalAt(x, z, new Vector3());
+    }
+
+    Vector3 normalAt(float x, float z, Vector3 out) {
         float e = 0.5f;
         float dhdx = (heightAt(x + e, z) - heightAt(x - e, z)) / (2f * e);
         float dhdz = (heightAt(x, z + e) - heightAt(x, z - e)) / (2f * e);
-        return new Vector3(-dhdx, 1f, -dhdz).nor();
+        return out.set(-dhdx, 1f, -dhdz).nor();
     }
 
     /** Tom por vértice: quase branco (a textura já traz a cor); só escurece as encostas. */
@@ -430,7 +435,9 @@ public class World {
             sign.transform.setToTranslation(sx, heightAt(sx, sz), sz).rotate(Vector3.Y, 0f);
             instances.add(sign);
             obstacles.add(new Obstacle(sx, sz, 0.25f, heightAt(sx, sz), 2.0f));
-            obstacles.add(new Obstacle(wellX, wellZ, Landmarks.WELL_OUT + 0.3f, heightAt(wellX, wellZ), 1.0f));
+            Obstacle wellObs = new Obstacle(wellX, wellZ, Landmarks.WELL_OUT + 0.3f, heightAt(wellX, wellZ), 1.0f);
+            wellObs.surface = Surface.PEDRA;
+            obstacles.add(wellObs);
         }
 
 
@@ -569,6 +576,9 @@ public class World {
 
     // ---------- Raio (tiros e linha de visão) ----------
     private final Vector3 rayO = new Vector3(), rayD = new Vector3(), rayT = new Vector3();
+    /** Material e normal (aprox.) do primeiro impacto do último raycast. */
+    Surface hitSurface = Surface.TERRA;
+    final Vector3 hitNormal = new Vector3(0f, 1f, 0f);
 
     /**
      * Distância até o primeiro obstáculo sólido no raio (chão, paredes das casas, casas da cidade,
@@ -577,6 +587,7 @@ public class World {
      */
     float raycast(Vector3 origin, Vector3 dir, float maxDist) {
         float best = maxDist;
+        Surface surf = Surface.TERRA;
         // Paredes das casas de taipa: caixas no sistema da casa
         for (int k = 0; k < houses.size; k++) {
             House h = houses.get(k);
@@ -586,7 +597,7 @@ public class World {
             for (int w = 0; w < wallBoxes.size; w++) {
                 float[] b = wallBoxes.get(w);
                 float t = slab(rayO, rayD, b[0], b[1], b[2], b[3], b[4], b[5], best);
-                if (t < best) best = t;
+                if (t < best) { best = t; surf = Surface.BARRO; }   // taipa: barro e madeira
             }
         }
         // Casas da cidade feitas em código
@@ -596,7 +607,7 @@ public class World {
             rayT.set(origin).add(dir).mul(bx.inv);
             rayD.set(rayT).sub(rayO);
             float t = slab(rayO, rayD, -bx.hx, bx.hx, 0f, bx.h, -bx.hz, bx.hz, best);
-            if (t < best) best = t;
+            if (t < best) { best = t; surf = Surface.PEDRA; }   // casas da cidade: alvenaria caiada
         }
         // Obstáculos: cilindros em pé
         for (int k = 0; k < obstacles.size; k++) {
@@ -611,7 +622,7 @@ public class World {
             if (t < 0f) t = c < 0f ? 0f : -1f;   // começou dentro
             if (t < 0f || t >= best) continue;
             float y = origin.y + dir.y * t;
-            if (y >= ob.baseY && y <= ob.baseY + ob.height) best = t;
+            if (y >= ob.baseY && y <= ob.baseY + ob.height) { best = t; surf = ob.surface; }
         }
         // Chão: anda em passos e refina
         float step = 0.6f, prev = 0f;
@@ -625,11 +636,19 @@ public class World {
                     if (origin.y + dir.y * m < heightAt(origin.x + dir.x * m, origin.z + dir.z * m)) hi = m;
                     else lo = m;
                 }
-                return Math.min(best, hi);
+                if (hi < best) { hitSurface = Surface.TERRA; }
+                else hitSurface = surf;
+                float gh = Math.min(best, hi);
+                if (hi < best) normalAt(origin.x + dir.x * gh, origin.z + dir.z * gh, hitNormal);
+                else hitNormal.set(-dir.x, 0f, -dir.z).nor();
+                return gh;
             }
             prev = tt;
             if (tt >= best) break;
         }
+        hitSurface = surf;
+        hitNormal.set(-dir.x, 0f, -dir.z);
+        if (hitNormal.len2() < 1e-6f) hitNormal.set(0f, 1f, 0f); else hitNormal.nor();
         return best;
     }
 
@@ -723,7 +742,9 @@ public class World {
         ModelInstance mi = new ModelInstance(model);
         mi.transform.setToTranslation(x, y, z).scale(scale, scale, scale);
         instances.add(mi);
-        obstacles.add(new Obstacle(x, z, radius, y, 1.5f));
+        Obstacle rock = new Obstacle(x, z, radius, y, 1.5f);
+        rock.surface = Surface.PEDRA;
+        obstacles.add(rock);
     }
 
     /** Verdadeiro se o ponto está perto demais de um cercado (para não nascer objeto dentro dele). */
@@ -892,8 +913,11 @@ public class World {
         fire.addSource(dec.flameSource(), dec.smokeSource());
         // Colisão: o fogão (2,4 m, encostado na parede) e o banco
         Vector3 s0 = new Vector3(1.8f, 0f, -2.48f).mul(t), s1 = new Vector3(3.3f, 0f, -2.48f).mul(t);
-        obstacles.add(new Obstacle(s0.x, s0.z, 0.5f, heightAt(s0.x, s0.z), 1.3f));
-        obstacles.add(new Obstacle(s1.x, s1.z, 0.5f, heightAt(s1.x, s1.z), 1.3f));
+        Obstacle st0 = new Obstacle(s0.x, s0.z, 0.5f, heightAt(s0.x, s0.z), 1.3f), st1 = new Obstacle(s1.x, s1.z, 0.5f, heightAt(s1.x, s1.z), 1.3f);
+        st0.surface = Surface.METAL;   // fogão a lenha de ferro
+        st1.surface = Surface.METAL;
+        obstacles.add(st0);
+        obstacles.add(st1);
         Vector3 bc = new Vector3(HouseDecor.BENCH_X, 0f, HouseDecor.BENCH_Z).mul(t);
         obstacles.add(new Obstacle(bc.x, bc.z, 0.35f, heightAt(bc.x, bc.z), 0.6f));
 

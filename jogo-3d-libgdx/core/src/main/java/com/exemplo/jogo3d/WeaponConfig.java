@@ -16,6 +16,12 @@ final class WeaponConfig {
         Region(String label) { this.label = label; }
     }
 
+    /** Como o botão de disparo age. */
+    enum FireMode { AUTO("AUTO"), SEMI("SEMI"), BURST("RAJADA");
+        final String label;
+        FireMode(String label) { this.label = label; }
+    }
+
     enum Category {
         //            nome            força   atrito  rastreio  máx °/s  raio×
         PISTOLA("Pistola", 1.00f, 0.35f, 0.55f, 28f, 1.00f),
@@ -44,31 +50,39 @@ final class WeaponConfig {
 
     final String name;
     final Category category;
+    final FireMode mode;
+    final int burstCount;        // tiros por toque no modo rajada
+    final float burstGap;        // intervalo entre os tiros da rajada (s)
     final float damage;          // dano base no tronco a curta distância
     final float headMul, torsoMul, armMul, legMul;
-    final float fireInterval;    // segundos entre tiros
-    final boolean automatic;     // segurar o botão continua atirando
+    final float fireInterval;    // s entre tiros (semi/auto) ou entre rajadas (rajada: depois do último tiro)
     final int magazine, reserve;
     final float reloadTime;
     final float range;           // alcance máximo (m)
     final float falloffStart, falloffMin;   // dano cai a partir dessa distância até falloffMin×
     final float spreadHip, spreadAds;       // dispersão (graus) sem e com mira
-    final float recoilPitch, recoilYaw;     // coice por tiro (graus)
+    final float recoilPitch, recoilYaw;     // coice da mira por tiro (graus)
     final int pellets;           // espingarda: chumbos por disparo
+    final float kick;            // recuo visual da arma (m)
+    final float flash;           // tamanho do clarão (1 = fuzil)
+    final float equipTime;       // s para sacar a arma
 
-    private WeaponConfig(String name, Category category, float damage, float headMul, float torsoMul, float armMul,
-                         float legMul, float fireInterval, boolean automatic, int magazine, int reserve, float reloadTime,
-                         float range, float falloffStart, float falloffMin, float spreadHip, float spreadAds,
-                         float recoilPitch, float recoilYaw, int pellets) {
+    private WeaponConfig(String name, Category category, FireMode mode, int burstCount, float burstGap, float damage,
+                         float headMul, float armMul, float legMul, float fireInterval, int magazine, int reserve,
+                         float reloadTime, float range, float falloffStart, float falloffMin, float spreadHip,
+                         float spreadAds, float recoilPitch, float recoilYaw, int pellets, float kick, float flash,
+                         float equipTime) {
         this.name = name;
         this.category = category;
+        this.mode = mode;
+        this.burstCount = burstCount;
+        this.burstGap = burstGap;
         this.damage = damage;
         this.headMul = headMul;
-        this.torsoMul = torsoMul;
+        this.torsoMul = 1f;
         this.armMul = armMul;
         this.legMul = legMul;
         this.fireInterval = fireInterval;
-        this.automatic = automatic;
         this.magazine = magazine;
         this.reserve = reserve;
         this.reloadTime = reloadTime;
@@ -80,7 +94,12 @@ final class WeaponConfig {
         this.recoilPitch = recoilPitch;
         this.recoilYaw = recoilYaw;
         this.pellets = pellets;
+        this.kick = kick;
+        this.flash = flash;
+        this.equipTime = equipTime;
     }
+
+    boolean automatic() { return mode == FireMode.AUTO; }
 
     float multiplier(Region r) {
         switch (r) {
@@ -102,21 +121,35 @@ final class WeaponConfig {
     }
 
     // ---------- Tabela das armas ----------
-    //                         nome      categoria                dano cab  tron braç pern  interv auto  pente res  recarga alc  queda mín  disp.q disp.m coice  lado  chumbo
-    static final WeaponConfig AKM = new WeaponConfig("AKM", Category.FUZIL, 30f, 2.0f, 1.0f, 0.75f, 0.75f, 0.100f, true, 30, 120, 2.6f, 140f, 40f, 0.65f, 3.2f, 0.9f, 0.85f, 0.35f, 1);
-    static final WeaponConfig AUG = new WeaponConfig("AUG", Category.FUZIL, 26f, 2.0f, 1.0f, 0.75f, 0.75f, 0.085f, true, 30, 120, 2.8f, 150f, 50f, 0.70f, 2.6f, 0.6f, 0.55f, 0.25f, 1);
-    static final WeaponConfig GROZA = new WeaponConfig("GROZA", Category.FUZIL, 29f, 2.0f, 1.0f, 0.75f, 0.75f, 0.080f, true, 30, 120, 2.9f, 120f, 35f, 0.60f, 3.0f, 0.8f, 0.75f, 0.35f, 1);
-    static final WeaponConfig M16A4 = new WeaponConfig("M16A4", Category.FUZIL, 31f, 2.1f, 1.0f, 0.75f, 0.75f, 0.150f, false, 30, 120, 2.4f, 160f, 60f, 0.75f, 2.4f, 0.5f, 0.70f, 0.20f, 1);
-    static final WeaponConfig M416 = new WeaponConfig("M416", Category.FUZIL, 27f, 2.0f, 1.0f, 0.75f, 0.75f, 0.090f, true, 30, 120, 2.3f, 150f, 50f, 0.70f, 2.5f, 0.6f, 0.55f, 0.22f, 1);
-    static final WeaponConfig SCARL = new WeaponConfig("SCAR-L", Category.FUZIL, 28f, 2.0f, 1.0f, 0.75f, 0.75f, 0.095f, true, 30, 120, 2.5f, 150f, 50f, 0.70f, 2.6f, 0.6f, 0.62f, 0.25f, 1);
-    // Categorias sem modelo 3D ainda (prontas para quando a arma entrar no jogo)
-    static final WeaponConfig PISTOLA = new WeaponConfig("Pistola", Category.PISTOLA, 22f, 1.8f, 1.0f, 0.8f, 0.8f, 0.200f, false, 12, 48, 1.6f, 60f, 15f, 0.55f, 2.2f, 0.9f, 0.90f, 0.20f, 1);
-    static final WeaponConfig REVOLVER = new WeaponConfig("Revólver", Category.REVOLVER, 45f, 2.0f, 1.0f, 0.8f, 0.8f, 0.550f, false, 6, 30, 3.2f, 70f, 20f, 0.6f, 2.4f, 0.7f, 2.20f, 0.30f, 1);
-    static final WeaponConfig SUBMETRALHADORA = new WeaponConfig("Submetralhadora", Category.SUBMETRALHADORA, 19f, 1.8f, 1.0f, 0.8f, 0.8f, 0.065f, true, 32, 128, 2.0f, 70f, 18f, 0.55f, 3.0f, 1.2f, 0.40f, 0.30f, 1);
-    static final WeaponConfig ESPINGARDA = new WeaponConfig("Espingarda", Category.ESPINGARDA, 18f, 1.5f, 1.0f, 0.8f, 0.8f, 0.850f, false, 5, 25, 4.0f, 35f, 8f, 0.25f, 5.5f, 4.0f, 3.00f, 0.50f, 8);
-    static final WeaponConfig PRECISAO = new WeaponConfig("Rifle de precisão", Category.PRECISAO, 85f, 2.4f, 1.0f, 0.8f, 0.8f, 1.400f, false, 5, 20, 3.5f, 300f, 150f, 0.85f, 6.0f, 0.05f, 3.20f, 0.20f, 1);
-    // Arma dos cangaceiros (inimigos): rifle de alavanca, preciso e lento
-    static final WeaponConfig RIFLE_INIMIGO = new WeaponConfig("Rifle de alavanca", Category.FUZIL, 11f, 2.0f, 1.0f, 0.75f, 0.75f, 0.45f, false, 15, 999, 2.5f, 90f, 30f, 0.6f, 3.0f, 3.0f, 0.5f, 0.2f, 1);
+    // Os parâmetros, em ordem:  nome, categoria, modo, tiros/rajada, intervalo da rajada, dano, ×cabeça, ×braço, ×perna,
+    //   intervalo, pente, reserva, recarga, alcance, queda a partir de, queda mínima, dispersão quadril, dispersão mira,
+    //   coice vertical, coice lateral, chumbos, recuo visual (m), clarão, tempo de sacar
+    static final WeaponConfig AKM = new WeaponConfig("AKM", Category.FUZIL, FireMode.AUTO, 1, 0f, 30f, 2.0f, 0.75f, 0.75f,
+            0.100f, 30, 120, 2.6f, 140f, 40f, 0.65f, 3.2f, 0.9f, 0.85f, 0.35f, 1, 0.075f, 1.1f, 0.55f);
+    static final WeaponConfig AUG = new WeaponConfig("AUG", Category.FUZIL, FireMode.AUTO, 1, 0f, 26f, 2.0f, 0.75f, 0.75f,
+            0.085f, 30, 120, 2.8f, 150f, 50f, 0.70f, 2.6f, 0.6f, 0.55f, 0.25f, 1, 0.055f, 1.0f, 0.50f);
+    static final WeaponConfig GROZA = new WeaponConfig("GROZA", Category.FUZIL, FireMode.AUTO, 1, 0f, 29f, 2.0f, 0.75f, 0.75f,
+            0.080f, 30, 120, 2.9f, 120f, 35f, 0.60f, 3.0f, 0.8f, 0.75f, 0.35f, 1, 0.070f, 1.1f, 0.55f);
+    static final WeaponConfig M16A4 = new WeaponConfig("M16A4", Category.FUZIL, FireMode.BURST, 3, 0.065f, 31f, 2.1f, 0.75f, 0.75f,
+            0.260f, 30, 120, 2.4f, 160f, 60f, 0.75f, 2.4f, 0.5f, 0.55f, 0.18f, 1, 0.065f, 1.0f, 0.55f);
+    static final WeaponConfig M416 = new WeaponConfig("M416", Category.FUZIL, FireMode.AUTO, 1, 0f, 27f, 2.0f, 0.75f, 0.75f,
+            0.090f, 30, 120, 2.3f, 150f, 50f, 0.70f, 2.5f, 0.6f, 0.55f, 0.22f, 1, 0.055f, 1.0f, 0.50f);
+    static final WeaponConfig SCARL = new WeaponConfig("SCAR-L", Category.FUZIL, FireMode.AUTO, 1, 0f, 28f, 2.0f, 0.75f, 0.75f,
+            0.095f, 30, 120, 2.5f, 150f, 50f, 0.70f, 2.6f, 0.6f, 0.62f, 0.25f, 1, 0.060f, 1.0f, 0.50f);
+    // Categorias que ainda não têm modelo 3D no jogo (prontas para quando a arma entrar)
+    static final WeaponConfig PISTOLA = new WeaponConfig("Pistola", Category.PISTOLA, FireMode.SEMI, 1, 0f, 22f, 1.8f, 0.8f, 0.8f,
+            0.200f, 12, 48, 1.6f, 60f, 15f, 0.55f, 2.2f, 0.9f, 0.90f, 0.20f, 1, 0.050f, 0.7f, 0.35f);
+    static final WeaponConfig REVOLVER = new WeaponConfig("Revólver", Category.REVOLVER, FireMode.SEMI, 1, 0f, 45f, 2.0f, 0.8f, 0.8f,
+            0.550f, 6, 30, 3.2f, 70f, 20f, 0.6f, 2.4f, 0.7f, 2.20f, 0.30f, 1, 0.110f, 1.3f, 0.45f);
+    static final WeaponConfig SUBMETRALHADORA = new WeaponConfig("Submetralhadora", Category.SUBMETRALHADORA, FireMode.AUTO, 1, 0f, 19f, 1.8f, 0.8f, 0.8f,
+            0.065f, 32, 128, 2.0f, 70f, 18f, 0.55f, 3.0f, 1.2f, 0.40f, 0.30f, 1, 0.040f, 0.8f, 0.40f);
+    static final WeaponConfig ESPINGARDA = new WeaponConfig("Espingarda", Category.ESPINGARDA, FireMode.SEMI, 1, 0f, 18f, 1.5f, 0.8f, 0.8f,
+            0.850f, 5, 25, 4.0f, 35f, 8f, 0.25f, 5.5f, 4.0f, 3.00f, 0.50f, 8, 0.130f, 1.7f, 0.60f);
+    static final WeaponConfig PRECISAO = new WeaponConfig("Rifle de precisão", Category.PRECISAO, FireMode.SEMI, 1, 0f, 85f, 2.4f, 0.8f, 0.8f,
+            1.400f, 5, 20, 3.5f, 300f, 150f, 0.85f, 6.0f, 0.05f, 3.20f, 0.20f, 1, 0.140f, 1.4f, 0.70f);
+    // Arma dos bots (rifle de alavanca): lento e preciso
+    static final WeaponConfig RIFLE_INIMIGO = new WeaponConfig("Rifle de alavanca", Category.FUZIL, FireMode.SEMI, 1, 0f, 11f, 2.0f, 0.75f, 0.75f,
+            0.45f, 15, 999, 2.5f, 90f, 30f, 0.6f, 3.0f, 3.0f, 0.5f, 0.2f, 1, 0.06f, 1f, 0.5f);
 
     /** Configuração das armas do jogo, na ordem de Weapons.NAMES. */
     static final WeaponConfig[] BY_TYPE = {AKM, AUG, GROZA, M16A4, M416, SCARL};
