@@ -268,7 +268,7 @@ public class Riding {
         if (moving) {
             float target = MathUtils.atan2(mx, mz);
             m.facing += wrapAngle(target - m.facing) * Math.min(1f, dt * 4f);
-            boolean galloping = run;   // correr: galope no cavalo, trote rápido no donkey
+            boolean galloping = run || cart != null;   // galopa correndo ou puxando a carroça
             float speed = (galloping ? m.runSpeed : m.walkSpeed) * Math.min(1f, mag);
             m.pos.x += MathUtils.sin(m.facing) * speed * dt;
             m.pos.z += MathUtils.cos(m.facing) * speed * dt;
@@ -361,10 +361,9 @@ public class Riding {
     /** Carroça presa: fica 3,4 m atrás do cavalo, com a mesma direção. */
     private void updateCart() {
         if (cart == null) return;
-        Vector3 p = tmp2.set(0f, 0f, -3.4f).mul(m.inst.transform);
-        float y = world.heightAt(p.x, p.z);
-        cart.inst.transform.setToTranslation(p.x, y, p.z).rotate(Vector3.Y, m.facing * MathUtils.radiansToDegrees);
-        cart.pos.set(p.x, y, p.z);
+        // Colada no cavalo: a carroça usa a mesma transformação do cavalo, 3,2 m atrás (as varas tocam a traseira)
+        cart.inst.transform.set(m.inst.transform).translate(0f, 0f, -3.2f);
+        cart.inst.transform.getTranslation(cart.pos);
     }
 
     /** Lugar do cavaleiro na carroça (o banco). */
