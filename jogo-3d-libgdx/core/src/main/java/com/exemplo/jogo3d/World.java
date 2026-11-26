@@ -249,6 +249,7 @@ public class World {
 
     /** Altura do terreno em (x, z). A estrada (z = 0) é plana, e o terreno se ajusta suavemente a ela. */
     public float heightAt(float x, float z) {
+        if (training) return 0f;   // treino: chão reto
         float rz = roadZ(x);
         float road = baseHeight(x, rz);
         float t = MathUtils.clamp((Math.abs(z - rz) - ROAD_HALF) / ROAD_SHOULDER, 0f, 1f);
@@ -265,7 +266,6 @@ public class World {
         }
         // Lugares planos (cemitério e galpão de treino): chão reto no meio, aterro suave em volta
         if (hasCem) y = padBlend(x, z, y, cemX, cemZ, CEM_HW, CEM_HD, cemH);
-        if (hasTrain) y = padBlend(x, z, y, trainX, trainZ, TR_HW, TR_HD, trainH);
         return y;
     }
 
@@ -405,7 +405,6 @@ public class World {
             }
         }
         chooseCemetery();
-        chooseTrainingSite();
     }
 
     /** Lugar do cemitério: sertão longe da estrada, da vila e dos outros locais, no trecho mais plano. */
@@ -455,87 +454,6 @@ public class World {
         return ph + (y - ph) * cs;
     }
 
-    // ---------- Galpão de treino (modo treinamento) ----------
-    static final float TR_HW = 6f, TR_HD = 4f;   // meia largura e meio fundo do galpão (interior)
-    boolean hasTrain = false;
-    float trainX, trainZ, trainH;
-
-    /** Lugar plano longe do cemitério para o galpão de treino (mesma regra do cemitério). */
-    private void chooseTrainingSite() {
-        Random r = new Random(4242L);
-        float best = 1e9f;
-        for (int t = 0; t < 500; t++) {
-            float x = (r.nextFloat() * 2f - 1f) * (HALF - 80f), z = (r.nextFloat() * 2f - 1f) * (HALF - 80f);
-            if (Regions.at(x, z) != Regions.Region.SERTAO) continue;
-            if (Math.abs(z - roadZ(x)) < 90f || Math.abs(x - riverX(z)) < 30f) continue;
-            if (Math.hypot(x - TOWN_X, z - TOWN_Z) < 150f || Math.hypot(x, z) < 60f) continue;
-            if (nearWellOrDam(x, z, 50f) || Regions.farmDist(x, z) < 60f) continue;
-            if (hasCem && Math.hypot(x - cemX, z - cemZ) < 90f) continue;
-            float mn = 1e9f, mx = -1e9f;
-            for (int i = -4; i <= 4; i++) for (int j = -4; j <= 4; j++) {
-                float h = heightAt(x + i * 3.75f, z + j * 3.75f);
-                mn = Math.min(mn, h);
-                mx = Math.max(mx, h);
-            }
-            if (mx - mn < best) {
-                best = mx - mn;
-                trainX = x;
-                trainZ = z;
-            }
-        }
-        hasTrain = best < 1e8f;
-        if (hasTrain) {
-            float sum = 0f;
-            int n = 0;
-            for (float lx = -TR_HW; lx <= TR_HW + 0.01f; lx += 2f) for (float lz = -TR_HD; lz <= TR_HD + 0.01f; lz += 2f) {
-                sum += heightAt(trainX + lx, trainZ + lz);
-                n++;
-            }
-            trainH = sum / n;
-        }
-    }
-
-    /** Perto do galpão de treino (para não nascer planta ou pedra dentro dele). */
-    boolean nearTraining(float x, float z, float margin) {
-        return hasTrain && Math.abs(x - trainX) < TR_HW + margin && Math.abs(z - trainZ) < TR_HD + margin;
-    }
-
-    /** Pelo galpão fechado: 4 paredes (porta de 2 m no lado sul), teto e piso. Colisão e tiro com as paredes. */
-    private void addTrainingShed() {
-        if (!hasTrain) return;
-        ModelBuilder mb = new ModelBuilder();
-        long attrs = Usage.Position | Usage.Normal;
-        float h = 3f, t = 0.3f;
-        addShedPart(mb, attrs, trainX, trainZ + TR_HD, 2 * TR_HW + t, t, false, h, new Color(0.52f, 0.36f, 0.22f, 1f));   // norte
-        addShedPart(mb, attrs, trainX - (TR_HW + 1f) / 2f - 0.5f, trainZ - TR_HD, TR_HW - 1f + 0.5f, t, false, h, new Color(0.46f, 0.32f, 0.2f, 1f));   // sul, esquerda
-        addShedPart(mb, attrs, trainX + (TR_HW + 1f) / 2f + 0.5f, trainZ - TR_HD, TR_HW - 1f + 0.5f, t, false, h, new Color(0.46f, 0.32f, 0.2f, 1f));   // sul, direita
-        addShedPart(mb, attrs, trainX - TR_HW, trainZ, 2 * TR_HD + t, t, true, h, new Color(0.5f, 0.35f, 0.21f, 1f));   // oeste
-        addShedPart(mb, attrs, trainX + TR_HW, trainZ, 2 * TR_HD + t, t, true, h, new Color(0.5f, 0.35f, 0.21f, 1f));   // leste
-        // teto e piso (sem colisão: só visual)
-        Model roof = mb.createBox(2 * TR_HW + 1f, 0.25f, 2 * TR_HD + 1f, new Material(ColorAttribute.createDiffuse(0.36f, 0.24f, 0.14f, 1f)), attrs);
-        loaded.add(roof);
-        ModelInstance ri = new ModelInstance(roof);
-        ri.transform.setToTranslation(trainX, trainH + h + 0.12f, trainZ);
-        instances.add(ri);
-        Model floor = mb.createBox(2 * TR_HW, 0.1f, 2 * TR_HD, new Material(ColorAttribute.createDiffuse(0.42f, 0.30f, 0.18f, 1f)), attrs);
-        loaded.add(floor);
-        ModelInstance fi = new ModelInstance(floor);
-        fi.transform.setToTranslation(trainX, trainH + 0.05f, trainZ);
-        instances.add(fi);
-    }
-
-    /** Uma parede do galpão: visual (caixa) e colisão (Box). len ao longo de x (ou de z, se alongZ). */
-    private void addShedPart(ModelBuilder mb, long attrs, float cx, float cz, float len, float thick, boolean alongZ, float h, Color c) {
-        float yaw = alongZ ? 90f : 0f;
-        Matrix4 t = new Matrix4().setToTranslation(cx, trainH, cz).rotate(Vector3.Y, yaw);
-        boxes.add(new Box(t, len / 2f, thick / 2f, h));
-        Model m = mb.createBox(len, h, thick, new Material(ColorAttribute.createDiffuse(c)), attrs);
-        loaded.add(m);
-        ModelInstance mi = new ModelInstance(m);
-        mi.transform.set(t).translate(0f, h / 2f, 0f);
-        instances.add(mi);
-    }
-
     /** Dentro (ou a 'margin' metros) do cemitério. */
     boolean nearCemetery(float x, float z, float margin) {
         return hasCem && Math.abs(x - cemX) < CEM_HW + margin && Math.abs(z - cemZ) < CEM_HD + margin;
@@ -565,7 +483,96 @@ public class World {
                 .setUV(x / TEXTURE_TILE, z / TEXTURE_TILE);
     }
 
+    /** Mundo do battle royale (false) ou do treinamento (true: só galpão, bonecos e caixa de armas). */
+    final boolean training;
+
+    World() { this(false); }
+
+    World(boolean training) { this.training = training; }
+
+    // ---------- Modo treinamento ----------
+    static final float SHED_HW = 15f, SHED_HD = 8f, SHED_H = 8f;   // galpão: 30 x 16 m, 8 m de altura
+    static final float TRAIN_PLAYER_X = 0f, TRAIN_PLAYER_Z = -4f;  // onde o jogador nasce, virado para o fundo
+    static final float TRAIN_DUMMY_Z = 4f;                          // os bonecos ficam no fundo do galpão
+    static final float TRAIN_BOX_X = 11f, TRAIN_BOX_Z = -5f;        // caixa de equipamentos
+    static final float TRAIN_LIMIT = 60f;                          // o treino acaba numa cerca invisível
+
+    /** Galpão, chão, caixa de equipamentos e limite. Sem terreno, cidade, casas nem avião. */
+    private void buildTraining() {
+        ModelBuilder mb = new ModelBuilder();
+        long attrs = Usage.Position | Usage.Normal | Usage.TextureCoordinates;
+        Color wood = new Color(0.45f, 0.30f, 0.18f, 1f), woodDark = new Color(0.30f, 0.19f, 0.11f, 1f);
+        Color metal = new Color(0.55f, 0.56f, 0.58f, 1f), metalDark = new Color(0.27f, 0.28f, 0.30f, 1f);
+        Color olive = new Color(0.33f, 0.37f, 0.22f, 1f);
+        // Chão de terra (textura repetida)
+        dirtTexture = new Texture(Gdx.files.internal("textures/ground_basecolor.jpg"));
+        dirtTexture.setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat);
+        TextureAttribute tex = TextureAttribute.createDiffuse(dirtTexture);
+        tex.scaleU = 40f;
+        tex.scaleV = 40f;
+        Model ground = mb.createBox(2 * TRAIN_LIMIT, 0.2f, 2 * TRAIN_LIMIT, new Material(tex), attrs);
+        loaded.add(ground);
+        ModelInstance gi = new ModelInstance(ground);
+        gi.transform.setToTranslation(0f, -0.1f, 0f);
+        instances.add(gi);
+        // Piso de tábuas
+        addTrainVisual(mb, attrs, 2 * SHED_HW, 0.08f, 2 * SHED_HD, 0f, 0.04f, 0f, wood);
+        // Paredes: metal no fundo, madeira nos lados e na frente, com porta de 10 m (o lado sul)
+        float t = 0.3f;
+        addTrainWall(mb, attrs, 0f, SHED_HD, 2 * SHED_HW, t, false, 0f, SHED_H, metal);
+        addTrainWall(mb, attrs, -SHED_HW, 0f, 2 * SHED_HD, t, true, 0f, SHED_H, wood);
+        addTrainWall(mb, attrs, SHED_HW, 0f, 2 * SHED_HD, t, true, 0f, SHED_H, wood);
+        addTrainWall(mb, attrs, -10f, -SHED_HD, 10f, t, false, 0f, SHED_H, wood);
+        addTrainWall(mb, attrs, 10f, -SHED_HD, 10f, t, false, 0f, SHED_H, wood);
+        addTrainWall(mb, attrs, 0f, -SHED_HD, 10f, t, false, 5.5f, SHED_H, wood);   // verga da porta
+        // Cobertura de metal e estrutura: vigas de metal e pilares de madeira (só visual)
+        addTrainWall(mb, attrs, 0f, 0f, 2 * SHED_HW + 1f, 2 * SHED_HD + 1f, false, SHED_H, SHED_H + 0.25f, metalDark);
+        for (float x = -10f; x <= 10.01f; x += 5f) addTrainVisual(mb, attrs, 0.25f, 0.4f, 2 * SHED_HD, x, SHED_H - 0.3f, 0f, metal);
+        for (float z = -SHED_HD; z <= SHED_HD + 0.01f; z += 4f) addTrainVisual(mb, attrs, 2 * SHED_HW, 0.4f, 0.25f, 0f, SHED_H - 0.3f, z, metal);
+        for (float x : new float[]{-SHED_HW, SHED_HW, -5f, 5f}) for (float z : new float[]{-SHED_HD, SHED_HD})
+            addTrainVisual(mb, attrs, 0.45f, SHED_H, 0.45f, x, SHED_H / 2f, z, woodDark);
+        // Caixa de equipamentos: corpo verde-oliva e tampa
+        addTrainVisual(mb, attrs, 1.6f, 0.9f, 1.0f, TRAIN_BOX_X, 0.45f, TRAIN_BOX_Z, olive);
+        addTrainVisual(mb, attrs, 1.7f, 0.1f, 1.1f, TRAIN_BOX_X, 0.95f, TRAIN_BOX_Z, metalDark);
+        boxes.add(new Box(new Matrix4().setToTranslation(TRAIN_BOX_X, 0f, TRAIN_BOX_Z), 0.85f, 0.55f, 1.0f));
+        // Cerca invisível em volta do treino (colisão e tiro)
+        float L = TRAIN_LIMIT;
+        boxes.add(new Box(new Matrix4().setToTranslation(-L, 0f, 0f).rotate(Vector3.Y, 90f), L, 0.5f, 6f));   // lado oeste (corre em z)
+        boxes.add(new Box(new Matrix4().setToTranslation(L, 0f, 0f).rotate(Vector3.Y, 90f), L, 0.5f, 6f));    // lado leste
+        boxes.add(new Box(new Matrix4().setToTranslation(0f, 0f, -L), 0.5f, L, 6f));
+        boxes.add(new Box(new Matrix4().setToTranslation(0f, 0f, L), 0.5f, L, 6f));
+        // Armas e itens (sem nada espalhado), fogo sem fontes
+        fire = new Fire();
+        weapons = new Weapons();
+        items = new Items();
+    }
+
+    private void addTrainVisual(ModelBuilder mb, long attrs, float w, float h, float d, float x, float y, float z, Color c) {
+        Model m = mb.createBox(w, h, d, new Material(ColorAttribute.createDiffuse(c)), attrs);
+        loaded.add(m);
+        ModelInstance mi = new ModelInstance(m);
+        mi.transform.setToTranslation(x, y, z);
+        instances.add(mi);
+    }
+
+    /** Parede do galpão: visual e colisão (Box com base em y0). */
+    private void addTrainWall(ModelBuilder mb, long attrs, float cx, float cz, float len, float thick, boolean alongZ,
+                              float y0, float y1, Color c) {
+        float h = y1 - y0, yaw = alongZ ? 90f : 0f;
+        Matrix4 t = new Matrix4().setToTranslation(cx, y0, cz).rotate(Vector3.Y, yaw);
+        boxes.add(new Box(t, len / 2f, thick / 2f, h));
+        Model m = mb.createBox(len, h, thick, new Material(ColorAttribute.createDiffuse(c)), attrs);
+        loaded.add(m);
+        ModelInstance mi = new ModelInstance(m);
+        mi.transform.set(t).translate(0f, h / 2f, 0f);
+        instances.add(mi);
+    }
+
     public void create() {
+        if (training) {
+            buildTraining();
+            return;
+        }
         dirtTexture = new Texture(Gdx.files.internal("textures/ground_basecolor.jpg"));
         dirtTexture.setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat);
         crackTexture = new Texture(Gdx.files.internal("textures/cracks.jpg"));
@@ -769,7 +776,6 @@ public class World {
             }
         }
         addPlacesAndPlants(rnd);
-        addTrainingShed();
         addTrailsCracksBirds(rnd);
         // Armas espalhadas: dentro das casas, na frente das casas da cidade e soltas pelo mapa
         weapons = new Weapons();
@@ -958,11 +964,11 @@ public class World {
      * 'dir' é unitário, do personagem para a câmera. Devolve no máximo 'maxDist'.
      */
     float cameraDistance(Vector3 pivot, Vector3 dir, float maxDist) {
-        float step = 0.12f;
+        float step = 0.05f;   // passo fino: paredes finas não são pulas
         Vector3 p = new Vector3();
         for (float d = step; d <= maxDist; d += step) {
             p.set(pivot).mulAdd(dir, d);
-            if (cameraBlocked(p)) return Math.max(0.6f, d - 0.3f);
+            if (cameraBlocked(p)) return Math.max(0.15f, d - 0.2f);   // para antes da parede, pode chegar perto
         }
         return maxDist;
     }
@@ -1344,7 +1350,7 @@ public class World {
             x = (rnd.nextFloat() * 2f - 1f) * (HALF - margin);
             z = (rnd.nextFloat() * 2f - 1f) * (HALF - margin);
         } while (Math.sqrt(x * x + z * z) < 14f || Math.abs(z - roadZ(x)) < ROAD_HALF + 6f
-                || Math.abs(x - riverX(z)) < 6f || nearEnclosure(x, z) || inTown(x, z) || nearCemetery(x, z, 6f) || nearTraining(x, z, 6f));
+                || Math.abs(x - riverX(z)) < 6f || nearEnclosure(x, z) || inTown(x, z) || nearCemetery(x, z, 6f));
         return new float[]{x, z};
     }
 
@@ -1430,7 +1436,7 @@ public class World {
 
     /** Perto de casa, cercado, poço ou açude: os cactos não nascem ali. */
     private boolean nearLandmark(float x, float z) {
-        if (nearWellOrDam(x, z, 10f) || nearCemetery(x, z, 12f) || nearTraining(x, z, 12f)) return true;
+        if (nearWellOrDam(x, z, 10f) || nearCemetery(x, z, 12f)) return true;
         for (int k = 0; k < enclosureCenters.size; k++) {
             float[] c = enclosureCenters.get(k);
             if (Math.hypot(x - c[0], z - c[1]) < 14f) return true;
@@ -1755,7 +1761,7 @@ public class World {
         if (airplane != null) airplane.dispose();
         if (weapons != null) weapons.dispose();
         if (items != null) items.dispose();
-        casaModel.dispose();
+        if (casaModel != null) casaModel.dispose();
         if (crackTexture != null) crackTexture.dispose();
         if (damModel != null) damModel.dispose();
         if (guardModel != null) guardModel.dispose();
@@ -1765,14 +1771,14 @@ public class World {
         fences.dispose();
         if (fire != null) fire.dispose();
         for (Model m : new Model[]{stoveModel, hammockModel, benchModel, treeModel, pole}) if (m != null) m.dispose();
-        troughModel.dispose();
-        postModel.dispose();
-        cartModel.dispose();
-        for (Model m : cactusModels) m.dispose();
-        horseModel.dispose();
-        donkeyModel.dispose();
+        if (troughModel != null) troughModel.dispose();
+        if (postModel != null) postModel.dispose();
+        if (cartModel != null) cartModel.dispose();
+        if (cactusModels != null) for (Model m : cactusModels) m.dispose();
+        if (horseModel != null) horseModel.dispose();
+        if (donkeyModel != null) donkeyModel.dispose();
         if (ropeModel != null) ropeModel.dispose();
-        dirtTexture.dispose();
+        if (dirtTexture != null) dirtTexture.dispose();
         for (int i = 0; i < loaded.size; i++) loaded.get(i).dispose();
     }
 }

@@ -48,12 +48,25 @@ public class TargetBotTests extends ApplicationAdapter {
         World w = new World();
         w.create();
         Model jake = ModelIO.load("models/jake/jake.g3dj");
-        Enemies en = new Enemies(w, jake, null);
-        en.spawnDummies(w);
+        World wt = new World(true);   // mundo de treino (galpão, caixa e bonecos)
+        wt.create();
+        Enemies en = new Enemies(wt, jake, null);
+        en.spawnDummies(wt);
         check("dois bonecos no treino", en.list.size == 2 && Enemies.COUNT == 2, "" + en.list.size);
+        check("treino: sem avião, cidade nem terreno (chão reto)", wt.airplane == null && wt.town == null && wt.heightAt(5f, 5f) == 0f, "");
+        check("treino: tem arma, itens e caixa de equipamentos", wt.weapons != null && wt.items != null
+                && Math.hypot(World.TRAIN_BOX_X - World.TRAIN_PLAYER_X, World.TRAIN_BOX_Z - World.TRAIN_PLAYER_Z) < 20f, "");
+        // Câmera: a parede lateral do galpão (x = -15) fica entre o jogador e a câmera; do outro lado, a distância é livre
+        Vector3 pv = new Vector3(-13f, 1.5f, 0f);
+        float blocked = wt.cameraDistance(pv, new Vector3(-1f, 0f, 0f), 3f);
+        float free = wt.cameraDistance(pv, new Vector3(1f, 0f, 0f), 3f);
+        check("câmera para antes da parede (não atravessa)", blocked < 2.2f && blocked >= 0.15f, String.format("%.2f m", blocked));
+        check("câmera com espaço livre vai à distância normal", Math.abs(free - 3f) < 1e-3f, String.format("%.2f m", free));
+        float close = wt.cameraDistance(new Vector3(-14.6f, 1.5f, 0f), new Vector3(-1f, 0f, 0f), 3f);
+        check("câmera encostada na parede fica perto, sem entrar", close >= 0.15f && close < 0.3f, String.format("%.2f m", close));
         Enemy t = en.list.get(0);
-        check("bonecos dentro do galpão", w.hasTrain && Math.abs(t.pos.x - w.trainX) < World.TR_HW
-                && Math.abs(t.pos.z - w.trainZ) < World.TR_HD && t.dummy && en.list.get(1).dummy, "");
+        check("bonecos dentro do galpão", wt.training && Math.abs(t.pos.x) < World.SHED_HW
+                && Math.abs(t.pos.z - World.TRAIN_DUMMY_Z) < 0.01f && t.dummy && en.list.get(1).dummy, "");
 
         // parado: não anda nem atira, mesmo com o jogador perto
         PerspectiveCamera cam = new PerspectiveCamera(67, 1920, 1080);

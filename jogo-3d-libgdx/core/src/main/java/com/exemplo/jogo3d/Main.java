@@ -82,7 +82,8 @@ public class Main extends ApplicationAdapter {
     private final float[][] menuRects = new float[MENU_ITEMS.length][4];
     private static final String[] MENU_ITEMS = {"BATTLE ROYALE", "TREINAMENTO", "CONFIGURAÇÕES"};
     private boolean training = false;   // modo treinamento (galpão com dois bonecos) em vez do battle royale
-    private boolean trainPanel = false; // caixa de armas do treino (aberta pelo botão ARMAS)
+    private boolean trainPanel = false; // caixa de equipamentos do treino (lista de armas)
+    private boolean trainBoxNear = false;   // perto da caixa de equipamentos (mostra o botão de ação)
     private final float[] trainUsar = new float[6 * 4];   // botões USAR de cada arma (x, y, w, h)
     private final float[] trainFechar = new float[4];
     // Itens: vida/energia/água, granadas, HUD dos itens e mapa
@@ -181,13 +182,6 @@ public class Main extends ApplicationAdapter {
             errorText = "ERRO NO HUD:\n" + describe(t);
         }
 
-        world = new World();
-        try {
-            world.create();
-        } catch (Throwable t) {
-            errorText = "ERRO NO MUNDO:\n" + describe(t);
-        }
-
         character = new Character();
         try {
             character.create();
@@ -196,7 +190,6 @@ public class Main extends ApplicationAdapter {
         }
         // Moradores da cidade (usam o modelo do personagem, com roupas de outras cores)
         try {
-            inPlane = world.airplane != null;   // o jogo começa dentro do avião
             chute = new Parachute();
             survival = new Survival();
             try {
@@ -211,19 +204,10 @@ public class Main extends ApplicationAdapter {
             } catch (Throwable t) {
                 windSound = null;
             }
-            if (world.items != null) grenades = new Grenades(world.items);
-            mapUi = new MapUi(world);
-            places = new Places(world);
             AimSettings.load();
             fx = new CombatFx();
             damage = new DamageSystem(fx);
-            if (character.model() != null)
-                enemies = new Enemies(world, character.model(), world.weapons != null ? world.weapons.models() : null);
-            if (grenades != null) grenades.enemies = enemies;
-            if (world.weapons != null) {
-                shooting = new ShootingSystem(world, world.weapons, enemies, damage, fx, environment);
-                fx.setAudio(shooting.audio);
-            }
+            loadWorld(false);   // battle royale: o avião, o mapa e o jogo começam aqui
         } catch (Throwable t) {
             errorText = "ERRO NOS MORADORES:\n" + describe(t);
         }
@@ -780,7 +764,7 @@ public class Main extends ApplicationAdapter {
             }
             float[] b = trainButton(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
             if (x >= b[0] && x <= b[0] + b[2] && yb >= b[1] && yb <= b[1] + b[3]) {
-                trainPanel = true;
+                exitTraining();   // MENU: volta ao menu principal
                 return;
             }
         }
@@ -824,6 +808,15 @@ public class Main extends ApplicationAdapter {
             return;
         }
         Hud.El e = hud.hitTest(x, yb);
+        // Tocar na caixa de equipamentos (no treino, perto dela): abre a lista de armas
+        if (e == null && training && trainBoxNear && !trainPanel) {
+            Vector3 bp = new Vector3(World.TRAIN_BOX_X, 0.5f, World.TRAIN_BOX_Z);
+            camera.project(bp);
+            if (Math.hypot(bp.x - x, bp.y - yb) < H * 0.12f) {
+                trainPanel = true;
+                return;
+            }
+        }
         String id = e == null ? "" : e.id;
         switch (id) {
             case "config":
@@ -920,6 +913,10 @@ public class Main extends ApplicationAdapter {
                 }
                 return;
             case "abrir":
+                if (trainBoxNear) {   // no treino, perto da caixa: abre a lista de armas
+                    trainPanel = true;
+                    return;
+                }
                 if (inPlane) {
                     startSkydive();
                     return;
@@ -989,7 +986,9 @@ public class Main extends ApplicationAdapter {
         hud.joyY = joyY;
         boolean canGetUp = lyingIn != null && lyingIn.lie == HouseDecor.Lie.LYING;
         boolean dead = survival != null && survival.dead;
-        hud.show("abrir", !dead && (inPlane || prompt != null || mountTarget != null || doorTarget != null
+        trainBoxNear = training && !inPlane && !dead
+                && Math.hypot(player.pos.x - World.TRAIN_BOX_X, player.pos.z - World.TRAIN_BOX_Z) < 2.6;
+        hud.show("abrir", !dead && (trainBoxNear || inPlane || prompt != null || mountTarget != null || doorTarget != null
                 || hammockTarget != null || canGetUp || cartTarget != null || cartOptionsHorse != null));
         hud.show("coletar", !dead && itemTarget != null);
         hud.show("trocar", !dead && world.weapons != null && world.weapons.hasWeapon());
@@ -1004,6 +1003,7 @@ public class Main extends ApplicationAdapter {
         hud.show("usar_kit", !dead && world.items != null && survival != null && survival.health < 75f && survival.using < 0
                 && (world.items.bag[Survival.MEDKIT] > 0 || world.items.bag[Survival.BANDAGEM] > 0));
         if (inPlane) hud.promptText = "SALTAR DO AVIÃO";
+        else if (trainBoxNear) hud.promptText = "EQUIPAMENTOS";
         else if (prompt != null) hud.promptText = prompt.label();
         else if (cartOptionsHorse != null) hud.promptText = "TIRAR CARROÇA  |  SENTAR NA CARROÇA";
         else if (cartTarget != null) hud.promptText = "PRENDER CARROÇA";
@@ -1132,6 +1132,36 @@ public class Main extends ApplicationAdapter {
     }
 
     /** Jogar: partida nova (avião e alvo de volta ao começo). */
+    /**
+     * Carrega um mundo (battle royale ou treinamento) e tudo que depende dele. O mundo anterior sai da
+     * memória antes. No treinamento o mundo só tem o galpão, a caixa e os bonecos.
+     */
+    private void loadWorld(boolean training) {
+        if (world != null) {
+            if (character != null) world.weapons.unequip(character);
+            world.dispose();
+        }
+        if (mapUi != null) mapUi.dispose();
+        world = new World(training);
+        try {
+            world.create();
+        } catch (Throwable t) {
+            errorText = "ERRO NO MUNDO:\n" + describe(t);
+        }
+        inPlane = !training && world.airplane != null;
+        grenades = world.items != null ? new Grenades(world.items) : null;
+        mapUi = training ? null : new MapUi(world);
+        places = training ? null : new Places(world);
+        enemies = character.model() != null
+                ? new Enemies(world, character.model(), world.weapons != null ? world.weapons.models() : null) : null;
+        if (grenades != null) grenades.enemies = enemies;
+        if (world.weapons != null) {
+            if (shooting != null) shooting.dispose();   // sons do sistema de tiro anterior
+            shooting = new ShootingSystem(world, world.weapons, enemies, damage, fx, environment);
+            fx.setAudio(shooting.audio);
+        }
+    }
+
     private void startMatch() {
         training = false;
         inMenu = false;
@@ -1161,8 +1191,13 @@ public class Main extends ApplicationAdapter {
             shapes.end();
             batch.begin();
             font.setColor(0.98f, 0.9f, 0.7f, 1f);
-            layout.setText(font, "ARMAS");
-            font.draw(batch, "ARMAS", b[0] + (b[2] - layout.width) / 2f, b[1] + (b[3] + layout.height) / 2f);
+            layout.setText(font, "MENU");
+            font.draw(batch, "MENU", b[0] + (b[2] - layout.width) / 2f, b[1] + (b[3] + layout.height) / 2f);
+            int dano = 0;
+            if (enemies != null) for (int i = 0; i < enemies.list.size; i++) dano += Math.round(enemies.list.get(i).dummyDamage);
+            String txt = "DANO NOS BONECOS: " + dano;
+            layout.setText(font, txt);
+            font.draw(batch, txt, (W - layout.width) / 2f, b[1] - H * 0.02f);
             batch.end();
             return;
         }
@@ -1217,8 +1252,8 @@ public class Main extends ApplicationAdapter {
         font.setColor(1f, 0.95f, 0.85f, 1f);
         font.draw(batch, "FECHAR", trainFechar[0] + (trainFechar[2] - layout.width) / 2f,
                 trainFechar[1] + (trainFechar[3] + layout.height) / 2f);
-        layout.setText(font, "ARMAS DO TREINO");
-        font.draw(batch, "ARMAS DO TREINO", px + (pw - layout.width) / 2f, py + ph - ph * 0.04f);
+        layout.setText(font, "EQUIPAMENTOS");
+        font.draw(batch, "EQUIPAMENTOS", px + (pw - layout.width) / 2f, py + ph - ph * 0.04f);
         batch.end();
     }
 
@@ -1228,6 +1263,7 @@ public class Main extends ApplicationAdapter {
             float[] u = trainUsar;
             if (x >= u[i * 4] && x <= u[i * 4] + u[i * 4 + 2] && yb >= u[i * 4 + 1] && yb <= u[i * 4 + 1] + u[i * 4 + 3]) {
                 if (world.weapons != null) world.weapons.giveStart(i, character);
+                if (enemies != null) for (int k = 0; k < enemies.list.size; k++) enemies.list.get(k).dummyDamage = 0f;
                 survival.say(Weapons.NAMES[i]);
                 trainPanel = false;
                 return;
@@ -1236,11 +1272,20 @@ public class Main extends ApplicationAdapter {
         trainPanel = false;   // FECHAR e qualquer toque fora da caixa
     }
 
-    /** Treinamento: o jogador nasce dentro do galpão, com um rifle, e os dois bonecos ficam parados. */
+    /** Treinamento: mundo próprio (galpão, caixa e bonecos). O jogador nasce dentro, com um AKM. */
     private void startTraining() {
         training = true;
         inMenu = false;
+        loadWorld(true);
         respawnTraining();
+    }
+
+    /** Volta do treinamento ao menu principal, com o battle royale carregado de novo. */
+    private void exitTraining() {
+        trainPanel = false;
+        training = false;
+        loadWorld(false);
+        goMenu();
     }
 
     private void respawnTraining() {
@@ -1262,7 +1307,7 @@ public class Main extends ApplicationAdapter {
         landing = false;
         inPlane = false;
         yaw = 0f;
-        player.spawn(world.trainX, world.trainZ - 1.5f, world.heightAt(world.trainX, world.trainZ - 1.5f));
+        player.spawn(World.TRAIN_PLAYER_X, World.TRAIN_PLAYER_Z, world.heightAt(World.TRAIN_PLAYER_X, World.TRAIN_PLAYER_Z));
         player.facing = 0f;
         if (enemies != null) enemies.spawnDummies(world);
     }

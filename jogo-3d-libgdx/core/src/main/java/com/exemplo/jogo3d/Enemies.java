@@ -31,16 +31,14 @@ final class Enemies {
         this.guns = guns;
     }
 
-    /** Modo treinamento: dois bonecos parados dentro do galpão, de frente para a entrada. */
+    /** Modo treinamento: dois bonecos parados no fundo do galpão, de frente para a porta. */
     void spawnDummies(World w) {
         list.clear();
-        float px = w.trainX, pz = w.trainZ - 1.5f;   // onde o jogador nasce
-        float[][] pos = {{w.trainX - 2.2f, w.trainZ + 2f}, {w.trainX + 2.2f, w.trainZ + 2f}};
-        for (float[] p : pos) {
-            Enemy e = new Enemy(body, null, p[0], p[1], 0.3f);
+        for (float x : new float[]{-3.5f, 3.5f}) {
+            Enemy e = new Enemy(body, null, x, World.TRAIN_DUMMY_Z, 0.3f);
             e.dummy = true;
-            e.pos.y = w.groundAt(p[0], p[1]);
-            e.facing = MathUtils.atan2(px - p[0], pz - p[1]);
+            e.pos.y = w.groundAt(x, World.TRAIN_DUMMY_Z);
+            e.facing = MathUtils.atan2(World.TRAIN_PLAYER_X - x, World.TRAIN_PLAYER_Z - World.TRAIN_DUMMY_Z);
             list.add(e);
         }
     }

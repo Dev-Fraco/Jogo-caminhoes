@@ -163,7 +163,8 @@ final class Enemy {
     private float hitT, hitDur = 0.18f, hitMag;   // reação ao dano (o corpo recua um pouco, o pano pisca)
     final Vector3 muzzle = new Vector3();
     boolean visibleToCam;   // dentro da distância de desenho (para não animar longe)
-    boolean dummy;          // alvo parado para ajustar a mira: não anda, não atira e não morre
+    boolean dummy;          // boneco de treino: parado, não atira e não morre
+    float dummyDamage;      // dano total levado (mostrado no treino)
 
     Enemy(Model body, Model gunModel, float x, float z, float seed) {
         inst = new ModelInstance(body);
@@ -505,7 +506,11 @@ final class Enemy {
 
     /** Leva dano; devolve true se morreu agora. */
     boolean damage(float amount, Vector3 from) {
-        if (state == State.DEAD || dummy) return false;
+        if (dummy) {   // boneco de treino: não cai nem reage, só soma o dano para o treino
+            dummyDamage += amount;
+            return false;
+        }
+        if (state == State.DEAD) return false;
         barT = 3f;
         health -= amount;
         // virou alvo: entra em combate (se tiver arma) e encara o atirador
