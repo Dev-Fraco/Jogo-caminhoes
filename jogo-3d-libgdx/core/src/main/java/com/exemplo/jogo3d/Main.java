@@ -118,6 +118,7 @@ public class Main extends ApplicationAdapter {
     private float fireLastX, fireLastY;
     private boolean firePressed = false;          // acabou de apertar (armas sem automático)
     private final TouchFire touchFire = new TouchFire();
+    private final Camp camp = new Camp();
     private boolean adsOn = false;                // mirando (botão de mira)
     private boolean combat = false;               // armado e no chão: câmera por cima do ombro
     private boolean overEnemy = false;
@@ -416,6 +417,7 @@ public class Main extends ApplicationAdapter {
         // Itens em uso: cura e beber se abaixam e cancelam ao andar
         if (survival != null) {
             boolean moved = player.speed > 0.7f || jumpPressed || !player.grounded || ridingActive || skydiving || parachuting;
+            survival.restBonus = camp.warmth(player.pos) + (lyingIn != null && lyingIn.lie == HouseDecor.Lie.LYING ? 3f : 0f);
             int done = survival.update(dt, moved);
             if (done >= 0 && done != Survival.DRINK && world.items != null) world.items.consume(done);
             player.speedMul = survival.speedMul();
@@ -765,7 +767,7 @@ public class Main extends ApplicationAdapter {
             if (k == -2) itemUi.panelOpen = false;
             else if (k >= 0 && k != Items.BACKPACK) {
                 int slot = ItemUi.slotOf(k);
-                itemUi.selected[slot] = k;
+                if (slot >= 0) itemUi.selected[slot] = k;   // a fruta e a lenha não têm espaço na barra
                 if (slot != 2 && world.items.bag[k] > 0) {
                     tryUse(k);
                     itemUi.panelOpen = false;
@@ -1105,6 +1107,15 @@ public class Main extends ApplicationAdapter {
 
     private void tryUse(int t) {
         if (world.items.bag[t] <= 0) { survival.say("SEM " + Items.NAMES[t]); return; }
+        if (t == Items.FRUTA) {   // comer
+            if (survival.eat()) world.items.consume(t);
+            return;
+        }
+        if (t == Items.LENHA) {   // acender uma fogueira aqui
+            if (camp.light(player.pos, world)) world.items.consume(t);
+            else survival.say("JÁ TEM 3 FOGUEIRAS");
+            return;
+        }
         if (survival.canUse(t)) {
             if (Survival.isHeal(t)) runToggle = false;
             survival.start(t);

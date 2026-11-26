@@ -47,7 +47,14 @@ public class World {
     /** Perto de um poço (dá para beber água). */
     boolean nearWater(Vector3 p) {
         if (hasWell && Math.hypot(p.x - wellX, p.z - wellZ) < Landmarks.WELL_OUT + 1.6f) return true;
+        if (hasDam && Math.hypot(p.x - damX, p.z - damZ) < 4.2f) return true;   // o açude (água rala do fundo)
         return town != null && Math.hypot(p.x - TOWN_X, p.z - town.wellZ()) < 2.8f;
+    }
+
+    /** Acende uma fogueira no ponto (chamas e fumaça). */
+    void lightFire(Vector3 p) {
+        float y = groundAt(p.x, p.z);
+        fire.addSource(new Vector3(p.x, y + 0.25f, p.z), new Vector3(p.x, y + 3.5f, p.z));
     }
 
     /** Dentro da área da cidade (casas, praça e roçado). */
@@ -608,6 +615,7 @@ public class World {
         // Itens: cura, energético, granadas e mochila
         items = new Items();
         items.scatter(this, rnd);
+        items.scatterSurvival(this, rnd);
     }
 
     private Model loadModel(String path) {

@@ -94,6 +94,33 @@ final class Props {
         return mb.end();
     }
 
+    /** Feixe de lenha seca (toras empilhadas), ~0,4 m. */
+    static Model lenha() {
+        ModelBuilder mb = new ModelBuilder();
+        mb.begin();
+        MeshPartBuilder p = mb.part("lenha", GL20.GL_TRIANGLES, ATTR, mat(0.42f, 0.30f, 0.18f));
+        for (int i = 0; i < 4; i++) {
+            p.setVertexTransform(new Matrix4().translate(0f, 0.06f + (i / 2) * 0.12f, (i % 2 == 0 ? -0.07f : 0.07f))
+                    .rotate(0f, 1f, 0f, 90f).rotate(0f, 0f, 1f, 90f));
+            p.cylinder(0.11f, 0.5f, 0.11f, 8);
+        }
+        p.setVertexTransform(new Matrix4());
+        return mb.end();
+    }
+
+    /** Fruta do xique-xique (vermelha, sobre a haste verde), ~0,3 m. */
+    static Model fruta() {
+        ModelBuilder mb = new ModelBuilder();
+        mb.begin();
+        MeshPartBuilder fruit = mb.part("fruta", GL20.GL_TRIANGLES, ATTR, mat(0.80f, 0.24f, 0.22f));
+        fruit.setVertexTransform(new Matrix4().translate(0f, 0.12f, 0f));
+        fruit.cylinder(0.18f, 0.16f, 0.18f, 10);
+        MeshPartBuilder haste = mb.part("haste", GL20.GL_TRIANGLES, ATTR, mat(0.40f, 0.55f, 0.36f));
+        haste.setVertexTransform(new Matrix4().translate(0f, 0.02f, 0f));
+        haste.cylinder(0.05f, 0.2f, 0.05f, 6);
+        return mb.end();
+    }
+
     /** Tenda de lona dos retirantes: cone de lona sobre uma base de paus. ~2,2 m. */
     static Model tent() {
         ModelBuilder mb = new ModelBuilder();

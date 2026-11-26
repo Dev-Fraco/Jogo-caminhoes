@@ -23,7 +23,9 @@ final class Survival {
     float deadT = 0f;
     float stun = 0f;          // clarão da granada atordoante (0..1 da tela branca)
     float hurt = 0f;
-    float shake = 0f;         // tremor da câmera ao levar tiro (m)          // vermelho de dano na tela
+    float shake = 0f;         // tremor da câmera ao levar tiro (m)
+    float hunger = 100f;      // fome (100 = cheio); zerada, tira vida
+    float restBonus = 0f;     // vida por segundo de descanso (fogueira, rede)          // vermelho de dano na tela
     String message = null;    // aviso curto (ex.: "VIDA JÁ ESTÁ CHEIA")
     float messageT = 0f;
 
@@ -104,6 +106,11 @@ final class Survival {
             health = Math.min(100f, health + dt * (boost > 60f ? 1.0f : 0.5f));
         }
 
+        // Fome: cai devagar (~15 min para zerar); zerada, tira vida. Descansar recupera vida se não estiver com fome
+        hunger = Math.max(0f, hunger - dt * 100f / 900f);
+        if (hunger <= 0f) damage(dt * 0.5f, false);
+        else if (restBonus > 0f && hunger > 10f) health = Math.min(100f, health + dt * restBonus);
+
         int done = -1;
         if (using >= 0) {
             if (moving && usingStill()) {
@@ -146,6 +153,17 @@ final class Survival {
             deadT = 0f;
             using = -1;
         }
+    }
+
+    /** Come a fruta do xique-xique: a fome cai bem menos. */
+    boolean eat() {
+        if (hunger >= 100f) {
+            say("JÁ ESTÁ SATISFEITO");
+            return false;
+        }
+        hunger = Math.min(100f, hunger + 35f);
+        say("COMEU A FRUTA");
+        return true;
     }
 
     void say(String m) {

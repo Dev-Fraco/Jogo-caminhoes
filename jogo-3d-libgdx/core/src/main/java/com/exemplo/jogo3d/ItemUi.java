@@ -31,7 +31,7 @@ final class ItemUi {
 
     final int[] selected = {Survival.MEDKIT, Survival.ENERGETICO, Grenades.FRAG};
     boolean panelOpen = false;
-    private final float[][] cellRects = new float[9][4];
+    private final float[][] cellRects = new float[Items.NAMES.length][4];
     private final float[] closeRect = new float[4];
     private final GlyphLayout layout = new GlyphLayout();
 
@@ -50,7 +50,7 @@ final class ItemUi {
     /** Toque com o painel da mochila aberto: devolve o item tocado, -2 para fechar, -1 nada. */
     int panelHit(float x, float y) {
         if (in(closeRect, x, y)) return -2;
-        for (int i = 0; i < 9; i++) if (in(cellRects[i], x, y)) return i;
+        for (int i = 0; i < Items.NAMES.length; i++) if (in(cellRects[i], x, y)) return i;
         return -2;   // fora das células: fecha
     }
 
@@ -113,6 +113,8 @@ final class ItemUi {
         float tx = sr[0] + sr[2] * TEXT_X;
         font.draw(batch, hp, tx, sr[1] + sr[3] * 0.684f + layout.height / 2f);
         font.draw(batch, ep, tx, sr[1] + sr[3] * 0.337f + layout.height / 2f);
+        font.setColor(1f, 0.9f, 0.7f, 1f);
+        font.draw(batch, "FOME " + Math.round(sv.hunger), tx, sr[1] + sr[3] * 0.12f + layout.height / 2f);
         // Quantidade na bolinha de cada espaço e o nome do item escolhido ao lado
         for (int s = 0; s < 3; s++) {
             int t = current(s, items);
@@ -217,8 +219,8 @@ final class ItemUi {
     private void drawPanel(SpriteBatch batch, ShapeRenderer shapes, BitmapFont font, Items items, int W, int H) {
         float ph = H * 0.78f, pw = Math.min(W * 0.8f, ph * 1.35f), px = (W - pw) / 2f, py = (H - ph) / 2f;
         float pad = H * 0.025f, top = H * 0.08f;
-        float cw = (pw - pad * 4f) / 3f, ch = (ph - top - pad * 5f - H * 0.07f) / 3f;
-        for (int i = 0; i < 9; i++) {
+        float cw = (pw - pad * 4f) / 3f, ch = (ph - top - pad * 5f - H * 0.07f) / 4f;   // 11 itens: 4 linhas
+        for (int i = 0; i < Items.NAMES.length; i++) {
             int col = i % 3, row = i / 3;
             cellRects[i][0] = px + pad + col * (cw + pad);
             cellRects[i][1] = py + ph - top - pad - (row + 1) * ch - row * pad;
@@ -235,9 +237,9 @@ final class ItemUi {
         shapes.rect(0, 0, W, H);
         shapes.setColor(0.33f, 0.2f, 0.1f, 0.97f);
         shapes.rect(px, py, pw, ph);
-        for (int i = 0; i < 9; i++) {
+        for (int i = 0; i < Items.NAMES.length; i++) {
             boolean has = items.bag[i] > 0;
-            boolean sel = i != Items.BACKPACK && selected[slotOf(i)] == i;
+            boolean sel = i != Items.BACKPACK && slotOf(i) >= 0 && selected[slotOf(i)] == i;
             shapes.setColor(has ? 0.2f : 0.15f, has ? 0.11f : 0.09f, 0.05f, 1f);
             float[] c = cellRects[i];
             shapes.rect(c[0], c[1], c[2], c[3]);
@@ -256,7 +258,7 @@ final class ItemUi {
                 + (items.bag[Items.BACKPACK] > 0 ? "" : "   (ache uma mochila para levar mais)");
         layout.setText(font, title);
         font.draw(batch, title, px + (pw - layout.width) / 2f, py + ph - top * 0.35f);
-        for (int i = 0; i < 9; i++) {
+        for (int i = 0; i < Items.NAMES.length; i++) {
             float[] c = cellRects[i];
             int n = items.bag[i];
             TextureRegion icon = items.icons[i];

@@ -26,9 +26,10 @@ import java.util.Random;
  */
 final class Items {
     static final String[] NAMES = {"KIT MÉDICO", "BANDAGEM", "ANALGÉSICO", "INJEÇÃO", "ENERGÉTICO",
-            "GRANADA", "GRANADA DE FUMAÇA", "GRANADA ATORDOANTE", "MOCHILA"};
+            "GRANADA", "GRANADA DE FUMAÇA", "GRANADA ATORDOANTE", "MOCHILA", "LENHA", "FRUTA DO XIQUE-XIQUE"};
     private static final String[] FILES = {"medkit", "bandagem", "analgesico", "injecao", "energetico",
-            "granada", "granada_fumaca", "granada_atordoante", "mochila"};
+            "granada", "granada_fumaca", "granada_atordoante", "mochila", "lenha", "xique_fruta"};
+    static final int LENHA = 9, FRUTA = 10;   // sobrevivência: pegam do chão, viram fogueira e comida
     private static final float PICK_RANGE = 1.6f;
 
     static final class Pickup {
@@ -53,7 +54,8 @@ final class Items {
 
     Items() {
         for (int i = 0; i < FILES.length; i++) {
-            models[i] = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/itens/" + FILES[i] + ".g3dj"));
+            models[i] = i == LENHA ? Props.lenha() : i == FRUTA ? Props.fruta()
+                    : new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/itens/" + FILES[i] + ".g3dj"));
         }
     }
 
@@ -69,6 +71,18 @@ final class Items {
         if (f < 0.88f) return 6;
         if (f < 0.95f) return 7;
         return 8;
+    }
+
+    /** Lenha e frutas do xique-xique espalhadas pelo sertão (no lugar aberto, como os demais). */
+    void scatterSurvival(World w, Random rnd) {
+        for (int i = 0; i < 40; i++) {
+            float[] p = w.openSpot(rnd);
+            drop(w, LENHA, p[0], p[1], rnd);
+        }
+        for (int i = 0; i < 40; i++) {
+            float[] p = w.openSpot(rnd);
+            drop(w, FRUTA, p[0], p[1], rnd);
+        }
     }
 
     /** Espalha os itens: dentro das casas de taipa, na frente das casas da cidade e soltos pelo mapa. */
