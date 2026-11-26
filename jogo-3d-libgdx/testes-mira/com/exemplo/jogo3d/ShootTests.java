@@ -534,6 +534,21 @@ public class ShootTests extends ApplicationAdapter {
         check("o novo círculo cabe dentro do anterior", Math.hypot(z.cx, z.cz) < 100f, "");
         for (int i = 0; i < 20 * 60 * 30; i++) z.update(1f / 30f);
         check("termina na zona final pequena e para", z.finalPhase() && Math.abs(z.radius - Zone.RADII[Zone.RADII.length - 1]) < 0.5f && z.label().equals("Zona final"), String.format("raio %.1f", z.radius));
+        boolean allInside = true, varied = true;
+        float firstX = 0f;
+        for (int k = 0; k < 300; k++) {
+            Zone zk = new Zone(k * 7919L + 1);
+            if (k == 0) firstX = zk.cx;
+            else if (zk.cx == firstX) varied = false;
+            if (Math.abs(zk.cx) + zk.radius > Zone.MAP_HALF || Math.abs(zk.cz) + zk.radius > Zone.MAP_HALF) allInside = false;
+            if (zk.nextR() > 0 && Math.hypot(zk.nextCx() - zk.cx, zk.nextCz() - zk.cz) + zk.nextR() > zk.radius + 1e-3f) allInside = false;
+        }
+        check("300 partidas: centro aleatório e círculo sempre dentro do mapa", allInside && varied, "");
+        Zone zev = new Zone(5);
+        String evStart = zev.takeEvent();
+        for (int i = 0; i < 101 * 30; i++) zev.update(1f / 30f);
+        String ev1 = zev.takeEvent();
+        check("avisos: começo e 'zona diminuindo' aparecem na tela", evStart != null && ev1 != null && ev1.startsWith("ZONA DIMINUINDO"), String.valueOf(ev1));
         check("o dano fora da zona cresce nas fases finais", z.damagePerSecond() > new Zone(1).damagePerSecond(), z.damagePerSecond() + " vida/s");
 
         System.out.println("== Desempenho e pool ==");

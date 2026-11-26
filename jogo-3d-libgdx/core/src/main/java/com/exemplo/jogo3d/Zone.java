@@ -8,7 +8,8 @@ import com.badlogic.gdx.math.MathUtils;
  * A faixa do HUD mostra o tempo; o minimapa mostra o círculo.
  */
 final class Zone {
-    static final float[] RADII = {175f, 120f, 75f, 40f, 16f};
+    static final float[] RADII = {150f, 120f, 75f, 40f, 16f};   // o primeiro círculo cabe no mapa (360 m) com folga
+    static final float MAP_HALF = World.HALF;
     static final float[] DAMAGE = {1.0f, 2.0f, 3.5f, 5.0f, 8.0f};   // vida por segundo fora da zona
     private static final float FIRST_WAIT = 100f, WAIT = 60f, SHRINK = 40f;   // s (a primeira espera inclui o voo do avião)
 
@@ -18,20 +19,32 @@ final class Zone {
     boolean shrinking;
     private float t;                      // tempo dentro da etapa (espera ou encolhimento)
     private final java.util.Random rnd;
+    private String event;                 // aviso pendente para a tela (lido por takeEvent)
 
+    /** seed: uma por partida (o centro e os próximos círculos saem dele). */
     Zone(long seed) {
         rnd = new java.util.Random(seed);
         reset();
     }
 
+    /** Nova partida: centro aleatório, mas sempre com o círculo inteiro dentro do mapa. */
     void reset() {
         phase = 0;
         shrinking = false;
         t = 0f;
-        cx = (rnd.nextFloat() - 0.5f) * 80f;
-        cz = (rnd.nextFloat() - 0.5f) * 80f;
         radius = RADII[0];
+        float lim = Math.max(0f, MAP_HALF - radius - 2f);
+        cx = (rnd.nextFloat() * 2f - 1f) * lim;
+        cz = (rnd.nextFloat() * 2f - 1f) * lim;
         planNext();
+        event = "PRIMEIRA ZONA: FIQUE DENTRO DO CÍRCULO";
+    }
+
+    /** Aviso da zona para a tela (null se não há nada novo). Consome o aviso. */
+    String takeEvent() {
+        String e = event;
+        event = null;
+        return e;
     }
 
     private void planNext() {
@@ -57,6 +70,7 @@ final class Zone {
             if (t >= wait) {
                 shrinking = true;
                 t = 0f;
+                event = "ZONA DIMINUINDO! CORRA PARA DENTRO DO CÍRCULO";
             }
         } else {
             float k = MathUtils.clamp(t / SHRINK, 0f, 1f);
@@ -68,6 +82,7 @@ final class Zone {
                 phase = Math.min(phase + 1, RADII.length - 1);
                 t = 0f;
                 if (!finalPhase()) planNext();
+                event = finalPhase() ? "ZONA FINAL: O CÍRCULO PAROU" : "ZONA " + (phase + 1) + " ATIVA";
             }
         }
     }

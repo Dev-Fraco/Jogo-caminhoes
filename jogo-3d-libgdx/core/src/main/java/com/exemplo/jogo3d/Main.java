@@ -87,7 +87,7 @@ public class Main extends ApplicationAdapter {
     private int aimType = -1, grenPointer = -1;
     private final Vector3 gFrom = new Vector3(), gVel = new Vector3();
     private boolean dyingShown = false;
-    private final Zone zone = new Zone(1915);
+    private final Zone zone = new Zone(System.nanoTime());   // partida nova = centro novo
     private float zoneMsgT = 0f;
     private com.badlogic.gdx.audio.Sound planeSound;     // motor do avião (loop)
     private long planeSoundId = -1;
@@ -499,6 +499,8 @@ public class Main extends ApplicationAdapter {
         if (mapUi != null) mapUi.update(dt, player.pos);
         // Zona segura: encolhe com o tempo; fora dela a vida cai (não conta dentro do avião)
         zone.update(dt);
+        String zoneEvent = zone.takeEvent();
+        if (zoneEvent != null && survival != null) survival.say(zoneEvent);
         if (survival != null && !survival.dead && !inPlane && !zone.inside(player.pos.x, player.pos.z)) {
             survival.damage(zone.damagePerSecond() * dt, false);
             zoneMsgT -= dt;
