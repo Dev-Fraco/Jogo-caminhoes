@@ -172,9 +172,19 @@ public class BotDropTests extends ApplicationAdapter {
             for (int f = 0; f < 90; f++) { en.update(1f / 30f, w, pl, null, 0f, 0, cam, 90f); }
             float rd1 = (float) Math.hypot(hb.pos.x - pl.x, hb.pos.z - pl.z);
             check("bot ferido (vida 20%) com o jogador à vista recua para longe", rd1 > rd0 + 2f, String.format("de %.1f m para %.1f m", rd0, rd1));
-            // cobertura só com caminho reto livre (sem busca de caminho contornando obstáculos): aqui não há
-            check("cobertura: sem caminho livre até um abrigo, o bot não promete cobertura", !hb.hasCover || hb.canSee,
-                    "cobertura=" + hb.hasCover + ", visto=" + hb.canSee);
+            // cobertura por busca de caminho: um bloco de 2,5 m à frente do bot esconde um ponto atrás dele
+            en.list.clear();
+            World.Obstacle block = new World.Obstacle(open[0] + 6f, open[1] + 3f, 2.5f, w.groundAt(open[0] + 6f, open[1] + 3f), 3f);
+            w.addObstacle(block);
+            Enemy hc = new Enemy(jake, null, open[0] + 12f, open[1], 0.2f);
+            hc.pos.y = w.groundAt(hc.pos.x, hc.pos.z);
+            hc.weapon = WeaponConfig.RIFLE_INIMIGO;
+            hc.health = 20f;
+            en.list.add(hc);
+            for (int f = 0; f < 8 * 30; f++) en.update(1f / 30f, w, pl, null, 0f, 0, cam, 90f);
+            check("busca de caminho: o bot ferido acha cobertura atrás do bloco e fica fora da visão do jogador",
+                    hc.hasCover && !hc.canSee, "cobertura=" + hc.hasCover + ", visto=" + hc.canSee + ", em " + String.format("%.1f,%.1f", hc.pos.x, hc.pos.z));
+            w.removeObstacle(block);
         } else {
             check("área aberta para o teste de recuo", false, "não encontrada");
         }

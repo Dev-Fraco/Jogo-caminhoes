@@ -41,23 +41,85 @@ final class Enemy {
     int reserve = 45;                        // balas de reserva (três pentes)
     float reloadT;
     // Cobertura: ponto atrás do qual quem atira não enxerga o bot
-    private float coverT;
     float coverX, coverZ;
     boolean hasCover;
     private final Vector3 coverEye = new Vector3(), coverP = new Vector3(), coverN = new Vector3();
 
-    /** Caminho livre (sem obstáculos) de (x0, z0) até (x1, z1), testado a cada 0,5 m. */
-    private boolean reachable(World w, float x0, float z0, float x1, float z1) {
-        float dx = x1 - x0, dz = z1 - z0, len = (float) Math.sqrt(dx * dx + dz * dz);
-        int steps = Math.max(1, (int) (len / 0.5f));
-        for (int i = 1; i <= steps; i++) {
-            float t = i / (float) steps;
-            coverN.set(x0 + dx * t, 0f, z0 + dz * t);
-            float px = coverN.x, pz = coverN.z;
-            coverN.y = w.groundAt(px, pz);
-            w.resolveCollisions(coverN, 0.35f);
-            if (Math.abs(coverN.x - px) + Math.abs(coverN.z - pz) > 0.05f) return false;
+    // Busca de caminho até a cobertura: grade de 2 m, 20 m em volta do bot (Dijkstra limitado)
+    private static final int GN = 21;
+    private static final float GC = 2f;
+    private final float[] pathX = new float[GN * GN], pathZ = new float[GN * GN];
+    private int pathLen, pathI;
+    private float pathT;
+    private final float[] gDist = new float[GN * GN];
+    private final int[] gPar = new int[GN * GN];
+    private final boolean[] gDone = new boolean[GN * GN];
+
+    /** Ponto de pé e sem colisão com obstáculos (o colisor não o empurra). */
+    private boolean walkable(World w, float x, float z) {
+        if (Math.abs(x) > World.HALF - 4f || Math.abs(z) > World.HALF - 4f) return false;
+        coverN.set(x, w.groundAt(x, z), z);
+        float px = x, pz = z;
+        w.resolveCollisions(coverN, 0.35f);
+        return Math.abs(coverN.x - px) + Math.abs(coverN.z - pz) < 0.05f;
+    }
+
+    /** Planeja o caminho até o ponto mais perto escondido do alvo. Devolve true se achou. */
+    private boolean planCover(World w, Vector3 target) {
+        final float sx = pos.x, sz = pos.z;
+        java.util.Arrays.fill(gDist, Float.MAX_VALUE);
+        java.util.Arrays.fill(gDone, false);
+        java.util.Arrays.fill(gPar, -1);
+        final int start = (GN / 2) * GN + GN / 2;
+        gDist[start] = 0f;
+        java.util.PriorityQueue<Integer> pq = new java.util.PriorityQueue<>((a, b) -> Float.compare(gDist[a], gDist[b]));
+        pq.add(start);
+        int goal = -1, popped = 0;
+        coverEye.set(target).add(0f, 1.2f, 0f);
+        while (!pq.isEmpty() && popped < 260) {
+            int c = pq.poll();
+            if (gDone[c]) continue;
+            gDone[c] = true;
+            popped++;
+            int ci = c / GN, cj = c % GN;
+            float x = sx + (ci - GN / 2) * GC, z = sz + (cj - GN / 2) * GC;
+            if (c != start && hidden(w, x, z)) {
+                goal = c;
+                break;
+            }
+            for (int di = -1; di <= 1; di++) {
+                for (int dj = -1; dj <= 1; dj++) {
+                    if (di == 0 && dj == 0) continue;
+                    int ni = ci + di, nj = cj + dj;
+                    if (ni < 0 || nj < 0 || ni >= GN || nj >= GN) continue;
+                    int n = ni * GN + nj;
+                    if (gDone[n]) continue;
+                    float nx = sx + (ni - GN / 2) * GC, nz = sz + (nj - GN / 2) * GC;
+                    if (!walkable(w, nx, nz)) continue;
+                    // o meio do passo também precisa estar livre (não atravessa a quina de um obstáculo)
+                    if (!walkable(w, (x + nx) * 0.5f, (z + nz) * 0.5f)) continue;
+                    float nd = gDist[c] + GC * (di != 0 && dj != 0 ? 1.41f : 1f);
+                    if (nd < gDist[n]) {
+                        gDist[n] = nd;
+                        gPar[n] = c;
+                        pq.add(n);
+                    }
+                }
+            }
         }
+        if (goal < 0) return false;
+        int k = 0;
+        for (int c = goal; c != start && c != -1; c = gPar[c]) k++;
+        pathLen = k;
+        int idx = k - 1;
+        for (int c = goal; c != start && c != -1; c = gPar[c]) {
+            pathX[idx] = sx + (c / GN - GN / 2) * GC;
+            pathZ[idx] = sz + (c % GN - GN / 2) * GC;
+            idx--;
+        }
+        pathI = 0;
+        coverX = pathX[pathLen - 1];
+        coverZ = pathZ[pathLen - 1];
         return true;
     }
 
@@ -71,34 +133,6 @@ final class Enemy {
         return true;
     }
 
-    /** Procura o ponto mais perto (até 9 m) que não está na linha de visão do alvo. */
-    private boolean findCover(World w, Vector3 target) {
-        coverEye.set(target).add(0f, 1.2f, 0f);
-        float bestD = Float.MAX_VALUE;
-        boolean found = false;
-        for (int a = 0; a < 16; a++) {
-            float ang = a * MathUtils.PI2 / 16f, c = MathUtils.cos(ang), s = MathUtils.sin(ang);
-            for (float r = 2f; r <= 9f; r += 1.5f) {
-                float x = pos.x + c * r, z = pos.z + s * r;
-                if (Math.abs(x) > World.HALF - 4f || Math.abs(z) > World.HALF - 4f) continue;
-                if (r * r >= bestD) break;
-                // o bot precisa conseguir ficar de pé ali (não dentro de um obstáculo) e estar escondido
-                coverP.set(x, w.groundAt(x, z), z);
-                coverN.set(coverP);
-                w.resolveCollisions(coverN, 0.35f);
-                if (coverN.dst2(coverP.x, coverN.y, coverP.z) > 0.0025f) continue;
-                if (!reachable(w, pos.x, pos.z, x, z)) continue;   // tem caminho livre até lá
-                if (!hidden(w, x, z)) continue;
-                {
-                    bestD = r * r;
-                    coverX = x;
-                    coverZ = z;
-                    found = true;
-                }
-            }
-        }
-        return found;
-    }
     WeaponConfig weapon;                     // arma que o bot pegou no chão (null = sem arma)
     private final AnimationController anim;
     final Hitbox hitbox;
@@ -294,23 +328,26 @@ final class Enemy {
             }
             boolean hurt = weapon != null && health < MAX_HEALTH * 0.3f && (canSee || hasCover);
             if (hurt) {
-                // ferido: procura cobertura (um ponto que quem atira não vê); sem cobertura, recua
-                coverT -= dt;
-                if (coverT <= 0f) {
-                    coverT = 0.5f;
-                    hasCover = findCover(w, player);
+                // ferido: busca caminho até uma cobertura (de pé, fora da linha de visão); segue os pontos e para lá
+                pathT -= dt;
+                boolean atCover = hasCover && pathI >= pathLen && !canSee;
+                if (pathT <= 0f && !atCover) {
+                    pathT = 2f;
+                    hasCover = planCover(w, player);
                 }
-                if (hasCover) {
-                    float gx = coverX - pos.x, gz = coverZ - pos.z, gd = (float) Math.sqrt(gx * gx + gz * gz);
-                    if (gd > 0.12f) {
-                        moveDir = MathUtils.atan2(gx, gz);
-                        speed = gd < 1.2f ? WALK : RUN;
+                if (hasCover && pathI < pathLen) {
+                    float gx = pathX[pathI] - pos.x, gz = pathZ[pathI] - pos.z, gd = (float) Math.sqrt(gx * gx + gz * gz);
+                    if (gd < 0.6f) {
+                        pathI++;
                     } else {
-                        speed = 0f;
-                        setClip("IdleKneel", 1f);   // abaixado atrás da cobertura
+                        moveDir = MathUtils.atan2(gx, gz);
+                        speed = RUN;
                     }
+                } else if (hasCover) {
+                    speed = 0f;
+                    setClip("IdleKneel", 1f);   // abaixado atrás da cobertura
                 } else {
-                    // sem cobertura por perto: recua; se encostar em algo, troca de lado (side)
+                    // sem cobertura alcançável: recua; se encostar em algo, troca de lado (side)
                     moveDir = toPlayer + MathUtils.PI + side * 0.8f;
                     speed = RUN;
                 }
