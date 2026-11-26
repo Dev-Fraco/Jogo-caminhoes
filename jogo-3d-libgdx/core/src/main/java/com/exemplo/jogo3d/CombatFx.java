@@ -3,6 +3,7 @@ package com.exemplo.jogo3d;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Camera;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.VertexAttributes;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
@@ -123,6 +124,47 @@ final class CombatFx implements DamageSystem.Listener {
         }
     }
 
+    // ---------- Mira dinâmica (4 arcos e ponto) ----------
+    private static Texture[] arcTex;
+    private static Texture dotTex;
+    private float openNow, kickNow;   // abertura suavizada (0 parado, 1 correndo ou com tiros seguidos)
+    // Posição de cada arco em relação ao centro (pixels da arte) e tamanho do recorte
+    private static final float[][] ARC_OFF = {{-149.5f, -150.5f}, {153.5f, -150.5f}, {-146f, 144f}, {152.5f, 144.5f}};
+    private static final float[][] ARC_SIZE = {{344, 334}, {334, 334}, {337, 327}, {332, 328}};
+    private static final float DOT_SIZE = 99f;
+
+    /** Atualiza a abertura da mira: corre abre, parar fecha (suave), cada tiro dá um coice temporário. */
+    void crossUpdate(float dt, float speedFrac, boolean fired, float pct) {
+        if (fired) kickNow = Math.min(1f, kickNow + 0.22f);
+        kickNow = Math.max(0f, kickNow - dt * 3.2f);
+        float target = Math.min(1f, Math.min(1f, speedFrac) * 0.85f + kickNow) * pct;
+        openNow += (target - openNow) * (1f - (float) Math.exp(-dt * 12f));
+    }
+
+    private void drawCross(SpriteBatch batch, float cx, float cy, int H, boolean overEnemy) {
+        if (arcTex == null) {
+            arcTex = new Texture[4];
+            String[] nomes = {"tl", "tr", "bl", "br"};
+            for (int i = 0; i < 4; i++) {
+                arcTex[i] = new Texture(Gdx.files.internal("hud2/mira/" + nomes[i] + ".png"));
+                arcTex[i].setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+            }
+            dotTex = new Texture(Gdx.files.internal("hud2/mira/centro.png"));
+            dotTex.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        }
+        float k = H * 0.00033f;                        // escala da arte na tela
+        float m = 0.75f + 0.9f * openNow;              // parado: arcos perto do centro; correndo/atirando: afastados
+        if (overEnemy) batch.setColor(1f, 0.35f, 0.25f, 1f);
+        else batch.setColor(1f, 1f, 1f, 0.95f);
+        for (int i = 0; i < 4; i++) {
+            float x = cx + ARC_OFF[i][0] * m * k - ARC_SIZE[i][0] * k / 2f;
+            float y = cy - ARC_OFF[i][1] * m * k - ARC_SIZE[i][1] * k / 2f;   // y da arte cresce para baixo
+            batch.draw(arcTex[i], x, y, ARC_SIZE[i][0] * k, ARC_SIZE[i][1] * k);
+        }
+        batch.draw(dotTex, cx - DOT_SIZE * k * 0.3f, cy - DOT_SIZE * k * 0.3f, DOT_SIZE * k * 0.6f, DOT_SIZE * k * 0.6f);
+        batch.setColor(1f, 1f, 1f, 1f);
+    }
+
     /** Dano numa parede de proteção: número azul no ponto do impacto. */
     void wallHit(Vector3 at, float damage) {
         int k = numNext++ % NUMBERS;
@@ -181,23 +223,6 @@ final class CombatFx implements DamageSystem.Listener {
         float cx = W / 2f, cy = H / 2f, u = H / 400f;
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         if (armedView) {
-            // Mira: círculo (o raio cresce com a dispersão da arma); branco, vermelho sobre inimigo
-            float R = Math.max(7f * u, spreadPx);
-            shapes.end();
-            shapes.begin(ShapeRenderer.ShapeType.Line);
-            for (int k = -1; k <= 1; k++) {
-                shapes.setColor(0.1f, 0.06f, 0.03f, 0.6f);
-                shapes.circle(cx, cy, R + k * 0.6f * u + 0.8f * u, 48);
-            }
-            for (int k = -1; k <= 1; k++) {
-                if (overEnemy) shapes.setColor(0.86f, 0.25f, 0.15f, 1f);
-                else shapes.setColor(0.96f, 0.92f, 0.82f, 0.95f);
-                shapes.circle(cx, cy, R + k * 0.6f * u, 48);
-            }
-            shapes.end();
-            shapes.begin(ShapeRenderer.ShapeType.Filled);
-            shapes.setColor(0.96f, 0.92f, 0.82f, 0.95f);
-            shapes.circle(cx, cy, 1.1f * u, 10);
         }
         // Acerto: X vermelho pequeno no meio do círculo
         if (markT > 0f) {
@@ -216,6 +241,7 @@ final class CombatFx implements DamageSystem.Listener {
         if (showPanel) WeaponPanel.drawShapes(shapes, pr[0], pr[1], pr[2], pr[3], weapons, !weapons.holstered());
 
         batch.begin();
+        if (armedView && weapons != null) drawCross(batch, cx, cy, H, overEnemy);
         if (showPanel) WeaponPanel.drawBatch(batch, font, pr[0], pr[1], pr[2], pr[3], weapons, !weapons.holstered());
         float base = font.getData().scaleX;
         // Números de dano: cada tiro tem o seu. Peito amarelo, cabeça vermelha e maior, parede azul.

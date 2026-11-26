@@ -292,6 +292,12 @@ public class AimTests extends ApplicationAdapter {
         float closeOff = climbOffset(tc, aa, fuzil, 0.95f, 0.0f, 0.03f, 8);   // arrasto de ~50°/s
         check("de perto, arrasto rápido para cima não sobe fácil até a cabeça", closeOff < 0.05f,
                 String.format("%.3f rad acima do peito (cabeça ~%.3f)", closeOff, elev(tc.hitbox.headTop) - elev(tc.hitbox.chest)));
+        // 5d. Abertura da mira por arma: padrão 100%, ajustável por porcentagem
+        AimSettings.reset();
+        check("abertura da mira padrão 100% em todas as armas", AimSettings.openPct(0) == 1f && AimSettings.openPct(5) == 1f, "");
+        AimSettings.set(7, 0.5f);
+        check("abertura do AKM ajustável por porcentagem (50%)", Math.abs(AimSettings.openPct(0) - 0.5f) < 1e-3f && AimSettings.text(7).equals("50%"), AimSettings.text(7));
+        AimSettings.reset();
         // 6. FOV em porcentagem: 0% = 2°, 100% = 15°
         float savedFov = AimSettings.fovPct;
         AimSettings.fovPct = 0f;

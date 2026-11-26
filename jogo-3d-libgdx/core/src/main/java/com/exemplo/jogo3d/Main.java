@@ -475,6 +475,9 @@ public class Main extends ApplicationAdapter {
             shootIn.aim.set(aimDir);
             shootIn.playerPos.set(player.pos);
             shooting.update(dt, shootIn, combat && cfg != null);
+            // Mira dinâmica: corre abre, parar fecha, cada tiro dá um coice (com a abertura da arma)
+            if (fx != null) fx.crossUpdate(dt, Math.min(1f, player.speed / Player.RUN_SPEED),
+                    shooting.firedThisFrame, AimSettings.openPct(world.weapons != null ? world.weapons.heldType() : -1));
             if (shooting.firedThisFrame && enemies != null) enemies.alert(player.pos, 45f);   // o estampido chama o bando
         }
         pitch = combat ? MathUtils.clamp(pitch, -0.75f, 1.1f) : MathUtils.clamp(pitch, Math.min(pitch, 0.05f), 1.2f);
