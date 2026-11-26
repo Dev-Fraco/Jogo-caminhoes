@@ -329,7 +329,7 @@ public class Riding {
         if (cart == null) return;
         cart.attached = false;
         cart.setRest(world, cart.ax, cart.az, cart.yaw);   // as varas descem até o chão
-        cart.obstacle = new World.Obstacle(cart.ax, cart.az, 1.5f, cart.pos.y, 1.8f);
+        cart.obstacle = new World.Obstacle(cart.ax, cart.az, 1.9f, cart.pos.y, 2.2f);
         world.obstacles.add(cart.obstacle);
         cart = null;
     }
@@ -359,7 +359,7 @@ public class Riding {
     }
 
     // Engate: ponta das varas presa ao cavalo, dos lados do corpo, na altura da barrigueira
-    static final float HITCH_Y = 0.9f, HITCH_Z = 0.0f;
+    static final float HITCH_Y = 1.05f, HITCH_Z = -0.2f;   // altura em que a caixa fica nivelada
     private final Vector3 hitch = new Vector3();
 
     /** Carroça presa: física de reboque, rodas e amortecedor (ver Cart). */
@@ -371,7 +371,7 @@ public class Riding {
 
     /** Lugar do cavaleiro na carroça (o banco). */
     private Vector3 cartSeat() {
-        return new Vector3(0f, 0.9f, 0.2f).mul(cart.inst.transform);
+        return new Vector3(0f, 1.2f, 0.1f).mul(cart.inst.transform);   // no banco, não no assoalho
     }
 
     // ---------- Rédeas (corda com física) ----------

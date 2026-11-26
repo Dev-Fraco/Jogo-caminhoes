@@ -719,7 +719,7 @@ public class World {
         Vector3 c = new Vector3(6f, 0f, -3f).mul(enc);
         ModelInstance cart = new ModelInstance(cartModel);
         instances.add(cart);
-        Obstacle cobs = new Obstacle(c.x, c.z, 1.5f, heightAt(c.x, c.z), 1.8f);
+        Obstacle cobs = new Obstacle(c.x, c.z, 1.9f, heightAt(c.x, c.z), 2.2f);
         obstacles.add(cobs);
         Cart cc = new Cart(cart, cobs);
         cc.setRest(this, c.x, c.z, yaw * MathUtils.degreesToRadians);

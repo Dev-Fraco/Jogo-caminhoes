@@ -17,10 +17,12 @@ import com.badlogic.gdx.math.Vector3;
  */
 final class Cart {
     // Medidas do modelo carroca.g3dj
-    static final float AXLE_Y = 0.6253f, AXLE_Z = -0.223f;   // centro do eixo
-    static final float WHEEL_R = 0.605f;                     // raio da roda
-    static final float TRACK_HALF = 0.925f;                  // metade da distância entre as rodas
-    private static final float TIP_DZ = 1.79f - AXLE_Z, TIP_DY = 0.09f - AXLE_Y;   // ponta das varas, a partir do eixo
+    static final float SCALE = 1.3f;   // carroça maior, na proporção do cavalo (que é 50% maior que o normal)
+    private static final float M_AXLE_Y = 0.6253f, M_AXLE_Z = -0.223f;   // centro do eixo, em unidades do modelo
+    static final float AXLE_Y = M_AXLE_Y * SCALE, AXLE_Z = M_AXLE_Z * SCALE;
+    static final float WHEEL_R = 0.605f * SCALE;                          // raio da roda
+    static final float TRACK_HALF = 0.925f * SCALE;                       // metade da distância entre as rodas
+    private static final float TIP_DZ = (1.79f - M_AXLE_Z) * SCALE, TIP_DY = (0.09f - M_AXLE_Y) * SCALE;   // ponta das varas
     static final float TIP_LEN = (float) Math.sqrt(TIP_DZ * TIP_DZ + TIP_DY * TIP_DY);
     private static final float TIP_ANG = (float) Math.atan2(TIP_DY, TIP_DZ);     // no modelo as varas tocam o chão
     // Amortecedor (mola + amortecimento): cerca de 1,9 Hz, com pouca oscilação
@@ -58,7 +60,7 @@ final class Cart {
         yaw = yawRad;
         float g = w.heightAt(x, z);
         inst.transform.setToTranslation(x, g, z).rotate(Vector3.Y, yaw * MathUtils.radiansToDegrees)
-                .translate(0f, 0f, -AXLE_Z);
+                .scale(SCALE, SCALE, SCALE).translate(0f, 0f, -M_AXLE_Z);
         pos.set(x, g, z);
         setWheels(0f);
     }
@@ -89,7 +91,7 @@ final class Cart {
         if (d > 1e-4f) {
             float fx = dx / d, fz = dz / d;
             tmp.set(hitch.x - fx * reach, 0f, hitch.z - fz * reach);
-            w.resolveCollisionsExcept(tmp, 1.0f, skip);   // não atravessa paredes, cercas e pedras
+            w.resolveCollisionsExcept(tmp, 1.2f, skip);   // não atravessa paredes, cercas e pedras
             float moved = (tmp.x - ax) * fx + (tmp.z - az) * fz;
             spin += moved / WHEEL_R;                     // a roda gira pela distância andada
             ax = tmp.x;
@@ -137,7 +139,8 @@ final class Cart {
                 .rotate(Vector3.Y, yaw * MathUtils.radiansToDegrees)
                 .rotate(Vector3.X, -pitch * MathUtils.radiansToDegrees)
                 .rotate(Vector3.Z, roll * MathUtils.radiansToDegrees)
-                .translate(0f, -AXLE_Y, -AXLE_Z);
+                .scale(SCALE, SCALE, SCALE)
+                .translate(0f, -M_AXLE_Y, -M_AXLE_Z);
         pos.set(ax, yA - WHEEL_R, az);
         setWheels(s);
     }
@@ -162,11 +165,11 @@ final class Cart {
     private void setWheels(float susp) {
         float deg = spin * MathUtils.radiansToDegrees;
         if (wheelL != null) {
-            wheelL.translation.set(wheelLBase).sub(0f, susp, 0f);
+            wheelL.translation.set(wheelLBase).sub(0f, susp / SCALE, 0f);
             wheelL.rotation.set(Vector3.X, deg);
         }
         if (wheelR != null) {
-            wheelR.translation.set(wheelRBase).sub(0f, susp, 0f);
+            wheelR.translation.set(wheelRBase).sub(0f, susp / SCALE, 0f);
             wheelR.rotation.set(Vector3.X, deg);
         }
         inst.calculateTransforms();
