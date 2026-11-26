@@ -3,6 +3,8 @@ package com.exemplo.jogo3d;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Camera;
+import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.VertexAttributes;
@@ -125,13 +127,15 @@ final class CombatFx implements DamageSystem.Listener {
     }
 
     // ---------- Mira dinâmica (4 arcos e ponto) ----------
-    private static Texture[] arcTex;
-    private static Texture dotTex;
     private float openNow, kickNow;   // abertura suavizada (0 parado, 1 correndo ou com tiros seguidos)
     // Posição de cada arco em relação ao centro (pixels da arte) e tamanho do recorte
-    private static final float[][] ARC_OFF = {{-149.5f, -150.5f}, {153.5f, -150.5f}, {-146f, 144f}, {152.5f, 144.5f}};
-    private static final float[][] ARC_SIZE = {{344, 334}, {334, 334}, {337, 327}, {332, 328}};
-    private static final float DOT_SIZE = 99f;
+    // Mira: anel fino cortado nos eixos (sem degradê e sem ponto no centro). Parado: anel fechado;
+    // andando ou atirando: só as duas laterais se afastam na horizontal.
+    private static Texture miraEsq, miraDir;
+    private static final int MIRA_PX = 64;            // raio do anel na textura (px)
+    private static final float MIRA_RAIO = 0.058f;    // raio da mira em relação à altura da tela
+    private static final float MIRA_ABRE = 0.6f;      // afastamento das laterais (fração do raio)
+    private static final float MIRA_ESPESSURA = 1.3f; // espessura do traço (px da textura)
 
     /** Atualiza a abertura da mira: corre abre, parar fecha (suave), cada tiro dá um coice temporário. */
     /** Luneta aberta: some o retículo de mira (a lente tem o seu próprio). */
@@ -144,27 +148,43 @@ final class CombatFx implements DamageSystem.Listener {
         openNow += (target - openNow) * (1f - (float) Math.exp(-dt * 12f));
     }
 
-    private void drawCross(SpriteBatch batch, float cx, float cy, int H, boolean overEnemy) {
-        if (arcTex == null) {
-            arcTex = new Texture[4];
-            String[] nomes = {"tl", "tr", "bl", "br"};
-            for (int i = 0; i < 4; i++) {
-                arcTex[i] = new Texture(Gdx.files.internal("hud2/mira/" + nomes[i] + ".png"));
-                arcTex[i].setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+    /** Metade do anel (esquerda ou direita) em textura: 2 arcos de 60° por lado, com 30° de folga nos eixos. */
+    private static Texture gerarArcos(boolean esquerda) {
+        int S = 2 * MIRA_PX + 8, c = S / 2;
+        Pixmap pm = new Pixmap(S, S, Pixmap.Format.RGBA8888);
+        for (int y = 0; y < S; y++) {
+            for (int x = 0; x < S; x++) {
+                float dx = x + 0.5f - c, dy = c - (y + 0.5f);
+                float r = (float) Math.sqrt(dx * dx + dy * dy);
+                float ang = (float) Math.toDegrees(Math.atan2(dy, dx));
+                if (ang < 0f) ang += 360f;
+                boolean ladoCerto = esquerda ? (ang > 90f && ang < 270f) : (ang < 90f || ang > 270f);
+                if (!ladoCerto) continue;
+                float dentro = ang % 90f;                       // posição dentro do quadrante
+                if (dentro < 15f || dentro > 75f) continue;     // folga de 30° nos eixos
+                float cov = MathUtils.clamp(MIRA_ESPESSURA * 0.5f + 0.5f - Math.abs(r - MIRA_PX), 0f, 1f);
+                if (cov > 0f) pm.drawPixel(x, y, Color.rgba8888(1f, 1f, 1f, cov));
             }
-            dotTex = new Texture(Gdx.files.internal("hud2/mira/centro.png"));
-            dotTex.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
         }
-        float k = H * 0.00033f;                        // escala da arte na tela
-        float m = 0.75f + 0.9f * openNow;              // parado: arcos perto do centro; correndo/atirando: afastados
+        Texture t = new Texture(pm);
+        t.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        pm.dispose();
+        return t;
+    }
+
+    private void drawCross(SpriteBatch batch, float cx, float cy, int H, boolean overEnemy) {
+        if (miraEsq == null) {
+            miraEsq = gerarArcos(true);
+            miraDir = gerarArcos(false);
+        }
+        float raio = MIRA_RAIO * H;
+        float escala = raio / MIRA_PX;                        // px da textura -> px da tela
+        float tam = (2 * MIRA_PX + 8) * escala;
+        float abre = openNow * MIRA_ABRE * raio;              // só as laterais se afastam
         if (overEnemy) batch.setColor(1f, 0.35f, 0.25f, 1f);
         else batch.setColor(1f, 1f, 1f, 0.95f);
-        for (int i = 0; i < 4; i++) {
-            float x = cx + ARC_OFF[i][0] * m * k - ARC_SIZE[i][0] * k / 2f;
-            float y = cy - ARC_OFF[i][1] * m * k - ARC_SIZE[i][1] * k / 2f;   // y da arte cresce para baixo
-            batch.draw(arcTex[i], x, y, ARC_SIZE[i][0] * k, ARC_SIZE[i][1] * k);
-        }
-        batch.draw(dotTex, cx - DOT_SIZE * k * 0.3f, cy - DOT_SIZE * k * 0.3f, DOT_SIZE * k * 0.6f, DOT_SIZE * k * 0.6f);
+        batch.draw(miraEsq, cx - tam / 2f - abre, cy - tam / 2f, tam, tam);
+        batch.draw(miraDir, cx - tam / 2f + abre, cy - tam / 2f, tam, tam);
         batch.setColor(1f, 1f, 1f, 1f);
     }
 
