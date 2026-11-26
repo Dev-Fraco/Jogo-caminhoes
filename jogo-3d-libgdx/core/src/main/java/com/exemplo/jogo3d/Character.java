@@ -44,7 +44,14 @@ public class Character {
     private String onceClip = null;
     private float onceT = 0f, onceDur = 1f;
     private boolean onceDone = false;
-    private boolean onceLoop = false;   // animação única que repete (ex.: queda livre)
+    private boolean onceLoop = false;
+    private boolean armed = false;      // com arma na mão: parado, fica mirando
+
+    public void setArmed(boolean a) {
+        if (armed == a) return;
+        armed = a;
+        if (onceClip == null) applyClip();
+    }   // animação única que repete (ex.: queda livre)
     private float swing = 0f;      // radianos: balanço em torno do quadril (rede)
     private float swingPivotY = 1.15f;   // altura das ancoragens da rede, em relação aos pés deitados
 
@@ -256,7 +263,7 @@ public class Character {
 
     /** Parado por IDLE_WAIT segundos: toca uma animação de espera; ao acabar, sorteia outra (sem repetir a anterior). */
     private void updateVariants(float dt, Player p) {
-        boolean still = !sitting && p.grounded && current == State.IDLE && p.speed < 0.25f
+        boolean still = !armed && !sitting && p.grounded && current == State.IDLE && p.speed < 0.25f
                 && crouch <= 0.001f && reach <= 0.001f;
         if (!still) {
             stillTime = 0f;
@@ -342,7 +349,7 @@ public class Character {
             case JUMP: clip = jumpStanding ? "JumpParado" : "Jump"; break;
             case RUN: clip = "Run"; break;
             case WALK: clip = "Walk"; break;
-            default: clip = "Idle"; break;
+            default: clip = armed ? "Mirar" : "Idle"; break;
         }
         anim.animate(clip, -1, 1f, null, 0.15f);
     }

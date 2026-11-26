@@ -63,6 +63,10 @@ public class World {
     final Array<Box> boxes = new Array<>();
     Town town;
     Airplane airplane;
+    Weapons weapons;
+
+    /** Ponto livre no mapa (fora da estrada, dos cercados e da cidade). */
+    float[] openSpot(Random rnd) { return randomSpot(rnd, 8f); }
 
     /** Sempre desenhado (não sai pela distância de desenho): avião, que voa alto e longe. */
     void alwaysDraw(ModelInstance mi) {
@@ -496,6 +500,9 @@ public class World {
         // Madeira morta: tocos e troncos caídos (no lugar das árvores mortas, que ainda não temos modelo)
         for (int i = 0; i < 36; i++) addProp(rnd, stump, 2.6f, 0.35f, 1f);
         for (int i = 0; i < 24; i++) addProp(rnd, log, 2.6f, 1.2f, 1f);
+        // Armas espalhadas: dentro das casas, na frente das casas da cidade e soltas pelo mapa
+        weapons = new Weapons();
+        weapons.scatter(this, rnd);
     }
 
     private Model loadModel(String path) {
@@ -774,7 +781,7 @@ public class World {
         Vector3 bc = new Vector3(HouseDecor.BENCH_X, 0f, HouseDecor.BENCH_Z).mul(t);
         obstacles.add(new Obstacle(bc.x, bc.z, 0.35f, heightAt(bc.x, bc.z), 0.6f));
 
-        fences.addEnclosure(this, bestX, bestZ, yaw);
+        // (sem cercado: as casas ficam abertas para o battle royale)
 
         // Primeiro cercado: estábulo, com morão e cocho do lado esquerdo (dentro do cercado)
         if (houses.size == 1) addStable(bestX, y, bestZ, yaw);
@@ -993,6 +1000,7 @@ public class World {
         for (Model m : terrainModels) m.dispose();
         if (town != null) town.dispose();
         if (airplane != null) airplane.dispose();
+        if (weapons != null) weapons.dispose();
         casaModel.dispose();
         if (crackTexture != null) crackTexture.dispose();
         if (damModel != null) damModel.dispose();

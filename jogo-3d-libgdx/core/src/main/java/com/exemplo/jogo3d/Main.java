@@ -73,6 +73,7 @@ public class Main extends ApplicationAdapter {
     private Cart hitchCart = null;                // carroça sendo presa agora
     private Riding hitchHorse = null;
     private float hitchT = 0f;                    // tempo da animação de prender (s)
+    private Weapons.Pickup weaponTarget = null;   // arma no chão ao alcance (mostra PEGAR)
     // Battle royale: começa dentro do avião, salta, cai de barriga para baixo e pousa
     private boolean inPlane = false, skydiving = false, landing = false;
     private final Vector3 fallVel = new Vector3();
@@ -275,6 +276,7 @@ public class Main extends ApplicationAdapter {
         if (!ridingActive) character.setCrouch(crouchOn && player.speed < 0.25f ? 1f : 0f);
         character.setReach(world.fences.reach());
         if (!inPlane) character.update(player, dt);
+        if (world.weapons != null) world.weapons.update(character, player);   // arma na mão
         world.fences.update(dt, player);
         world.update(dt, camera);
 
@@ -311,6 +313,14 @@ public class Main extends ApplicationAdapter {
                 }
             }
             if (cartOptionsHorse != null || cartTarget != null) mountTarget = null;
+        }
+
+        // Arma no chão ao alcance
+        weaponTarget = null;
+        if (world.weapons != null && prompt == null && doorTarget == null && hammockTarget == null && cartTarget == null
+                && cartOptionsHorse == null && !busy && !ui && !ridingActive && !lying) {
+            weaponTarget = world.weapons.nearest(player.pos);
+            if (weaponTarget != null) mountTarget = null;
         }
 
         // Direção da câmera (usada também para a câmera ficar atrás do jogador)
@@ -433,6 +443,11 @@ public class Main extends ApplicationAdapter {
                     startSkydive();
                     return;
                 }
+                if (weaponTarget != null) {
+                    world.weapons.pickUp(weaponTarget, world, character, player);
+                    weaponTarget = null;
+                    return;
+                }
                 if (prompt != null) {
                     world.fences.startOperation(prompt, player);
                     prompt = null;
@@ -497,8 +512,9 @@ public class Main extends ApplicationAdapter {
         hud.joyX = joyX;
         hud.joyY = joyY;
         boolean canGetUp = lyingIn != null && lyingIn.lie == HouseDecor.Lie.LYING;
-        hud.promptVisible = inPlane || prompt != null || mountTarget != null || doorTarget != null || hammockTarget != null || canGetUp || cartTarget != null || cartOptionsHorse != null;
+        hud.promptVisible = inPlane || weaponTarget != null || prompt != null || mountTarget != null || doorTarget != null || hammockTarget != null || canGetUp || cartTarget != null || cartOptionsHorse != null;
         if (inPlane) hud.promptText = "SALTAR DO AVIÃO";
+        else if (weaponTarget != null) hud.promptText = "PEGAR " + Weapons.NAMES[weaponTarget.type];
         else if (prompt != null) hud.promptText = prompt.label();
         else if (cartOptionsHorse != null) hud.promptText = "TIRAR CARROÇA  |  SENTAR NA CARROÇA";
         else if (cartTarget != null) hud.promptText = "PRENDER CARROÇA";
