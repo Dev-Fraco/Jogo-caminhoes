@@ -61,8 +61,17 @@ public class Character {
     private com.badlogic.gdx.graphics.g3d.model.Animation lastStepAnim;
     private int lastStepHalf = -1;
 
+    // Parado por um tempo: sorteia uma animação de espera e fica alternando até o jogador andar
+    private static final float IDLE_WAIT = 3f;
+    private static final String[] IDLE_VARIANTS = {"IdleKneel", "IdleTurn", "IdleLook"};
+    private float stillTime = 0f;
+    private String variant = null;
+    private float variantT = 0f, variantDur = 1f;
+    private int lastVariant = -1;
+    private boolean jumpStanding = false;   // pulou sem se mover: usa o pulo parado
+
     public void create() {
-        model = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cangaceiro.g3dj"));
+        model = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/boss.g3dj"));
         instance = new ModelInstance(model);
         anim = new AnimationController(instance);
         instances.add(instance);
@@ -184,6 +193,7 @@ public class Character {
                 if (candidateTime >= STATE_HOLD) {
                     current = wanted;
                     candidateTime = 0f;
+                    jumpStanding = p.speed < 0.25f;
                     applyClip();
                 }
             } else {
@@ -198,6 +208,7 @@ public class Character {
                 case JUMP: anim.current.speed = 1f; break;
             }
             anim.current.speed *= LIMB_SPEED_SCALE;
+            updateVariants(dt, p);
 
         }
         // 1) desfaz o ajuste do quadro anterior; 2) toca a animação; 3) aplica as poses por código
@@ -217,6 +228,41 @@ public class Character {
         }
         applyPoses();
         instance.calculateTransforms();
+    }
+
+    /** Parado por IDLE_WAIT segundos: toca uma animação de espera; ao acabar, sorteia outra (sem repetir a anterior). */
+    private void updateVariants(float dt, Player p) {
+        boolean still = !sitting && p.grounded && current == State.IDLE && p.speed < 0.25f
+                && crouch <= 0.001f && reach <= 0.001f;
+        if (!still) {
+            stillTime = 0f;
+            if (variant != null) {
+                variant = null;
+                applyClip();
+            }
+            return;
+        }
+        if (variant == null) {
+            stillTime += dt;
+            if (stillTime >= IDLE_WAIT) pickVariant();
+            return;
+        }
+        variantT += dt;
+        if (variantT >= variantDur) pickVariant();
+    }
+
+    private void pickVariant() {
+        int i;
+        do {
+            i = MathUtils.random(IDLE_VARIANTS.length - 1);
+        } while (IDLE_VARIANTS.length > 1 && i == lastVariant);
+        lastVariant = i;
+        variant = IDLE_VARIANTS[i];
+        variantT = 0f;
+        com.badlogic.gdx.graphics.g3d.model.Animation a = model.getAnimation(variant);
+        variantDur = a != null && a.duration > 0f ? a.duration : 2f;
+        anim.animate(variant, -1, 1f, null, 0.3f);
+        anim.current.speed = 1f;
     }
 
     private void applyPoses() {
@@ -269,7 +315,7 @@ public class Character {
     private void applyClip() {
         String clip;
         switch (current) {
-            case JUMP: clip = "Jump"; break;
+            case JUMP: clip = jumpStanding ? "JumpParado" : "Jump"; break;
             case RUN: clip = "Run"; break;
             case WALK: clip = "Walk"; break;
             default: clip = "Idle"; break;

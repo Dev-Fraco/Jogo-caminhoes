@@ -367,7 +367,7 @@ public class Main extends ApplicationAdapter {
                     lyingIn = hammockTarget;
                     lyingIn.lie = HouseDecor.Lie.LYING_IN;
                     lyingIn.lieT = 0f;
-                    character.playOnce("LieDown");
+                    character.playOnce("DeitarRede");
                     hammockTarget = null;
                 } else if (lyingIn != null && lyingIn.lie == HouseDecor.Lie.LYING) {
                     // Levantar: animação de levantar e volta ao normal
