@@ -144,6 +144,9 @@ public class BotDropTests extends ApplicationAdapter {
                 w.mandacaruCount + "/" + w.xiqueCount + "/" + w.macambiraCount);
         check("cemitério rural: 20 túmulos com cruz", w.crossCount == 20, "" + w.crossCount);
         check("acampamento de retirantes: 3 tendas e fogueira", w.tentCount == 3, "" + w.tentCount);
+        check("trilhas das fazendas até a estrada", w.trailCount == Regions.FARM_X.length, "" + w.trailCount);
+        check("manchas de solo rachado no sertão", w.crackCount == 25, "" + w.crackCount);
+        check("pássaros circulando sobre o mapa", w.birdCount == 8, "" + w.birdCount);
         // bot ferido com linha de tiro livre recua para longe do jogador
         float[] open = null;
         for (int t = 0; t < 41 * 41 && open == null; t++) {
@@ -169,6 +172,9 @@ public class BotDropTests extends ApplicationAdapter {
             for (int f = 0; f < 90; f++) { en.update(1f / 30f, w, pl, null, 0f, 0, cam, 90f); }
             float rd1 = (float) Math.hypot(hb.pos.x - pl.x, hb.pos.z - pl.z);
             check("bot ferido (vida 20%) com o jogador à vista recua para longe", rd1 > rd0 + 2f, String.format("de %.1f m para %.1f m", rd0, rd1));
+            // cobertura só com caminho reto livre (sem busca de caminho contornando obstáculos): aqui não há
+            check("cobertura: sem caminho livre até um abrigo, o bot não promete cobertura", !hb.hasCover || hb.canSee,
+                    "cobertura=" + hb.hasCover + ", visto=" + hb.canSee);
         } else {
             check("área aberta para o teste de recuo", false, "não encontrada");
         }

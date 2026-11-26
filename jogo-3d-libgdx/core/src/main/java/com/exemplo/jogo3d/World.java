@@ -601,6 +601,7 @@ public class World {
             }
         }
         addPlacesAndPlants(rnd);
+        addTrailsCracksBirds(rnd);
         // Armas espalhadas: dentro das casas, na frente das casas da cidade e soltas pelo mapa
         weapons = new Weapons();
         weapons.scatter(this, rnd);
@@ -619,6 +620,7 @@ public class World {
     public void update(float dt, com.badlogic.gdx.graphics.PerspectiveCamera cam) {
         for (int i = 0; i < decors.size; i++) decors.get(i).update(dt);
         fire.update(dt, cam);
+        updateBirds(dt);
         if (town != null) town.update(dt);
         if (airplane != null) airplane.update(dt, cam);
     }
@@ -879,6 +881,102 @@ public class World {
         }
         float fy = heightAt(camp[0], camp[1]);
         fire.addSource(new Vector3(camp[0], fy + 0.3f, camp[1]), new Vector3(camp[0], fy + 3.5f, camp[1]));
+    }
+
+    // Trilhas, solo rachado e pássaros
+    int trailCount, crackCount, birdCount;
+    private final java.util.ArrayList<float[]> birdOrbit = new java.util.ArrayList<>();   // cx, cz, raio, vel. angular, fase, altura
+    private final java.util.ArrayList<ModelInstance> birdInst = new java.util.ArrayList<>();
+
+    /** Trilha de terra: faixa estreita de cada fazenda até a estrada, com leve curva. */
+    private void addTrailsCracksBirds(Random rnd) {
+        ModelBuilder mb = new ModelBuilder();
+        mb.begin();
+        MeshPartBuilder tr = mb.part("trail", GL20.GL_TRIANGLES, Usage.Position | Usage.Normal | Usage.ColorPacked,
+                new Material(ColorAttribute.createDiffuse(1f, 1f, 1f, 1f)));
+        for (int f = 0; f < Regions.FARM_X.length; f++) {
+            float fx = Regions.FARM_X[f], fz = Regions.FARM_Z[f];
+            float rx = fx, rz = roadZ(fx);
+            int n = 80;
+            for (int i = 0; i < n; i++) {
+                float t0 = i / (float) n, t1 = (i + 1) / (float) n;
+                float x0 = MathUtils.lerp(fx, rx, t0) + 6f * MathUtils.sin(t0 * MathUtils.PI2 + f);
+                float z0 = MathUtils.lerp(fz, rz, t0);
+                float x1 = MathUtils.lerp(fx, rx, t1) + 6f * MathUtils.sin(t1 * MathUtils.PI2 + f);
+                float z1 = MathUtils.lerp(fz, rz, t1);
+                float dx = x1 - x0, dz = z1 - z0, len = (float) Math.sqrt(dx * dx + dz * dz);
+                if (len < 1e-4f) continue;
+                float px = -dz / len * 1.2f, pz = dx / len * 1.2f;   // meia largura: 1,2 m
+                tr.rect(trailVertex(x0 + px, z0 + pz), trailVertex(x1 + px, z1 + pz), trailVertex(x1 - px, z1 - pz), trailVertex(x0 - px, z0 - pz));
+            }
+            trailCount++;
+        }
+        Model tm = mb.end();
+        loaded.add(tm);
+        ModelInstance ti = new ModelInstance(tm);
+        instances.add(ti);
+        terrainParts.add(ti);
+
+        // Solo rachado: manchas com a textura de rachaduras, transparentes, no sertão
+        mb.begin();
+        MeshPartBuilder cr = mb.part("cracks", GL20.GL_TRIANGLES, Usage.Position | Usage.Normal | Usage.TextureCoordinates,
+                new Material(TextureAttribute.createDiffuse(crackTexture),
+                        new com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.42f)));
+        for (int k = 0; k < 25; k++) {
+            float[] p = spotIn(rnd, 30f, Regions.Region.SERTAO, Regions.Region.SERTAO);
+            float cx = p[0], cz = p[1], h = 7f;
+            cr.rect(crackVertex(cx - h, cz - h, 0f, 0f), crackVertex(cx + h, cz - h, 1f, 0f),
+                    crackVertex(cx + h, cz + h, 1f, 1f), crackVertex(cx - h, cz + h, 0f, 1f));
+            crackCount++;
+        }
+        Model cm = mb.end();
+        loaded.add(cm);
+        ModelInstance ci = new ModelInstance(cm);
+        instances.add(ci);
+        terrainParts.add(ci);
+
+        // Pássaros (urubus) circulando alto sobre o sertão
+        Model bm;
+        mb.begin();
+        MeshPartBuilder bp = mb.part("bird", GL20.GL_TRIANGLES, Usage.Position | Usage.Normal,
+                new Material(ColorAttribute.createDiffuse(0.12f, 0.10f, 0.09f, 1f)));
+        bp.box(0.25f, 0.14f, 0.8f);
+        bp.setVertexTransform(new com.badlogic.gdx.math.Matrix4().translate(0f, 0.02f, 0f));
+        bp.box(2.2f, 0.03f, 0.35f);
+        bp.setVertexTransform(new com.badlogic.gdx.math.Matrix4());
+        bm = mb.end();
+        loaded.add(bm);
+        for (int i = 0; i < 8; i++) {
+            float[] p = spotIn(rnd, 30f, Regions.Region.SERTAO, Regions.Region.SERRA);
+            float rad = 60f + rnd.nextFloat() * 100f;
+            float vel = (0.12f + rnd.nextFloat() * 0.1f) * (rnd.nextBoolean() ? 1f : -1f);
+            birdOrbit.add(new float[]{p[0], p[1], rad, vel, rnd.nextFloat() * MathUtils.PI2, 70f + rnd.nextFloat() * 30f});
+            ModelInstance bi = new ModelInstance(bm);
+            birdInst.add(bi);
+            instances.add(bi);
+            birdCount++;
+        }
+    }
+
+    private VertexInfo trailVertex(float x, float z) {
+        return new VertexInfo().setPos(x, heightAt(x, z) + 0.05f, z).setNor(0f, 1f, 0f).setCol(0.66f, 0.55f, 0.38f, 1f);
+    }
+
+    private VertexInfo crackVertex(float x, float z, float u, float v) {
+        Vector3 n = normalAt(x, z);
+        return new VertexInfo().setPos(x, heightAt(x, z) + 0.06f, z).setNor(n.x, n.y, n.z).setUV(u, v);
+    }
+
+    /** Pássaros: giram em círculo e ajustam a direção ao trajeto. */
+    private void updateBirds(float dt) {
+        for (int i = 0; i < birdOrbit.size(); i++) {
+            float[] o = birdOrbit.get(i);
+            o[4] += o[3] * dt;
+            float x = o[0] + MathUtils.cos(o[4]) * o[2], z = o[1] + MathUtils.sin(o[4]) * o[2];
+            float y = o[5] + 2f * MathUtils.sin(o[4] * 3f);
+            float tx = -MathUtils.sin(o[4]) * o[3], tz = MathUtils.cos(o[4]) * o[3];   // direção do voo
+            birdInst.get(i).transform.setToTranslation(x, y, z).rotate(Vector3.Y, MathUtils.atan2(tx, tz) * MathUtils.radiansToDegrees);
+        }
     }
 
     /** Objeto estático com colisão circular (carroça parada, cocho, toco). */

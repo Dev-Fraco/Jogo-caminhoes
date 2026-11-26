@@ -38,7 +38,67 @@ final class Enemy {
     static final int BOT_MAGAZINE = 15;      // balas no pente do bot
     static final float BOT_RELOAD = 2.5f;    // s para recarregar
     int ammo = BOT_MAGAZINE;
+    int reserve = 45;                        // balas de reserva (três pentes)
     float reloadT;
+    // Cobertura: ponto atrás do qual quem atira não enxerga o bot
+    private float coverT;
+    float coverX, coverZ;
+    boolean hasCover;
+    private final Vector3 coverEye = new Vector3(), coverP = new Vector3(), coverN = new Vector3();
+
+    /** Caminho livre (sem obstáculos) de (x0, z0) até (x1, z1), testado a cada 0,5 m. */
+    private boolean reachable(World w, float x0, float z0, float x1, float z1) {
+        float dx = x1 - x0, dz = z1 - z0, len = (float) Math.sqrt(dx * dx + dz * dz);
+        int steps = Math.max(1, (int) (len / 0.5f));
+        for (int i = 1; i <= steps; i++) {
+            float t = i / (float) steps;
+            coverN.set(x0 + dx * t, 0f, z0 + dz * t);
+            float px = coverN.x, pz = coverN.z;
+            coverN.y = w.groundAt(px, pz);
+            w.resolveCollisions(coverN, 0.35f);
+            if (Math.abs(coverN.x - px) + Math.abs(coverN.z - pz) > 0.05f) return false;
+        }
+        return true;
+    }
+
+    /** Verdadeiro se (x, z) e os pontos em volta estão fora da linha de visão do alvo. */
+    private boolean hidden(World w, float x, float z) {
+        for (int k = 0; k < 9; k++) {   // o centro e oito pontos a 1 m (a borda de uma depressão não pode expor o bot)
+            float ox = k == 0 ? 0f : MathUtils.cos(k * MathUtils.PI2 / 8f) * 1f, oz = k == 0 ? 0f : MathUtils.sin(k * MathUtils.PI2 / 8f) * 1f;
+            coverP.set(x + ox, w.groundAt(x + ox, z + oz) + 1.6f, z + oz);   // mesma altura do olho usada na visão
+            if (w.lineOfSight(coverEye, coverP)) return false;
+        }
+        return true;
+    }
+
+    /** Procura o ponto mais perto (até 9 m) que não está na linha de visão do alvo. */
+    private boolean findCover(World w, Vector3 target) {
+        coverEye.set(target).add(0f, 1.2f, 0f);
+        float bestD = Float.MAX_VALUE;
+        boolean found = false;
+        for (int a = 0; a < 16; a++) {
+            float ang = a * MathUtils.PI2 / 16f, c = MathUtils.cos(ang), s = MathUtils.sin(ang);
+            for (float r = 2f; r <= 9f; r += 1.5f) {
+                float x = pos.x + c * r, z = pos.z + s * r;
+                if (Math.abs(x) > World.HALF - 4f || Math.abs(z) > World.HALF - 4f) continue;
+                if (r * r >= bestD) break;
+                // o bot precisa conseguir ficar de pé ali (não dentro de um obstáculo) e estar escondido
+                coverP.set(x, w.groundAt(x, z), z);
+                coverN.set(coverP);
+                w.resolveCollisions(coverN, 0.35f);
+                if (coverN.dst2(coverP.x, coverN.y, coverP.z) > 0.0025f) continue;
+                if (!reachable(w, pos.x, pos.z, x, z)) continue;   // tem caminho livre até lá
+                if (!hidden(w, x, z)) continue;
+                {
+                    bestD = r * r;
+                    coverX = x;
+                    coverZ = z;
+                    found = true;
+                }
+            }
+        }
+        return found;
+    }
     WeaponConfig weapon;                     // arma que o bot pegou no chão (null = sem arma)
     private final AnimationController anim;
     final Hitbox hitbox;
@@ -229,11 +289,28 @@ final class Enemy {
                 phaseT = shooting ? MathUtils.random(1.4f, 2.8f) : MathUtils.random(1.0f, 2.2f);
                 if (!shooting && MathUtils.randomBoolean(0.6f)) side = -side;
             }
-            boolean hurt = weapon != null && health < MAX_HEALTH * 0.3f && canSee;
+            boolean hurt = weapon != null && health < MAX_HEALTH * 0.3f && (canSee || hasCover);
             if (hurt) {
-                // ferido: recua para longe de quem o atira (sai da linha de tiro)
-                moveDir = toPlayer + MathUtils.PI;
-                speed = RUN;
+                // ferido: procura cobertura (um ponto que quem atira não vê); sem cobertura, recua
+                coverT -= dt;
+                if (coverT <= 0f) {
+                    coverT = 0.5f;
+                    hasCover = findCover(w, player);
+                }
+                if (hasCover) {
+                    float gx = coverX - pos.x, gz = coverZ - pos.z, gd = (float) Math.sqrt(gx * gx + gz * gz);
+                    if (gd > 0.12f) {
+                        moveDir = MathUtils.atan2(gx, gz);
+                        speed = gd < 1.2f ? WALK : RUN;
+                    } else {
+                        speed = 0f;
+                        setClip("IdleKneel", 1f);   // abaixado atrás da cobertura
+                    }
+                } else {
+                    // sem cobertura por perto: recua; se encostar em algo, troca de lado (side)
+                    moveDir = toPlayer + MathUtils.PI + side * 0.8f;
+                    speed = RUN;
+                }
             } else if (shooting) {
                 facing += wrap(toPlayer - facing) * Math.min(1f, dt * 8f);
                 setClip("Mirar", 1f);
@@ -241,10 +318,14 @@ final class Enemy {
                 if (reloadT > 0f) {
                     // recarregando: não atira até terminar
                     reloadT -= dt;
-                    if (reloadT <= 0f) ammo = BOT_MAGAZINE;
+                    if (reloadT <= 0f) {
+                        int take = Math.min(BOT_MAGAZINE, reserve);
+                        ammo = take;
+                        reserve -= take;
+                    }
                 } else if (fireT <= 0f && canSee) {
                     if (ammo <= 0) {
-                        reloadT = BOT_RELOAD;
+                        if (reserve > 0) reloadT = BOT_RELOAD;   // sem reserva, fica só com o clique
                     } else {
                         fireT = WeaponConfig.RIFLE_INIMIGO.fireInterval + MathUtils.random(0.25f, 0.8f);
                         ammo--;
