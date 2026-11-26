@@ -83,9 +83,9 @@ public class ShootTests extends ApplicationAdapter {
         en = new Enemies(w, jake, null);
         en.list.clear();
         fx = new CombatFx();
-        dmg = new DamageSystem((e, at, d, head, killed) -> {
+        dmg = new DamageSystem((e, at, d, head, killed, bone) -> {
             if (hitListenerOn) events.add(new float[]{d, head ? 1f : 0f, killed ? 1f : 0f});
-            fx.onHit(e, at, d, head, killed);
+            fx.onHit(e, at, d, head, killed, bone);
         });
         sh = new ShootingSystem(w, wp, en, dmg, fx, new Environment());
         fx.setAudio(sh.audio);
@@ -114,8 +114,6 @@ public class ShootTests extends ApplicationAdapter {
         wp.update(ch, pl);
         en.nextFrame();
         sh.update(dt, in, true);
-        yaw += sh.dYaw;
-        pitch += sh.dPitch;
     }
 
     Enemy spawnEnemy(float x, float z, float facing, String clip) {
@@ -211,7 +209,7 @@ public class ShootTests extends ApplicationAdapter {
         Vector3 shotMuzzle = new Vector3(wp.muzzle);
         for (int i = 0; i < 12; i++) step(1f / 30f, false, false);
         float back = new Vector3(wp.muzzle).dst(idle);
-        check("a arma recua no tiro (≥ 5 cm)", kick >= 0.05f && shotMuzzle.dst(idle) > 0.02f, String.format("recuo %.3f m, cano deslocou %.3f m", kick, shotMuzzle.dst(idle)));
+        check("animação visual da arma no tiro (não move a mira)", kick >= 0.05f && shotMuzzle.dst(idle) > 0.02f, String.format("recuo %.3f m, cano deslocou %.3f m", kick, shotMuzzle.dst(idle)));
         check("e volta ao lugar depois", back < 0.03f, String.format("falta %.3f m", back));
 
         System.out.println("== 3/4/5. Esvaziar o pente, tentar sem munição e recarregar ==");
@@ -448,45 +446,33 @@ public class ShootTests extends ApplicationAdapter {
         step(1f / 30f, false, true);
         check("outro toque dentro da rajada não empilha", sh.shotsFired - b <= 1, "");
 
-        System.out.println("== 10/19. Recuo, rajada longa e controle com o dedo ==");
+        System.out.println("== 10/19. Sem recuo; precisão máxima nos 7 primeiros; dispersão do 8º; volta após pausa ==");
         setup(0, null);
         Enemy r1 = spawnEnemy(ax, az + 20f, MathUtils.PI, "Idle");
         aimAt(r1.hitbox.chest);
-        float pitch0 = pitch;
-        float s0 = 0f;
-        for (int f = 0; f < 24; f++) {
-            step(1f / 30f, true, f == 0);
+        float pitch0 = pitch, yaw0 = yaw;
+        java.util.List<Float> spreads = new java.util.ArrayList<>();
+        int lastShots = sh.shotsFired;
+        for (int f = 0; f < 90 && spreads.size() < 10; f++) {
+            step(1f / 30f, true, false);   // botão segurado: automática
+            if (sh.shotsFired > lastShots) { spreads.add(sh.lastSpread); lastShots = sh.shotsFired; }
             r1.health = Enemy.MAX_HEALTH;
             r1.state = Enemy.State.PATROL;
-            if (f == 1) s0 = sh.lastSpread;
         }
-        float rise = pitch0 - pitch;
-        check("a mira sobe com o coice (previsível)", rise > 0.01f && rise < 0.6f, String.format("subiu %.1f°", Math.toDegrees(rise)));
-        check("a dispersão aumenta na rajada longa", sh.lastSpread > s0 + 0.2f, String.format("%.2f° → %.2f°", s0, sh.lastSpread));
-        float afterBurst = pitch;
-        for (int f = 0; f < 45; f++) step(1f / 30f, false, false);
-        float recovered = pitch - afterBurst;
-        check("parando de atirar a mira volta em parte, sem passar do ponto", recovered > 0.2f * rise && recovered < rise, String.format("subiu %.1f°, voltou %.1f°", Math.toDegrees(rise), Math.toDegrees(recovered)));
-        // o jogador puxa a mira para baixo: a volta automática diminui (o dedo já corrigiu)
-        setup(0, null);
-        r1 = spawnEnemy(ax, az + 20f, MathUtils.PI, "Idle");
-        aimAt(r1.hitbox.chest);
-        float p1 = pitch;
-        for (int f = 0; f < 12; f++) {
-            in.manualPitch = 0f;
-            step(1f / 30f, true, f == 0);
-            r1.health = Enemy.MAX_HEALTH;
-            r1.state = Enemy.State.PATROL;
-            float pull = Math.max(0f, (p1 - pitch)) * 0.5f;   // dedo para baixo compensando metade do coice
-            pitch += pull;
-            in.manualPitch = pull;
-            p1 = pitch + 0f;
-        }
-        float afterPull = pitch;
-        in.manualPitch = 0f;
-        for (int f = 0; f < 45; f++) step(1f / 30f, false, false);
-        float recoveredManual = pitch - afterPull;
-        check("corrigindo com o dedo, a volta automática é menor (controle manual)", recoveredManual < recovered, String.format("%.1f° contra %.1f°", Math.toDegrees(recoveredManual), Math.toDegrees(recovered)));
+        check("dez tiros seguidos saíram", spreads.size() == 10, spreads.size() + " tiros");
+        check("sem recuo: a mira e a câmera não se movem com os tiros", Math.abs(pitch - pitch0) < 1e-6f && Math.abs(yaw - yaw0) < 1e-6f,
+                String.format("Δpitch %.6f, Δyaw %.6f", pitch - pitch0, yaw - yaw0));
+        boolean first7 = true;
+        for (int i = 0; i < 7; i++) if (Math.abs(spreads.get(i) - spreads.get(0)) > 1e-6f) first7 = false;
+        check("tiros 1 a 7: precisão máxima (dispersão mínima e constante)", first7 && spreads.get(0) < 0.3f, String.format("%.3f°", spreads.get(0)));
+        check("a dispersão começa no 8º tiro (acima do 7º)", spreads.get(7) > spreads.get(6) + 1e-4f, String.format("7º %.3f°, 8º %.3f°", spreads.get(6), spreads.get(7)));
+        check("do 8º ao 10º ela cresce", spreads.get(8) > spreads.get(7) && spreads.get(9) > spreads.get(8),
+                String.format("9º %.3f°, 10º %.3f°", spreads.get(8), spreads.get(9)));
+        for (int i = 0; i < 20; i++) step(1f / 30f, false, false);   // ~0,66 s sem atirar (> pausa)
+        step(1f / 30f, true, true);
+        float afterPause = sh.lastSpread;
+        check("parar um pouco reinicia a sequência: volta a precisão máxima", Math.abs(afterPause - spreads.get(0)) < 1e-6f,
+                String.format("%.3f°", afterPause));
 
         System.out.println("== 17/18. Troca de arma, recarga em animação e áudio ==");
         setup(0, null);

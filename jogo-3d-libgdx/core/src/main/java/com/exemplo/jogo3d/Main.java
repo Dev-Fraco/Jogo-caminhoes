@@ -105,7 +105,8 @@ public class Main extends ApplicationAdapter {
     private final TargetDetection targets = new TargetDetection();
     private final AimAssist assist = new AimAssist();
     private final AimController aimCtl = new AimController();
-    private ShootingSystem shooting;               // disparo: modos, recuo, dispersão, efeitos e dano
+    private ShootingSystem shooting;               // disparo: modos, dispersão, efeitos e dano
+    private final Vector3 whizP = new Vector3();
     private final ShootingSystem.Input shootIn = new ShootingSystem.Input();
     private final Hitbox.Hit overHit = new Hitbox.Hit();
     private DamageSystem damage;
@@ -461,15 +462,11 @@ public class Main extends ApplicationAdapter {
             shootIn.prone = prone > 0;
             shootIn.grounded = player.grounded;
             shootIn.speed = player.speed;
-            shootIn.manualPitch = Math.max(0f, aimCtl.pitchDelta);   // jogador puxando a mira para baixo
             shootIn.cam.set(camera.position);
             shootIn.aim.set(aimDir);
             shootIn.playerPos.set(player.pos);
             shooting.update(dt, shootIn, combat && cfg != null);
-            yaw += shooting.dYaw;
-            pitch += shooting.dPitch;
             if (shooting.firedThisFrame && enemies != null) enemies.alert(player.pos, 45f);   // o estampido chama o bando
-            if (!parachuting) character.setTilt(shooting.bodyTilt, 0f, 1.0f);   // o corpo recua um pouco no tiro
         }
         pitch = combat ? MathUtils.clamp(pitch, -0.75f, 1.1f) : MathUtils.clamp(pitch, Math.min(pitch, 0.05f), 1.2f);
         if (!combat && pitch < 0.05f) pitch += (0.05f - pitch) * Math.min(1f, dt * 5f);
@@ -485,7 +482,13 @@ public class Main extends ApplicationAdapter {
         if (enemies != null) {
             int stance = prone > 0 ? 2 : (crouchOn ? 1 : 0);
             enemies.update(dt, world, player.pos, survival, player.speed, stance, camera, Settings.drawDistance());
-            for (int k = 0; k < enemies.shots.size; k++) fx.enemyShot(enemies.shots.get(k)[0], enemies.shots.get(k)[1], player.pos);
+            for (int k = 0; k < enemies.shots.size; k++) {
+                Vector3[] sg = enemies.shots.get(k);
+                fx.enemyShot(sg[0], sg[1], player.pos);
+                whizP.set(player.pos).add(0f, 1f, 0f);   // bala que passou perto do jogador: assobio
+                float sd = ShootingSystem.segDist(sg[0], sg[1], whizP);
+                if (shooting != null && sd > 0.4f && sd < 1.8f) shooting.audio.whiz(sd);
+            }
         }
         if (fx != null) fx.update(dt);
         world.fences.update(dt, player);
@@ -617,7 +620,6 @@ public class Main extends ApplicationAdapter {
             float s = grenades.shake * 0.22f;
             camera.position.add(MathUtils.random(-s, s), MathUtils.random(-s, s), MathUtils.random(-s, s));
         }
-        if (shooting != null && shooting.camKick > 0f) camera.position.mulAdd(aimDir, -shooting.camKick);   // empurrão do tiro
         camera.lookAt(pivot);
         camera.up.set(Vector3.Y);
         camera.update();

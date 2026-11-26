@@ -102,7 +102,7 @@ final class CombatFx implements DamageSystem.Listener {
     }
 
     @Override
-    public void onHit(Enemy e, Vector3 at, float damage, boolean isHead, boolean killed) {
+    public void onHit(Enemy e, Vector3 at, float damage, boolean isHead, boolean killed, int bone) {
         int k = numNext++ % NUMBERS;
         numPos[k].set(at);
         numVal[k] = damage;
@@ -112,7 +112,7 @@ final class CombatFx implements DamageSystem.Listener {
         markHead = isHead ? 1f : 0f;
         play(isHead ? head : hit, isHead ? 0.9f : 0.7f);
         if (impacts != null) impacts.hit(Surface.CARNE, at, shotNormal);
-        e.flinch(isHead);   // o inimigo reage ao tiro
+        e.flinch(isHead, bone);   // o inimigo reage ao tiro (e ao membro atingido)
         if (killed) {
             killT = 2.4f;
             killHead = isHead;
@@ -190,21 +190,6 @@ final class CombatFx implements DamageSystem.Listener {
                 }
             }
         }
-        // Barras de vida dos inimigos atingidos (alguns segundos depois do tiro)
-        if (enemies != null) {
-            for (int i = 0; i < enemies.list.size; i++) {
-                Enemy en = enemies.list.get(i);
-                if (en.barT <= 0f || !en.alive()) continue;
-                tmp.set(en.pos.x, en.pos.y + 2.05f, en.pos.z);
-                cam.project(tmp);
-                if (tmp.z > 1f) continue;
-                float bw = 46f * u, bh = 5f * u, a = Math.min(1f, en.barT * 2f), f = MathUtils.clamp(en.health / Enemy.MAX_HEALTH, 0f, 1f);
-                shapes.setColor(0.08f, 0.05f, 0.03f, 0.85f * a);
-                shapes.rect(tmp.x - bw / 2f - u, tmp.y - u, bw + 2f * u, bh + 2f * u);
-                shapes.setColor(0.85f - 0.4f * (1f - f), 0.15f + 0.5f * f, 0.08f, a);
-                shapes.rect(tmp.x - bw / 2f, tmp.y, bw * f, bh);
-            }
-        }
         // Marcador de acerto (X)
         if (markT > 0f) {
             float k = markT / 0.2f, s = (markHead > 0f ? 15f : 10f) * u, inner = 4f * u, w = (markHead > 0f ? 2.6f : 1.8f) * u;
@@ -240,11 +225,25 @@ final class CombatFx implements DamageSystem.Listener {
             if (tmp.z > 1f) continue;   // atrás da câmera
             float a = Math.min(1f, numT[i] * 2.5f);
             font.getData().setScale(numHead[i] ? 1.9f * u / 1.6f : 1.5f * u / 1.6f);
-            if (numHead[i]) font.setColor(1f, 0.78f, 0.2f, a);
+            // Números que aparecem juntos sobem uns sobre os outros (não se sobrepõem)
+            int stack = 0;
+            for (int j = 0; j < i; j++) {
+                if (numT[j] > 0f && numPos[j].dst2(numPos[i]) < 0.8f * 0.8f) stack++;
+            }
+            tmp.add(0f, stack * 0.28f, 0f);
+            cam.project(tmp);
+            if (numHead[i]) font.setColor(0.95f, 0.14f, 0.10f, a);   // headshot: vermelho
             else font.setColor(0.98f, 0.95f, 0.88f, a);
-            String t = numHead[i] ? Math.round(numVal[i]) + "!" : String.valueOf(Math.round(numVal[i]));
+            String t = String.valueOf(Math.round(numVal[i]));
             layout.setText(font, t);
             font.draw(batch, t, tmp.x - layout.width / 2f, tmp.y + layout.height);
+            if (numHead[i]) {   // etiqueta discreta acima do número
+                font.getData().setScale(0.9f * u / 1.6f);
+                font.setColor(0.95f, 0.14f, 0.10f, a);
+                layout.setText(font, "HEADSHOT");
+                font.draw(batch, "HEADSHOT", tmp.x - layout.width / 2f, tmp.y + layout.height * 3.2f);
+                font.getData().setScale(1.9f * u / 1.6f);
+            }
         }
         // Pente e reserva vazios: aviso
         if (cfg != null && armedView && weapons.ammo() == 0 && !weapons.reloading()) {

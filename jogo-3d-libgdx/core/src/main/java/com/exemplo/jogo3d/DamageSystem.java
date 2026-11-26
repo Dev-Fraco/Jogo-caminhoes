@@ -10,13 +10,14 @@ import com.badlogic.gdx.math.Vector3;
  */
 final class DamageSystem {
     interface Listener {
-        void onHit(Enemy e, Vector3 at, float damage, boolean head, boolean killed);
+        void onHit(Enemy e, Vector3 at, float damage, boolean head, boolean killed, int bone);
     }
 
     private static final int MAX = 8;
     private final Enemy[] who = new Enemy[MAX];
     private final float[] sum = new float[MAX];
     private final boolean[] head = new boolean[MAX];
+    private final int[] bone = new int[MAX];
     private final Vector3[] where = new Vector3[MAX];
     private int n;
     int kills;
@@ -41,12 +42,14 @@ final class DamageSystem {
             who[k] = r.enemy;
             sum[k] = 0f;
             head[k] = false;
+            bone[k] = r.bone;
             where[k].set(r.point);
             n++;
         }
         sum[k] += dmg;
         if (r.region == WeaponConfig.Region.HEAD) {
             head[k] = true;
+            bone[k] = r.bone;
             where[k].set(r.point);
         }
     }
@@ -60,7 +63,7 @@ final class DamageSystem {
             boolean killed = e.damage(dmg, shooter);
             if (head[k]) headshots++;
             if (killed) kills++;
-            if (listener != null) listener.onHit(e, where[k], dmg, head[k], killed);
+            if (listener != null) listener.onHit(e, where[k], dmg, head[k], killed, bone[k]);
             who[k] = null;
         }
         n = 0;

@@ -57,7 +57,8 @@ final class Enemy {
     final Vector3 lastKnown = new Vector3(), tgt = new Vector3();
     boolean hasLast;
     int botKills;
-    float barT;                   // barra de vida visível (s restantes) depois de levar tiro
+    float barT;                   // (sem barra de vida na tela: só o tempo da reação)
+    float slowT;                  // s de manquejar (perna atingida)
     private float hitT, hitDur = 0.18f, hitMag;   // reação ao dano (o corpo recua um pouco, o pano pisca)
     final Vector3 muzzle = new Vector3();
     boolean visibleToCam;   // dentro da distância de desenho (para não animar longe)
@@ -242,6 +243,10 @@ final class Enemy {
                 else { moveDir = toPlayer + side * MathUtils.HALF_PI; speed = RUN; }                   // corre de lado
             }
         }
+        if (slowT > 0f) {
+            slowT -= dt;
+            speed *= 0.5f;
+        }
         if (speed > 0f) {
             facing += wrap(moveDir - facing) * Math.min(1f, dt * 7f);
             float px = pos.x, pz = pos.z;
@@ -416,10 +421,11 @@ final class Enemy {
     }
 
     /** Reação ao tiro: recuo curto do corpo e brilho vermelho do pano (mais forte na cabeça). */
-    void flinch(boolean head) {
+    void flinch(boolean head, int bone) {
         if (state == State.DEAD) return;
         hitT = hitDur;
         hitMag = head ? 1.4f : 0.8f;
+        if (bone >= 8 && bone <= 11) slowT = 1.2f;   // perna atingida: manca e anda mais devagar por um tempo
         glow(true);
     }
 

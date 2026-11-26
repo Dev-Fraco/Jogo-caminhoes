@@ -36,13 +36,13 @@ final class ShootingSystem {
     private final HitDetection.Result res = new HitDetection.Result();
     private final Vector3 shotDir = new Vector3(), side1 = new Vector3(), side2 = new Vector3();
 
-    float bloom;                  // abertura da mira nos tiros seguidos (graus)
-    private float pendPitch, pendYaw, accum, idleT = 9f;
-    private int streak;
-    private float drift = 1f;
-    float dPitch, dYaw;           // correção da mira neste quadro: pitch += dPitch (+ = desce), yaw += dYaw
-    float camKick;                // empurrão da câmera para trás (m)
-    float bodyTilt;               // inclinação do corpo para trás (graus)
+    // Dispersão: os 7 primeiros tiros seguidos são de precisão máxima; a partir do 8º ela cresce.
+    // Não há recuo: a mira e a câmera nunca são empurradas pelo disparo.
+    static final float PRECISE_DEG = 0.15f;   // dispersão mínima (ainda vale a postura e o movimento)
+    static final int FREE_SHOTS = 7;          // tiros de precisão máxima
+    static final float PAUSE = 0.45f;         // s sem atirar: a sequência recomeça
+    private float idleT = 9f;
+    private int streak;                       // tiros seguidos até agora
     boolean firedThisFrame;
     int shotsFired;               // total (testes)
     float lastSpread;
@@ -64,8 +64,6 @@ final class ShootingSystem {
     /** Um quadro. canShoot = armado, em pé no chão, vivo, sem menu aberto etc. */
     void update(float dt, Input in, boolean canShoot) {
         firedThisFrame = false;
-        dPitch = 0f;
-        dYaw = 0f;
         audio.update(dt);
         weapons.tick(dt);
         int ev = weapons.takeEvents();
@@ -82,40 +80,39 @@ final class ShootingSystem {
             if ((ev & Weapons.EV_RELOAD) != 0) audio.reload();
         }
         idleT += dt;
-        if (idleT > 0.3f) streak = 0;
-
-        // O coice chega em ~60 ms (a mira sobe)
-        float rk = Math.min(1f, dt * 16f);
-        float ap = pendPitch * rk, ay = pendYaw * rk;
-        pendPitch -= ap;
-        pendYaw -= ay;
-        dPitch -= ap;
-        dYaw += ay;
-        // O que o jogador puxou para baixo com o dedo já corrigiu o coice
-        if (in.manualPitch > 0f) accum = Math.max(0f, accum - in.manualPitch);
-        // Parou de atirar: a mira volta aos poucos (70% do que sobrou do coice)
-        if (idleT > 0.15f && accum > 0f) {
-            float step = accum * Math.min(1f, dt * 4f);
-            accum -= step;
-            dPitch += step * 0.7f;
-        }
-        // A abertura da mira só começa a fechar depois de um instante sem atirar (na rajada ela acumula)
-        if (idleT > 0.2f) bloom = Math.max(0f, bloom - dt * 6f);
-        camKick -= camKick * Math.min(1f, dt * 12f);
-        bodyTilt = Math.min(3f, camKick * 55f);
+        if (idleT > PAUSE) streak = 0;   // parou de atirar: a precisão volta
 
         flash.update(dt, weapons.armed() ? weapons.muzzle : null, weapons.barrel);
         impacts.update(dt);
     }
 
-    /** Dispersão atual (graus): mira/quadril, andando/correndo, no ar, postura e abertura da rajada. */
+    /** Dispersão do PRÓXIMO tiro (graus): a postura e o movimento valem sempre; a sequência só a partir do 8º. */
     float spreadDeg(WeaponConfig c, Input in) {
-        float s = in.ads ? c.spreadAds : c.spreadHip;
-        s *= 1f + MathUtils.clamp(in.speed / Player.RUN_SPEED, 0f, 1f) * 0.8f;   // correndo: pior
-        if (!in.grounded) s *= 2f;
-        if (in.prone) s *= 0.55f;          // deitado: muito melhor
-        else if (in.crouch) s *= 0.75f;    // agachado: melhor
-        return s + bloom;
+        float f = 1f + MathUtils.clamp(in.speed / Player.RUN_SPEED, 0f, 1f) * 0.8f;   // correndo: pior
+        if (!in.grounded) f *= 2f;
+        if (in.prone) f *= 0.55f;          // deitado: muito melhor
+        else if (in.crouch) f *= 0.75f;    // agachado: melhor
+        if (in.ads) f *= 0.6f;             // mirando: melhor
+        float cap = in.ads ? c.spreadAds : c.spreadHip;   // limite de dispersão desta arma
+        return f * (PRECISE_DEG + cap * shotCurve(streak + 1));
+    }
+
+    /** Quanto da dispersão máxima a arma já tem no tiro n: zero até o 7º; depois sobe devagar até 1. */
+    static float shotCurve(int n) {
+        if (n <= FREE_SHOTS) return 0f;
+        if (n == 8) return 0.08f;
+        if (n == 9) return 0.2f;
+        if (n == 10) return 0.3f;
+        return Math.min(1f, 0.3f + (n - 10) * 0.05f);
+    }
+
+    /** Distância do ponto p ao segmento ab (para o assobio de bala que passa perto). */
+    static float segDist(Vector3 a, Vector3 b, Vector3 p) {
+        float ux = b.x - a.x, uy = b.y - a.y, uz = b.z - a.z;
+        float len2 = ux * ux + uy * uy + uz * uz;
+        float t = len2 < 1e-6f ? 0f : MathUtils.clamp(((p.x - a.x) * ux + (p.y - a.y) * uy + (p.z - a.z) * uz) / len2, 0f, 1f);
+        float dx = a.x + ux * t - p.x, dy = a.y + uy * t - p.y, dz = a.z + uz * t - p.z;
+        return (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
     private void fireShot(WeaponConfig c, Input in) {
@@ -153,19 +150,7 @@ final class ShootingSystem {
         flash.fire(muzzle, weapons.barrel, c);
         audio.fire(c.category, c.pellets > 1);
 
-        // Coice: sobe a mira (e um pouco de lado, com tendência), cresce na rajada longa
-        float kick = in.ads ? 0.7f : 1f;
-        if (in.prone) kick *= 0.7f;
-        else if (in.crouch) kick *= 0.85f;
-        if (streak == 0) drift = MathUtils.randomBoolean() ? 1f : -1f;
-        streak = Math.min(streak + 1, 14);
-        float up = (float) Math.toRadians(c.recoilPitch) * kick * (1f + 0.035f * streak);
-        float side = (float) Math.toRadians(c.recoilYaw) * kick * (0.6f * drift + 0.4f * MathUtils.random(-1f, 1f));
-        pendPitch += up;
-        accum += up;
-        pendYaw += side;
-        bloom = Math.min(bloom + c.spreadHip * 0.16f, c.spreadHip * 1.4f);
-        camKick = Math.min(0.06f, camKick + c.kick * 0.35f);
+        streak++;   // mais um tiro da sequência (a dispersão cresce a partir do 8º)
     }
 
     void dispose() {

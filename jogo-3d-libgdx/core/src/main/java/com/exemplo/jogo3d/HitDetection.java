@@ -16,6 +16,7 @@ final class HitDetection {
     static final class Result {
         Enemy enemy;
         WeaponConfig.Region region;
+        int bone;            // cápsula atingida (diz qual membro)
         final Vector3 point = new Vector3();
         float distance;      // do cano até o ponto (para a queda de dano)
         boolean hitWorld;    // acertou chão/parede (para a poeira)
@@ -69,6 +70,7 @@ final class HitDetection {
         if (e != null) {
             out.enemy = e;
             out.region = hit.region;
+            out.bone = hit.bone;
         }
         return out;
     }

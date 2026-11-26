@@ -96,6 +96,7 @@ final class Hitbox {
     static final class Hit {
         float t = Float.MAX_VALUE;
         WeaponConfig.Region region;
+        int bone;                    // índice da cápsula atingida (0..12): diz qual membro
         final Vector3 point = new Vector3();
     }
 
@@ -115,6 +116,7 @@ final class Hitbox {
             if (t >= 0f && t < hit.t) {
                 hit.t = t;
                 hit.region = REGION[i];
+                hit.bone = i;
                 hit.point.set(o).mulAdd(d, t);
                 got = true;
             }
