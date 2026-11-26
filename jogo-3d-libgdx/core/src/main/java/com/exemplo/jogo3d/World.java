@@ -62,6 +62,13 @@ public class World {
     }
     final Array<Box> boxes = new Array<>();
     Town town;
+    Airplane airplane;
+
+    /** Sempre desenhado (não sai pela distância de desenho): avião, que voa alto e longe. */
+    void alwaysDraw(ModelInstance mi) {
+        instances.add(mi);
+        terrainParts.add(mi);
+    }
     private Model pocoModel;
     private float townH = Float.NaN;
 
@@ -465,6 +472,10 @@ public class World {
         }
         town = new Town(this, casaModel, benchModel, treeModel, pocoModel, horseModel);
         town.build();
+        // Avião do battle royale: voa sobre o mapa com turbulência, turbinas girando e rastros de vento
+        airplane = new Airplane();
+        alwaysDraw(airplane.plane);
+        for (ModelInstance f : airplane.fans) alwaysDraw(f);
         // Pedras grandes nas margens da estrada (trechos difíceis de passar)
         for (int i = 0; i < 14; i++) {
             float x = (rnd.nextFloat() * 2f - 1f) * 150f;
@@ -498,6 +509,7 @@ public class World {
         for (int i = 0; i < decors.size; i++) decors.get(i).update(dt);
         fire.update(dt, cam);
         if (town != null) town.update(dt);
+        if (airplane != null) airplane.update(dt, cam);
     }
 
     /** Fogo e fumaça: desenhe com o ModelBatch (transparência). */
@@ -980,6 +992,7 @@ public class World {
     public void dispose() {
         for (Model m : terrainModels) m.dispose();
         if (town != null) town.dispose();
+        if (airplane != null) airplane.dispose();
         casaModel.dispose();
         if (crackTexture != null) crackTexture.dispose();
         if (damModel != null) damModel.dispose();

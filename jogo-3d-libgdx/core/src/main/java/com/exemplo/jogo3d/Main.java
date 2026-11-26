@@ -73,6 +73,10 @@ public class Main extends ApplicationAdapter {
     private Cart hitchCart = null;                // carroça sendo presa agora
     private Riding hitchHorse = null;
     private float hitchT = 0f;                    // tempo da animação de prender (s)
+    // Battle royale: começa dentro do avião, salta, cai de barriga para baixo e pousa
+    private boolean inPlane = false, skydiving = false, landing = false;
+    private final Vector3 fallVel = new Vector3();
+    private static final float TERMINAL = 22f;    // velocidade máxima de queda (m/s)
     private HouseDecor lyingIn = null;            // casa onde o personagem está deitado na rede
     private float camDist = CAMERA_DISTANCE;      // distância da câmera, suavizada
     private final Array<Riding> ridings = new Array<>();
@@ -132,6 +136,7 @@ public class Main extends ApplicationAdapter {
         // Moradores da cidade (usam o modelo do personagem, com roupas de outras cores)
         try {
             if (world.town != null && character.model() != null) world.town.createNpcs(character.model());
+            inPlane = world.airplane != null;   // o jogo começa dentro do avião
         } catch (Throwable t) {
             errorText = "ERRO NOS MORADORES:\n" + describe(t);
         }
@@ -231,6 +236,23 @@ public class Main extends ApplicationAdapter {
                 character.endOnce();
             }
         }
+        // Battle royale: dentro do avião, em queda livre ou pousando
+        if (inPlane) {
+            player.pos.set(world.airplane.pos).add(0f, -3f, 0f);
+            player.speed = 0f;
+            player.grounded = false;
+            busy = true;
+        } else if (skydiving) {
+            updateSkydive(dt, inX, inY);
+            busy = true;
+        } else if (landing) {
+            player.speed = 0f;
+            busy = true;
+            if (character.onceFinished()) {
+                landing = false;
+                character.endOnce();
+            }
+        }
         boolean lying = lyingIn != null;
         if (!busy && !ridingActive && !lying) player.update(dt, inX, inY, yaw, jumpPressed, runToggle, world);
         if (lying) {
@@ -252,7 +274,7 @@ public class Main extends ApplicationAdapter {
         }
         if (!ridingActive) character.setCrouch(crouchOn && player.speed < 0.25f ? 1f : 0f);
         character.setReach(world.fences.reach());
-        character.update(player, dt);
+        if (!inPlane) character.update(player, dt);
         world.fences.update(dt, player);
         world.update(dt, camera);
 
@@ -294,9 +316,10 @@ public class Main extends ApplicationAdapter {
         // Direção da câmera (usada também para a câmera ficar atrás do jogador)
         Vector3 forward = new Vector3(MathUtils.sin(yaw), 0f, MathUtils.cos(yaw));
         // Dentro da casa a câmera chega perto e baixa um pouco, para enxergar o interior
-        boolean inside = world.insideHouse(player.pos);
-        float targetDist = inside ? CAMERA_DISTANCE_INSIDE : CAMERA_DISTANCE;
-        Vector3 pivot = new Vector3(player.pos.x, player.pos.y + (inside ? 1.2f : 1.4f), player.pos.z);
+        boolean inside = !inPlane && world.insideHouse(player.pos);
+        float targetDist = inPlane ? 48f : inside ? CAMERA_DISTANCE_INSIDE : CAMERA_DISTANCE;
+        Vector3 pivot = inPlane ? new Vector3(world.airplane.pos).add(0f, 3f, 0f)   // no avião: câmera segue o avião
+                : new Vector3(player.pos.x, player.pos.y + (inside ? 1.2f : 1.4f), player.pos.z);
         Vector3 back = new Vector3(
                 -forward.x * MathUtils.cos(pitch),
                 MathUtils.sin(pitch),
@@ -318,9 +341,10 @@ public class Main extends ApplicationAdapter {
         Gdx.gl.glDisable(GL20.GL_CULL_FACE);
         modelBatch.begin(camera);
         modelBatch.render(visibleWorldInstances(), environment);
-        modelBatch.render(character.instances, environment);
+        if (!inPlane) modelBatch.render(character.instances, environment);
         world.fences.render(modelBatch, environment);
         modelBatch.render(world.fireInstance(), environment);
+        if (world.airplane != null) modelBatch.render(world.airplane.effects(), environment);   // rastros de vento
         modelBatch.end();
 
         drawHud();
@@ -405,6 +429,10 @@ public class Main extends ApplicationAdapter {
                 crouchOn = !crouchOn;
                 return;
             case "abrir":
+                if (inPlane) {
+                    startSkydive();
+                    return;
+                }
                 if (prompt != null) {
                     world.fences.startOperation(prompt, player);
                     prompt = null;
@@ -469,8 +497,9 @@ public class Main extends ApplicationAdapter {
         hud.joyX = joyX;
         hud.joyY = joyY;
         boolean canGetUp = lyingIn != null && lyingIn.lie == HouseDecor.Lie.LYING;
-        hud.promptVisible = prompt != null || mountTarget != null || doorTarget != null || hammockTarget != null || canGetUp || cartTarget != null || cartOptionsHorse != null;
-        if (prompt != null) hud.promptText = prompt.label();
+        hud.promptVisible = inPlane || prompt != null || mountTarget != null || doorTarget != null || hammockTarget != null || canGetUp || cartTarget != null || cartOptionsHorse != null;
+        if (inPlane) hud.promptText = "SALTAR DO AVIÃO";
+        else if (prompt != null) hud.promptText = prompt.label();
         else if (cartOptionsHorse != null) hud.promptText = "TIRAR CARROÇA  |  SENTAR NA CARROÇA";
         else if (cartTarget != null) hud.promptText = "PRENDER CARROÇA";
         else if (mountTarget != null) hud.promptText = "MONTAR";
@@ -508,6 +537,49 @@ public class Main extends ApplicationAdapter {
             if (dx * dx + dz * dz <= maxD2) drawList.add(mi);
         }
         return drawList;
+    }
+
+    // ---------- Battle royale: salto do avião ----------
+
+    /** Salta do avião: sai por baixo dele, com o embalo do avião, e começa a queda livre de barriga para baixo. */
+    private void startSkydive() {
+        Airplane ap = world.airplane;
+        inPlane = false;
+        skydiving = true;
+        player.pos.set(ap.pos).add(0f, -4f, 0f);
+        fallVel.set(MathUtils.sin(ap.heading()) * Airplane.SPEED, ap.verticalSpeed(), MathUtils.cos(ap.heading()) * Airplane.SPEED);
+        player.facing = ap.heading();
+        yaw = ap.heading();
+        character.playLoop("Falling");
+    }
+
+    /**
+     * Queda livre: gravidade com resistência do ar (chega na velocidade máxima de queda), o embalo do avião
+     * vai sumindo pelo arrasto e o analógico faz planar na direção da câmera. No chão, toca o pouso.
+     */
+    private void updateSkydive(float dt, float inX, float inY) {
+        fallVel.y += (-9.8f - 9.8f / TERMINAL * fallVel.y) * dt;
+        float fx = MathUtils.sin(yaw), fz = MathUtils.cos(yaw), rx = -fz, rz = fx;
+        float wx = (inX * rx + inY * fx) * 9f, wz = (inX * rz + inY * fz) * 9f;
+        float k = Math.min(1f, dt * 0.8f);
+        fallVel.x += (wx - fallVel.x) * k;
+        fallVel.z += (wz - fallVel.z) * k;
+        player.pos.mulAdd(fallVel, dt);
+        player.pos.x = MathUtils.clamp(player.pos.x, -World.HALF + 2f, World.HALF - 2f);
+        player.pos.z = MathUtils.clamp(player.pos.z, -World.HALF + 2f, World.HALF - 2f);
+        float hs = (float) Math.sqrt(fallVel.x * fallVel.x + fallVel.z * fallVel.z);
+        if (hs > 0.5f) player.facing = MathUtils.atan2(fallVel.x, fallVel.z);
+        player.speed = 0f;
+        player.grounded = false;
+        float ground = world.groundAt(player.pos.x, player.pos.z);
+        if (player.pos.y <= ground) {
+            player.pos.y = ground;
+            player.grounded = true;
+            skydiving = false;
+            landing = true;
+            fallVel.setZero();
+            character.playOnce("HardLanding");
+        }
     }
 
     // ---------- Configurações ----------

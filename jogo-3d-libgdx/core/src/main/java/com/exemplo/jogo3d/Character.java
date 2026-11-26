@@ -44,6 +44,7 @@ public class Character {
     private String onceClip = null;
     private float onceT = 0f, onceDur = 1f;
     private boolean onceDone = false;
+    private boolean onceLoop = false;   // animação única que repete (ex.: queda livre)
     private float swing = 0f;      // radianos: balanço em torno do quadril (rede)
     private float swingPivotY = 1.15f;   // altura das ancoragens da rede, em relação aos pés deitados
 
@@ -139,9 +140,19 @@ public class Character {
         onceClip = clip;
         onceT = 0f;
         onceDone = false;
+        onceLoop = false;
         com.badlogic.gdx.graphics.g3d.model.Animation a = model.getAnimation(clip);
         onceDur = a != null && a.duration > 0f ? a.duration : 1.2f;
         anim.animate(clip, 1, 1f, null, 0.2f);
+    }
+
+    /** Toca uma animação repetindo, fora do andar/parado, até endOnce() (ex.: "Falling" na queda livre). */
+    public void playLoop(String clip) {
+        onceClip = clip;
+        onceT = 0f;
+        onceDone = false;
+        onceLoop = true;
+        anim.animate(clip, -1, 1f, null, 0.25f);
     }
 
     public boolean onceFinished() {
@@ -152,6 +163,7 @@ public class Character {
     public void endOnce() {
         onceClip = null;
         onceDone = false;
+        onceLoop = false;
         current = State.IDLE;
         candidate = State.IDLE;
         applyClip();
@@ -227,7 +239,9 @@ public class Character {
         }
         saved.clear();
         if (onceClip != null) {
-            if (!onceDone) {
+            if (onceLoop) {
+                anim.update(dt);
+            } else if (!onceDone) {
                 onceT += dt;
                 anim.update(dt);
                 if (onceT >= onceDur) onceDone = true;   // segura a última pose
