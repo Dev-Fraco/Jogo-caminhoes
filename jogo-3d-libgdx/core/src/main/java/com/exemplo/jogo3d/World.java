@@ -620,6 +620,28 @@ public class World {
         ModelInstance house = new ModelInstance(casaModel);
         house.transform.set(t);
         instances.add(house);
+        // Alicerce: bloco de pedra do chão mais baixo da casa até o piso (a casa não flutua)
+        float minX = 1e9f, maxX = -1e9f, minZ = 1e9f, maxZ = -1e9f;
+        for (int k = 0; k < wallBoxes.size; k++) {
+            float[] wb = wallBoxes.get(k);
+            minX = Math.min(minX, wb[0]); maxX = Math.max(maxX, wb[1]);
+            minZ = Math.min(minZ, wb[4]); maxZ = Math.max(maxZ, wb[5]);
+        }
+        float minG = 1e9f;
+        for (float lx = -4.2f; lx <= 4.21f; lx += 1.4f) for (float lz = -3.2f; lz <= 3.21f; lz += 1.6f) {
+            Vector3 w = new Vector3(lx, 0f, lz).mul(probe);
+            minG = Math.min(minG, heightAt(w.x, w.z));
+        }
+        float fh = y - (minG - 0.3f);
+        if (fh > 0.05f && maxX > minX) {
+            ModelBuilder fb = new ModelBuilder();
+            Model fm = fb.createBox(maxX - minX + 0.4f, fh, maxZ - minZ + 0.4f,
+                    new Material(ColorAttribute.createDiffuse(0.55f, 0.47f, 0.38f, 1f)), Usage.Position | Usage.Normal);
+            loaded.add(fm);
+            ModelInstance fi = new ModelInstance(fm);
+            fi.transform.set(t).translate((minX + maxX) / 2f, -fh / 2f, (minZ + maxZ) / 2f);
+            instances.add(fi);
+        }
         ModelInstance floor = new ModelInstance(floorModel);
         floor.transform.set(t);
         instances.add(floor);
@@ -662,7 +684,7 @@ public class World {
             AnimationController horseAnim = new AnimationController(horse);
             horseAnim.animate("Idle", -1, 1f, null, 0.2f);
             mounts.add(new Riding.Mount(horse, horseAnim, null, new Vector3(h.x, 0f, h.z), yaw,
-                    2.33f, 0.0f, 1.0f, 1.8f, 4.5f, true, -1.31f, 2.13f));
+                    2.33f, 0.0f, 1.0f, 1.8f, 9f, true, -1.31f, 2.13f));
         }
     }
 

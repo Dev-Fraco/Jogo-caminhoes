@@ -205,7 +205,7 @@ public class Main extends ApplicationAdapter {
         boolean ridingActive = false;
         for (int i = 0; i < ridings.size; i++) {
             Riding r = ridings.get(i);
-            r.update(dt, inX, inY, yaw, runToggle, jumpPressed, player, character);
+            r.update(dt, inX, inY, yaw, runPointer >= 0, jumpPressed, player, character);
             if (r.isMounted() || r.isBusy()) ridingActive = true;
         }
         boolean lying = lyingIn != null;

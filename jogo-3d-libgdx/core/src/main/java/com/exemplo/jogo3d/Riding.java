@@ -1,6 +1,13 @@
 package com.exemplo.jogo3d;
 
+import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.g3d.Material;
+import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
+import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
+import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
+import com.badlogic.gdx.graphics.VertexAttributes.Usage;
+import com.badlogic.gdx.math.Quaternion;
 import com.badlogic.gdx.graphics.g3d.utils.AnimationController;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Matrix4;
@@ -256,12 +263,6 @@ public class Riding {
         float mx = inX * rx + inY * fx;
         float mz = inX * rz + inY * fz;
         float mag = (float) Math.sqrt(mx * mx + mz * mz);
-        if (run && mag <= 0.02f) {
-            // Botão de correr sem analógico: corre na direção da câmera (como o personagem)
-            mx = fx;
-            mz = fz;
-            mag = 1f;
-        }
         boolean moving = mag > 0.15f;
         if (moving) {
             float target = MathUtils.atan2(mx, mz);
@@ -280,12 +281,48 @@ public class Riding {
             setClip("Idle", 1f);
         }
         placeAnimal();
+        updateReins();
         Vector3 seat = seatRoot();
         setPlayer(player, seat.x, seat.y, seat.z, true);
         player.speed = 0f;
         player.facing = m.facing;
         ch.setSitting(true);
         ch.setCrouch(0f);
+    }
+
+    // ---------- Rédeas ----------
+
+    private static Model reinModel;
+    private final ModelInstance[] reins = new ModelInstance[2];
+    private final Vector3 rA = new Vector3(), rB = new Vector3(), rD = new Vector3();
+    private final Quaternion rQ = new Quaternion();
+
+    /** Duas rédeas do focinho do cavalo até as mãos do cavaleiro (aparecem só montado). */
+    private void updateReins() {
+        if (reinModel == null) {
+            reinModel = new ModelBuilder().createBox(0.03f, 0.03f, 1f,
+                    new Material(ColorAttribute.createDiffuse(0.22f, 0.13f, 0.07f, 1f)), Usage.Position | Usage.Normal);
+        }
+        for (int i = 0; i < 2; i++) {
+            if (reins[i] == null) reins[i] = new ModelInstance(reinModel);
+            float s = i == 0 ? -1f : 1f;
+            rA.set(s * 0.04f, 2.9f, 2.1f).mul(m.inst.transform);            // focinho
+            rB.set(s * 0.25f, m.seatY + 0.35f, m.seatZ + 0.45f).mul(m.inst.transform);   // mão
+            rD.set(rB).sub(rA);
+            float len = rD.len();
+            rA.add(rB).scl(0.5f);
+            rQ.setFromCross(Vector3.Z, rD);
+            reins[i].transform.set(rA, rQ).scale(1f, 1f, Math.max(len, 0.01f));
+        }
+    }
+
+    private void addReins() {
+        updateReins();
+        for (ModelInstance r : reins) if (!world.instances.contains(r, true)) world.instances.add(r);
+    }
+
+    private void removeReins() {
+        for (ModelInstance r : reins) if (r != null) world.instances.removeValue(r, true);
     }
 
     // ---------- Descer ----------
@@ -309,6 +346,7 @@ public class Riding {
         player.speed = 0f;
         player.facing = m.facing;
         if (s >= 1f) {
+            removeReins();
             state = St.FREE;
             ch.setCrouch(0f);
         }
@@ -352,6 +390,7 @@ public class Riding {
     }
 
     private void cutRope() {
+        addReins();
         if (!ropeCut && m.rope != null) {
             world.instances.removeValue(m.rope, true);   // o cabresto é solto ao montar
             ropeCut = true;
