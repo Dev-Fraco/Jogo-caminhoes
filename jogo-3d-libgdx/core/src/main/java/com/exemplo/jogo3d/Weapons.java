@@ -65,7 +65,7 @@ final class Weapons {
 
     Weapons() {
         for (int i = 0; i < FILES.length; i++) {
-            models[i] = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/armas/" + FILES[i] + ".g3dj"));
+            models[i] = ModelIO.load("models/armas/" + FILES[i] + ".g3dj");
             mag[i] = WeaponConfig.BY_TYPE[i].magazine;
             reserve[i] = WeaponConfig.BY_TYPE[i].reserve;
             // Ponta do cano: o fim do modelo (+z), na altura do cano (acima do punho)

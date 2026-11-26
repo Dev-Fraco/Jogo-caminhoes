@@ -80,7 +80,7 @@ final class Airplane {
     private int quads;
 
     Airplane() {
-        planeModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/aviao/aviao.g3dj"));
+        planeModel = ModelIO.load("models/aviao/aviao.g3dj");
         plane = new ModelInstance(planeModel);
         fanModel = buildFan();
         for (int i = 0; i < 4; i++) fans[i] = new ModelInstance(fanModel);

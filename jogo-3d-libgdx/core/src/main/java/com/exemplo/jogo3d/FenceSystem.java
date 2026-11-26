@@ -155,7 +155,7 @@ public class FenceSystem {
 
     /** Carrega os modelos (uma vez). */
     public void create() {
-        baseModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cerca_base.g3dj"));
+        baseModel = ModelIO.load("models/cerca_base.g3dj");
         leafModel = buildLeafModel(false);
         leafPadlockModel = buildLeafModel(true);
     }

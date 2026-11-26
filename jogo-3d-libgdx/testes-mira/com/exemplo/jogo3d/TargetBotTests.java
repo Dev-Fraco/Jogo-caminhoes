@@ -47,7 +47,7 @@ public class TargetBotTests extends ApplicationAdapter {
         MathUtils.random.setSeed(77);
         World w = new World();
         w.create();
-        Model jake = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/jake/jake.g3dj"));
+        Model jake = ModelIO.load("models/jake/jake.g3dj");
         Enemies en = new Enemies(w, jake, null);
         check("só um alvo no mundo", en.list.size == 1 && Enemies.COUNT == 1, "" + en.list.size);
         Enemy t = en.list.get(0);

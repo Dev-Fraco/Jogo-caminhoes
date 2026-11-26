@@ -55,7 +55,7 @@ final class Items {
     Items() {
         for (int i = 0; i < FILES.length; i++) {
             models[i] = i == LENHA ? Props.lenha() : i == FRUTA ? Props.fruta()
-                    : new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/itens/" + FILES[i] + ".g3dj"));
+                    : ModelIO.load("models/itens/" + FILES[i] + ".g3dj");
         }
     }
 

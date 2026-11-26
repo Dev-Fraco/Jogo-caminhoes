@@ -47,8 +47,7 @@ final class HouseDecor {
     /** Rede: pano com barriga entre duas pontas presas nas paredes laterais. Origem no centro, eixo x = corda. */
     static Model buildHammock() {
         // Rede original (modelo enviado): o pano fica mais baixo que a versão em código
-        return new com.badlogic.gdx.graphics.g3d.loader.G3dModelLoader(new com.badlogic.gdx.utils.JsonReader())
-                .loadModel(com.badlogic.gdx.Gdx.files.internal("models/rede.g3dj"));
+        return ModelIO.load("models/rede.g3dj");
     }
 
     static Model buildHammockProcedural() {

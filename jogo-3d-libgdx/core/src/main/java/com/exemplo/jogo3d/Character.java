@@ -88,7 +88,7 @@ public class Character {
     private boolean jumpStanding = false;   // pulou sem se mover: usa o pulo parado
 
     public void create() {
-        model = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/jake/jake.g3dj"));
+        model = ModelIO.load("models/jake/jake.g3dj");
         instance = new ModelInstance(model);
         anim = new AnimationController(instance);
         instances.add(instance);

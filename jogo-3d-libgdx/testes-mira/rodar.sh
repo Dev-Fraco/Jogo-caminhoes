@@ -14,6 +14,7 @@ CP="$LIB/gdx-1.12.1.jar:$LIB/gdx-backend-headless-1.12.1.jar:$LIB/gdx-platform-1
 OUT=$(mktemp -d)
 javac -encoding UTF-8 -d "$OUT" -cp "$CP" ../core/src/main/java/com/exemplo/jogo3d/*.java com/exemplo/jogo3d/*.java
 cd ../assets
+java -Xmx3g -cp "$OUT:$CP" com.exemplo.jogo3d.ModelIOTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.AimTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.ShootTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.TargetBotTests

@@ -44,7 +44,7 @@ final class Parachute {
     private final Vector3 feet = new Vector3();
 
     Parachute() {
-        model = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/itens/paraquedas.g3dj"));
+        model = ModelIO.load("models/itens/paraquedas.g3dj");
         inst = new ModelInstance(model);
         mesh = model.meshes.get(0);
         stride = mesh.getVertexSize() / 4;

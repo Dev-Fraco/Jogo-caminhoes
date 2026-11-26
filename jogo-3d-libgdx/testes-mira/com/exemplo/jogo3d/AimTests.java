@@ -105,7 +105,7 @@ public class AimTests extends ApplicationAdapter {
     void run() {
         w = new World();
         w.create();
-        jake = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/jake/jake.g3dj"));
+        jake = ModelIO.load("models/jake/jake.g3dj");
         en = new Enemies(w, jake, null);
         en.list.clear();
         float[] A = openArea();

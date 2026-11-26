@@ -541,7 +541,7 @@ public class World {
             wellModel = Landmarks.buildWell(this, wellX, wellZ);
             instances.add(new ModelInstance(wellModel));
             // Poço real (modelo do MeshCraft3DArt): telhado, balde, manivela e anel de pedra, sobre a boca
-            Model real = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/poco/poco.g3dj"));
+            Model real = ModelIO.load("models/poco/poco.g3dj");
             pocoModel = real;
             loaded.add(real);
             ModelInstance realWell = new ModelInstance(real);
@@ -572,33 +572,33 @@ public class World {
         Model log = loadModel("models/log.obj");
 
         Random rnd = new Random(7L);
-        casaModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/casa_taipa.g3dj"));
+        casaModel = ModelIO.load("models/casa_taipa.g3dj");
         JsonValue boxes = new JsonReader().parse(Gdx.files.internal("models/casa_taipa_colisao.json"));
         for (JsonValue b = boxes.child; b != null; b = b.next) {
             wallBoxes.add(new float[]{b.getFloat("minX"), b.getFloat("maxX"), b.getFloat("minY"), b.getFloat("maxY"), b.getFloat("minZ"), b.getFloat("maxZ")});
         }
         fences.create();
         loadWallModel();
-        troughModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cocho.g3dj"));
-        stoveModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/fogao.g3dj"));
+        troughModel = ModelIO.load("models/cocho.g3dj");
+        stoveModel = ModelIO.load("models/fogao.g3dj");
         hammockModel = HouseDecor.buildHammock();
         loaded.add(hammockModel);
         floorModel = HouseDecor.buildFloor();
         loaded.add(floorModel);
-        benchModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/banco.g3dj"));
+        benchModel = ModelIO.load("models/banco.g3dj");
         doorModel = HouseDecor.buildDoor();
         loaded.add(doorModel);
-        treeModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/arvore_seca.g3dj"));
-        pole = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/arvore_pole.g3dj"));
+        treeModel = ModelIO.load("models/arvore_seca.g3dj");
+        pole = ModelIO.load("models/arvore_pole.g3dj");
         fire = new Fire();
         cactusModels = new Model[]{
-                new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cactus0.g3dj")),
-                new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cactus1.g3dj")),
-                new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cactus2.g3dj"))};
+                ModelIO.load("models/cactus0.g3dj"),
+                ModelIO.load("models/cactus1.g3dj"),
+                ModelIO.load("models/cactus2.g3dj")};
         postModel = buildPostModel();
-        cartModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/carroca.g3dj"));
-        horseModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/horse.g3dj"));
-        donkeyModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/donkey.g3dj"));
+        cartModel = ModelIO.load("models/carroca.g3dj");
+        horseModel = ModelIO.load("models/horse.g3dj");
+        donkeyModel = ModelIO.load("models/donkey.g3dj");
         // Casas ao lado da estrada, nos dois lados, sempre longe uma da outra; a porta fica voltada para a estrada
         final float[][] houseSpots = {
                 {-30f, 1f}, {30f, -1f}, {-90f, -1f}, {-150f, 1f}, {150f, -1f},
@@ -610,7 +610,7 @@ public class World {
         }
         // Cidade: casas de bairro e de taipa, pracinha com poço e capela, roçado (os moradores vêm depois)
         if (pocoModel == null) {
-            pocoModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/poco/poco.g3dj"));
+            pocoModel = ModelIO.load("models/poco/poco.g3dj");
             loaded.add(pocoModel);
         }
         town = new Town(this, casaModel, benchModel, treeModel, pocoModel, horseModel);
@@ -642,7 +642,7 @@ public class World {
         // Fazendas abandonadas: casa de taipa, cocho vazio, carroça parada, curral de madeira e tocos da roça morta
         Model fenceSeg = Props.cerca();
         loaded.add(fenceSeg);
-        Model cochoModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cocho.g3dj"));
+        Model cochoModel = ModelIO.load("models/cocho.g3dj");
         loaded.add(cochoModel);
         for (int f = 0; f < Regions.FARM_X.length; f++) {
             float fx = Regions.FARM_X[f], fz = Regions.FARM_Z[f];
@@ -675,7 +675,7 @@ public class World {
     private float[][] wallCircles;                // [x, z, raio] em coordenadas do muro
 
     private void loadWallModel() {
-        wallModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/parede_taipa.g3dj"));
+        wallModel = ModelIO.load("models/parede_taipa.g3dj");
         loaded.add(wallModel);
         JsonValue cs = new JsonReader().parse(Gdx.files.internal("models/parede_taipa_colisao.json")).get("circulos");
         wallCircles = new float[cs.size][];
@@ -1128,7 +1128,7 @@ public class World {
      */
     private void addCemetery() {
         if (!hasCem) return;
-        Model m = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cemiterio.g3dj"));
+        Model m = ModelIO.load("models/cemiterio.g3dj");
         loaded.add(m);
         JsonValue j = new JsonReader().parse(Gdx.files.internal("models/cemiterio_colisao.json"));
         float depth = j.getFloat("fundo");
