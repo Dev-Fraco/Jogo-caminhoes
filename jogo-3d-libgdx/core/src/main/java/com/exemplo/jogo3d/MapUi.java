@@ -122,6 +122,34 @@ final class MapUi {
         shapes.end();
     }
 
+    /** Círculo da zona segura (vermelho) e o próximo (branco, fino) sobre o mapa, recortados ao disco. */
+    void drawZone(ShapeRenderer shapes, Hud hud, Vector3 p, Zone z) {
+        float[] r = hud.rect(hud.get("minimapa"));
+        float cx = r[0] + r[2] * MM_CX, cy = r[1] + r[3] * MM_CY, rad = r[3] * MM_R;
+        float ppm = rad / (VIEW_M / 2f);   // pixels por metro
+        shapes.begin(ShapeRenderer.ShapeType.Line);
+        ring(shapes, cx, cy, rad, ppm, z.cx - p.x, z.cz - p.z, z.radius, 0.9f, 0.15f, 0.1f, 1f);
+        if (!z.finalPhase()) ring(shapes, cx, cy, rad, ppm, z.nextCx() - p.x, z.nextCz() - p.z, z.nextR(), 0.97f, 0.95f, 0.88f, 0.75f);
+        shapes.end();
+    }
+
+    private void ring(ShapeRenderer shapes, float cx, float cy, float rad, float ppm, float dx, float dz, float rm,
+                      float cr, float cg, float cb, float ca) {
+        shapes.setColor(cr, cg, cb, ca);
+        int n = 72;
+        float px = 0f, py = 0f;
+        boolean prevIn = false;
+        for (int i = 0; i <= n; i++) {
+            float a = i * MathUtils.PI2 / n;
+            float sx = cx + (dx + MathUtils.cos(a) * rm) * ppm, sy = cy - (dz + MathUtils.sin(a) * rm) * ppm;
+            boolean in = (sx - cx) * (sx - cx) + (sy - cy) * (sy - cy) < rad * rad * 0.96f;
+            if (i > 0 && in && prevIn) shapes.line(px, py, sx, sy);
+            px = sx;
+            py = sy;
+            prevIn = in;
+        }
+    }
+
     /** Marcas da bússola por cima da faixa de couro. camYaw = direção da câmera. */
     void drawCompass(SpriteBatch batch, ShapeRenderer shapes, BitmapFont font, Hud hud, float camYaw) {
         float[] r = hud.rect(hud.get("bussola"));
