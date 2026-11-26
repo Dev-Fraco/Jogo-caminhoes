@@ -129,6 +129,12 @@ public class Main extends ApplicationAdapter {
         } catch (Throwable t) {
             errorText = "ERRO NO PERSONAGEM:\n" + describe(t);
         }
+        // Moradores da cidade (usam o modelo do personagem, com roupas de outras cores)
+        try {
+            if (world.town != null && character.model() != null) world.town.createNpcs(character.model());
+        } catch (Throwable t) {
+            errorText = "ERRO NOS MORADORES:\n" + describe(t);
+        }
 
         try {
             for (int i = 0; i < world.mounts.size; i++) ridings.add(new Riding(world, world.mounts.get(i)));

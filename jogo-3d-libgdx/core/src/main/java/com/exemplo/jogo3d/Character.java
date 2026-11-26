@@ -157,6 +157,9 @@ public class Character {
         applyClip();
     }
 
+    /** Modelo do personagem (os moradores da cidade usam o mesmo, com roupas de outras cores). */
+    Model model() { return model; }
+
     /** Posição da mão (osso da mão) no mundo; usada para as rédeas chegarem na mão. */
     public Vector3 handWorld(boolean left, Vector3 out) {
         Node n = instance.getNode(left ? "LeftHand" : "RightHand");

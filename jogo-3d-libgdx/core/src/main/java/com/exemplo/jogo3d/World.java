@@ -40,6 +40,35 @@ public class World {
     static final float ROAD_HALF = 3.5f;     // estrada de barro: meia largura (7 m), no eixo x (z = 0)
     static final float ROAD_SHOULDER = 5f;   // faixa em que o terreno se ajusta suavemente à estrada
     static final float HOUSE_Z = 30f;        // casas ao lado da estrada (distância do eixo)
+    static final float TOWN_X = 100f;        // cidade: centro (onde a estrada é quase reta)
+    static final float TOWN_Z = roadZ(TOWN_X);
+
+    /** Dentro da área da cidade (casas, praça e roçado). */
+    static boolean inTown(float x, float z) {
+        return Math.abs(x - TOWN_X) < 48f && Math.abs(z - TOWN_Z - 5f) < 52f;
+    }
+
+    /** Caixa de colisão (casas feitas em código): transformação e meias medidas. */
+    static class Box {
+        final Matrix4 t, inv;
+        final float hx, hz, h;
+        Box(Matrix4 t, float hx, float hz, float h) {
+            this.t = new Matrix4(t);
+            this.inv = new Matrix4(t).inv();
+            this.hx = hx;
+            this.hz = hz;
+            this.h = h;
+        }
+    }
+    final Array<Box> boxes = new Array<>();
+    Town town;
+    private Model pocoModel;
+    private float townH = Float.NaN;
+
+    private float townHeight() {
+        if (Float.isNaN(townH)) townH = baseHeight(TOWN_X, TOWN_Z);
+        return townH;
+    }
     static final float SPAWN_CLEAR = 9f;     // área plana no ponto de nascimento
     static final float TEXTURE_TILE = 14f;    // metros por repetição da textura de terra
 
@@ -113,6 +142,13 @@ public class World {
         float base = baseHeight(x, z);
         float y = road + (base - road) * w;
         if (w < 1f) y -= pothole(x, z);   // buracos e lombadas só na estrada
+        // Cidade: chão plano, com transição suave para o relevo em volta
+        float tdx = Math.max(Math.abs(x - TOWN_X) - 42f, 0f), tdz = Math.max(Math.abs(z - TOWN_Z - 5f) - 45f, 0f);
+        float td = (float) Math.sqrt(tdx * tdx + tdz * tdz);
+        if (td < 16f) {
+            float tt = td / 16f, s = tt * tt * (3f - 2f * tt), th = townHeight();
+            y = th + (y - th) * s;
+        }
         return y;
     }
 
@@ -191,6 +227,7 @@ public class World {
     /** Altura do chão para o personagem: o piso da casa, se ele estiver dentro de uma casa. */
     public float groundAt(float x, float z) {
         float y = heightAt(x, z);
+        if (town != null) y = Math.max(y, town.floorAt(x, z));   // piso da praça
         for (int k = 0; k < houses.size; k++) {
             House h = houses.get(k);
             Vector3 l = new Vector3(x, 0f, z).mul(h.inv);
@@ -234,6 +271,7 @@ public class World {
         for (int t = 0; t < 400 && (!hasDam || !hasWell); t++) {
             float x = (r.nextFloat() * 2f - 1f) * 150f, z = (r.nextFloat() * 2f - 1f) * 130f;
             if (Math.abs(z - roadZ(x)) < 50f) continue;      // fora da faixa da estrada e das casas
+            if (Math.hypot(x - TOWN_X, z - TOWN_Z) < 75f) continue;   // longe da cidade
             if (Math.hypot(x, z) < 30f) continue;
             if (!hasDam) {
                 if (!flatAround(x, z, 4f, 1.0f)) continue;   // açude em lugar plano
@@ -357,6 +395,7 @@ public class World {
             instances.add(new ModelInstance(wellModel));
             // Poço real (modelo do MeshCraft3DArt): telhado, balde, manivela e anel de pedra, sobre a boca
             Model real = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/poco/poco.g3dj"));
+            pocoModel = real;
             loaded.add(real);
             ModelInstance realWell = new ModelInstance(real);
             realWell.transform.setToTranslation(wellX, heightAt(wellX, wellZ), wellZ);
@@ -412,16 +451,24 @@ public class World {
         donkeyModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/donkey.g3dj"));
         // Casas ao lado da estrada, nos dois lados, sempre longe uma da outra; a porta fica voltada para a estrada
         final float[][] houseSpots = {
-                {-30f, 1f}, {30f, -1f}, {-90f, -1f}, {90f, 1f}, {-150f, 1f}, {150f, -1f},
-                {-30f, -1f}, {30f, 1f}, {-90f, 1f}, {90f, -1f}, {-150f, -1f}, {150f, 1f}};
+                {-30f, 1f}, {30f, -1f}, {-90f, -1f}, {-150f, 1f}, {150f, -1f},
+                {-30f, -1f}, {30f, 1f}, {-90f, 1f}, {-150f, -1f}, {150f, 1f}};   // x = 90: lugar da cidade
         for (float[] s : houseSpots) {
             float hx = s[0], hz = roadZ(hx) + s[1] * HOUSE_Z;
             if (Math.abs(hx - riverX(hz)) < 14f) hx += 22f;   // não encosta no leito do rio
             addEnclosedHouse(rnd, hx, hz, s[1] > 0f ? 180f : 0f);
         }
+        // Cidade: casas de bairro e de taipa, pracinha com poço e capela, roçado (os moradores vêm depois)
+        if (pocoModel == null) {
+            pocoModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/poco/poco.g3dj"));
+            loaded.add(pocoModel);
+        }
+        town = new Town(this, casaModel, benchModel, treeModel, pocoModel, horseModel);
+        town.build();
         // Pedras grandes nas margens da estrada (trechos difíceis de passar)
         for (int i = 0; i < 14; i++) {
             float x = (rnd.nextFloat() * 2f - 1f) * 150f;
+            if (inTown(x, roadZ(x))) continue;   // a estrada da cidade fica livre
             float side = rnd.nextBoolean() ? 1f : -1f;
             float cz = roadZ(x) + side * (ROAD_HALF + 4f + rnd.nextFloat() * 4f);
             for (int k = 0; k < 3; k++) {
@@ -450,6 +497,7 @@ public class World {
     public void update(float dt, com.badlogic.gdx.graphics.PerspectiveCamera cam) {
         for (int i = 0; i < decors.size; i++) decors.get(i).update(dt);
         fire.update(dt, cam);
+        if (town != null) town.update(dt);
     }
 
     /** Fogo e fumaça: desenhe com o ModelBatch (transparência). */
@@ -500,6 +548,11 @@ public class World {
                 if (l.x > b[0] - 0.05f && l.x < b[1] + 0.05f && l.y > b[2] && l.y < b[3] && l.z > b[4] - 0.05f && l.z < b[5] + 0.05f) return true;
             }
         }
+        for (int k = 0; k < boxes.size; k++) {
+            Box bx = boxes.get(k);
+            Vector3 l = new Vector3(p).mul(bx.inv);
+            if (Math.abs(l.x) < bx.hx && Math.abs(l.z) < bx.hz && l.y > 0f && l.y < bx.h) return true;
+        }
         for (int o = 0; o < obstacles.size; o++) {
             Obstacle ob = obstacles.get(o);
             if (p.y < ob.baseY || p.y > ob.baseY + ob.height) continue;
@@ -525,7 +578,7 @@ public class World {
             x = (rnd.nextFloat() * 2f - 1f) * (HALF - margin);
             z = (rnd.nextFloat() * 2f - 1f) * (HALF - margin);
         } while (Math.sqrt(x * x + z * z) < 14f || Math.abs(z - roadZ(x)) < ROAD_HALF + 6f
-                || Math.abs(x - riverX(z)) < 6f || nearEnclosure(x, z));
+                || Math.abs(x - riverX(z)) < 6f || nearEnclosure(x, z) || inTown(x, z));
         return new float[]{x, z};
     }
 
@@ -897,6 +950,18 @@ public class World {
             }
             p.set(l).mul(house.t);                       // volta para o mundo
         }
+        // Casas da cidade feitas em código: caixa
+        for (int k = 0; k < boxes.size; k++) {
+            Box bx = boxes.get(k);
+            Vector3 l = new Vector3(p).mul(bx.inv);
+            if (l.y > bx.h) continue;
+            float ex = bx.hx + playerRadius, ez = bx.hz + playerRadius;
+            if (Math.abs(l.x) < ex && Math.abs(l.z) < ez) {
+                if (ex - Math.abs(l.x) < ez - Math.abs(l.z)) l.x = l.x >= 0f ? ex : -ex;
+                else l.z = l.z >= 0f ? ez : -ez;
+                p.set(l).mul(bx.t);
+            }
+        }
         for (int k = 0; k < obstacles.size; k++) {
             Obstacle o = obstacles.get(k);
             if (p.y > o.baseY + o.height) continue;
@@ -914,6 +979,7 @@ public class World {
 
     public void dispose() {
         for (Model m : terrainModels) m.dispose();
+        if (town != null) town.dispose();
         casaModel.dispose();
         if (crackTexture != null) crackTexture.dispose();
         if (damModel != null) damModel.dispose();
