@@ -228,142 +228,59 @@ public class AimTests extends ApplicationAdapter {
         }
         AimSettings.assistOn = true;
 
-        System.out.println("== 5. Dois inimigos próximos: sem ficar trocando ==");
-        en.list.clear();
-        cam.set(ax, gy + 1.7f, az - 14f);
-        Enemy e1 = spawn(ax - 0.7f, az, MathUtils.PI, "Idle"), e2 = spawn(ax + 0.7f, az, MathUtils.PI, "Idle");
-        aimAt(new Vector3(ax, e1.hitbox.chest.y, az));
-        TargetDetection t5 = new TargetDetection();
-        AimAssist a5 = new AimAssist();
-        for (int f = 0; f < 120; f++) {
-            float dt = 1f / 30f;
-            yaw += MathUtils.sin(f * 0.25f) * 0.002f;   // mão tremendo entre os dois
-            en.nextFrame();
-            Vector3 d = dir();
-            t5.update(dt, cam, d, en, w, 7f, 150f);
-            a5.update(dt, cam, d, yaw, pitch, t5.target, WeaponConfig.Category.FUZIL, true, false);
-            yaw += a5.dYaw;
-            pitch += a5.dPitch;
-        }
-        check("4 s mirando entre dois: no máximo 1 troca de alvo", t5.switches <= 1, "trocas " + t5.switches);
-
-        System.out.println("== 8. Puxar a mira do peito para a cabeça ==");
+        System.out.println("== Aim assist: atração ao peito, FOV e resistência para cima ==");
         en.list.clear();
         cam.set(ax, gy + 1.7f, az - 12f);
-        Enemy p8 = spawn(ax, az, MathUtils.PI, "Idle");
-        aimAt(p8.hitbox.chest);
-        TargetDetection t8 = new TargetDetection();
-        AimAssist a8 = new AimAssist();
-        AimController ctl = new AimController();
-        float maxAssistPitch = 0f;
-        // 3 s sem mexer: a assistência NÃO pode subir sozinha para a cabeça
-        for (int f = 0; f < 90; f++) {
-            float dt = 1f / 30f;
-            en.nextFrame();
-            Vector3 d = dir();
-            t8.update(dt, cam, d, en, w, 7f, 150f);
-            a8.update(dt, cam, d, yaw, pitch, t8.target, WeaponConfig.Category.FUZIL, true, false);
-            yaw += a8.dYaw;
-            pitch += a8.dPitch;
-            maxAssistPitch = Math.max(maxAssistPitch, Math.abs(a8.dPitch));
+        Enemy ta = spawn(ax, az, MathUtils.PI, "Idle");
+        WeaponConfig.Category fuzil = WeaponConfig.Category.FUZIL;
+        AimAssist aa = new AimAssist();
+        // 1. Mira na cabeça, aperta o tiro: vai para o peito na fração escolhida (80%)
+        aimAt(ta.hitbox.headCenter);
+        float e0 = errChest(ta);
+        aa.update(1f / 30f, cam, dir(), yaw, pitch, ta, fuzil, true, true, false);
+        yaw += aa.dYaw;
+        pitch += aa.dPitch;
+        float e1 = errChest(ta);
+        check("apertar o tiro puxa a mira para o peito (80%)", e1 != 0f && Math.abs(e1) < Math.abs(e0) * 0.35f,
+                String.format("erro %.3f -> %.3f rad", e0, e1));
+        // 2. Sem apertar o tiro, nada muda
+        aimAt(ta.hitbox.headCenter);
+        aa.update(1f / 30f, cam, dir(), yaw, pitch, ta, fuzil, false, false, false);
+        check("sem atirar a assistência não mexe na mira", aa.dYaw == 0f && aa.dPitch == 0f, "");
+        // 3. Fora do FOV: não puxa
+        aimAt(new Vector3(ax + 40f, gy + 1.7f, az));
+        aa.update(1f / 30f, cam, dir(), yaw, pitch, ta, fuzil, true, true, false);
+        check("alvo fora do FOV: a mira não é puxada", aa.dYaw == 0f && aa.dPitch == 0f, "");
+        // 4. Mira no peito e segurando o tiro: não sobe sozinha para a cabeça
+        aimAt(ta.hitbox.chest);
+        float drift = 0f;
+        for (int f = 0; f < 60; f++) {
+            aa.update(1f / 30f, cam, dir(), yaw, pitch, ta, fuzil, true, false, false);
+            yaw += aa.dYaw;
+            pitch += aa.dPitch;
+            drift = Math.max(drift, Math.abs(errChest(ta)));
         }
-        r = shootAt0(akm);
-        check("sem puxar: continua no peito (não trava na cabeça)", r.region == WeaponConfig.Region.TORSO, "" + r.region);
-        check("entre quadril e cabeça a assistência não mexe na vertical", maxAssistPitch < 1e-4f,
-                String.format("%.5f rad", maxAssistPitch));
-        // puxa o dedo para cima (tela 1080 px de altura) até a cabeça
-        WeaponConfig.Region got = null;
-        int frames = 0;
-        for (int f = 0; f < 60 && got != WeaponConfig.Region.HEAD; f++) {
-            float dt = 1f / 30f;
-            ctl.addDrag(0f, -2.0f);   // 2 px por quadro para cima
-            ctl.update(dt, 1080f, false, WeaponConfig.Category.FUZIL, a8.friction);
-            yaw += ctl.yawDelta;
-            pitch += ctl.pitchDelta;
-            en.nextFrame();
-            Vector3 d = dir();
-            t8.update(dt, cam, d, en, w, 7f, 150f);
-            a8.update(dt, cam, d, yaw, pitch, t8.target, WeaponConfig.Category.FUZIL, true, false);
-            yaw += a8.dYaw;
-            pitch += a8.dPitch;
-            got = shootAt0(akm).region;
-            frames = f + 1;
-        }
-        check("puxando para cima a mira chega na cabeça", got == WeaponConfig.Region.HEAD,
-                "em " + frames + " quadros (" + Math.round(frames * 1000f / 30f) + " ms)");
-        // e continua lá ao soltar o dedo
-        for (int f = 0; f < 30; f++) {
-            float dt = 1f / 30f;
-            ctl.update(dt, 1080f, false, WeaponConfig.Category.FUZIL, a8.friction);
-            yaw += ctl.yawDelta;
-            pitch += ctl.pitchDelta;
-            en.nextFrame();
-            Vector3 d = dir();
-            t8.update(dt, cam, d, en, w, 7f, 150f);
-            a8.update(dt, cam, d, yaw, pitch, t8.target, WeaponConfig.Category.FUZIL, true, false);
-            yaw += a8.dYaw;
-            pitch += a8.dPitch;
-        }
-        WeaponConfig.Region after = shootAt0(akm).region;
-        check("soltando o dedo a mira fica na cabeça (assistência não puxa de volta)", after == WeaponConfig.Region.HEAD, "" + after);
-
-        System.out.println("== 12/13. Movendo o analógico / girando a câmera enquanto mira ==");
-        float[] e12 = new float[2];
-        Enemy p12 = null;
-        for (int on = 0; on < 2; on++) {
-            AimSettings.assistOn = on == 1;
-            MathUtils.random.setSeed(7);
-            en.list.clear();
-            cam.set(ax, gy + 1.7f, az - 12f);
-            p12 = spawn(ax, az, MathUtils.PI, "Idle");
-            aimAt(p12.hitbox.chest);
-            e12[on] = track(p12, 0f, 0f, 3.5f, 0f, 0.7f, null);   // jogador andando de lado a 3,5 m/s
-        }
-        AimSettings.assistOn = true;
-        check("andando de lado (analógico) enquanto mira: assistência ajuda", e12[1] <= e12[0] + 0.02f,
-                String.format("erro médio sem %.2f°, com %.2f°", e12[0], e12[1]));
-        TargetDetection t12 = new TargetDetection();
-        AimAssist a12 = new AimAssist();
-        aimAt(p12.hitbox.chest);
-        for (int f = 0; f < 5; f++) { en.nextFrame(); t12.update(1f / 30f, cam, dir(), en, w, 7f, 150f); }
-        // jogador gira a câmera para longe: a assistência solta (controle é do jogador)
-        AimController c13 = new AimController();
-        int sign = 0, flips = 0;
-        float prevErr = 0f;
-        for (int f = 0; f < 45; f++) {
-            float dt = 1f / 30f;
-            c13.addDrag(9f, 0f);   // arrasta para a direita
-            c13.update(dt, 1080f, false, WeaponConfig.Category.FUZIL, a12.friction);
-            yaw += c13.yawDelta;
-            en.nextFrame();
-            Vector3 d = dir();
-            t12.update(dt, cam, d, en, w, 7f, 150f);
-            a12.update(dt, cam, d, yaw, pitch, t12.target, WeaponConfig.Category.FUZIL, true, false);
-            yaw += a12.dYaw;
-            float err = t12.angleTo(cam, dir(), p12.hitbox);
-            int s2 = (int) Math.signum(err - prevErr);
-            if (sign != 0 && s2 != 0 && s2 != sign) flips++;
-            if (s2 != 0) sign = s2;
-            prevErr = err;
-        }
-        check("girando a câmera para longe: o jogador vence a assistência", prevErr > 10f && t12.target == null,
-                String.format("saiu %.1f° do alvo, alvo=%s, vai-e-volta %d", prevErr, t12.target, flips));
-
-        System.out.println("== 14. Trocar de arma durante a mira ==");
-        AimAssist a14 = new AimAssist();
-        aimAt(p12.hitbox.chest);
-        yaw += 0.04f;
-        TargetDetection t14 = new TargetDetection();
-        float dF = 0f, dP = 0f;
-        for (int f = 0; f < 6; f++) {
-            en.nextFrame();
-            t14.update(1f / 30f, cam, dir(), en, w, 7f, 150f);
-            a14.update(1f / 30f, cam, dir(), yaw, pitch, t14.target, f < 3 ? WeaponConfig.Category.FUZIL : WeaponConfig.Category.PRECISAO, true, false);
-            if (f == 2) dF = Math.abs(a14.dYaw);
-            if (f == 5) dP = Math.abs(a14.dYaw);
-        }
-        check("troca para precisão no meio: assistência mais contida, sem erro", dP < dF && dP > 0f,
-                String.format("fuzil %.4f, precisão %.4f rad/quadro", dF, dP));
+        check("segurando o tiro no peito, a assistência não sobe para a cabeça", drift < 0.01f, String.format("desvio %.4f rad", drift));
+        // 5. Dentro do FOV, a resistência desconta parte do movimento para cima (sem prender)
+        float freeIn = climbOffset(ta, aa, fuzil, 0f, 0.02f, 0.0015f, 20);
+        float resistIn = climbOffset(ta, aa, fuzil, 0.35f, 0.02f, 0.0015f, 20);
+        check("resistência para cima: dentro do FOV, a mira sobe menos", resistIn < freeIn - 0.003f,
+                String.format("sem %.4f, com 35%% %.4f rad acima do peito", freeIn, resistIn));
+        check("resistência para cima: ainda dá para subir (não prende)", resistIn > 0.02f + 0.005f, String.format("%.4f rad", resistIn));
+        // 5b. Fora do FOV a assistência não age: a subida é livre mesmo com resistência máxima
+        float outStart = (AimSettings.fovDeg() * MathUtils.degreesToRadians) + 0.1f;
+        float outFree = climbOffset(ta, aa, fuzil, 0f, outStart, 0.002f, 20);
+        float outResist = climbOffset(ta, aa, fuzil, 1f, outStart, 0.002f, 20);
+        check("fora do FOV a mira sobe livre, mesmo com resistência máxima", Math.abs(outResist - outFree) < 1e-3f,
+                String.format("livre %.4f, resistência 100%% %.4f", outFree, outResist));
+        // 6. FOV em porcentagem: 0% = 2°, 100% = 15°
+        float savedFov = AimSettings.fovPct;
+        AimSettings.fovPct = 0f;
+        float f0 = AimSettings.fovDeg();
+        AimSettings.fovPct = 1f;
+        float f1 = AimSettings.fovDeg();
+        AimSettings.fovPct = savedFov;
+        check("FOV do aim assist vai de 2° a 15°", Math.abs(f0 - 2f) < 1e-3f && Math.abs(f1 - 15f) < 1e-3f, String.format("%.1f° a %.1f°", f0, f1));
 
         System.out.println("== Desempenho ==");
         en.list.clear();
@@ -380,6 +297,32 @@ public class AimTests extends ApplicationAdapter {
         }
         float us = (System.nanoTime() - t0) / 1000f / N;
         check("tiro (raio no mundo + 10 inimigos) leva menos de 1 ms", us < 1000f, String.format("%.0f µs por tiro (PC)", us));
+    }
+
+    /** Erro de elevação entre o peito do alvo e a mira (positivo = peito acima da mira). */
+    float errChest(Enemy e) {
+        Vector3 c = e.hitbox.chest;
+        float dx = c.x - cam.x, dy = c.y - cam.y, dz = c.z - cam.z;
+        float elevChest = MathUtils.atan2(dy, (float) Math.sqrt(dx * dx + dz * dz));
+        return elevChest - (-pitch);
+    }
+
+    /** Dedo sobe 'step' rad por quadro durante 'frames' quadros, a partir de 'start' rad acima do peito. Devolve a altura final. */
+    float climbOffset(Enemy ta, AimAssist aa, WeaponConfig.Category cat, float up, float start, float step, int frames) {
+        float saved = AimSettings.upResist;
+        AimSettings.upResist = up;
+        aimAt(ta.hitbox.chest);
+        pitch -= start;
+        aa.reset();
+        for (int f = 0; f < frames; f++) {
+            pitch -= step;   // o dedo sobe
+            aa.update(1f / 30f, cam, dir(), yaw, pitch, ta, cat, true, false, false);
+            yaw += aa.dYaw;
+            pitch += aa.dPitch;
+        }
+        float off = -errChest(ta);
+        AimSettings.upResist = saved;
+        return off;
     }
 
     float lastMaxStep;
@@ -417,7 +360,7 @@ public class AimTests extends ApplicationAdapter {
             pitch += ctl.pitchDelta;
             Vector3 d = dir();
             t.update(dt, cam, d, en, w, 7f, 150f);
-            as.update(dt, cam, d, yaw, pitch, t.target, WeaponConfig.Category.FUZIL, true, false);
+            as.update(dt, cam, d, yaw, pitch, t.target, WeaponConfig.Category.FUZIL, true, false, false);
             yaw += as.dYaw;
             pitch += as.dPitch;
             lastMaxStep = Math.max(lastMaxStep, (float) Math.toDegrees(Math.abs(as.dYaw) + Math.abs(as.dPitch)));

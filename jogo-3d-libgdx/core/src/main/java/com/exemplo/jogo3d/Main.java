@@ -455,14 +455,13 @@ public class Main extends ApplicationAdapter {
         if (combat && enemies != null && cfg != null) {
             float camYaw = MathUtils.atan2(aimDir.x, aimDir.z), camPitch = -(float) Math.asin(MathUtils.clamp(aimDir.y, -1f, 1f));
             targets.update(dt, camera.position, aimDir, enemies, world,
-                    AimSettings.assistRadius * cat.radiusScale, cfg.range);
-            boolean engaged = fireHeld || lookPointer >= 0 || Math.abs(aimCtl.yawDelta) + Math.abs(aimCtl.pitchDelta) > 1e-4f;
-            assist.update(dt, camera.position, aimDir, camYaw, camPitch, targets.target, cat, engaged, adsOn);
+                    AimSettings.fovDeg() * cat.radiusScale, cfg.range);
+            assist.update(dt, camera.position, aimDir, camYaw, camPitch, targets.target, cat, fireHeld, firePressed, adsOn);
             yaw += assist.dYaw;
             pitch += assist.dPitch;
         } else {
             targets.drop();
-            assist.update(dt, camera.position, aimDir, yaw, pitch, null, cat, false, false);
+            assist.update(dt, camera.position, aimDir, yaw, pitch, null, cat, false, false, false);
         }
         // Arma na mão (o cano acompanha a mira) e o sistema de disparo: modos, cadência, recuo, dispersão,
         // clarão, som, impacto e dano. O coice e a volta da mira vêm dele.

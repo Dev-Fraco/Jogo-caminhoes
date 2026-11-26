@@ -4,93 +4,84 @@ import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector3;
 
 /**
- * Assistência de mira: atração suave para o alvo escolhido pelo TargetDetection.
+ * Assistência de mira, com três controles em porcentagem (AimSettings):
  *
- * - Lados: puxa a mira para o eixo do corpo, devagar (com teto em graus/s), mais forte perto do
- *   centro e sumindo na borda do raio.
- * - Acompanhamento: compensa parte do movimento do alvo (correndo de lado, vindo, indo embora).
- * - Atrito: a mira "pesa" um pouco ao passar sobre o corpo (fica mais fácil parar em cima).
- * - Vertical: só puxa para cima se a mira estiver ABAIXO do quadril, e para baixo se estiver bem
- *   acima da cabeça. Entre o quadril e a cabeça não puxa nada: puxar a mira do peito para a cabeça
- *   é sempre do jogador, e a assistência nunca trava na cabeça.
- * Tudo isso só mexe na câmera (yaw/pitch); o tiro sai da direção real da câmera.
+ * - Ao apertar para atirar, se o alvo estiver dentro do FOV, a mira vai na hora para o PEITO
+ *   (fração "Atração ao peito" do caminho). O jogador é quem arrasta para cima até a cabeça.
+ * - Enquanto segura o tiro: se a mira ficou abaixo do peito, sobe até ele; se subiu acima dele,
+ *   a "Resistência para cima" desconta essa fração do movimento do dedo para cima (subir continua
+ *   possível, só fica mais pesado; 0% = livre, 100% = não passa do peito).
+ * - Nunca sobe sozinha para a cabeça.
+ *
+ * A assistência só soma correções à câmera (dYaw, dPitch); a sensibilidade do jogador não muda.
  */
 final class AimAssist {
     float dYaw, dPitch;        // correção deste quadro (radianos) para somar à câmera
-    float friction = 1f;       // multiplica a sensibilidade manual
+    float friction = 1f;       // não usado agora (mantido para o HUD); sempre 1
     boolean active;            // para o indicador discreto na mira
     float strengthNow;         // 0..1 (intensidade visual do indicador)
 
-    private Enemy last;
-    private float lastYaw, lastElev;
-    private boolean haveLast;
-    private final Vector3 q = new Vector3(), v = new Vector3();
+    private final Vector3 v = new Vector3();
+    private float lastPitch;   // inclinação ao fim do último quadro (para saber o movimento do dedo)
+    private boolean havePitch;
+
+    /** Esquece o movimento anterior (ao trocar de alvo ou de mira à força). */
+    void reset() { havePitch = false; }
 
     /**
-     * @param yaw   direção da câmera (frente = (sin yaw, 0, cos yaw))
-     * @param pitch inclinação (positivo = câmera por cima, mira para baixo); elevação da mira = -pitch
-     * @param engaged atirando ou mexendo a câmera: assistência inteira; parado: metade
+     * @param yaw       direção da câmera (frente = (sin yaw, 0, cos yaw))
+     * @param pitch     inclinação (positivo = câmera por cima); elevação da mira = -pitch
+     * @param firing    segurando o tiro
+     * @param firePress acabou de apertar o tiro (o momento da atração instantânea)
      */
     void update(float dt, Vector3 cam, Vector3 dir, float yaw, float pitch, Enemy target, WeaponConfig.Category cat,
-                boolean engaged, boolean ads) {
+                boolean firing, boolean firePress, boolean ads) {
         dYaw = 0f;
         dPitch = 0f;
         friction = 1f;
         active = false;
         strengthNow = Math.max(0f, strengthNow - dt * 4f);
-        if (!AimSettings.assistOn || target == null || !target.alive() || dt <= 0f) {
-            haveLast = false;
-            last = null;
+        // Movimento do dedo neste quadro (inclinação que mudou desde o último quadro, sem a nossa correção)
+        float userDelta = havePitch ? MathUtils.clamp(pitch - lastPitch, -0.05f, 0.05f) : 0f;
+        havePitch = true;
+        if (!AimSettings.assistOn || target == null || !target.alive() || !firing || dt <= 0f) {
+            lastPitch = pitch;
             return;
         }
-        Hitbox hb = target.hitbox;
-        float radius = AimSettings.assistRadius * cat.radiusScale * (ads ? 0.8f : 1f);
-        float w = AimSettings.assistStrength * cat.assist * (engaged ? 1f : 0.5f);
 
-        // Ponto do eixo do corpo (quadril → pescoço) mais perto da linha da mira
-        TargetDetection.closestOnSegment(cam, dir, hb.pelvis, hb.a[3], q);
-        v.set(q).sub(cam);
+        // FOV: cone em volta da direção da mira, medido até o peito
+        float fov = AimSettings.fovDeg() * cat.radiusScale * (ads ? 0.8f : 1f);
+        Vector3 c = target.hitbox.chest;
+        v.set(c).sub(cam);
         float dist = v.len();
         if (dist < 0.5f) return;
+        float ang = (float) Math.toDegrees(Math.acos(MathUtils.clamp(v.dot(dir) / dist, -1f, 1f)));
+        if (ang > fov) {
+            lastPitch = pitch;
+            return;
+        }
+
         float tYaw = MathUtils.atan2(v.x, v.z);
         float errYaw = wrap(tYaw - yaw);
-        float aimElev = -pitch;
-        // Ângulo total até o corpo: some na borda do raio
-        float ang = (float) Math.toDegrees(Math.acos(MathUtils.clamp(v.dot(dir) / dist, -1f, 1f)));
-        if (ang > radius * 1.5f) { haveLast = false; return; }
-        float fall = MathUtils.clamp(1f - (ang / radius) * (ang / radius), 0f, 1f);
+        float errElev = elev(cam, c) - (-pitch);   // > 0: o peito está acima da mira
 
-        // Vertical: só fora da faixa quadril..topo da cabeça
-        float ePel = elev(cam, hb.pelvis), eTop = elev(cam, hb.headTop);
-        float errV = 0f;
-        if (aimElev < ePel) errV = ePel - aimElev;                 // mira nas pernas/chão: sobe um pouco
-        else if (aimElev > eTop + 0.03f) errV = (eTop - aimElev) * 0.5f;   // passou da cabeça: desce de leve
-
-        float k = Math.min(1f, 6f * w * fall * dt);
-        float cap = (float) Math.toRadians(cat.maxDegPerSec) * w * dt;
-        float cy = MathUtils.clamp(errYaw * k, -cap, cap);
-        float cv = MathUtils.clamp(errV * k * 0.7f, -cap * 0.7f, cap * 0.7f);
-
-        // Acompanhar o movimento do alvo (velocidade angular dele visto da câmera)
-        float elevNow = elev(cam, q);
-        if (haveLast && last == target) {
-            float rateY = wrap(tYaw - lastYaw) / dt, rateE = (elevNow - lastElev) / dt;
-            // ignora saltos grandes (troca de ponto no corpo)
-            if (Math.abs(rateY) < 3f) cy += rateY * cat.tracking * w * fall * dt;
-            if (Math.abs(rateE) < 3f && errV != 0f) cv += rateE * cat.tracking * 0.5f * w * fall * dt;
+        if (firePress) {
+            // Instantânea: a mira vai para o peito na hora, na fração escolhida
+            dYaw += errYaw * AimSettings.chestPull;
+            dPitch += -errElev * AimSettings.chestPull;
         }
-        last = target;
-        lastYaw = tYaw;
-        lastElev = elevNow;
-        haveLast = true;
+        // Enquanto segura: abaixo do peito, sobe até ele; acima, desconta parte do movimento para cima
+        float k = Math.min(1f, 8f * dt);
+        if (errElev > 0f) {
+            dPitch += -errElev * k * AimSettings.chestPull * 0.5f;
+        } else if (userDelta < 0f) {
+            dPitch += -userDelta * AimSettings.upResist;   // o dedo subiu: a fração de resistência volta
+        }
+        dYaw += errYaw * k * AimSettings.chestPull * 0.5f;
 
-        dYaw = cy;
-        dPitch = -cv;   // subir a mira = pitch menor
-        // Atrito: mais forte com a mira em cima do corpo (dentro de ~1/3 do raio)
-        float inner = MathUtils.clamp(1f - ang / (radius * 0.35f), 0f, 1f);
-        friction = 1f - cat.friction * AimSettings.assistStrength * inner;
         active = true;
-        strengthNow = Math.max(strengthNow, Math.min(1f, fall * (0.4f + 0.6f * w)));
+        strengthNow = Math.max(strengthNow, 0.5f + 0.5f * AimSettings.chestPull);
+        lastPitch = pitch + dPitch;
     }
 
     private float elev(Vector3 cam, Vector3 p) {
