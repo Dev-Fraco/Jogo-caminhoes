@@ -578,6 +578,7 @@ public class World {
             wallBoxes.add(new float[]{b.getFloat("minX"), b.getFloat("maxX"), b.getFloat("minY"), b.getFloat("maxY"), b.getFloat("minZ"), b.getFloat("maxZ")});
         }
         fences.create();
+        loadWallModel();
         troughModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cocho.g3dj"));
         stoveModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/fogao.g3dj"));
         hammockModel = HouseDecor.buildHammock();
@@ -666,15 +667,88 @@ public class World {
         items.scatterSurvival(this, rnd);
     }
 
+    // ---------- Muro de pedra e taipa (botão PAREDE) ----------
+    static final int MAX_WALLS = 6;               // o mais antigo sai quando passa disso
+    private static final float WALL_BACK = 0.55f; // o jogador fica este tanto dentro do U, da boca para o fundo
+    final Array<StoneWall> walls = new Array<>();
+    private Model wallModel;
+    private float[][] wallCircles;                // [x, z, raio] em coordenadas do muro
+
+    private void loadWallModel() {
+        wallModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/parede_taipa.g3dj"));
+        loaded.add(wallModel);
+        JsonValue cs = new JsonReader().parse(Gdx.files.internal("models/parede_taipa_colisao.json")).get("circulos");
+        wallCircles = new float[cs.size][];
+        int i = 0;
+        for (JsonValue c = cs.child; c != null; c = c.next, i++)
+            wallCircles[i] = new float[]{c.getFloat(0), c.getFloat(1), c.getFloat(2)};
+    }
+
+    /**
+     * Põe um muro na frente do jogador, com a curva virada para o que está à frente dele e o jogador
+     * dentro do U. Devolve null se deu certo, ou o aviso para mostrar na tela.
+     */
+    String placeWall(float px, float pz, float yawRad) {
+        if (wallCircles == null) return "MURO NÃO CARREGOU";
+        float fx = MathUtils.sin(yawRad), fz = MathUtils.cos(yawRad);
+        float ox = px - fx * WALL_BACK, oz = pz - fz * WALL_BACK;   // origem do modelo: boca do U
+        float yawDeg = MathUtils.radiansToDegrees * yawRad + 180f;
+        float c = MathUtils.cosDeg(yawDeg), s = MathUtils.sinDeg(yawDeg);
+        // Base: o chão mais baixo sob a pegada; o lado mais alto fica enterrado, sem vão
+        float lo = Float.MAX_VALUE, hi = -Float.MAX_VALUE;
+        for (float lx = -2.2f; lx <= 2.2f; lx += 0.4f) for (float lz = -2.0f; lz <= 0.2f; lz += 0.4f) {
+            float h = heightAt(ox + lx * c + lz * s, oz - lx * s + lz * c);
+            lo = Math.min(lo, h);
+            hi = Math.max(hi, h);
+        }
+        if (hi - lo > 1.2f) return "CHÃO MUITO INCLINADO PARA O MURO";
+        // Nada pode estar dentro do muro: jogador, obstáculos, casas de taipa e casas da cidade
+        for (float[] k : wallCircles) {
+            float wx = ox + k[0] * c + k[1] * s, wz = oz - k[0] * s + k[1] * c;
+            if (Math.hypot(wx - px, wz - pz) < k[2] + 0.4f) return "SEM ESPAÇO PARA O MURO";
+            for (int i = 0; i < obstacles.size; i++) {
+                Obstacle o = obstacles.get(i);
+                if (Math.hypot(wx - o.x, wz - o.z) < k[2] + o.radius) return "SEM ESPAÇO PARA O MURO";
+            }
+            for (int h = 0; h < houses.size; h++) {
+                Vector3 lp = new Vector3(wx, lo, wz).mul(houses.get(h).inv);
+                for (int b = 0; b < wallBoxes.size; b++) {
+                    float[] bx = wallBoxes.get(b);
+                    if (lp.x >= bx[0] - k[2] && lp.x <= bx[1] + k[2] && lp.y >= bx[2] - 1f && lp.y <= bx[3] + 1f
+                            && lp.z >= bx[4] - k[2] && lp.z <= bx[5] + k[2]) return "SEM ESPAÇO PARA O MURO";
+                }
+            }
+        }
+        if (walls.size >= MAX_WALLS) removeWall(walls.first());
+        StoneWall w = new StoneWall(wallModel, ox, lo, oz, yawDeg);
+        instances.add(w.mi);
+        for (float[] k : wallCircles) {
+            Obstacle o = new Obstacle(ox + k[0] * c + k[1] * s, oz - k[0] * s + k[1] * c, k[2], lo, StoneWall.HEIGHT);
+            o.surface = Surface.PEDRA;
+            addObstacle(o);
+            w.cols.add(o);
+        }
+        walls.add(w);
+        return null;
+    }
+
+    /** Tira um muro: o modelo e a colisão. */
+    void removeWall(StoneWall w) {
+        instances.removeValue(w.mi, true);
+        for (int i = 0; i < w.cols.size; i++) removeObstacle(w.cols.get(i));
+        walls.removeValue(w, true);
+    }
+
     private Model loadModel(String path) {
         Model m = new ObjLoader().loadModel(Gdx.files.internal(path));
         loaded.add(m);
         return m;
     }
 
-    /** Atualiza enfeites (porta, rede) e o fogo. Chame todo quadro. */
+    /** Atualiza enfeites (porta, rede), o fogo e os muros que estão subindo. Chame todo quadro. */
     public void update(float dt, com.badlogic.gdx.graphics.PerspectiveCamera cam) {
         for (int i = 0; i < decors.size; i++) decors.get(i).update(dt);
+        for (int i = 0; i < walls.size; i++) walls.get(i).update(dt);
         fire.update(dt, cam);
         updateBirds(dt);
         if (town != null) town.update(dt);

@@ -799,6 +799,11 @@ public class Main extends ApplicationAdapter {
             case "trocar":
                 if (world.weapons != null) world.weapons.swap(character);
                 return;
+            case "parede": {
+                String aviso = world.placeWall(player.pos.x, player.pos.z, yaw);
+                survival.say(aviso != null ? aviso : "MURO DE PEDRA E TAIPA LEVANTADO");
+                return;
+            }
             case "atirar":
                 if (firePointer < 0) {
                     firePointer = i;
@@ -929,6 +934,7 @@ public class Main extends ApplicationAdapter {
                 || hammockTarget != null || canGetUp || cartTarget != null || cartOptionsHorse != null));
         hud.show("coletar", !dead && itemTarget != null);
         hud.show("trocar", !dead && world.weapons != null && world.weapons.hasWeapon());
+        hud.show("parede", !dead && player.grounded && !inPlane && !skydiving && !parachuting && !landing);
         hud.swapText = world.weapons != null ? world.weapons.swapLabel() : "TROCAR";
         hud.show("arma", combat);
         hud.show("mira", combat);
