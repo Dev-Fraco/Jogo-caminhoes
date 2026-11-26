@@ -285,10 +285,13 @@ public class Riding {
         updateReins();
         updateCart();
         if (driving && !posed) {
-            // Sentado na carroça segurando os arreios: pose única, mantida até descer
+            // Entrando na carroça: animação de sentar toca uma vez, depois fica na pose de arreios
             posed = true;
-            ch.playOnce("SentadoArreios");
+            ch.playOnce("StandToSit");
             addReins();
+        } else if (driving && !seated && ch.onceFinished()) {
+            seated = true;
+            ch.playOnce("SentadoArreios");
         }
         Vector3 seat = driving ? cartSeat() : seatRoot();
         setPlayer(player, seat.x, seat.y, seat.z, true);
@@ -302,7 +305,8 @@ public class Riding {
 
     private Cart cart;
     private boolean driving = false;   // o cavaleiro está sentado na carroça e conduz o cavalo
-    private boolean posed = false;     // pose de sentado com os arreios já tocando
+    private boolean posed = false;     // animação de sentar começou
+    private boolean seated = false;    // sentou: pose de arreios parada
 
     boolean hasCart() { return cart != null; }
 
@@ -340,6 +344,7 @@ public class Riding {
     private void dismountCart(Player player, Character ch) {
         driving = false;
         posed = false;
+        seated = false;
         removeReins();
         ch.endOnce();
         state = St.FREE;
