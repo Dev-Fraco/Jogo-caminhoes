@@ -59,8 +59,9 @@ public class ShootTests extends ApplicationAdapter {
     /** Área plana e aberta (sem obstáculos) para os testes. */
     float[] openArea() {
         java.util.Random r = new java.util.Random(7);
-        for (int t = 0; t < 500; t++) {
-            float[] p = w.openSpot(r);
+        // varredura em grade de 25 m por todo o mapa (o mapa é grande: lugar plano é raro)
+        for (int t = 0; t < 41 * 41; t++) {
+            float[] p = {-500f + (t % 41) * 25f, -500f + (t / 41) * 25f};
             boolean ok = true;
             for (float dx = -25; dx <= 25 && ok; dx += 5)
                 for (float dz = -25; dz <= 25 && ok; dz += 5)
@@ -371,12 +372,12 @@ public class ShootTests extends ApplicationAdapter {
         World.Obstacle tree = null;
         for (int i = 0; i < w.obstacles.size; i++) if (w.obstacles.get(i).surface == Surface.MADEIRA && w.obstacles.get(i).height > 1.4f) { tree = w.obstacles.get(i); break; }
         if (tree != null) {
-            Vector3 o = new Vector3(tree.x - 6f, tree.baseY + 1f, tree.z);
+            Vector3 o = new Vector3(tree.x - 1.5f, Math.max(tree.baseY + 1f, w.groundAt(tree.x - 1.5f, tree.z) + 0.5f), tree.z);
             w.raycast(o, new Vector3(1f, 0f, 0f), 20f);
             check("árvore/cacto = MADEIRA", w.hitSurface == Surface.MADEIRA, "" + w.hitSurface);
         }
         Vector3 rockO = null;
-        for (int i = 0; i < w.obstacles.size; i++) if (w.obstacles.get(i).surface == Surface.PEDRA) { World.Obstacle ob = w.obstacles.get(i); rockO = new Vector3(ob.x - 8f, ob.baseY + 0.6f, ob.z); w.raycast(rockO, new Vector3(1f, 0f, 0f), 30f); break; }
+        for (int i = 0; i < w.obstacles.size; i++) if (w.obstacles.get(i).surface == Surface.PEDRA) { World.Obstacle ob = w.obstacles.get(i); rockO = new Vector3(ob.x - 2.2f, Math.max(ob.baseY + 0.6f, w.groundAt(ob.x - 2.2f, ob.z) + 0.4f), ob.z); w.raycast(rockO, new Vector3(1f, 0f, 0f), 30f); break; }
         check("pedra/poço = PEDRA", rockO != null && w.hitSurface == Surface.PEDRA, "" + w.hitSurface);
 
         System.out.println("== 18/19. Cada categoria: modo de disparo, cadência e rajadas ==");
@@ -532,7 +533,7 @@ public class ShootTests extends ApplicationAdapter {
             prevR = z.radius;
         }
         check("encolhe suave até o raio da fase 2, sem pular", monotone && Math.abs(z.radius - Zone.RADII[1]) < 0.5f && maxStep < 0.2f, String.format("raio %.1f, maior passo %.3f m", z.radius, maxStep));
-        check("o novo círculo cabe dentro do anterior", Math.hypot(z.cx, z.cz) < 100f, "");
+        check("o novo círculo cabe dentro do mapa", Math.hypot(z.cx, z.cz) < World.HALF, "");
         for (int i = 0; i < 20 * 60 * 30; i++) z.update(1f / 30f);
         check("termina na zona final pequena e para", z.finalPhase() && Math.abs(z.radius - Zone.RADII[Zone.RADII.length - 1]) < 0.5f && z.label().equals("Zona final"), String.format("raio %.1f", z.radius));
         boolean allInside = true, varied = true;

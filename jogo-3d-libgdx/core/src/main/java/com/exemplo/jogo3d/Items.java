@@ -83,7 +83,7 @@ final class Items {
             Vector3 p = new Vector3(-b.hx * 0.45f, 0f, b.hz + 1.0f).mul(b.t);
             drop(w, roll(rnd), p.x, p.z, rnd);
         }
-        for (int i = 0; i < 30; i++) {
+        for (int i = 0; i < 90; i++) {
             float[] p = w.openSpot(rnd);
             drop(w, roll(rnd), p[0], p[1], rnd);
         }

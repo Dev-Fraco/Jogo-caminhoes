@@ -18,6 +18,7 @@ import com.badlogic.gdx.utils.JsonReader;
 import com.badlogic.gdx.graphics.g3d.utils.MeshPartBuilder.VertexInfo;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.utils.IntArray;
 import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Quaternion;
 import com.badlogic.gdx.math.Vector3;
@@ -33,10 +34,10 @@ import java.util.Random;
  */
 public class World {
 
-    static final float SIZE = 360f;          // tamanho do terreno (metros)
+    static final float SIZE = 1140f;         // lado do mapa (m): área ≈ 10× a de antes (360 m)
     static final float HALF = SIZE / 2f;
-    static final int CHUNKS = 2;             // o terreno é feito em 2 x 2 pedaços (cada um dentro do limite de vértices)
-    static final int GRID = 64;              // células por lado de cada pedaço
+    static final int CHUNKS = 6;             // o terreno é feito em 6 x 6 pedaços (cada um dentro do limite de vértices)
+    static final int GRID = 48;              // células por lado de cada pedaço (4 vértices por célula: menos memória)
     static final float ROAD_HALF = 3.5f;     // estrada de barro: meia largura (7 m), no eixo x (z = 0)
     static final float ROAD_SHOULDER = 5f;   // faixa em que o terreno se ajusta suavemente à estrada
     static final float HOUSE_Z = 30f;        // casas ao lado da estrada (distância do eixo)
@@ -106,6 +107,7 @@ public class World {
     /** Todas as instâncias que devem ser desenhadas (terreno + cenário). */
     final Array<ModelInstance> instances = new Array<>();
     final Array<Obstacle> obstacles = new Array<>();
+    final java.util.HashMap<ModelInstance, float[]> terrainBox = new java.util.HashMap<>();
 
     /** Casa colocada no mapa: transformação e inversa, para checar colisão no sistema da casa. */
     static class House {
@@ -152,6 +154,73 @@ public class World {
     private Texture signTexture;
     private final Array<Model> loaded = new Array<>();
 
+    /** Pedaço de terreno na frente da câmera? Os outros objetos (estrada, rio, avião) sempre são desenhados. */
+    boolean terrainVisible(ModelInstance mi, com.badlogic.gdx.graphics.Camera cam) {
+        float[] b = terrainBox.get(mi);
+        if (b == null) return true;
+        return cam.frustum.boundsInFrustum(b[0], b[1], b[2], b[3], b[4], b[5]);
+    }
+
+    // Grade espacial dos obstáculos: a colisão olha só as células perto do ponto (são centenas de objetos)
+    private static final float CELL = 16f;
+    private static final int CELLS = (int) Math.ceil(SIZE / CELL);
+    private IntArray[] cells = new IntArray[CELLS * CELLS];
+    private final IntArray near = new IntArray();
+    private boolean gridDirty = true;
+    private float maxObsRadius = 0f;
+
+    /** Acrescenta um obstáculo (carroça, por exemplo) e marca a grade para refazer. */
+    void addObstacle(Obstacle o) {
+        obstacles.add(o);
+        gridDirty = true;
+    }
+
+    void removeObstacle(Obstacle o) {
+        obstacles.removeValue(o, true);
+        gridDirty = true;
+    }
+
+    private static int cellIndex(float v) {
+        return MathUtils.clamp((int) Math.floor((v + HALF) / CELL), 0, CELLS - 1);
+    }
+
+    private void rebuildGrid() {
+        java.util.Arrays.fill(cells, null);
+        maxObsRadius = 0f;
+        for (int i = 0; i < obstacles.size; i++) {
+            Obstacle o = obstacles.get(i);
+            maxObsRadius = Math.max(maxObsRadius, o.radius);
+            int x0 = cellIndex(o.x - o.radius), x1 = cellIndex(o.x + o.radius);
+            int z0 = cellIndex(o.z - o.radius), z1 = cellIndex(o.z + o.radius);
+            for (int cx = x0; cx <= x1; cx++) {
+                for (int cz = z0; cz <= z1; cz++) {
+                    int c = cx * CELLS + cz;
+                    if (cells[c] == null) cells[c] = new IntArray(4);
+                    cells[c].add(i);
+                }
+            }
+        }
+        gridDirty = false;
+    }
+
+    /** Obstáculos num quadrado de raio r em torno de (x, z) → lista `near` (pode repetir; é inofensivo). */
+    private void nearObstacles(float x, float z, float r) {
+        if (gridDirty) rebuildGrid();
+        near.clear();
+        int x0 = cellIndex(x - r), x1 = cellIndex(x + r), z0 = cellIndex(z - r), z1 = cellIndex(z + r);
+        for (int cx = x0; cx <= x1; cx++) {
+            for (int cz = z0; cz <= z1; cz++) {
+                IntArray a = cells[cx * CELLS + cz];
+                if (a != null) for (int k = 0; k < a.size; k++) near.add(a.get(k));
+            }
+        }
+    }
+
+    private float maxObstacleRadius() {
+        if (gridDirty) rebuildGrid();
+        return maxObsRadius;
+    }
+
     /** Altura do terreno em (x, z). A estrada (z = 0) é plana, e o terreno se ajusta suavemente a ela. */
     public float heightAt(float x, float z) {
         float rz = roadZ(x);
@@ -175,9 +244,9 @@ public class World {
     private static final float[] POT_X, POT_Z, POT_R, POT_D;
     static {
         java.util.Random r = new java.util.Random(1915L);
-        float[] px = new float[80], pz = new float[80], pr = new float[80], pd = new float[80];
+        float[] px = new float[200], pz = new float[200], pr = new float[200], pd = new float[200];
         int n = 0;
-        for (float x = -172f; x < 172f && n < 80; x += 6f + r.nextFloat() * 6f) {
+        for (float x = -HALF + 30f; x < HALF - 30f && n < 200; x += 6f + r.nextFloat() * 6f) {
             if (Math.abs(x) < 12f) continue;   // perto do início a estrada é lisa
             px[n] = x;
             pz[n] = roadZ(x) + (r.nextFloat() * 2f - 1f) * 2.3f;
@@ -226,10 +295,10 @@ public class World {
         float t = MathUtils.clamp((r - SPAWN_CLEAR) / 14f, 0f, 1f);
         float flat = t * t * (3f - 2f * t);
         float edge = Math.max(Math.abs(x), Math.abs(z));
-        float k = MathUtils.clamp((edge - 80f) / 80f, 0f, 1f);
+        float k = MathUtils.clamp((edge - 430f) / 110f, 0f, 1f);
         k = k * k * (3f - 2f * k);
         float corners = 16f * k * (0.6f + 0.4f * MathUtils.sin(x * 0.07f + 0.5f) * MathUtils.cos(z * 0.06f - 0.9f));
-        float y = h * flat + corners;
+        float y = h * flat + corners + Regions.hillHeight(x, z);   // serras (longe da estrada e da vila)
         if (hasDam) {
             // Açude: fundo rebaixado 35 cm, com as bordas subindo suavemente
             float d = (float) Math.sqrt((x - damX) * (x - damX) + (z - damZ) * (z - damZ));
@@ -281,11 +350,14 @@ public class World {
         return out.set(-dhdx, 1f, -dhdz).nor();
     }
 
+    private final float[] tintRgb = new float[3];
+
     /** Tom por vértice: quase branco (a textura já traz a cor); só escurece as encostas. */
     private Color tintAt(float x, float z, Vector3 n) {
         float steep = 1f - n.y;
         float shade = 1f - MathUtils.clamp((steep - 0.10f) * 0.6f, 0f, 0.25f);
-        return new Color(shade, shade, shade, 1f);
+        Regions.tint(x, z, tintRgb);
+        return new Color(shade * tintRgb[0], shade * tintRgb[1], shade * tintRgb[2], 1f);
     }
 
     /** Escolhe o lugar do açude e da cacimba: longe do início e um do outro. */
@@ -353,11 +425,8 @@ public class World {
                         float z0 = -HALF + cj * chunk + j * step, z1 = z0 + step;
                         // Boca da cacimba: sai do terreno toda célula que toca o círculo do poço (a plataforma cobre a borda)
                         if (hasWell && cellTouchesCircle(x0, z0, x1, z1, wellX, wellZ, Landmarks.WELL_R)) continue;
-                        VertexInfo a = vertex(x0, z0), b = vertex(x1, z0);
-                        VertexInfo c = vertex(x1, z1), d = vertex(x0, z1);
-                        // ordem anti-horária vista de cima (para a face aparecer)
-                        part.triangle(a, c, b);
-                        part.triangle(a, d, c);
+                        // quad da célula (o culling de faces está desligado, então a ordem não importa)
+                        part.rect(vertex(x0, z0), vertex(x1, z0), vertex(x1, z1), vertex(x0, z1));
                     }
                 }
                 Model m = mb.end();
@@ -365,6 +434,9 @@ public class World {
                 ModelInstance mi = new ModelInstance(m);
                 instances.add(mi);
                 terrainParts.add(mi);
+                // caixa do pedaço (centro e meias-dimensões): só desenha se estiver na frente da câmera
+                terrainBox.put(mi, new float[]{-HALF + ci * chunk + chunk / 2f, 40f, -HALF + cj * chunk + chunk / 2f,
+                        chunk / 2f + 1f, 60f, chunk / 2f + 1f});
             }
         }
 
@@ -506,14 +578,28 @@ public class World {
             }
         }
         // Objetos do cenário: o mapa dobrou, então dobrou a quantidade
-        for (int i = 0; i < 36; i++) addCactus(rnd);
-        for (int i = 0; i < 18; i++) addTree(rnd, true);
-        for (int i = 0; i < 14; i++) addTree(rnd, false);
-        for (int i = 0; i < 24; i++) addProp(rnd, rockLarge, 2.2f, 0.9f, 1f);
-        for (int i = 0; i < 32; i++) addProp(rnd, rockSmall, 2.2f, 0.45f, 1f);
+        for (int i = 0; i < 216; i++) addCactus(rnd);   // ×6: o mapa tem 10× a área
+        for (int i = 0; i < 54; i++) addTree(rnd, true);
+        for (int i = 0; i < 42; i++) addTree(rnd, false);
+        for (int i = 0; i < 72; i++) addProp(rnd, rockLarge, 2.2f, 0.9f, 1f);
+        for (int i = 0; i < 96; i++) addProp(rnd, rockSmall, 2.2f, 0.45f, 1f);
         // Madeira morta: tocos e troncos caídos (no lugar das árvores mortas, que ainda não temos modelo)
-        for (int i = 0; i < 36; i++) addProp(rnd, stump, 2.6f, 0.35f, 1f);
-        for (int i = 0; i < 24; i++) addProp(rnd, log, 2.6f, 1.2f, 1f);
+        for (int i = 0; i < 108; i++) addProp(rnd, stump, 2.6f, 0.35f, 1f);
+        for (int i = 0; i < 72; i++) addProp(rnd, log, 2.6f, 1.2f, 1f);
+        // Fazendas abandonadas: casa de taipa, cocho vazio, carroça parada e tocos da roça morta
+        Model cochoModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cocho.g3dj"));
+        loaded.add(cochoModel);
+        for (int f = 0; f < Regions.FARM_X.length; f++) {
+            float fx = Regions.FARM_X[f], fz = Regions.FARM_Z[f];
+            float yaw = rnd.nextFloat() * 360f;
+            addEnclosedHouse(rnd, fx, fz, yaw);
+            placeStatic(cochoModel, fx + 9f, fz + 3f, yaw, 1.0f, 0.9f);
+            placeStatic(cartModel, fx - 8f, fz - 6f, yaw + 40f, 1.3f, 2.2f);
+            for (int k = 0; k < 8; k++) {
+                float a = rnd.nextFloat() * MathUtils.PI2, d = 14f + rnd.nextFloat() * 22f;
+                placeStatic(stump, fx + MathUtils.cos(a) * d, fz + MathUtils.sin(a) * d, rnd.nextFloat() * 360f, 2.6f, 0.35f);
+            }
+        }
         // Armas espalhadas: dentro das casas, na frente das casas da cidade e soltas pelo mapa
         weapons = new Weapons();
         weapons.scatter(this, rnd);
@@ -707,8 +793,9 @@ public class World {
             Vector3 l = new Vector3(p).mul(bx.inv);
             if (Math.abs(l.x) < bx.hx && Math.abs(l.z) < bx.hz && l.y > 0f && l.y < bx.h) return true;
         }
-        for (int o = 0; o < obstacles.size; o++) {
-            Obstacle ob = obstacles.get(o);
+        nearObstacles(p.x, p.z, maxObstacleRadius());
+        for (int q = 0; q < near.size; q++) {
+            Obstacle ob = obstacles.get(near.get(q));
             if (p.y < ob.baseY || p.y > ob.baseY + ob.height) continue;
             float dx = p.x - ob.x, dz = p.z - ob.z;
             if (dx * dx + dz * dz < ob.radius * ob.radius) return true;
@@ -726,6 +813,26 @@ public class World {
     }
 
     /** Escolhe um ponto aleatório fora da área de nascimento. */
+    /** Um ponto aleatório numa das regiões pedidas (tenta algumas vezes; senão, qualquer ponto). */
+    private float[] spotIn(Random rnd, float margin, Regions.Region a, Regions.Region b) {
+        float[] p = null;
+        for (int t = 0; t < 30; t++) {
+            p = randomSpot(rnd, margin);
+            Regions.Region r = Regions.at(p[0], p[1]);
+            if (r == a || r == b) return p;
+        }
+        return p;
+    }
+
+    /** Objeto estático com colisão circular (carroça parada, cocho, toco). */
+    private void placeStatic(Model m, float x, float z, float yawDeg, float scale, float radius) {
+        float y = heightAt(x, z);
+        ModelInstance mi = new ModelInstance(m);
+        mi.transform.setToTranslation(x, y, z).rotate(Vector3.Y, yawDeg).scale(scale, scale, scale);
+        instances.add(mi);
+        if (radius > 0f) addObstacle(new Obstacle(x, z, radius, y, 1.5f));
+    }
+
     private float[] randomSpot(Random rnd, float margin) {
         float x, z;
         do {
@@ -784,7 +891,7 @@ public class World {
         int v = rnd.nextInt(3);
         float[] p = null;
         for (int t = 0; t < 60; t++) {
-            p = randomSpot(rnd, 6f);
+            p = spotIn(rnd, 6f, Regions.Region.SERTAO, Regions.Region.SERRA);
             if (!nearLandmark(p[0], p[1])) break;
         }
         float x = p[0], z = p[1];
@@ -803,7 +910,7 @@ public class World {
     private void addTree(Random rnd, boolean big) {
         float[] p = null;
         for (int t = 0; t < 60; t++) {
-            p = randomSpot(rnd, 8f);
+            p = spotIn(rnd, 8f, Regions.Region.FONTE, Regions.Region.ESTRADA);
             if (!nearLandmark(p[0], p[1])) break;
         }
         float x = p[0], z = p[1];
@@ -1121,8 +1228,9 @@ public class World {
                 p.set(l).mul(bx.t);
             }
         }
-        for (int k = 0; k < obstacles.size; k++) {
-            Obstacle o = obstacles.get(k);
+        nearObstacles(p.x, p.z, playerRadius + maxObstacleRadius());
+        for (int q = 0; q < near.size; q++) {
+            Obstacle o = obstacles.get(near.get(q));
             if (p.y > o.baseY + o.height) continue;
             float dx = p.x - o.x, dz = p.z - o.z;
             float min = o.radius + playerRadius;

@@ -123,7 +123,7 @@ public class BotDropTests extends ApplicationAdapter {
         for (int k = 0; k < 16 && !placed; k++) {
             float ang = k * MathUtils.PI2 / 16f;
             float px = zn.cx + MathUtils.cos(ang) * (zn.radius + 30f), pz = zn.cz + MathUtils.sin(ang) * (zn.radius + 30f);
-            if (Math.abs(px) < 170f && Math.abs(pz) < 170f) { ox = px; oz = pz; placed = true; }
+            if (Math.abs(px) < World.HALF - 5f && Math.abs(pz) < World.HALF - 5f) { ox = px; oz = pz; placed = true; }
         }
         Enemy out = new Enemy(jake, null, ox, oz, 0.2f);
         out.weapon = WeaponConfig.RIFLE_INIMIGO;

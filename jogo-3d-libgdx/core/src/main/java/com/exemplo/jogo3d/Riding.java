@@ -240,7 +240,7 @@ public class Riding {
     void attachCart(Cart c) {
         cart = c;
         c.attached = true;
-        world.obstacles.removeValue(c.obstacle, true);
+        world.removeObstacle(c.obstacle);
         c.beginTow(world);
     }
 
@@ -250,7 +250,7 @@ public class Riding {
         cart.attached = false;
         cart.setRest(world, cart.ax, cart.az, cart.yaw);   // as varas descem até o chão
         cart.obstacle = new World.Obstacle(cart.ax, cart.az, 1.9f, cart.pos.y, 2.2f);
-        world.obstacles.add(cart.obstacle);
+        world.addObstacle(cart.obstacle);
         cart = null;
     }
 

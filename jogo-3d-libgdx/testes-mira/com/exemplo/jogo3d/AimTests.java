@@ -53,8 +53,9 @@ public class AimTests extends ApplicationAdapter {
     /** Ponto plano e aberto (sem obstáculos) para os testes. */
     float[] openArea() {
         java.util.Random r = new java.util.Random(7);
-        for (int t = 0; t < 500; t++) {
-            float[] p = w.openSpot(r);
+        // varredura em grade de 25 m por todo o mapa (o mapa é grande: lugar plano é raro)
+        for (int t = 0; t < 41 * 41; t++) {
+            float[] p = {-500f + (t % 41) * 25f, -500f + (t / 41) * 25f};
             boolean ok = true;
             for (float dx = -25; dx <= 25 && ok; dx += 5)
                 for (float dz = -25; dz <= 25 && ok; dz += 5)

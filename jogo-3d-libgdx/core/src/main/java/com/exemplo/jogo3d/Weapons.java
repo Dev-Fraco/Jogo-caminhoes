@@ -217,7 +217,7 @@ final class Weapons {
             drop(w, rnd.nextInt(FILES.length), p.x, p.z, rnd);
         }
         // Soltas pelo mapa
-        for (int i = 0; i < 16; i++) {
+        for (int i = 0; i < 48; i++) {
             float[] p = w.openSpot(rnd);
             drop(w, rnd.nextInt(FILES.length), p[0], p[1], rnd);
         }

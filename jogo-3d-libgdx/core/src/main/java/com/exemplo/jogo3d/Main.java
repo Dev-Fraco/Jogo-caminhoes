@@ -959,7 +959,7 @@ public class Main extends ApplicationAdapter {
         Vector3 cp = camera.position;
         for (int i = 0; i < world.instances.size; i++) {
             ModelInstance mi = world.instances.get(i);
-            if (world.isTerrainPart(mi)) { drawList.add(mi); continue; }
+            if (world.isTerrainPart(mi)) { if (world.terrainVisible(mi, camera)) drawList.add(mi); continue; }
             mi.transform.getTranslation(tmpT);
             float dx = tmpT.x - cp.x, dz = tmpT.z - cp.z;
             if (dx * dx + dz * dz <= maxD2) drawList.add(mi);

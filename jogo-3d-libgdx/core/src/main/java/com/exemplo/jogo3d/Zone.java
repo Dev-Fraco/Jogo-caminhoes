@@ -8,7 +8,7 @@ import com.badlogic.gdx.math.MathUtils;
  * A faixa do HUD mostra o tempo; o minimapa mostra o círculo.
  */
 final class Zone {
-    static final float[] RADII = {150f, 120f, 75f, 40f, 16f};   // o primeiro círculo cabe no mapa (360 m) com folga
+    static final float[] RADII = {470f, 380f, 240f, 126f, 51f};   // escalados pelo mapa (lado 1140 m)   // o primeiro círculo cabe no mapa (360 m) com folga
     static final float MAP_HALF = World.HALF;
     static final float[] DAMAGE = {1.0f, 2.0f, 3.5f, 5.0f, 8.0f};   // vida por segundo fora da zona
     private static final float FIRST_WAIT = 100f, WAIT = 60f, SHRINK = 40f;   // s (a primeira espera inclui o voo do avião)
