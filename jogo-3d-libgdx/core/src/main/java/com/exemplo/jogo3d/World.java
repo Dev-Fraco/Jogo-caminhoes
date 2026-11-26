@@ -538,8 +538,8 @@ public class World {
         float L = TRAIN_LIMIT;
         boxes.add(new Box(new Matrix4().setToTranslation(-L, 0f, 0f).rotate(Vector3.Y, 90f), L, 0.5f, 6f));   // lado oeste (corre em z)
         boxes.add(new Box(new Matrix4().setToTranslation(L, 0f, 0f).rotate(Vector3.Y, 90f), L, 0.5f, 6f));    // lado leste
-        boxes.add(new Box(new Matrix4().setToTranslation(0f, 0f, -L), 0.5f, L, 6f));
-        boxes.add(new Box(new Matrix4().setToTranslation(0f, 0f, L), 0.5f, L, 6f));
+        boxes.add(new Box(new Matrix4().setToTranslation(0f, 0f, -L), L, 0.5f, 6f));   // lado sul (corre em x)
+        boxes.add(new Box(new Matrix4().setToTranslation(0f, 0f, L), L, 0.5f, 6f));    // lado norte
         // Armas e itens (sem nada espalhado), fogo sem fontes
         fire = new Fire();
         weapons = new Weapons();
@@ -1730,7 +1730,7 @@ public class World {
         for (int k = 0; k < boxes.size; k++) {
             Box bx = boxes.get(k);
             Vector3 l = new Vector3(p).mul(bx.inv);
-            if (l.y > bx.h) continue;
+            if (l.y < -0.2f || l.y > bx.h) continue;   // só colide na altura da caixa (o teto do galpão não empurra o chão)
             float ex = bx.hx + playerRadius, ez = bx.hz + playerRadius;
             if (Math.abs(l.x) < ex && Math.abs(l.z) < ez) {
                 if (ex - Math.abs(l.x) < ez - Math.abs(l.z)) l.x = l.x >= 0f ? ex : -ex;

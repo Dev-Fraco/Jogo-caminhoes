@@ -55,6 +55,12 @@ public class TargetBotTests extends ApplicationAdapter {
         check("dois bonecos no treino", en.list.size == 2 && Enemies.COUNT == 2, "" + en.list.size);
         String muroTreino = wt.placeWall(-4f, -2f, 0f);   // o muro de proteção no treino
         check("treino: dá para pôr o muro de proteção", muroTreino == null && wt.walls.size == 1, muroTreino == null ? "" : muroTreino);
+        // Correr dentro do galpão: não atravessa a parede (nem num quadro longo) e fica dentro
+        Player corredor = new Player();
+        corredor.spawn(World.TRAIN_PLAYER_X, World.TRAIN_PLAYER_Z, 0f);
+        for (int f = 0; f < 60; f++) corredor.update(0.2f, 0f, 0f, MathUtils.PI, false, true, wt);   // corre para o fundo da porta
+        check("correndo no treino não atravessa a parede (fica dentro)", corredor.pos.z > -World.SHED_HD && corredor.pos.z < World.SHED_HD,
+                String.format("z %.2f", corredor.pos.z));
         check("treino: sem avião, cidade nem terreno (chão reto)", wt.airplane == null && wt.town == null && wt.heightAt(5f, 5f) == 0f, "");
         check("treino: tem arma, itens e caixa de equipamentos", wt.weapons != null && wt.items != null
                 && Math.hypot(World.TRAIN_BOX_X - World.TRAIN_PLAYER_X, World.TRAIN_BOX_Z - World.TRAIN_PLAYER_Z) < 20f, "");

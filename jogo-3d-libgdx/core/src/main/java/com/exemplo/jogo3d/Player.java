@@ -76,9 +76,15 @@ public class Player {
 
         // 3) Anda e desvia de obstáculos
         if (speed > 0.001f) {
-            pos.x += dx * speed * dt;
-            pos.z += dz * speed * dt;
-            world.resolveCollisions(pos, RADIUS);
+            // Anda em passos de até 10 cm, com colisão em cada um: num quadro longo não atravessa parede fina
+            float dist = speed * dt;
+            int steps = Math.max(1, (int) Math.ceil(dist / 0.1f));
+            float stx = dx * dist / steps, stz = dz * dist / steps;
+            for (int i = 0; i < steps; i++) {
+                pos.x += stx;
+                pos.z += stz;
+                world.resolveCollisions(pos, RADIUS);
+            }
 
             // Vira suavemente para onde anda (não gira sozinho ao parar)
             float targetYaw = (float) Math.atan2(dx, dz);
@@ -87,7 +93,7 @@ public class Player {
         }
 
         // Limita ao terreno
-        float half = World.HALF - 2f;
+        float half = (world.training ? World.TRAIN_LIMIT : World.HALF) - 2f;
         pos.x = MathUtils.clamp(pos.x, -half, half);
         pos.z = MathUtils.clamp(pos.z, -half, half);
 
