@@ -223,6 +223,13 @@ final class Weapons {
         }
     }
 
+    /** Deixa uma arma no chão em (x, z) (um bot morreu com ela). */
+    void dropAt(World w, WeaponConfig cfg, float x, float z) {
+        int type = -1;
+        for (int i = 0; i < WeaponConfig.BY_TYPE.length; i++) if (WeaponConfig.BY_TYPE[i] == cfg) type = i;
+        if (type >= 0) drop(w, type, x, z, new Random());
+    }
+
     /** Põe uma arma deitada de lado no chão. */
     private void drop(World w, int type, float x, float z, Random rnd) {
         float y = w.groundAt(x, z);

@@ -121,6 +121,7 @@ public class ShootTests extends ApplicationAdapter {
         Enemy e = new Enemy(jake, null, x, z, 0.3f);
         e.pos.y = w.groundAt(x, z);
         e.facing = facing;
+        e.weapon = WeaponConfig.RIFLE_INIMIGO;   // alvo armado: sem arma ele sai andando atrás de uma arma
         e.forceClip(clip);
         for (int i = 0; i < 40; i++) e.pose(1f / 30f);
         en.list.add(e);

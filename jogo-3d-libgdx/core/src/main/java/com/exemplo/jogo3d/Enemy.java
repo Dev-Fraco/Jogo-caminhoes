@@ -19,7 +19,7 @@ import com.badlogic.gdx.math.Vector3;
  * o atirador. Morto, toca a animação de morte e fica no chão.
  */
 final class Enemy {
-    enum State { PATROL, COMBAT, DEAD }
+    enum State { RIDE, FALL, CHUTE, PATROL, COMBAT, DEAD }   // RIDE/FALL/CHUTE: no avião, caindo, no paraquedas
 
     static final float MAX_HEALTH = 100f;
     private static final float WALK = 1.3f, RUN = 4.2f, SIGHT = 60f;
@@ -34,7 +34,8 @@ final class Enemy {
             new Color(0.55f, 0.40f, 0.22f, 1f), new Color(0.65f, 0.63f, 0.60f, 1f)};
 
     final ModelInstance inst;
-    final ModelInstance gun;
+    ModelInstance gun;                       // arma na mão (null = desarmado)
+    WeaponConfig weapon;                     // arma que o bot pegou no chão (null = sem arma)
     private final AnimationController anim;
     final Hitbox hitbox;
     private final Node hand;
@@ -98,6 +99,8 @@ final class Enemy {
             placeGun();
             return false;
         }
+        if (airborne()) return dropUpdate(dt, w, all);
+        if (weapon == null && state == State.COMBAT) state = State.PATROL;   // sem arma não entra em combate
         if (targetEnemy != null && !targetEnemy.alive()) { targetEnemy = null; canSee = false; }
         if (targetPlayer && !playerAlive) { targetPlayer = false; canSee = false; }
         boolean haveTarget = targetEnemy != null || targetPlayer;
@@ -107,7 +110,7 @@ final class Enemy {
         // Visão: algumas vezes por segundo (raio custa). Mantém o alvo atual se ainda o vê; senão procura
         // entre os 3 mais próximos (outros bots e o jogador), na frente ou muito perto.
         lookT -= dt;
-        if (lookT <= 0f) {
+        if (lookT <= 0f && weapon != null) {
             lookT = 0.25f + MathUtils.random(0.1f);
             canSee = false;
             eye.set(pos).add(0f, 1.6f, 0f);
@@ -124,7 +127,7 @@ final class Enemy {
                     }
                     for (int i = 0; i < all.list.size; i++) {
                         Enemy o = all.list.get(i);
-                        if (o == this || !o.alive()) continue;
+                        if (o == this || !o.alive() || o.airborne()) continue;
                         float d = (float) Math.hypot(o.pos.x - pos.x, o.pos.z - pos.z);
                         if (d > prev && d < SIGHT && d < bd) { bd = d; be = o; bp = false; }
                     }
@@ -166,7 +169,29 @@ final class Enemy {
         boolean fired = false;
         float speed = 0f;
         float moveDir = facing;
-        if (state == State.PATROL) {
+        // Sem arma: vai até a arma mais próxima no chão e pega (um bot não pega a que outro já pegou)
+        boolean seeking = false;
+        if (state == State.PATROL && weapon == null && w.weapons != null) {
+            seekT -= dt;
+            if (seekT <= 0f || seekPick == null || !w.weapons.ground.contains(seekPick, true)) {
+                seekPick = nearestPickup(w);
+                seekT = 0.5f;
+            }
+            if (seekPick != null) {
+                seeking = true;
+                float gx = seekPick.pos.x - pos.x, gz = seekPick.pos.z - pos.z, gd = (float) Math.sqrt(gx * gx + gz * gz);
+                if (gd < 1.2f) {
+                    takeWeapon(w, seekPick);
+                    seekPick = null;
+                } else {
+                    moveDir = MathUtils.atan2(gx, gz);
+                    speed = RUN;
+                }
+            }
+        }
+        if (seeking) {
+            // indo pegar uma arma
+        } else if (state == State.PATROL) {
             if (waitT > 0f) {
                 waitT -= dt;
                 setClip("IdleLook", 1f);
@@ -179,7 +204,7 @@ final class Enemy {
                 if (gd < 0.5f) waitT = MathUtils.random(2f, 5f);
                 else { moveDir = MathUtils.atan2(gx, gz); speed = WALK; }
             }
-        } else {
+        } else if (!seeking) {
             // Combate: anda (lado, frente, trás) e para para atirar
             phaseT -= dt;
             if (phaseT <= 0f) {
@@ -233,7 +258,7 @@ final class Enemy {
         }
         // longe da câmera: anima em passos maiores (economia); a pose continua válida para as hitboxes
         animAcc += dt;
-        if (visibleToCam || animAcc > 0.2f) {
+        if (closeToCam || animAcc > 0.2f) {
             anim.update(animAcc);
             animAcc = 0f;
         }
@@ -257,7 +282,7 @@ final class Enemy {
 
     /** Ouviu um tiro vindo de "at": vai até lá procurar (não sabe quem é). */
     void hear(Vector3 at) {
-        if (state == State.DEAD) return;
+        if (state == State.DEAD || weapon == null || airborne()) return;
         if (state != State.COMBAT) { phaseT = 0f; shooting = false; fireT = 0.8f; }
         state = State.COMBAT;
         lostT = -2f;
@@ -267,7 +292,7 @@ final class Enemy {
 
     /** Levou tiro de outro bot: passa a reagir contra ele. */
     void retaliate(Enemy shooter) {
-        if (state == State.DEAD) return;
+        if (state == State.DEAD || weapon == null) return;
         if (!canSee || targetEnemy == null) {
             targetEnemy = shooter;
             targetPlayer = false;
@@ -280,6 +305,103 @@ final class Enemy {
     }
 
     boolean flinching() { return hitT > 0f; }
+
+    // ---------- Queda do avião ----------
+    private static final float DROP_OPEN = 100f, CHUTE_FALL = 6f, DRIFT = 2.5f;
+    private float jumpT, offAlong, offSide;
+    private float seekT;
+    float lodT;   // tempo acumulado enquanto está longe (atualização a cada 3 quadros)
+    boolean closeToCam;   // perto da câmera (≤ 60 m): o esqueleto é atualizado a cada quadro
+    private Weapons.Pickup seekPick;
+    final Vector3 fallVel = new Vector3();
+
+    /** Põe o bot na fila do avião (ainda sentado); o salto sai quando o jogador salta. */
+    void planDrop(float delay, float along, float side, Airplane air) {
+        state = State.RIDE;
+        jumpT = delay;
+        offAlong = along;
+        offSide = side;
+        rideTo(air);
+    }
+
+    /** Posição na fila do avião (a frente do avião é (sin h, cos h); o lado, (cos h, -sin h)). */
+    private void rideTo(Airplane air) {
+        float h = air.heading(), fx = MathUtils.sin(h), fz = MathUtils.cos(h);
+        pos.set(air.pos.x + fx * offAlong + fz * offSide, air.pos.y - 3f, air.pos.z + fz * offAlong - fx * offSide);
+        facing = h;
+    }
+
+    boolean airborne() { return state == State.RIDE || state == State.FALL || state == State.CHUTE; }
+
+    /** Uma etapa da queda: sentado → caindo (embalo do avião some) → paraquedas (desce devagar) → pouso. */
+    private boolean dropUpdate(float dt, World w, Enemies all) {
+        Airplane air = all.air;
+        if (state == State.RIDE) {
+            if (air != null) rideTo(air);
+            setClip("SentadoArreios", 1f);
+            if (all.released) jumpT -= dt;
+            if (all.released && jumpT <= 0f && air != null) {
+                state = State.FALL;
+                float fx = MathUtils.sin(air.heading()), fz = MathUtils.cos(air.heading());
+                fallVel.set(fx * Airplane.SPEED, air.verticalSpeed(), fz * Airplane.SPEED);
+                setClip("Falling", 1f);
+            }
+        } else if (state == State.FALL) {
+            fallVel.y += (-9.8f - 9.8f / 22f * fallVel.y) * dt;   // resistência do ar, como no jogador
+            float k = Math.min(1f, dt * 0.8f);
+            fallVel.x += -fallVel.x * k;
+            fallVel.z += -fallVel.z * k;
+            pos.mulAdd(fallVel, dt);
+            if (pos.y - w.groundAt(pos.x, pos.z) <= DROP_OPEN) {
+                state = State.CHUTE;
+                float a = MathUtils.random(MathUtils.PI2);
+                fallVel.set(MathUtils.cos(a) * DRIFT, -CHUTE_FALL, MathUtils.sin(a) * DRIFT);
+                setClip("SentadoArreios", 1f);
+            }
+        } else if (state == State.CHUTE) {
+            fallVel.y += (-CHUTE_FALL - fallVel.y) * Math.min(1f, dt * 2f);
+            pos.mulAdd(fallVel, dt);
+            float ground = w.groundAt(pos.x, pos.z);
+            if (pos.y <= ground) {
+                pos.y = ground;
+                state = State.PATROL;
+                waitT = MathUtils.random(0.5f, 2f);
+                forceOnce("HardLanding");
+            }
+        }
+        pos.x = MathUtils.clamp(pos.x, -World.HALF + 3f, World.HALF - 3f);
+        pos.z = MathUtils.clamp(pos.z, -World.HALF + 3f, World.HALF - 3f);
+        if (fallVel.len2() > 0.25f && state != State.RIDE) facing = MathUtils.atan2(fallVel.x, fallVel.z);
+        inst.transform.setToTranslation(pos).rotate(Vector3.Y, facing * MathUtils.radiansToDegrees);
+        animAcc += dt;   // mesma economia do resto: o esqueleto só recalcula perto da câmera ou a cada 0,2 s
+        if (closeToCam || animAcc > 0.2f) {
+            anim.update(animAcc);
+            animAcc = 0f;
+        }
+        placeGun();
+        return false;
+    }
+
+    /** Procura a arma no chão mais próxima (até ~260 m). */
+    private Weapons.Pickup nearestPickup(World w) {
+        Weapons.Pickup best = null;
+        float bd = 260f * 260f;
+        for (int i = 0; i < w.weapons.ground.size; i++) {
+            Weapons.Pickup p = w.weapons.ground.get(i);
+            float dx = p.pos.x - pos.x, dz = p.pos.z - pos.z, d = dx * dx + dz * dz;
+            if (d < bd) { bd = d; best = p; }
+        }
+        return best;
+    }
+
+    /** Pega a arma do chão: tira do mapa e passa a segurá-la (e a atirar). */
+    private void takeWeapon(World w, Weapons.Pickup p) {
+        if (!w.weapons.ground.removeValue(p, true)) return;   // outro bot pegou antes
+        w.instances.removeValue(p.inst, true);
+        weapon = WeaponConfig.BY_TYPE[p.type];
+        gun = new ModelInstance(w.weapons.models()[p.type]);
+        lookT = 0f;
+    }
 
     /** Reação ao tiro: recuo curto do corpo e brilho vermelho do pano (mais forte na cabeça). */
     void flinch(boolean head) {
@@ -302,8 +424,8 @@ final class Enemy {
         if (state == State.DEAD) return false;
         barT = 3f;
         health -= amount;
-        // virou alvo: entra em combate e encara o atirador
-        state = State.COMBAT;
+        // virou alvo: entra em combate (se tiver arma) e encara o atirador
+        if (weapon != null) state = State.COMBAT;
         lostT = 0f;
         if (from != null) {
             facing = MathUtils.atan2(from.x - pos.x, from.z - pos.z);

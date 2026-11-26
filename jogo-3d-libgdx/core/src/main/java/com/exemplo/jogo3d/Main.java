@@ -1027,6 +1027,7 @@ public class Main extends ApplicationAdapter {
     /** Salta do avião: sai por baixo dele, com o embalo do avião, e começa a queda livre de barriga para baixo. */
     private void startSkydive() {
         Airplane ap = world.airplane;
+        if (enemies != null) enemies.release();   // os bots saltam junto (no seu tempo)
         inPlane = false;
         skydiving = true;
         player.pos.set(ap.pos).add(0f, -4f, 0f);

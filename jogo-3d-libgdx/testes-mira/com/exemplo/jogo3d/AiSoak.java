@@ -16,6 +16,7 @@ public class AiSoak extends ApplicationAdapter {
     Model jake = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/jake/jake.g3dj"));
     Weapons wp = new Weapons();
     Enemies en = new Enemies(w, jake, wp.models());
+    en.release();
     Survival sv = new Survival();
     PerspectiveCamera cam = new PerspectiveCamera(67, 1920, 1080);
     // jogador parado perto de um inimigo
@@ -42,6 +43,7 @@ public class AiSoak extends ApplicationAdapter {
     // Bots entre si: jogador longe e morto de vista; eles precisam se encontrar e lutar
     sv.reset();
     Enemies e2 = new Enemies(w, jake, wp.models());
+    e2.release();
     Vector3 far = new Vector3(-170f, 0f, -170f);
     int total = e2.list.size, botShots = 0, ever = 0;
     int engaged = 0;
