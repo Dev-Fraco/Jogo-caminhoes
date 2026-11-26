@@ -41,7 +41,7 @@ public class Hud {
 
     static final String[] ORDER = {"minimapa", "bussola", "status", "config", "mochila", "slot_cura", "slot_granada",
             "slot_energia", "joystick", "correr", "coletar", "pegar_arma", "usar_kit", "pular", "agachar", "deitar",
-            "arma", "vivos", "abates", "mira", "atirar", "zona", "abrir"};
+            "arma", "vivos", "abates", "mira", "atirar", "zona", "trocar", "abrir"};
     static final float MIN_SCALE = 0.4f, MAX_SCALE = 2.2f;
     static final String PREFS = "hud_layout_v2";
     // Tela de referência da arte do HUD (posições padrão saem dela)
@@ -70,15 +70,17 @@ public class Hud {
             new El("mira", "Mirar", "hud2/mira.png", 132f / REF_H, 0f),
             new El("atirar", "Atirar", "hud2/atirar.png", 293f / REF_H, 0f),
             new El("zona", "Zona", "hud2/zona.png", 73f / REF_H, 0f),
+            new El("trocar", "Trocar", null, 0.085f, 2.4f),
             new El("abrir", "Ação", null, 0.085f, 4.6f),
     };
     // Centro de cada peça na arte de referência (pixels, origem em cima)
     private static final float[][] REF_POS = {
             {163, 162}, {797, 46}, {949, 848}, {353, 53}, {93, 403}, {85, 556}, {81, 696}, {83, 840},
             {311, 736}, {291, 467}, {680, 514}, {891, 514}, {901, 685}, {1566, 462}, {1539, 643}, {1539, 831},
-            {1415, 143}, {1368, 33}, {1565, 33}, {1385, 453}, {1276, 653}, {786, 156}, {836, 330}};
+            {1415, 143}, {1368, 33}, {1565, 33}, {1385, 453}, {1276, 653}, {786, 156}, {1345, 760}, {836, 330}};
     private final java.util.HashSet<String> shown = new java.util.HashSet<>();   // botões que só aparecem às vezes
-    private static final String[] OPTIONAL = {"coletar", "pegar_arma", "usar_kit", "abrir", "arma", "mira", "atirar"};
+    private static final String[] OPTIONAL = {"coletar", "pegar_arma", "usar_kit", "abrir", "arma", "mira", "atirar", "trocar"};
+    String swapText = "TROCAR";   // texto do botão: TROCAR, GUARDAR ou SACAR
     private Texture knobTex;
 
     /** Mostra ou esconde um botão que depende da situação (coletar, pegar arma, usar kit, ação). */
@@ -302,6 +304,18 @@ public class Hud {
         int W = Gdx.graphics.getWidth(), H = Gdx.graphics.getHeight();
         computeEditRects(W, H);
 
+        if (visible(get("trocar"))) {   // botão TROCAR/GUARDAR/SACAR (caixa de couro com borda)
+            float[] tr = rect(get("trocar"));
+            shapes.begin(ShapeRenderer.ShapeType.Filled);
+            shapes.setColor(0.42f, 0.26f, 0.13f, 0.92f);
+            shapes.rect(tr[0], tr[1], tr[2], tr[3]);
+            shapes.end();
+            shapes.begin(ShapeRenderer.ShapeType.Line);
+            shapes.setColor(0.95f, 0.8f, 0.45f, 1f);
+            shapes.rect(tr[0], tr[1], tr[2], tr[3]);
+            shapes.end();
+        }
+
         // Fundo do botão "abrir porteira" (couro escuro com borda)
         if (visible(get("abrir"))) {
             float[] r = rect(get("abrir"));
@@ -348,6 +362,12 @@ public class Hud {
             font.setColor(0.98f, 0.9f, 0.7f, 1f);
             layout.setText(font, promptText);
             font.draw(batch, promptText, r[0] + (r[2] - layout.width) / 2f, r[1] + (r[3] + layout.height) / 2f);
+        }
+        if (visible(get("trocar"))) {
+            float[] tr = rect(get("trocar"));
+            font.setColor(0.98f, 0.9f, 0.7f, 1f);
+            layout.setText(font, swapText);
+            font.draw(batch, swapText, tr[0] + (tr[2] - layout.width) / 2f, tr[1] + (tr[3] + layout.height) / 2f);
         }
         batch.end();
 

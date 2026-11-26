@@ -117,6 +117,7 @@ public class Main extends ApplicationAdapter {
     private int firePointer = -1;
     private float fireLastX, fireLastY;
     private boolean firePressed = false;          // acabou de apertar (armas sem automático)
+    private final TouchFire touchFire = new TouchFire();
     private boolean adsOn = false;                // mirando (botão de mira)
     private boolean combat = false;               // armado e no chão: câmera por cima do ombro
     private boolean overEnemy = false;
@@ -308,7 +309,9 @@ public class Main extends ApplicationAdapter {
         if (!ui && Gdx.input.isKeyJustPressed(Input.Keys.Q)) adsOn = !adsOn;
         if (!ui && Gdx.input.isKeyJustPressed(Input.Keys.R) && world.weapons != null) world.weapons.startReload();
         if (!ui && Gdx.input.isKeyJustPressed(Input.Keys.F)) firePressed = true;
-        boolean fireHeld = !ui && (firePointer >= 0 || Gdx.input.isKeyPressed(Input.Keys.F));
+        touchFire.update(dt, firePointer >= 0, ui);   // toque só conta depois de 45 ms (sem disparo acidental)
+        if (touchFire.pressedThisFrame) firePressed = true;
+        boolean fireHeld = !ui && (touchFire.heldNow || Gdx.input.isKeyPressed(Input.Keys.F));
         // Correr: o botão faz correr sozinho; mexer no analógico desliga a corrida e devolve o controle
         if (runToggle && inX * inX + inY * inY > 0.09f) runToggle = false;
 
@@ -462,7 +465,7 @@ public class Main extends ApplicationAdapter {
             float kickPose = shooting != null ? Math.min(1f, world.weapons.kickOffset() / 0.075f) : 0f;
             float aimPose = combat && !parachuting ? (adsOn ? 1f : 0.45f) : 0f;
             float leanPose = survival != null ? Math.min(1f, survival.shake / 0.12f) : 0f;
-            character.setArmPose(aimPose, kickPose, reloadPose, world.weapons.drawAmount(), leanPose);
+            character.setArmPose(aimPose, kickPose, reloadPose, world.weapons.holstered() ? 1f : world.weapons.drawAmount(), leanPose);
         }
         if (shooting != null) {
             shootIn.fireHeld = fireHeld;
@@ -791,10 +794,12 @@ public class Main extends ApplicationAdapter {
             case "agachar":
                 crouchOn = !crouchOn;
                 return;
+            case "trocar":
+                if (world.weapons != null) world.weapons.swap(character);
+                return;
             case "atirar":
                 if (firePointer < 0) {
                     firePointer = i;
-                    firePressed = true;
                     fireLastX = x;
                     fireLastY = rawY;
                     runToggle = false;
@@ -840,7 +845,7 @@ public class Main extends ApplicationAdapter {
                 return;
             case "pegar_arma":
                 if (weaponTarget != null) {
-                    world.weapons.pickUp(weaponTarget, world, character, player);
+                    if (!world.weapons.pickUp(weaponTarget, world, character, player)) survival.say("VOCÊ JÁ TEM ESSA ARMA");
                     weaponTarget = null;
                 }
                 return;
@@ -921,6 +926,8 @@ public class Main extends ApplicationAdapter {
         hud.show("abrir", !dead && (inPlane || drinkTarget || prompt != null || mountTarget != null || doorTarget != null
                 || hammockTarget != null || canGetUp || cartTarget != null || cartOptionsHorse != null));
         hud.show("coletar", !dead && itemTarget != null);
+        hud.show("trocar", !dead && world.weapons != null && world.weapons.hasWeapon());
+        hud.swapText = world.weapons != null ? world.weapons.swapLabel() : "TROCAR";
         hud.show("arma", combat);
         hud.show("mira", combat);
         hud.show("atirar", combat);

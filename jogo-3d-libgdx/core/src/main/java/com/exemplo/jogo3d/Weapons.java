@@ -36,6 +36,9 @@ final class Weapons {
     private final Model[] models = new Model[FILES.length];
     final Array<Pickup> ground = new Array<>();
     private int heldType = -1;
+    private final int[] slot = {-1, -1};   // duas armas levadas (tipo, ou -1 = vazio)
+    private int activeSlot = 0;            // a que está na mão
+    private boolean holstered = false;     // guardada (fora da mão)
     private ModelInstance held;
     private final Vector3 hand = new Vector3();
     // Munição de cada arma (fica com a arma ao trocar)
@@ -196,12 +199,16 @@ final class Weapons {
         if (held != null) ch.instances.removeValue(held, true);
         held = null;
         heldType = -1;
+        slot[0] = -1;
+        slot[1] = -1;
+        activeSlot = 0;
+        holstered = false;
         reloadT = 0f;
         burstLeft = 0;
         ch.setArmed(false);
     }
 
-    boolean armed() { return heldType >= 0; }
+    boolean armed() { return heldType >= 0 && !holstered; }
 
     String heldName() { return heldType >= 0 ? NAMES[heldType] : ""; }
 
@@ -259,16 +266,30 @@ final class Weapons {
     }
 
     /** Pega a arma do chão; se já tinha uma, a antiga fica no chão no lugar. */
-    void pickUp(Pickup g, World w, Character ch, Player player) {
+    /** Pega a arma do chão. Com slot livre, ela entra nele; com os dois cheios, a da mão cai no lugar. */
+    boolean pickUp(Pickup g, World w, Character ch, Player player) {
+        if (slot[0] == g.type || slot[1] == g.type) return false;   // a mesma arma não entra duas vezes (a munição é dela)
         ground.removeValue(g, true);
         w.instances.removeValue(g.inst, true);
-        if (heldType >= 0) {
-            ch.instances.removeValue(held, true);
+        int empty = slot[0] < 0 ? 0 : slot[1] < 0 ? 1 : -1;
+        if (empty >= 0) {
+            slot[empty] = g.type;
+            activeSlot = empty;
+        } else {
             Random r = new Random();
-            drop(w, heldType, player.pos.x + 0.6f * MathUtils.sin(player.facing + 1.2f),
+            drop(w, slot[activeSlot], player.pos.x + 0.6f * MathUtils.sin(player.facing + 1.2f),
                     player.pos.z + 0.6f * MathUtils.cos(player.facing + 1.2f), r);
+            slot[activeSlot] = g.type;
         }
-        heldType = g.type;
+        equipNew(g.type, ch);
+        return true;
+    }
+
+    /** Põe a arma do tipo na mão, com a animação de sacar. */
+    private void equipNew(int type, Character ch) {
+        if (held != null) ch.instances.removeValue(held, true);
+        heldType = type;
+        holstered = false;
         reloadT = 0f;   // trocar de arma cancela a recarga
         burstLeft = 0;
         cooldown = 0.1f;
@@ -279,6 +300,40 @@ final class Weapons {
         held = new ModelInstance(models[heldType]);
         ch.instances.add(held);
         ch.setArmed(true);
+    }
+
+    /** Troca para a outra arma (se houver). Com uma arma só, guarda ou saca a que está na mão. */
+    void swap(Character ch) {
+        int other = activeSlot == 0 ? 1 : 0;
+        if (slot[other] >= 0) {
+            activeSlot = other;
+            equipNew(slot[other], ch);
+            return;
+        }
+        if (heldType < 0) return;
+        if (!holstered) holster(ch);
+        else equipNew(heldType, ch);
+    }
+
+    /** Guarda a arma: some da mão (a animação de guardar fica por conta da pose do braço). */
+    void holster(Character ch) {
+        if (heldType < 0 || holstered) return;
+        holstered = true;
+        if (held != null) ch.instances.removeValue(held, true);
+        reloadT = 0f;
+        burstLeft = 0;
+        ch.setArmed(false);
+    }
+
+    boolean holstered() { return holstered; }
+
+    boolean hasWeapon() { return slot[0] >= 0 || slot[1] >= 0; }
+
+    /** Texto do botão: trocar (há outra arma), guardar ou sacar. */
+    String swapLabel() {
+        if (holstered) return "SACAR";
+        int other = activeSlot == 0 ? 1 : 0;
+        return slot[other] >= 0 ? "TROCAR" : "GUARDAR";
     }
 
     private static float smooth(float x) {
