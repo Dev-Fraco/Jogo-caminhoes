@@ -22,12 +22,12 @@ import com.badlogic.gdx.math.Vector3;
  */
 final class Landmarks {
 
-    static final float WELL_R = 2.0f;        // raio da boca do poço (parede interna)
+    static final float WELL_R = 0.7f;        // raio da boca do poço (parede interna), como o modelo real
     static final float WELL_OUT = 4.2f;      // raio externo da plataforma de pedra (cobre a borda recortada)
     static final float WELL_DEPTH = 18f;     // profundidade (≈ 10x a altura do personagem)
     static final float WELL_CURB = 0.6f;     // altura da mureta acima do chão
     static final float WATER_Y = 17.4f;      // a água fica a 17,4 m abaixo do chão
-    static final float WATER_R = 1.85f;
+    static final float WATER_R = 0.6f;
     static final float DAM_R = 2.8f;         // raio do fundo rachado do açude
 
     private static final int SEG = 28;

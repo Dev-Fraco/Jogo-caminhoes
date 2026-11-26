@@ -263,6 +263,12 @@ public class World {
         if (hasWell) {
             wellModel = Landmarks.buildWell(this, wellX, wellZ);
             instances.add(new ModelInstance(wellModel));
+            // Poço real (modelo do MeshCraft3DArt): telhado, balde, manivela e anel de pedra, sobre a boca
+            Model real = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/poco/poco.g3dj"));
+            loaded.add(real);
+            ModelInstance realWell = new ModelInstance(real);
+            realWell.transform.setToTranslation(wellX, heightAt(wellX, wellZ), wellZ);
+            instances.add(realWell);
             // Proteção em volta da boca e placa de aviso, a 5,5 m do poço, virada para ele
             guardModel = Landmarks.buildGuard(this, wellX, wellZ);
             instances.add(new ModelInstance(guardModel));
