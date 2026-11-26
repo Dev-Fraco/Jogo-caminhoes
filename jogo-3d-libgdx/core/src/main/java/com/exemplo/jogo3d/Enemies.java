@@ -23,6 +23,7 @@ final class Enemies {
     private final Model[] guns;
     Airplane air;                  // avião de onde saltam os bots
     boolean released;              // o jogador saltou: os bots também saltam (no seu tempo)
+    Zone zone;                     // zona segura: fora dela os bots levam dano e fogem para dentro
     private final Random rnd = new Random(1915);
     int kills = 0;
     private float waveT = -1f;
@@ -40,6 +41,15 @@ final class Enemies {
     void spawnWave(World w, Vector3 avoid) { spawnMore(w, avoid, COUNT); }
 
     /** Põe mais n bots (longe do jogador). */
+    /** Partida nova: o bando volta ao avião, ainda sem saltar. */
+    void reset(World w) {
+        list.clear();
+        released = false;
+        waveT = -1f;
+        air = w.airplane;
+        spawnWave(w, null);
+    }
+
     /** Os bots saltam (chamado quando o jogador salta). */
     void release() { released = true; }
 

@@ -77,6 +77,10 @@ public class Main extends ApplicationAdapter {
     private Items.Pickup itemTarget = null;       // item no chão ao alcance (mostra PEGAR)
     private Parachute chute;                      // paraquedas (abre a 100 m do chão)
     private boolean parachuting = false;
+    // Menu principal: o jogo abre aqui; morrer ou sair da partida volta para cá
+    private boolean inMenu = true;
+    private final float[][] menuRects = new float[2][4];
+    private static final String[] MENU_ITEMS = {"JOGAR", "CONFIGURAÇÕES"};
     // Itens: vida/energia/água, granadas, HUD dos itens e mapa
     private Survival survival;
     private Grenades grenades;
@@ -200,6 +204,7 @@ public class Main extends ApplicationAdapter {
             if (character.model() != null)
                 enemies = new Enemies(world, character.model(), world.weapons != null ? world.weapons.models() : null);
             if (grenades != null) grenades.enemies = enemies;
+            if (enemies != null) enemies.zone = zone;
             if (world.weapons != null) {
                 shooting = new ShootingSystem(world, world.weapons, enemies, damage, fx, environment);
                 fx.setAudio(shooting.audio);
@@ -272,6 +277,10 @@ public class Main extends ApplicationAdapter {
         }
 
         updateTouch();
+        if (inMenu && !hud.editing) {   // menu principal (o editor do HUD, se aberto, usa a tela do jogo)
+            drawMenu(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+            return;
+        }
 
         // Com o editor do HUD aberto, o personagem fica parado
         boolean ui = hud.editing || settingsOpen;
@@ -702,6 +711,10 @@ public class Main extends ApplicationAdapter {
             settingsPress(x, yb);
             return;
         }
+        if (inMenu) {
+            menuPress(x, yb);
+            return;
+        }
         if (hud.editing) {
             hud.editPress(i, x, yb);
             return;
@@ -712,7 +725,7 @@ public class Main extends ApplicationAdapter {
             return;
         }
         if (survival != null && survival.dead) {
-            if (survival.deadT > 3f) respawn();
+            if (survival.deadT > 3f) goMenu();
             return;
         }
         if (itemUi.panelOpen) {
@@ -952,6 +965,95 @@ public class Main extends ApplicationAdapter {
             if (dx * dx + dz * dz <= maxD2) drawList.add(mi);
         }
         return drawList;
+    }
+
+    // ---------- Menu principal ----------
+
+    private void menuLayout(int W, int H) {
+        float bw = Math.min(W * 0.6f, H * 1.1f), bh = H * 0.1f, gap = H * 0.03f, top = H * 0.42f;
+        for (int i = 0; i < MENU_ITEMS.length; i++) {
+            menuRects[i][0] = (W - bw) / 2f;
+            menuRects[i][1] = top - i * (bh + gap);
+            menuRects[i][2] = bw;
+            menuRects[i][3] = bh;
+        }
+    }
+
+    private void drawMenu(int W, int H) {
+        menuLayout(W, H);
+        hudCamera.setToOrtho(false, W, H);
+        hudCamera.update();
+        shapes.setProjectionMatrix(hudCamera.combined);
+        batch.setProjectionMatrix(hudCamera.combined);
+        Gdx.gl.glClearColor(0.72f, 0.82f, 0.92f, 1f);   // céu pálido de seca
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        shapes.setColor(0.86f, 0.74f, 0.50f, 1f);   // chão de terra
+        shapes.rect(0, 0, W, H * 0.30f);
+        shapes.setColor(0.62f, 0.42f, 0.22f, 1f);
+        shapes.rect(0, H * 0.30f, W, H * 0.02f);
+        for (float[] r : menuRects) {
+            shapes.setColor(0.42f, 0.26f, 0.13f, 0.97f);
+            shapes.rect(r[0], r[1], r[2], r[3]);
+        }
+        shapes.end();
+        shapes.begin(ShapeRenderer.ShapeType.Line);
+        shapes.setColor(0.95f, 0.8f, 0.45f, 1f);
+        for (float[] r : menuRects) shapes.rect(r[0], r[1], r[2], r[3]);
+        shapes.end();
+        batch.begin();
+        font.getData().setScale(Math.max(1.5f, H / 480f));
+        font.setColor(0.35f, 0.2f, 0.1f, 1f);
+        String title = "NORDESTE";
+        layout.setText(font, title);
+        font.draw(batch, title, (W - layout.width) / 2f, H * 0.86f);
+        title = "SECA BRABA";
+        layout.setText(font, title);
+        font.draw(batch, title, (W - layout.width) / 2f, H * 0.74f);
+        font.getData().setScale(Math.max(1f, H / 900f));
+        String sub = "Sertão do Ceará · 1915";
+        layout.setText(font, sub);
+        font.draw(batch, sub, (W - layout.width) / 2f, H * 0.66f);
+        font.getData().setScale(Math.max(1.2f, H / 700f));
+        for (int i = 0; i < MENU_ITEMS.length; i++) {
+            float[] r = menuRects[i];
+            layout.setText(font, MENU_ITEMS[i]);
+            font.setColor(1f, 0.95f, 0.8f, 1f);
+            font.draw(batch, MENU_ITEMS[i], r[0] + (r[2] - layout.width) / 2f, r[1] + (r[3] + layout.height) / 2f);
+        }
+        font.getData().setScale(1.1f);
+        batch.end();
+        if (settingsOpen) drawSettings(W, H);
+        Gdx.gl.glDisable(GL20.GL_BLEND);
+    }
+
+    private void menuPress(float x, float yb) {
+        for (int i = 0; i < MENU_ITEMS.length; i++) {
+            float[] r = menuRects[i];
+            if (x < r[0] || x > r[0] + r[2] || yb < r[1] || yb > r[1] + r[3]) continue;
+            if (i == 0) startMatch();
+            else settingsOpen = true;
+            return;
+        }
+    }
+
+    /** Jogar: partida nova (avião, zona e bando de volta ao começo). */
+    private void startMatch() {
+        inMenu = false;
+        respawn();
+        if (enemies != null) enemies.reset(world);
+    }
+
+    /** Morreu (ou quer sair): volta ao menu principal. */
+    private void goMenu() {
+        inMenu = true;
+        settingsOpen = false;
+        adsOn = false;
+        aiming = false;
+        firePointer = -1;
+        if (grenades != null) grenades.clearAim();
     }
 
     // ---------- Itens ----------

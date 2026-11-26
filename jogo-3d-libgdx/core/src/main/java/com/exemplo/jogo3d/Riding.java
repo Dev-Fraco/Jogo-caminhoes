@@ -80,91 +80,12 @@ public class Riding {
     private float walkFactor = 1f;
     private boolean ropeCut = false;
 
-    // Sons do cavalo: parado (bufada e relincho), andando e correndo (cascos sincronizados com a animação)
-    private static com.badlogic.gdx.audio.Sound[] idleSounds, hooves;
-    private static boolean soundsLoaded = false;
-    private float idleTimer = 3f;
-    private com.badlogic.gdx.graphics.g3d.model.Animation lastHoofAnim;
-    private int lastHoofIdx = -1;
-
     Riding(World world, Mount m) {
         this.world = world;
         this.m = m;
         placeAnimal();
     }
 
-    private static com.badlogic.gdx.audio.Sound load(String path) {
-        return com.badlogic.gdx.Gdx.audio.newSound(com.badlogic.gdx.Gdx.files.internal(path));
-    }
-
-    private static void loadSounds() {
-        if (soundsLoaded) return;
-        soundsLoaded = true;
-        try {
-            idleSounds = new com.badlogic.gdx.audio.Sound[]{
-                    load("audio/cavalo_bufada.mp3"), load("audio/cavalo_bufada2.mp3"),
-                    load("audio/cavalo_relincho.mp3"), load("audio/cavalo_relincho_longo.mp3")};
-            hooves = new com.badlogic.gdx.audio.Sound[]{
-                    load("audio/casco1.mp3"), load("audio/casco2.mp3"), load("audio/casco3.mp3"),
-                    load("audio/casco4.mp3"), load("audio/casco5.mp3"), load("audio/casco6.mp3")};
-        } catch (RuntimeException e) {
-            idleSounds = new com.badlogic.gdx.audio.Sound[0];   // sem som: o jogo continua
-            hooves = new com.badlogic.gdx.audio.Sound[0];
-        }
-    }
-
-    /** Volume pela distância do jogador: some a partir de cerca de 30 m. */
-    private float volumeAt(Player player) {
-        float dx = player.pos.x - m.pos.x, dz = player.pos.z - m.pos.z;
-        float d = (float) Math.sqrt(dx * dx + dz * dz);
-        return MathUtils.clamp(1f - d / 30f, 0.1f, 1f);
-    }
-
-    /** Sons do cavalo, chamados todo quadro. */
-    private void sounds(float dt, Player player) {
-        if (!m.horse) return;
-        loadSounds();
-        boolean mounted = state == St.MOUNTED;
-        if (state == St.FREE || (mounted && "Idle".equals(clipNow))) {
-            // parado: de tempos em tempos bufa ou relincha
-            idleTimer -= dt;
-            if (idleTimer <= 0f) {
-                idleTimer = MathUtils.random(6f, 14f);
-                if (idleSounds.length > 0) {
-                    idleSounds[MathUtils.random(idleSounds.length - 1)]
-                            .play(volumeAt(player) * 0.8f, MathUtils.random(0.92f, 1.05f), 0f);
-                }
-            }
-        } else {
-            idleTimer = MathUtils.random(2f, 5f);
-        }
-        if (mounted && ("Walk".equals(clipNow) || "Run".equals(clipNow))) hoofSteps(player);
-        else { lastHoofAnim = null; lastHoofIdx = -1; }
-    }
-
-    /**
-     * Um casco no chão por batida. O clipe Walk/Run tem quatro batidas por ciclo, então o som
-     * sai quando a animação troca de perna.
-     */
-    private void hoofSteps(Player player) {
-        com.badlogic.gdx.graphics.g3d.utils.AnimationController.AnimationDesc cur = m.anim.current;
-        if (cur == null || cur.animation == null || cur.animation.duration <= 0f) return;
-        if (cur.animation != lastHoofAnim) {          // clipe trocou: começa a contar de novo
-            lastHoofAnim = cur.animation;
-            lastHoofIdx = -1;
-        }
-        float dur = cur.animation.duration;
-        float tt = cur.time % dur;
-        if (tt < 0f) tt += dur;
-        int idx = (int) (tt / dur * 4f) & 3;
-        if (lastHoofIdx >= 0 && idx != lastHoofIdx && hooves.length > 0) {
-            boolean run = "Run".equals(clipNow);
-            float vol = (run ? 0.6f : 0.35f) * volumeAt(player);
-            float pitch = run ? MathUtils.random(0.98f, 1.08f) : MathUtils.random(0.85f, 0.95f);
-            hooves[MathUtils.random(hooves.length - 1)].play(vol, pitch, 0f);
-        }
-        lastHoofIdx = idx;
-    }
 
     boolean isMounted() { return state == St.MOUNTED; }
     boolean isBusy() { return state == St.MOUNTING || state == St.DISMOUNTING; }
@@ -193,7 +114,6 @@ public class Riding {
      */
     void update(float dt, float inX, float inY, float camYaw, boolean run, boolean jumpPressed,
                 Player player, Character ch) {
-        sounds(dt, player);
         switch (state) {
             case FREE:
                 break;

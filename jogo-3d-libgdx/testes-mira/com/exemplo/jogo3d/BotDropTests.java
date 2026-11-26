@@ -113,6 +113,32 @@ public class BotDropTests extends ApplicationAdapter {
         check("sem arma, nenhum bot entrou em combate", violations == 0, violations + " quadros");
         float perFrame = (System.nanoTime() - t0) / 1e6f / (frames + 90 * 30);
         check("80 bots: quadro de IA médio abaixo de 3 ms no PC", perFrame < 3f, String.format("%.2f ms médio, pior %.2f ms", perFrame, worstFrame));
+        // gás da zona: bot fora perde vida e anda para dentro; bot dentro não perde nada
+        Zone zn = new Zone(3);
+        Enemies ez = new Enemies(w, jake, null);
+        ez.list.clear();
+        ez.zone = zn;
+        float ox = 0f, oz = 0f;
+        boolean placed = false;
+        for (int k = 0; k < 16 && !placed; k++) {
+            float ang = k * MathUtils.PI2 / 16f;
+            float px = zn.cx + MathUtils.cos(ang) * (zn.radius + 30f), pz = zn.cz + MathUtils.sin(ang) * (zn.radius + 30f);
+            if (Math.abs(px) < 170f && Math.abs(pz) < 170f) { ox = px; oz = pz; placed = true; }
+        }
+        Enemy out = new Enemy(jake, null, ox, oz, 0.2f);
+        out.weapon = WeaponConfig.RIFLE_INIMIGO;
+        out.pos.y = w.groundAt(ox, oz);
+        Enemy in2 = new Enemy(jake, null, zn.cx, zn.cz, 0.4f);
+        in2.weapon = WeaponConfig.RIFLE_INIMIGO;
+        in2.pos.y = w.groundAt(zn.cx, zn.cz);
+        ez.list.add(out);
+        ez.list.add(in2);
+        float d0 = (float) Math.hypot(out.pos.x - zn.cx, out.pos.z - zn.cz);
+        for (int f = 0; f < 10 * 30; f++) ez.update(1f / 30f, w, far, sv, 0f, 0, cam, 90f);
+        float d1 = (float) Math.hypot(out.pos.x - zn.cx, out.pos.z - zn.cz);
+        check("bot fora da zona perde vida pelo gás", placed && out.health < 100f, String.format("vida %.1f", out.health));
+        check("bot fora da zona foge para dentro do círculo", placed && d1 < d0 - 20f, String.format("de %.0f m para %.0f m do centro", d0, d1));
+        check("bot dentro da zona não perde vida", in2.health == 100f, String.format("vida %.1f", in2.health));
         System.out.printf("  (info) armados: %d de 80; armas no chão: %d de %d no começo%n", armedNow, onGround, pickups0);
     }
 

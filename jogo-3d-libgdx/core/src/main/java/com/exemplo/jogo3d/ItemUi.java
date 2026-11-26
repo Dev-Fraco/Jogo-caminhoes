@@ -203,8 +203,8 @@ final class ItemUi {
                 font.draw(batch, "VOCÊ MORREU", (W - layout.width) / 2f, H * 0.6f);
                 font.getData().setScale(1.1f);
                 if (sv.deadT > 3f) {
-                    layout.setText(font, "Toque na tela para voltar ao avião");
-                    font.draw(batch, "Toque na tela para voltar ao avião", (W - layout.width) / 2f, H * 0.48f);
+                    layout.setText(font, "Toque na tela para o menu principal");
+                    font.draw(batch, "Toque na tela para o menu principal", (W - layout.width) / 2f, H * 0.48f);
                 }
                 batch.end();
             }

@@ -100,6 +100,12 @@ final class Enemy {
             return false;
         }
         if (airborne()) return dropUpdate(dt, w, all);
+        // Fora da zona segura o gás tira vida; o bot tenta voltar para o centro (sem atirar)
+        boolean outside = all.zone != null && !all.zone.inside(pos.x, pos.z);
+        if (outside) {
+            damage(all.zone.damagePerSecond() * dt, null);
+            if (state == State.DEAD) return false;
+        }
         if (weapon == null && state == State.COMBAT) state = State.PATROL;   // sem arma não entra em combate
         if (targetEnemy != null && !targetEnemy.alive()) { targetEnemy = null; canSee = false; }
         if (targetPlayer && !playerAlive) { targetPlayer = false; canSee = false; }
@@ -189,8 +195,14 @@ final class Enemy {
                 }
             }
         }
+        if (outside) {
+            // fora da zona: anda para o centro do círculo, correndo, e não atira
+            seeking = true;
+            moveDir = MathUtils.atan2(all.zone.cx - pos.x, all.zone.cz - pos.z);
+            speed = RUN;
+        }
         if (seeking) {
-            // indo pegar uma arma
+            // indo pegar uma arma ou fugindo do gás
         } else if (state == State.PATROL) {
             if (waitT > 0f) {
                 waitT -= dt;
