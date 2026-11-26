@@ -80,6 +80,19 @@ public class SurvivalTests extends ApplicationAdapter {
             if (t == Items.FRUTA) fruta++;
         }
         check("lenha e frutas do xique-xique espalhadas no mapa", lenha >= 30 && fruta >= 30, "lenha " + lenha + ", frutas " + fruta);
+        System.out.println("== Currais e cercas ==");
+        check("um curral em cada fazenda", w.corralCount == Regions.FARM_X.length, "" + w.corralCount);
+        check("25 trechos de cerca por curral", w.corralFenceCount == 25 * w.corralCount, "" + w.corralFenceCount);
+        float cx = w.firstCorralX, cz = w.firstCorralZ;
+        com.badlogic.gdx.math.Vector3 onFence = new com.badlogic.gdx.math.Vector3(cx + 7f, 0f, cz + 1f);
+        onFence.y = w.groundAt(onFence.x, onFence.z);
+        com.badlogic.gdx.math.Vector3 q = new com.badlogic.gdx.math.Vector3(onFence);
+        w.resolveCollisions(q, 0.35f);
+        check("a cerca barra o jogador (lado leste): empurra para fora da linha", q.dst(onFence) > 0.02f, String.format("empurrado %.2f m", q.dst(onFence)));
+        com.badlogic.gdx.math.Vector3 gate = new com.badlogic.gdx.math.Vector3(cx, w.groundAt(cx, cz - 7f), cz - 7f);
+        com.badlogic.gdx.math.Vector3 g2 = new com.badlogic.gdx.math.Vector3(gate);
+        w.resolveCollisions(g2, 0.35f);
+        check("a porteira deixa passar (lado sul)", g2.dst(gate) < 0.05f, String.format("empurrado %.2f m", g2.dst(gate)));
         check("os itens têm nome", Items.NAMES[Items.LENHA].equals("LENHA") && Items.NAMES[Items.FRUTA].startsWith("FRUTA"), "");
     }
 

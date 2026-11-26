@@ -94,6 +94,23 @@ final class Props {
         return mb.end();
     }
 
+    /** Trecho de cerca de madeira: 2 m de comprimento (ao longo de x), dois travessões e três estacas. */
+    static Model cerca() {
+        ModelBuilder mb = new ModelBuilder();
+        mb.begin();
+        MeshPartBuilder p = mb.part("cerca", GL20.GL_TRIANGLES, ATTR, mat(0.46f, 0.34f, 0.20f));
+        p.setVertexTransform(new Matrix4().translate(0f, 0.45f, 0f));
+        p.box(2f, 0.09f, 0.07f);
+        p.setVertexTransform(new Matrix4().translate(0f, 0.85f, 0f));
+        p.box(2f, 0.09f, 0.07f);
+        for (float x = -1f; x <= 1.01f; x += 1f) {
+            p.setVertexTransform(new Matrix4().translate(x, 0.55f, 0f));
+            p.box(0.12f, 1.1f, 0.12f);
+        }
+        p.setVertexTransform(new Matrix4());
+        return mb.end();
+    }
+
     /** Feixe de lenha seca (toras empilhadas), ~0,4 m. */
     static Model lenha() {
         ModelBuilder mb = new ModelBuilder();

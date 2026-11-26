@@ -593,7 +593,9 @@ public class World {
         // Madeira morta: tocos e troncos caídos (no lugar das árvores mortas, que ainda não temos modelo)
         for (int i = 0; i < 108; i++) addProp(rnd, stump, 2.6f, 0.35f, 1f);
         for (int i = 0; i < 72; i++) addProp(rnd, log, 2.6f, 1.2f, 1f);
-        // Fazendas abandonadas: casa de taipa, cocho vazio, carroça parada e tocos da roça morta
+        // Fazendas abandonadas: casa de taipa, cocho vazio, carroça parada, curral de madeira e tocos da roça morta
+        Model fenceSeg = Props.cerca();
+        loaded.add(fenceSeg);
         Model cochoModel = new G3dModelLoader(new JsonReader()).loadModel(Gdx.files.internal("models/cocho.g3dj"));
         loaded.add(cochoModel);
         for (int f = 0; f < Regions.FARM_X.length; f++) {
@@ -602,6 +604,7 @@ public class World {
             addEnclosedHouse(rnd, fx, fz, yaw);
             placeStatic(cochoModel, fx + 9f, fz + 3f, yaw, 1.0f, 0.9f);
             placeStatic(cartModel, fx - 8f, fz - 6f, yaw + 40f, 1.3f, 2.2f);
+            addCorral(fx + 20f, fz - 12f, fenceSeg);
             for (int k = 0; k < 8; k++) {
                 float a = rnd.nextFloat() * MathUtils.PI2, d = 14f + rnd.nextFloat() * 22f;
                 placeStatic(stump, fx + MathUtils.cos(a) * d, fz + MathUtils.sin(a) * d, rnd.nextFloat() * 360f, 2.6f, 0.35f);
@@ -985,6 +988,28 @@ public class World {
             float tx = -MathUtils.sin(o[4]) * o[3], tz = MathUtils.cos(o[4]) * o[3];   // direção do voo
             birdInst.get(i).transform.setToTranslation(x, y, z).rotate(Vector3.Y, MathUtils.atan2(tx, tz) * MathUtils.radiansToDegrees);
         }
+    }
+
+    // Currais das fazendas: cercado de 14 m com porteira de 6 m no lado sul
+    int corralCount, corralFenceCount;
+    float firstCorralX, firstCorralZ;
+
+    private void addCorral(float cx, float cz, Model seg) {
+        if (corralCount == 0) { firstCorralX = cx; firstCorralZ = cz; }
+        float h = 7f;
+        for (int i = -3; i <= 3; i++) {
+            float o = 2f * i;
+            placeStatic(seg, cx + o, cz + h, 0f, 1f, 0.7f);             // lado norte
+            corralFenceCount++;
+            if (Math.abs(i) > 1) {                                       // lado sul: porteira no meio (6 m)
+                placeStatic(seg, cx + o, cz - h, 0f, 1f, 0.7f);
+                corralFenceCount++;
+            }
+            placeStatic(seg, cx + h, cz + o, 90f, 1f, 0.7f);             // lado leste
+            placeStatic(seg, cx - h, cz + o, 90f, 1f, 0.7f);             // lado oeste
+            corralFenceCount += 2;
+        }
+        corralCount++;
     }
 
     /** Objeto estático com colisão circular (carroça parada, cocho, toco). */
