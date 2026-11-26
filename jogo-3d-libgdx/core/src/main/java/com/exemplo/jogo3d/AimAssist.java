@@ -73,11 +73,11 @@ final class AimAssist {
         // Enquanto segura: abaixo do peito, sobe até ele; acima, desconta parte do movimento para cima
         float k = Math.min(1f, 8f * dt);
         if (errElev > 0f) {
-            dPitch += -errElev * k * AimSettings.chestPull * 0.5f;
+            dPitch += -errElev * k * AimSettings.chestPull;        // abaixo do peito: crava nele
         } else if (userDelta < 0f) {
-            dPitch += -userDelta * AimSettings.upResist;   // o dedo subiu: a fração de resistência volta
+            dPitch += -userDelta * AimSettings.upResist;           // o dedo subiu: a resistência devolve a maior parte
         }
-        dYaw += errYaw * k * AimSettings.chestPull * 0.5f;
+        dYaw += errYaw * k * AimSettings.chestPull;
 
         active = true;
         strengthNow = Math.max(strengthNow, 0.5f + 0.5f * AimSettings.chestPull);
