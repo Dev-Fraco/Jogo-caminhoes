@@ -1,0 +1,312 @@
+{
+ "bones": [
+  {
+   "name": "Hips",
+   "head": [
+    0,
+    0.85,
+    -0.03
+   ],
+   "tail": [
+    0,
+    0.95,
+    -0.03
+   ],
+   "parent": null
+  },
+  {
+   "name": "Spine",
+   "head": [
+    0,
+    0.95,
+    -0.03
+   ],
+   "tail": [
+    0,
+    1.05,
+    -0.03
+   ],
+   "parent": "Hips"
+  },
+  {
+   "name": "Spine1",
+   "head": [
+    0,
+    1.05,
+    -0.03
+   ],
+   "tail": [
+    0,
+    1.15,
+    -0.03
+   ],
+   "parent": "Spine"
+  },
+  {
+   "name": "Spine2",
+   "head": [
+    0,
+    1.15,
+    -0.03
+   ],
+   "tail": [
+    0,
+    1.35,
+    -0.03
+   ],
+   "parent": "Spine1"
+  },
+  {
+   "name": "Neck",
+   "head": [
+    0,
+    1.35,
+    -0.03
+   ],
+   "tail": [
+    0,
+    1.42,
+    -0.03
+   ],
+   "parent": "Spine2"
+  },
+  {
+   "name": "Head",
+   "head": [
+    0,
+    1.42,
+    -0.03
+   ],
+   "tail": [
+    0,
+    1.73,
+    -0.03
+   ],
+   "parent": "Neck"
+  },
+  {
+   "name": "LeftShoulder",
+   "head": [
+    0.09,
+    1.28,
+    -0.03
+   ],
+   "tail": [
+    0.2,
+    1.25,
+    -0.03
+   ],
+   "parent": "Spine2"
+  },
+  {
+   "name": "LeftArm",
+   "head": [
+    0.2,
+    1.25,
+    -0.03
+   ],
+   "tail": [
+    0.45,
+    1.2,
+    -0.03
+   ],
+   "parent": "LeftShoulder"
+  },
+  {
+   "name": "LeftForeArm",
+   "head": [
+    0.45,
+    1.2,
+    -0.03
+   ],
+   "tail": [
+    0.62,
+    1.08,
+    -0.03
+   ],
+   "parent": "LeftArm"
+  },
+  {
+   "name": "LeftHand",
+   "head": [
+    0.62,
+    1.08,
+    -0.03
+   ],
+   "tail": [
+    0.7,
+    0.97,
+    -0.03
+   ],
+   "parent": "LeftForeArm"
+  },
+  {
+   "name": "LeftUpperLeg",
+   "head": [
+    0.1,
+    0.85,
+    -0.03
+   ],
+   "tail": [
+    0.11,
+    0.45,
+    -0.03
+   ],
+   "parent": "Hips"
+  },
+  {
+   "name": "LeftLowerLeg",
+   "head": [
+    0.11,
+    0.45,
+    -0.03
+   ],
+   "tail": [
+    0.11,
+    0.08,
+    -0.03
+   ],
+   "parent": "LeftUpperLeg"
+  },
+  {
+   "name": "LeftFoot",
+   "head": [
+    0.11,
+    0.08,
+    -0.03
+   ],
+   "tail": [
+    0.11,
+    0.02,
+    0.12
+   ],
+   "parent": "LeftLowerLeg"
+  },
+  {
+   "name": "LeftToeBase",
+   "head": [
+    0.11,
+    0.02,
+    0.12
+   ],
+   "tail": [
+    0.11,
+    0.02,
+    0.19
+   ],
+   "parent": "LeftFoot"
+  },
+  {
+   "name": "RightShoulder",
+   "head": [
+    -0.09,
+    1.28,
+    -0.03
+   ],
+   "tail": [
+    -0.2,
+    1.25,
+    -0.03
+   ],
+   "parent": "Spine2"
+  },
+  {
+   "name": "RightUpperArm",
+   "head": [
+    -0.2,
+    1.25,
+    -0.03
+   ],
+   "tail": [
+    -0.45,
+    1.2,
+    -0.03
+   ],
+   "parent": "RightShoulder"
+  },
+  {
+   "name": "RightForeArm",
+   "head": [
+    -0.45,
+    1.2,
+    -0.03
+   ],
+   "tail": [
+    -0.62,
+    1.08,
+    -0.03
+   ],
+   "parent": "RightUpperArm"
+  },
+  {
+   "name": "RightHand",
+   "head": [
+    -0.62,
+    1.08,
+    -0.03
+   ],
+   "tail": [
+    -0.7,
+    0.97,
+    -0.03
+   ],
+   "parent": "RightForeArm"
+  },
+  {
+   "name": "RightUpperLeg",
+   "head": [
+    -0.1,
+    0.85,
+    -0.03
+   ],
+   "tail": [
+    -0.11,
+    0.45,
+    -0.03
+   ],
+   "parent": "Hips"
+  },
+  {
+   "name": "RightLowerLeg",
+   "head": [
+    -0.11,
+    0.45,
+    -0.03
+   ],
+   "tail": [
+    -0.11,
+    0.08,
+    -0.03
+   ],
+   "parent": "RightUpperLeg"
+  },
+  {
+   "name": "RightFoot",
+   "head": [
+    -0.11,
+    0.08,
+    -0.03
+   ],
+   "tail": [
+    -0.11,
+    0.02,
+    0.12
+   ],
+   "parent": "RightLowerLeg"
+  },
+  {
+   "name": "RightToeBase",
+   "head": [
+    -0.11,
+    0.02,
+    0.12
+   ],
+   "tail": [
+    -0.11,
+    0.02,
+    0.19
+   ],
+   "parent": "RightFoot"
+  }
+ ]
+}
