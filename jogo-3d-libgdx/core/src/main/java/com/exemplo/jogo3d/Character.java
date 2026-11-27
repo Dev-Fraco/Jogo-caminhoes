@@ -38,7 +38,10 @@ public class Character {
 
     // Poses por código (graus): sinal negativo em X = para a frente
     private float reach = 0f;     // 0..1: braço direito esticado
-    private float crouch = 0f;    // 0..1: agachado
+    private float crouch = 0f;    // 0..1: agachado (pose por código: usada para o pulo de montaria e para o modelo sem clipe)
+    // Agachar pelo botão: o clipe "Agachar" desce e segura; "LevantarAgachado" sobe
+    private boolean agachadoWant = false;
+    private int agachaEstado = 0;   // 0 em pé, 1 agachado (segurando), 2 levantando
     // Animação única (deitar, levantar)
     private String onceClip = null;
     private float onceT = 0f, onceDur = 1f;
@@ -235,6 +238,7 @@ public class Character {
         }
         instance.transform.scale(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
 
+        atualizaAgachar(p);
         if (onceClip == null) {
             State wanted;
             if (!p.grounded) wanted = State.JUMP;
@@ -426,6 +430,60 @@ public class Character {
     /** 0 = em pé, 1 = agachado (para o pulo de montaria). */
     public void setCrouch(float c) {
         crouch = MathUtils.clamp(c, 0f, 1f);
+    }
+
+    /**
+     * Agachar pelo botão: usa o clipe "Agachar" do modelo (desce e segura; sobe com "LevantarAgachado").
+     * Sem o clipe no modelo, cai na pose por código.
+     */
+    public void setAgachado(boolean want) {
+        agachadoWant = want;
+        if (!temClipeAgachar() && want) crouch = 1f;
+    }
+
+    private boolean temClipeAgachar() {
+        return model != null && model.getAnimation("Agachar") != null && model.getAnimation("LevantarAgachado") != null;
+    }
+
+    private static boolean ehClipeAgachar(String clip) {
+        return "Agachar".equals(clip) || "LevantarAgachado".equals(clip);
+    }
+
+    /** Fica agachado enquanto parado; ao andar, levanta na hora; ao parar de agachar, sobe pelo clipe. */
+    private void atualizaAgachar(Player p) {
+        if (!temClipeAgachar()) return;
+        if (agachaEstado != 0 && !ehClipeAgachar(onceClip)) agachaEstado = 0;   // outra animação única (morrer, deitar) tomou conta
+        boolean parado = p.grounded && p.speed < 0.25f;
+        switch (agachaEstado) {
+            case 0:
+                if (agachadoWant && parado && onceClip == null) {
+                    agachaEstado = 1;
+                    playOnce("Agachar");
+                }
+                break;
+            case 1:
+                if (!agachadoWant || !parado) {
+                    if (parado) {                 // parou de agachar: sobe pelo clipe
+                        agachaEstado = 2;
+                        playOnce("LevantarAgachado");
+                    } else {                      // andou: levanta na hora
+                        agachaEstado = 0;
+                        endOnce();
+                    }
+                }
+                break;
+            case 2:
+                if (agachadoWant || !parado) {    // voltou a agachar ou andou: corta o levantar
+                    agachaEstado = 0;
+                    endOnce();
+                } else if (onceFinished()) {
+                    agachaEstado = 0;
+                    endOnce();
+                }
+                break;
+            default:
+                agachaEstado = 0;
+        }
     }
 
     private void applyClip() {

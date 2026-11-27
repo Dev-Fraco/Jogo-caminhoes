@@ -421,7 +421,8 @@ public class Main extends ApplicationAdapter {
             player.speedMul = survival.speedMul();
         }
         boolean kneelUse = survival != null && survival.usingStill();
-        character.setCrouch((crouchOn && player.speed < 0.25f) || kneelUse ? 1f : 0f);
+        character.setCrouch(kneelUse ? 1f : 0f);
+        character.setAgachado(crouchOn && player.speed < 0.25f && !kneelUse);   // agachar: clipe do modelo
         character.setReach(world.fences.reach());
         if (!inPlane) character.update(player, dt);
         // ---------- Combate ----------
