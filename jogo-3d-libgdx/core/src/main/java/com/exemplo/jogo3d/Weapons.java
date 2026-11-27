@@ -540,6 +540,18 @@ final class Weapons {
         coletar(g, w, ch, player);   // o modelo não está no chão: a coleta só não tenta tirá-lo de lá
     }
 
+    /**
+     * Compra na arena: a arma entra no inventário e vai para a mão na hora, com o pente cheio, no mesmo round.
+     * Com os dois fuzis cheios, substitui o fuzil que está na mão (ou o primeiro, se a mão está na pistola).
+     */
+    void comprar(int type, World w, Character ch, Player player) {
+        equipDoArsenal(type, w, ch, player);
+        if (pendente != null) {
+            int alvo = (activeSlot == SLOT_FUZIL_1 || activeSlot == SLOT_FUZIL_2) ? activeSlot : SLOT_FUZIL_1;
+            substituirPendente(alvo, w, ch, player);
+        }
+    }
+
     /** Coleta simples: true se a arma entrou no inventário agora. */
     boolean pickUp(Pickup g, World w, Character ch, Player player) {
         return coletar(g, w, ch, player) == COLETA_OK;

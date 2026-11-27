@@ -1534,7 +1534,10 @@ public class Main extends ApplicationAdapter {
                 Economia.Item it = Economia.CATALOGO[i];
                 if (e == Economia.Erro.NENHUM) {
                     arenaUi.mensagem = "Comprado: " + it.nome;
-                    if (it.tipoArma >= 0) economia.equipar(SalaUi.EU, it.tipoArma);
+                    if (it.tipoArma >= 0) {
+                        economia.equipar(SalaUi.EU, it.tipoArma);
+                        if (world.weapons != null) world.weapons.comprar(it.tipoArma, world, character, player);   // na mão agora
+                    }
                     if (it.nome.equals("MUNIÇÃO") && world.weapons != null) world.weapons.addReserve(world.weapons.heldType(), 30);
                 } else {
                     arenaUi.mensagem = e == Economia.Erro.SEM_CREDITO ? "Créditos insuficientes" : "Compra indisponível agora";
@@ -1543,6 +1546,7 @@ public class Main extends ApplicationAdapter {
             }
             case EQUIPAR: {
                 Economia.Erro e = economia.equipar(SalaUi.EU, Economia.CATALOGO[i].tipoArma);
+                if (e == Economia.Erro.NENHUM && world.weapons != null) world.weapons.comprar(Economia.CATALOGO[i].tipoArma, world, character, player);
                 arenaUi.mensagem = e == Economia.Erro.NENHUM ? "Equipada: " + Economia.CATALOGO[i].nome : "Compre a arma antes de equipar";
                 return true;
             }
