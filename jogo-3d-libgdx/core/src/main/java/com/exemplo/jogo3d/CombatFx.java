@@ -174,30 +174,32 @@ final class CombatFx implements DamageSystem.Listener {
         return t;
     }
 
+    /** Mira: quatro tracinhos finos em volta de um ponto vermelho no centro (desenho próprio, sem copiar outro jogo). */
+    private static Texture miraTracos;
+    private static final float MIRA_TAM = 0.09f;      // tamanho da mira em relação à altura da tela
+    private static final float MIRA_TRACOS_ABRE = 0.35f; // o quanto os tracinhos se afastam ao mirar/atirar
+
+    private static Texture gerarMiraTracos() {
+        Pixmap p = new Pixmap(64, 64, Pixmap.Format.RGBA8888);
+        p.setColor(1f, 1f, 1f, 0.95f);
+        p.fillRectangle(31, 40, 2, 12);     // baixo
+        p.fillRectangle(31, 12, 2, 12);     // cima
+        p.fillRectangle(40, 31, 12, 2);     // direita
+        p.fillRectangle(12, 31, 12, 2);     // esquerda
+        p.setColor(1f, 0.34f, 0.24f, 1f);
+        p.fillCircle(32, 32, 3);            // ponto vermelho no centro
+        Texture t = new Texture(p);
+        t.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        p.dispose();
+        return t;
+    }
+
     private void drawCross(SpriteBatch batch, float cx, float cy, int H, boolean overEnemy) {
-        if (miraEsq == null) {
-            miraEsq = gerarArcos(true);
-            miraDir = gerarArcos(false);
-            Pixmap pp = new Pixmap(16, 16, Pixmap.Format.RGBA8888);
-            for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
-                float d = (float) Math.sqrt((x + 0.5f - 8f) * (x + 0.5f - 8f) + (y + 0.5f - 8f) * (y + 0.5f - 8f));
-                float cov = MathUtils.clamp(6.5f - d, 0f, 1f);
-                if (cov > 0f) pp.drawPixel(x, y, Color.rgba8888(1f, 1f, 1f, cov));
-            }
-            miraPonto = new Texture(pp);
-            miraPonto.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
-            pp.dispose();
-        }
-        float raio = MIRA_RAIO * H;
-        float escala = raio / MIRA_PX;                        // px da textura -> px da tela
-        float tam = (2 * MIRA_PX + 8) * escala;
-        float abre = openNow * MIRA_ABRE * raio;              // só as laterais se afastam
+        if (miraTracos == null) miraTracos = gerarMiraTracos();
+        float tam = MIRA_TAM * H * (1f + openNow * MIRA_TRACOS_ABRE);   // a mira abre um pouco ao mirar
         if (overEnemy) batch.setColor(1f, 0.35f, 0.25f, 1f);
-        else batch.setColor(1f, 1f, 1f, 0.95f);
-        batch.draw(miraEsq, cx - tam / 2f - abre, cy - tam / 2f, tam, tam);
-        batch.draw(miraDir, cx - tam / 2f + abre, cy - tam / 2f, tam, tam);
-        float p = MIRA_PONTO * H;
-        batch.draw(miraPonto, cx - p / 2f, cy - p / 2f, p, p);
+        else batch.setColor(1f, 1f, 1f, 1f);
+        batch.draw(miraTracos, cx - tam / 2f, cy - tam / 2f, tam, tam);
         batch.setColor(1f, 1f, 1f, 1f);
     }
 
