@@ -35,6 +35,12 @@ final class AimTuning {
     static float scatterMax = 0f;
     /** Taxa de Convergência da dispersão. Unidade e intervalo não documentados. 0 = sem convergência extra. */
     static float shrinkSpeed = 0f;
+    /** Piso do freio da mira (experimental, não é valor da Garena): a sensibilidade nunca cai abaixo disso. */
+    static float frictionFloor = 0.35f;
+    /** Duração do deslizamento da mira depois de apertar o tiro (s). Experimental (não é valor da Garena). */
+    static float glideSeg = 0.45f;
+    /** Ganho do tracking sobre o erro (1/s): quão rápido a mira fecha o atraso de um alvo em movimento. Experimental. */
+    static float trackingGain = 6f;
 
     /** Restaura os valores neutros (padrão do projeto). */
     static void restaurarPadroes() {
@@ -47,6 +53,9 @@ final class AimTuning {
         rotSensitiveness = 1f;
         scatterMax = 0f;
         shrinkSpeed = 0f;
+        frictionFloor = 0.35f;
+        glideSeg = 0.45f;
+        trackingGain = 6f;
     }
 
     /** Corrige valores fora dos limites documentados ou impossíveis. Chamado depois de carregar ou editar. */
@@ -59,6 +68,9 @@ final class AimTuning {
         rotSensitiveness = Math.max(0f, rotSensitiveness);
         scatterMax = Math.max(0f, scatterMax);
         shrinkSpeed = Math.max(0f, shrinkSpeed);
+        frictionFloor = clamp(frictionFloor, 0.05f, 1f);
+        glideSeg = Math.max(0.05f, glideSeg);
+        trackingGain = Math.max(0f, trackingGain);
     }
 
     static void load() {
@@ -73,6 +85,9 @@ final class AimTuning {
             rotSensitiveness = p.getFloat("rotSensitiveness", rotSensitiveness);
             scatterMax = p.getFloat("scatterMax", scatterMax);
             shrinkSpeed = p.getFloat("shrinkSpeed", shrinkSpeed);
+            frictionFloor = p.getFloat("frictionFloor", frictionFloor);
+            glideSeg = p.getFloat("glideSeg", glideSeg);
+            trackingGain = p.getFloat("trackingGain", trackingGain);
             validar();
         } catch (Throwable t) {
             // sem preferências: valores padrão
@@ -91,6 +106,9 @@ final class AimTuning {
             p.putFloat("rotSensitiveness", rotSensitiveness);
             p.putFloat("scatterMax", scatterMax);
             p.putFloat("shrinkSpeed", shrinkSpeed);
+            p.putFloat("frictionFloor", frictionFloor);
+            p.putFloat("glideSeg", glideSeg);
+            p.putFloat("trackingGain", trackingGain);
             p.flush();
         } catch (Throwable t) {
             // sem permissão de gravar: segue com os valores da memória

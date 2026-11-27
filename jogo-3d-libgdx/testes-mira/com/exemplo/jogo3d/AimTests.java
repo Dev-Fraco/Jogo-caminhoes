@@ -241,8 +241,18 @@ public class AimTests extends ApplicationAdapter {
         yaw += aa.dYaw;
         pitch += aa.dPitch;
         float e1 = errBelly(ta);
-        check("apertar o tiro gruda a mira na barriga na hora", Math.abs(e1) < Math.abs(e0) * 0.05f,
-                String.format("erro %.3f -> %.3f rad", e0, e1));
+        // Sem salto: o passo do primeiro quadro respeita o limite de velocidade da categoria (maxDegPerSec × dt)
+        float passo1 = (float) Math.toDegrees(Math.hypot(aa.dYaw, aa.dPitch));
+        check("apertar o tiro sem salto: o passo respeita o limite maxDegPerSec",
+                passo1 <= fuzil.maxDegPerSec / 30f + 0.01f && Math.abs(e1) < Math.abs(e0),
+                String.format("erro %.3f -> %.3f rad; passo %.2f° (limite %.2f°)", e0, e1, passo1, fuzil.maxDegPerSec / 30f));
+        for (int q = 0; q < 45; q++) {   // 1,5 s segurando o tiro
+            aa.update(1f / 30f, cam, dir(), yaw, pitch, ta, fuzil, true, false, false);
+            yaw += aa.dYaw;
+            pitch += aa.dPitch;
+        }
+        check("em 1,5 s segurando o tiro, a mira chega na barriga", Math.abs(errBelly(ta)) < Math.abs(e0) * 0.05f,
+                String.format("erro final %.4f rad (inicial %.3f)", errBelly(ta), e0));
         // 1b. Desviada para o lado, a correção horizontal é pequena (assistência horizontal 10%)
         aimAt(ta.hitbox.chest);
         yaw += 0.03f;

@@ -36,7 +36,7 @@ public class AimTuningTests {
 
         System.out.println("== Fase B: cada parâmetro muda a mira (funções usadas pelo jogo a cada quadro) ==");
         AimTuning.restaurarPadroes();
-        float antiga = 0.5f / 10f + 0.25f * 30f / 60f;   // fórmula de sempre: ang/raio + 0,25 × dist/alcance
+        float antiga = 0.5f / 10f + TargetDetection.PESO_DISTANCIA * 30f / 60f;   // fórmula atual: ang/raio + peso × dist/alcance
         check("padrões reproduzem a pontuação de antes", Math.abs(TargetDetection.pontuacao(0.5f, 10f, 30f, 60f) - antiga) < 1e-5f, "");
         check("padrões reproduzem a força de antes (sem queda, taxa 1)", AimAssist.forca(2f, 40f, 70f, 1f, 0f) == 2f, "");
 
@@ -70,7 +70,7 @@ public class AimTuningTests {
 
         AimTuning.distPrioCoef = 3f;
         float termoCoef3 = TargetDetection.pontuacao(0f, 10f, 30f, 60f);
-        check("DistprioCoef 3 triplica o peso da distância", Math.abs(termoCoef3 - 3f * 0.25f * 30f / 60f) < 1e-5f, "" + termoCoef3);
+        check("DistprioCoef 3 triplica o peso da distância", Math.abs(termoCoef3 - 3f * TargetDetection.PESO_DISTANCIA * 30f / 60f) < 1e-5f, "" + termoCoef3);
         AimTuning.restaurarPadroes();
 
         AimTuning.restaurarPadroes();

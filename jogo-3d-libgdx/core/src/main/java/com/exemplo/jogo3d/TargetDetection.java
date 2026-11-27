@@ -36,17 +36,21 @@ final class TargetDetection {
 
     /**
      * Pontuação do alvo (menor = melhor) usada na escolha. ang/radius: quão perto do centro da mira.
-     * Termo de distância (só com DistPriority ligada): coef × 0,25 × clamp(dist, min, max) / alcance.
+     * Termo de distância (só com DistPriority ligada): coef × PESO_DISTANCIA × clamp(dist, min, max) / alcance.
      * Com os padrões (prioridade ligada, coef 1, min 0, max 1000) é a fórmula de sempre.
      */
     static float pontuacao(float ang, float radius, float dist, float range) {
         float termo = 0f;
         if (AimTuning.distPriority) {
             float d = MathUtils.clamp(dist, AimTuning.distPrioMin, AimTuning.distPrioMax);
-            termo = AimTuning.distPrioCoef * 0.25f * d / Math.max(1f, range);
+            termo = AimTuning.distPrioCoef * PESO_DISTANCIA * d / Math.max(1f, range);
         }
         return ang / radius + termo;
     }
+
+    /** Peso da distância (critério secundário, frente ao centro). Antes 0,25: com ele, um alvo perto e
+     *  1,5° fora do centro ganhava de um alvo longe e centralizado. */
+    static final float PESO_DISTANCIA = 0.1f;
 
     /** Com o tiro apertado (firing), o alvo fica travado mesmo com a mira subindo bem para fora do cone: a força de volta segue atuando. */
     void update(float dt, Vector3 cam, Vector3 dir, Enemies enemies, World w, float radius, float range, boolean firing) {
