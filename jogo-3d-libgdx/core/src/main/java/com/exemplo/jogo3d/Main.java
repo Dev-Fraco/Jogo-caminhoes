@@ -414,7 +414,7 @@ public class Main extends ApplicationAdapter {
         if (combat && enemies != null && cfg != null) {
             float camYaw = MathUtils.atan2(aimDir.x, aimDir.z), camPitch = -(float) Math.asin(MathUtils.clamp(aimDir.y, -1f, 1f));
             targets.update(dt, camera.position, aimDir, enemies, world,
-                    AimSettings.fovDeg() * cat.radiusScale, cfg.range);
+                    AimSettings.fovDeg() * cat.radiusScale, cfg.range, fireHeld);
             // Fuzil de precisão (luneta): nenhuma assistência; a mira é só do dedo
             if (cfg.scope) assist.update(dt, camera.position, aimDir, camYaw, camPitch, null, cat, false, false, false);
             else assist.update(dt, camera.position, aimDir, camYaw, camPitch, targets.target, cat, fireHeld, firePressed, adsOn);

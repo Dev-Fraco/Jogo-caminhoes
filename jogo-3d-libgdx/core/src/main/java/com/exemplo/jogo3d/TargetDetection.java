@@ -31,13 +31,19 @@ final class TargetDetection {
      * @param radius raio de atração (graus)
      */
     void update(float dt, Vector3 cam, Vector3 dir, Enemies enemies, World w, float radius, float range) {
+        update(dt, cam, dir, enemies, w, radius, range, false);
+    }
+
+    /** Com o tiro apertado (firing), o alvo fica travado mesmo com a mira subindo bem para fora do cone: a força de volta segue atuando. */
+    void update(float dt, Vector3 cam, Vector3 dir, Enemies enemies, World w, float radius, float range, boolean firing) {
         // Alvo morto ou longe demais da mira: larga na hora (não acompanha mortos)
         if (target != null) {
             if (!target.alive()) drop();
             else {
                 target.hitbox.update(enemies.frame());
                 float ang = angleTo(cam, dir, target.hitbox);
-                if (ang > radius * 1.5f || cam.dst(target.pos) > range) drop();
+                float soltaEm = firing ? Math.max(radius * 1.5f, 40f) : radius * 1.5f;
+                if (ang > soltaEm || cam.dst(target.pos) > range) drop();
             }
         }
         scanT -= dt;

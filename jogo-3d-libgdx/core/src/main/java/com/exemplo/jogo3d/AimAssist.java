@@ -72,15 +72,15 @@ final class AimAssist {
             dYaw += errYaw;
             dPitch += -errBelly;
         }
-        if (inFov && !firePress) {
-            // Segurando o tiro: se a mira está ABAIXO da barriga, sobe até ela devagar (força abdominal baixa).
-            // Acima da barriga não puxa para baixo: quem segura é a resistência, e mais arrasto sempre chega mais alto.
-            if (errBelly > 0f) dPitch += -errBelly * Math.min(1f, 10f * dt) * AimSettings.abdAssist;
-            dYaw += errYaw * Math.min(1f, 8f * dt) * AimSettings.horizAssist;
+        if (!firePress) {
+            // Segurando o tiro: a mira desce sozinha para a barriga (força abdominal), quando o dedo para ou sobe pouco
+            dPitch += -errBelly * Math.min(1f, 10f * dt) * AimSettings.abdAssist;
+            if (inFov) dYaw += errYaw * Math.min(1f, 8f * dt) * AimSettings.horizAssist;
         }
-        // Resistência vertical: acima da barriga, a fração configurada do movimento do dedo para cima volta para baixo.
-        // É fração do movimento já escalado pela sensibilidade, então a sensibilidade alta não elimina a resistência.
-        if (userDelta < 0f && errBelly < 0f) {
+        // Resistência vertical: TODO movimento do dedo para cima, com o tiro apertado, volta na fração configurada
+        // (90%: subir 100% vira 90% para baixo). Fração do movimento já escalado pela sensibilidade: a sensibilidade
+        // alta não elimina a resistência.
+        if (userDelta < 0f) {
             dPitch += -userDelta * AimSettings.upResist;
         }
 
