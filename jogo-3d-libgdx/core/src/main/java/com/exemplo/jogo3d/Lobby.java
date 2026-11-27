@@ -52,6 +52,9 @@ final class Lobby {
     static final String[] PERFIL_ABAS = {"GERAL", "ESTATÍSTICAS", "CONQUISTAS", "INVENTÁRIO", "COLEÇÕES", "CARTÃO DE PERFIL", "CONFIGURAÇÕES"};
     private int perfilAba = 0;              // aba selecionada no perfil (o conteúdo ainda está vazio)
     private static final float[] PERFIL_FECHAR = {1560f, 28f, 70f, 70f};
+    /** Topo de cada aba do menu lateral (na arte do perfil) e a altura de cada uma. */
+    private static final float[] PERFIL_ABA_C = {185f, 285f, 383f, 482f, 582f, 683f, 783f};   // centro vertical de cada nome
+    private Texture perfilFundo;
     private String toast = null;            // aviso curto
     private float toastT;
     private final float passe = 0.6f;
@@ -348,37 +351,35 @@ final class Lobby {
     }
 
     /** Retângulo (ref) da aba i do menu lateral do perfil. */
-    private static float[] perfilAbaRect(int i) { return new float[]{18f, 150f + i * 104f, 330f, 88f}; }
+    private static float[] perfilAbaRect(int i) { return new float[]{18f, PERFIL_ABA_C[i] - 50f, 339f, 100f}; }
 
-    /** Perfil do jogador em tela cheia: título, botão de fechar, menu lateral (abas) e área de conteúdo vazia. */
+    /**
+     * Perfil do jogador em tela cheia, no layout da arte enviada. A arte é o fundo; por cima só mudam a aba
+     * selecionada (destaque) e o conteúdo das outras abas, que fica vazio. Nível, XP e números seguem os da arte.
+     */
     private void drawPerfil(SpriteBatch b, ShapeRenderer sh, BitmapFont font, Matrix4 proj) {
-        sh.setProjectionMatrix(proj);
-        sh.begin(ShapeRenderer.ShapeType.Filled);
-        fill(sh, 0, 0, RW, RH, new float[]{0.05f, 0.05f, 0.05f, 1f});
-        fill(sh, 0, 0, RW, 112, new float[]{0.09f, 0.08f, 0.06f, 1f});                       // cabeçalho
-        fill(sh, 18, 150, 330, 7 * 104 - 16, DARK);                                           // menu lateral
-        for (int i = 0; i < PERFIL_ABAS.length; i++) {
-            float[] r = perfilAbaRect(i);
-            fill(sh, r[0], r[1], r[2], r[3], i == perfilAba ? GOLD : DARK);
+        if (perfilFundo == null) {
+            perfilFundo = new Texture(Gdx.files.internal("hud2/lobby/perfil.jpg"));
+            perfilFundo.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
         }
-        fill(sh, 380, 150, 1274, 760, DARK);                                                  // área de conteúdo (vazia)
-        fill(sh, PERFIL_FECHAR[0], PERFIL_FECHAR[1], PERFIL_FECHAR[2], PERFIL_FECHAR[3], GOLD);
-        sh.end();
-        sh.begin(ShapeRenderer.ShapeType.Line);
-        for (int i = 0; i < PERFIL_ABAS.length; i++) {
-            float[] r = perfilAbaRect(i);
-            edge(sh, r[0], r[1], r[2], r[3], GOLD);
-        }
-        edge(sh, 380, 150, 1274, 760, GOLD);
-        sh.end();
+        // 1) arte inteira (fundo), na proporção da tela
         b.setProjectionMatrix(proj);
         b.begin();
-        text(b, font, "PERFIL DO JOGADOR", 430, 70, 2.6f, GOLD, false);
-        for (int i = 0; i < PERFIL_ABAS.length; i++) {
-            float[] r = perfilAbaRect(i);
-            text(b, font, PERFIL_ABAS[i], r[0] + 28, r[1] + 46, 1.7f, i == perfilAba ? INK : WHITE, false);
+        b.draw(perfilFundo, ox, oy, RW * s, RH * s);
+        b.end();
+        // 2) tira o destaque e o texto de cada aba da arte e redesenha conforme a aba selecionada
+        sh.setProjectionMatrix(proj);
+        sh.begin(ShapeRenderer.ShapeType.Filled);
+        if (perfilAba != 0) fill(sh, 380, 100, 1280, 830, new float[]{0.05f, 0.05f, 0.05f, 1f});   // conteúdo vazio
+        for (int i = 0; i < PERFIL_ABA_C.length; i++) {
+            fill(sh, 116, PERFIL_ABA_C[i] - 30, 236, 60, i == perfilAba ? GOLD : new float[]{0.06f, 0.06f, 0.06f, 1f});
         }
-        img(b, "fechar", PERFIL_FECHAR[0] + 8, PERFIL_FECHAR[1] + 8, PERFIL_FECHAR[2] - 16, PERFIL_FECHAR[3] - 16);
+        sh.end();
+        // 3) nomes das abas
+        b.begin();
+        for (int i = 0; i < PERFIL_ABA_C.length; i++) {
+            text(b, font, PERFIL_ABAS[i], 122f, PERFIL_ABA_C[i] + 11f, 1.6f, i == perfilAba ? INK : WHITE, false);
+        }
         b.end();
     }
 
