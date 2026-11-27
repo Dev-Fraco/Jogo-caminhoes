@@ -8,9 +8,9 @@ import com.badlogic.gdx.Preferences;
  * entra na próxima partida; as outras ficam no painel de personagens do lobby, com o botão USAR.
  */
 final class Personagens {
-    static final String[] NOMES = {"Funcionária", "Jake"};
-    static final String[] MODELOS = {"models/female/female.g3dj", "models/jake/jake.g3dj"};
-    static final String[] MINIATURAS = {"personagem_funcionaria", "personagem_jake"};
+    static final String[] NOMES = {"Funcionária", "Jake", "Droide", "Robô", "Lutador"};
+    static final String[] MODELOS = {"models/female/female.g3dj", "models/jake/jake.g3dj", "models/droide/droide.g3dj", "models/robo/robo.g3dj", "models/lutador/lutador.g3dj"};
+    static final String[] MINIATURAS = {"personagem_funcionaria", "personagem_jake", "personagem_droide", "personagem_robo", "personagem_lutador"};
     static final int PADRAO = 0;   // a funcionária é a principal
 
     private static final String PREFS = "configuracoes", CHAVE = "personagem";

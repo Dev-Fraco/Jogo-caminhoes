@@ -285,9 +285,9 @@ final class Lobby {
     }
 
     // Cards do painel de personagens: uma coluna por personagem, com a miniatura e o botão USAR
-    private static final float CARD_Y = 260f, CARD_W = 460f, CARD_H = 470f;
-    private static float cardX(int i) { return 365f + i * 480f; }
-    private static float[] usarRect(int i) { return new float[]{cardX(i) + 60f, CARD_Y + 420f, CARD_W - 120f, 56f}; }
+    private static final float CARD_Y = 260f, CARD_W = 186f, CARD_H = 470f, CARD_GAP = 12f;
+    private static float cardX(int i) { return 351f + i * (CARD_W + CARD_GAP); }
+    private static float[] usarRect(int i) { return new float[]{cardX(i) + 14f, CARD_Y + 400f, CARD_W - 28f, 46f}; }
 
     /** Texto centralizado num ponto (x do centro, em referência). */
     private void ctext(SpriteBatch b, BitmapFont f, String t, float cx, float ry, float sc, float[] c) {
@@ -311,11 +311,11 @@ final class Lobby {
     private void cardTexts(SpriteBatch b, BitmapFont font) {
         for (int i = 0; i < Personagens.NOMES.length; i++) {
             float x = cardX(i);
-            img(b, Personagens.MINIATURAS[i], x + 30, CARD_Y + 20, CARD_W - 60, 330);
-            ctext(b, font, Personagens.NOMES[i].toUpperCase(), x + CARD_W / 2f, CARD_Y + 390, 2.0f, GOLD);
+            img(b, Personagens.MINIATURAS[i], x + 8, CARD_Y + 14, CARD_W - 16, 300);
+            ctext(b, font, Personagens.NOMES[i].toUpperCase(), x + CARD_W / 2f, CARD_Y + 352, 1.3f, GOLD);
             float[] u = usarRect(i);
             boolean emUso = i == Personagens.atual();
-            ctext(b, font, emUso ? "EM USO" : "USAR", u[0] + u[2] / 2f, u[1] + 38, 1.9f, emUso ? MUTED : INK);
+            ctext(b, font, emUso ? "EM USO" : "USAR", u[0] + u[2] / 2f, u[1] + 33, 1.4f, emUso ? MUTED : INK);
         }
     }
 
