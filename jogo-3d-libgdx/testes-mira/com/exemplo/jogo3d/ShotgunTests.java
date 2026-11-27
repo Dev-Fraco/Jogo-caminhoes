@@ -77,6 +77,37 @@ public class ShotgunTests extends ShootTests {
         int shots = sh.shotsFired - far0;
         double perShot = events.size() / (double) Math.max(1, shots);
         show("aos 17 m, quase nenhum projétil acerta (menos de 1 a cada 10 tiros)", perShot < 0.1, String.format("%d acertos em %d tiros", events.size(), shots));
+
+        System.out.println("== Chance de acerto por distância (tiro que pega o alvo da mira) ==");
+        double h2 = hitRate(2f, 80), h45 = hitRate(4.5f, 80), h8 = hitRate(8f, 80), h12 = hitRate(12f, 80);
+        show("até 3 m: pega quase 100% dos tiros", h2 >= 0.9, String.format("%.0f%%", h2 * 100));
+        show("3,5 a 6 m: pega cerca de 80%", Math.abs(h45 - 0.8) <= 0.15, String.format("%.0f%%", h45 * 100));
+        show("6 a 10 m: pega cerca de 40%", Math.abs(h8 - 0.4) <= 0.15, String.format("%.0f%%", h8 * 100));
+        show("depois de 10 m: não pega", h12 <= 0.05, String.format("%.0f%%", h12 * 100));
+    }
+
+    /** Fração dos tiros (com pelo menos um chumbo) que acertam um alvo parado à distância d. */
+    double hitRate(float d, int shots) {
+        en.list.clear();
+        cam.set(ax, gy + 1.6f, az);
+        yaw = 0f;
+        pitch = 0f;
+        Enemy t = spawnEnemy(ax, az + d, MathUtils.PI, "Idle");
+        t.dummy = true;   // não cai: continua no alvo
+        aimAt(t.hitbox.chest);
+        wp.infinite = true;
+        int hits = 0, done = 0;
+        for (int f = 0; f < 30 * 1 && false; f++) step(1f / 30f, false, false);
+        for (int f = 0; done < shots && f < 30 * 60 * 3; f++) {
+            int before = events.size(), s0 = sh.shotsFired;
+            step(1f / 30f, true, false);
+            if (sh.shotsFired != s0) {
+                done++;
+                if (events.size() > before) hits++;
+            }
+        }
+        en.list.clear();
+        return done == 0 ? 0 : hits / (double) done;
     }
 
     public static void main(String[] args) {

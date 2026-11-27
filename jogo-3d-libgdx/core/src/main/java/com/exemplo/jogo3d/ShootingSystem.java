@@ -131,18 +131,21 @@ final class ShootingSystem {
         damage.beginShot();
         int shownImpacts = 0;
         boolean sounded = false;
-        // Espingarda com projétil próprio (M1014): os chumbos caem numa área que cresce com a distância do alvo
-        // da mira (mirando, cai menos; andando, cai mais)
-        float pelletD = 1f, pelletR = 0f;
+        // Espingarda com projétil próprio (M1014): o tiro pega o alvo da mira com a chance da distância
+        // (100% até 3 m, 80% de 3,5 a 6 m, 40% de 6 a 10 m, 0% depois). Se pega, os chumbos ficam juntos no
+        // corpo; se erra, caem fora do boneco.
+        float pelletD = 1f;
+        boolean onTarget = false;
         if (c.separate) {
             hitDetect.shoot(in.cam, in.aim, muzzle, c.range, enemies, world, res);
             pelletD = Math.max(1.5f, res.enemy != null || res.hitWorld ? res.distance : c.range);
-            float move = 1f + MathUtils.clamp(in.speed / Player.RUN_SPEED, 0f, 1f) * 0.5f;
-            pelletR = WeaponConfig.pelletRadius(pelletD) * (in.ads ? 0.6f : 1f) * move;
+            onTarget = res.enemy != null && MathUtils.random() < WeaponConfig.shotgunHitChance(res.distance);
         }
         for (int p = 0; p < c.pellets; p++) {
             if (c.separate) {
-                float rr = pelletR * (float) Math.sqrt(MathUtils.random()), a = MathUtils.random(MathUtils.PI2);
+                float rr = onTarget ? WeaponConfig.SHOT_HIT_R * (float) Math.sqrt(MathUtils.random())
+                        : 1.2f + WeaponConfig.pelletRadius(pelletD) * MathUtils.random();
+                float a = MathUtils.random(MathUtils.PI2);
                 float tn = rr / pelletD;
                 shotDir.set(in.aim).mulAdd(side1, MathUtils.cos(a) * tn).mulAdd(side2, MathUtils.sin(a) * tn).nor();
             } else {

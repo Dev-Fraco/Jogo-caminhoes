@@ -158,7 +158,24 @@ final class WeaponConfig {
 
     WeaponConfig withFirstShotDelay(float s) { firstShotDelay = s; return this; }
 
-    /** Raio (m) onde caem os chumbos a d metros do atirador: fecha de perto, abre bem com a distância. */
+    /** Raio (m) do grupo de chumbos num tiro que erra: sai do corpo do alvo e cresce com a distância. */
+    /** Raio (m) em volta do ponto de mira onde caem os chumbos de um tiro que acerta (fica no corpo). */
+    static final float SHOT_HIT_R = 0.2f;
+
+    /**
+     * Chance de a espingarda pegar o alvo da mira, pela distância: 100% até 3 m, 80% de 3,5 a 6 m,
+     * 40% de 6 a 10 m e 0% depois de 10 m (transições suaves entre as faixas).
+     */
+    static float shotgunHitChance(float d) {
+        if (d <= 3f) return 1f;
+        if (d <= 3.5f) return MathUtils.lerp(1f, 0.8f, (d - 3f) / 0.5f);
+        if (d <= 6f) return 0.8f;
+        if (d <= 6.5f) return MathUtils.lerp(0.8f, 0.4f, (d - 6f) / 0.5f);
+        if (d <= 10f) return 0.4f;
+        if (d <= 10.5f) return MathUtils.lerp(0.4f, 0f, (d - 10f) / 0.5f);
+        return 0f;
+    }
+
     static float pelletRadius(float d) { float e = Math.max(0f, d - 5f); return 0.2f + 0.009f * d * d + 0.025f * e * e; }
 
     // ---------- Tabela das armas ----------
