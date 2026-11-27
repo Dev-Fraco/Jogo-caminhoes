@@ -113,6 +113,7 @@ public class Main extends ApplicationAdapter {
     private CombatFx fx;
     private final AimSettingsUi aimUi = new AimSettingsUi();
     private int aimPointer = -1;   // dedo que está arrastando uma barra da tela de mira
+    private final ColetaUi coletaUi = new ColetaUi();   // "TROCAR QUAL ARMA?" ao pegar fuzil com os dois slots cheios
     private int firePointer = -1;
     // Muro (botão PAREDE): toque põe na frente; segurar mostra a sombra, e soltar põe onde ela está
     private static final float WALL_HOLD = 0.25f;   // segundos segurando para virar sombra
@@ -750,6 +751,13 @@ public class Main extends ApplicationAdapter {
                 return;
             }
         }
+        if (coletaUi.open) {
+            // janela "TROCAR QUAL ARMA?": só ela recebe toques enquanto estiver aberta
+            int act = coletaUi.press(x, yb);
+            if (act == 1 || act == 2) world.weapons.substituirPendente(act - 1, world, character, player);
+            else if (act == 3) world.weapons.cancelarPendente();
+            return;
+        }
         if (settingsOpen) {
             if (aimUi.open) {
                 aimUi.press(x, yb);
@@ -903,7 +911,9 @@ public class Main extends ApplicationAdapter {
                 return;
             case "pegar_arma":
                 if (weaponTarget != null) {
-                    if (!world.weapons.pickUp(weaponTarget, world, character, player)) survival.say("VOCÊ JÁ TEM ESSA ARMA");
+                    int coleta = world.weapons.coletar(weaponTarget, world, character, player);
+                    if (coleta == Weapons.COLETA_NAO) survival.say("VOCÊ JÁ TEM ESSA ARMA");
+                    // COLETA_ESCOLHA: a janela "TROCAR QUAL ARMA?" aparece (arma pendente até escolher)
                     weaponTarget = null;
                 }
                 return;
@@ -1394,6 +1404,8 @@ public class Main extends ApplicationAdapter {
         }
         batch.end();
         if (aimUi.open) aimUi.draw(batch, shapes, font, W, H);
+        coletaUi.open = world != null && world.weapons != null && world.weapons.pendente() != null;
+        if (coletaUi.open) coletaUi.draw(batch, shapes, W, H, world.weapons, world.weapons.pendente());
     }
 
     private void settingsPress(float x, float yb) {

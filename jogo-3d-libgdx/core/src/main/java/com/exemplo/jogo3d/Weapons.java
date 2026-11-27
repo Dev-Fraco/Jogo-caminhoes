@@ -139,6 +139,15 @@ final class Weapons {
     int reserveOf(int type) { return type >= 0 ? reserve[type] : 0; }
     int slotType(int s) { return slot[s]; }
 
+    // ---- Inventário: slots fixos (1 e 2 = fuzis / grande porte; 3 = pistola) ----
+    static final int SLOT_FUZIL_1 = 0, SLOT_FUZIL_2 = 1, SLOT_PISTOLA = 2;
+
+    /** Antes de mudar a mão: o item que estava nela vira a última seleção válida (troca rápida). */
+    private void registrarSaida(int novo) {
+        int atual = (heldType < 0 || holstered) ? ITEM_PUNHO : activeSlot;
+        if (atual != novo) ultimoItem = atual;
+    }
+
     // ---- Ordem do painel de armas: 1 item em cima (na mão) e 3 embaixo; cada item aparece uma vez ----
     static final int ITEM_PUNHO = 3;            // código do punho no painel (armas: 0..2 = slot)
     private final int[] baixo = {-1, -1, -1};  // o que está em cada caixa de baixo (-1 = vazia)
@@ -156,8 +165,6 @@ final class Weapons {
         int top = itemTopo();
         // Referência da troca rápida: sempre que a mão muda (toque, punho, pegar arma), o item que estava na mão
         // passa a ser a última seleção válida
-        if (topoVisto != -2 && top != topoVisto) ultimoItem = topoVisto;
-        topoVisto = top;
         for (int p = 0; p < baixo.length; p++) {
             int c = baixo[p];
             boolean repetido = false;
@@ -176,7 +183,6 @@ final class Weapons {
         return false;
     }
 
-    private int topoVisto = -2;     // item da mão na última vez que o painel foi montado (-2 = nunca)
     private int ultimoItem = -1;    // última seleção válida antes da atual: alvo do botão de troca rápida
 
     /**
@@ -231,6 +237,7 @@ final class Weapons {
     void equipSlot(int s, Character ch) {
         if (s < 0 || s >= slot.length || slot[s] < 0) return;
         if (!holstered && s == activeSlot) return;
+        registrarSaida(s);
         activeSlot = s;
         equipNew(slot[s], ch);
     }
@@ -238,6 +245,7 @@ final class Weapons {
     /** Toque no punho: guarda a arma (sai da mão, fica só no HUD) e fica sem arma até tocar numa caixa. */
     void toggleHold(Character ch) {
         if (heldType < 0 || holstered) return;
+        registrarSaida(ITEM_PUNHO);
         if (held != null) ch.instances.removeValue(held, true);
         held = null;
         holstered = true;
@@ -450,27 +458,71 @@ final class Weapons {
         return best;
     }
 
-    /** Pega a arma do chão. Pistola vai para o slot de pistola; fuzil, para o primeiro fuzil livre.
-     *  Se o slot já estiver ocupado, a arma antiga cai no chão no lugar. */
-    boolean pickUp(Pickup g, World w, Character ch, Player player) {
-        for (int s : slot) if (s == g.type) return false;   // a mesma arma não entra duas vezes (a munição é dela)
-        ground.removeValue(g, true);
-        w.instances.removeValue(g.inst, true);
-        int target;
-        if (isPistol(g.type)) target = PISTOL_SLOT;
-        else if (slot[0] < 0) target = 0;
-        else if (slot[1] < 0) target = 1;
-        else target = activeSlot == 1 ? 1 : 0;   // os dois fuzis cheios: cai o que está na mão (ou o primeiro)
-        if (slot[target] >= 0) {
-            Random r = new Random();
-            drop(w, slot[target], player.pos.x + 0.6f * MathUtils.sin(player.facing + 1.2f),
-                    player.pos.z + 0.6f * MathUtils.cos(player.facing + 1.2f), r);
+    /** Pistola vai para o slot 3 (a antiga cai no chão); fuzil e arma de grande porte, para o slot 1 ou 2 livre. */
+    static final int COLETA_NAO = 0, COLETA_OK = 1, COLETA_ESCOLHA = 2;
+    private Pickup pendente = null;   // arma de grande porte esperando a escolha de qual fuzil substituir
+
+    /**
+     * Coleta de uma arma do chão. Mesma arma não entra duas vezes. Pistola só no slot 3. Fuzil no slot 1 ou 2 livre;
+     * com os dois cheios, devolve COLETA_ESCOLHA e a arma fica pendente até o jogador escolher o que substituir.
+     */
+    int coletar(Pickup g, World w, Character ch, Player player) {
+        for (int s : slot) if (s == g.type) return COLETA_NAO;
+        if (isPistol(g.type)) {
+            tirarDoChao(g, w);
+            if (slot[SLOT_PISTOLA] >= 0) dropNoJogador(w, player, slot[SLOT_PISTOLA]);
+            colocarNoSlot(SLOT_PISTOLA, g.type, ch);
+            return COLETA_OK;
         }
-        slot[target] = g.type;
-        activeSlot = target;
-        equipNew(g.type, ch);
+        int livre = slot[SLOT_FUZIL_1] < 0 ? SLOT_FUZIL_1 : slot[SLOT_FUZIL_2] < 0 ? SLOT_FUZIL_2 : -1;
+        if (livre >= 0) {
+            tirarDoChao(g, w);
+            colocarNoSlot(livre, g.type, ch);
+            return COLETA_OK;
+        }
+        pendente = g;
+        return COLETA_ESCOLHA;
+    }
+
+    /** Coleta simples: true se a arma entrou no inventário agora. */
+    boolean pickUp(Pickup g, World w, Character ch, Player player) {
+        return coletar(g, w, ch, player) == COLETA_OK;
+    }
+
+    /** Arma de grande porte pendente (dois fuzis cheios), ou null. */
+    Pickup pendente() { return pendente; }
+
+    /** Escolhida a substituição: o fuzil do slot s sai do inventário (cai no chão) e entra a arma pendente. */
+    boolean substituirPendente(int s, World w, Character ch, Player player) {
+        if (pendente == null || (s != SLOT_FUZIL_1 && s != SLOT_FUZIL_2) || slot[s] < 0) return false;
+        Pickup g = pendente;
+        pendente = null;
+        tirarDoChao(g, w);
+        dropNoJogador(w, player, slot[s]);
+        colocarNoSlot(s, g.type, ch);
         return true;
     }
+
+    /** Cancela a coleta pendente: a arma continua no chão. */
+    void cancelarPendente() { pendente = null; }
+
+    private void colocarNoSlot(int s, int type, Character ch) {
+        registrarSaida(s);
+        slot[s] = type;
+        activeSlot = s;
+        equipNew(type, ch);
+    }
+
+    private void tirarDoChao(Pickup g, World w) {
+        ground.removeValue(g, true);
+        w.instances.removeValue(g.inst, true);
+    }
+
+    private void dropNoJogador(World w, Player player, int type) {
+        drop(w, type, player.pos.x + 0.6f * MathUtils.sin(player.facing + 1.2f),
+                player.pos.z + 0.6f * MathUtils.cos(player.facing + 1.2f), new Random());
+    }
+
 
     /** Põe a arma do tipo na mão, com a animação de sacar. */
     private void equipNew(int type, Character ch) {
@@ -494,6 +546,7 @@ final class Weapons {
         for (int k = 1; k < slot.length; k++) {
             int s = (activeSlot + k) % slot.length;
             if (slot[s] >= 0) {
+                registrarSaida(s);
                 activeSlot = s;
                 equipNew(slot[s], ch);
                 return;
