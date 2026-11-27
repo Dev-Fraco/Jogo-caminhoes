@@ -782,6 +782,25 @@ public class World {
             }
         }
 
+        // Rio raso: lâmina de água de 35 cm sobre o leito do rio (só visual: dá para atravessar a pé, como num vau)
+        mb.begin();
+        MeshPartBuilder agua = mb.part("agua", GL20.GL_TRIANGLES, Usage.Position | Usage.Normal,
+                new Material(ColorAttribute.createDiffuse(0.22f, 0.42f, 0.55f, 1f),
+                        new BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)));
+        float margemAgua = 4.5f;   // meia largura da lâmina (o leito tem 4,5 m de meia largura)
+        for (float z = -HALF; z < HALF - 0.01f; z += 3f) {
+            float z1 = Math.min(z + 3f, HALF);
+            float x0 = riverX(z), x1 = riverX(z1);
+            float y0 = heightAt(x0, z) + 0.35f, y1 = heightAt(x1, z1) + 0.35f;
+            agua.rect(new VertexInfo().setPos(x0 - margemAgua, y0, z).setNor(0f, 1f, 0f),
+                    new VertexInfo().setPos(x0 + margemAgua, y0, z).setNor(0f, 1f, 0f),
+                    new VertexInfo().setPos(x1 + margemAgua, y1, z1).setNor(0f, 1f, 0f),
+                    new VertexInfo().setPos(x1 - margemAgua, y1, z1).setNor(0f, 1f, 0f));
+        }
+        Model aguaModel = mb.end();
+        loaded.add(aguaModel);
+        instances.add(new ModelInstance(aguaModel));
+
         // Estrada de barro: faixa plana no eixo x, sobre o terreno (segmentos de 2 m)
         mb.begin();
         MeshPartBuilder road = mb.part("road", GL20.GL_TRIANGLES, Usage.Position | Usage.Normal | Usage.ColorPacked,

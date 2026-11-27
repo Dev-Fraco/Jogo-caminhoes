@@ -94,6 +94,15 @@ public class RelevoTests extends ApplicationAdapter {
             if (dx * dx + dz * dz <= 45f * 45f) tr = Math.max(tr, Math.abs(w.heightAt(World.TOWN_X + dx, World.TOWN_Z + dz) - t0h));
         check("vila plana (pegada de 45 m de raio, até 3 m)", tr < 3f, String.format("%.2f m", tr));
 
+        System.out.println("== Rio raso ==");
+        int ok2 = 0, tot2 = 0;
+        for (float z = -500f; z <= 500f; z += 50f) {
+            float xr = World.riverX(z);
+            tot2++;
+            if (w.heightAt(xr, z) < w.heightAt(xr + 8f, z) - 1f) ok2++;
+        }
+        check("o leito do rio fica abaixo das margens (todo o trecho)", ok2 == tot2, ok2 + "/" + tot2);
+
         System.out.println("== Alcance do jogador ==");
         int step = 6;
         int nn = World.ALT_N;
