@@ -104,6 +104,7 @@ final class Enemies {
             Enemy e = new Enemy(body, gunModel, x, z, rnd.nextFloat());
             e.nome = azul ? aliados[i] : inimigos[i - aliados.length];
             e.equipe = azul ? 0 : 1;
+            e.hitbox.raioMul = Enemy.BOT_LARGURA;   // o hitbox acompanha o corpo mais largo
             e.precisao = precisao;
             e.weapon = WeaponConfig.BY_TYPE[0];          // todos começam armados (AKM); não há itens na arena
             e.pos.y = w.groundAt(x, z);

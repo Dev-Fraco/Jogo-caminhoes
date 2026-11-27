@@ -461,6 +461,7 @@ final class Enemy {
         }
         pos.y = w.groundAt(pos.x, pos.z);
         inst.transform.setToTranslation(pos).rotate(Vector3.Y, facing * MathUtils.radiansToDegrees);
+        aplicaEscala();
         if (barT > 0f) barT -= dt;
         if (hitT > 0f) {
             hitT -= dt;
@@ -618,8 +619,18 @@ final class Enemy {
         anim.animate(c, 1, 1f, null, 0f);
     }
 
+    /** Bots da sala personalizada aparecem maiores e mais fortes; os demais mantêm o tamanho do modelo. */
+    static final float BOT_ALTURA = 1.22f, BOT_LARGURA = 1.35f;
+
+    /** Escala do modelo deste inimigo (largura, altura). */
+    void aplicaEscala() {
+        float w = equipe >= 0 ? BOT_LARGURA : 1f, h = equipe >= 0 ? BOT_ALTURA : 1f;
+        inst.transform.scale(w, h, w);
+    }
+
     void pose(float dt) {
         inst.transform.setToTranslation(pos).rotate(Vector3.Y, facing * MathUtils.radiansToDegrees);
+        aplicaEscala();
         anim.update(dt);
     }
 

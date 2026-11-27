@@ -33,6 +33,8 @@ final class Hitbox {
             WeaponConfig.Region.LEG, WeaponConfig.Region.LEG, WeaponConfig.Region.LEG, WeaponConfig.Region.LEG,
             WeaponConfig.Region.HEAD};
     private static final float HEAD_TOP = 0.20f;   // do osso Head até o topo do crânio (m)
+    /** Engrossa as cápsulas (bots da sala são mais largos que o modelo base); 1 = modelo normal. */
+    float raioMul = 1f;
 
 
     private final ModelInstance inst;
@@ -91,7 +93,7 @@ final class Hitbox {
         belly.set(pelvis).lerp(chest, 0.5f);   // entre o quadril e o peito
         center.set(pelvis).lerp(headTop, 0.5f);
         float r = 0f;
-        for (int i = 0; i < N; i++) r = Math.max(r, Math.max(center.dst(a[i]), center.dst(b[i])) + RADIUS[i]);
+        for (int i = 0; i < N; i++) r = Math.max(r, Math.max(center.dst(a[i]), center.dst(b[i])) + RADIUS[i] * raioMul);
         boundR = r;
     }
 
@@ -115,7 +117,7 @@ final class Hitbox {
         if (bb * bb - cc < 0f) return false;
         boolean got = false;
         for (int i = 0; i < N; i++) {
-            float t = capsule(o, d, a[i], b[i], RADIUS[i]);
+            float t = capsule(o, d, a[i], b[i], RADIUS[i] * raioMul);
             if (t >= 0f && t < hit.t) {
                 hit.t = t;
                 hit.region = REGION[i];
