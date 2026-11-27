@@ -958,7 +958,9 @@ public class World {
             addCorral(fx + 20f, fz - 12f, fenceSeg);
             for (int k = 0; k < 8; k++) {
                 float a = rnd.nextFloat() * MathUtils.PI2, d = 14f + rnd.nextFloat() * 22f;
-                placeStatic(stump, fx + MathUtils.cos(a) * d, fz + MathUtils.sin(a) * d, rnd.nextFloat() * 360f, 2.6f, 0.35f);
+                float sx = fx + MathUtils.cos(a) * d, sz = fz + MathUtils.sin(a) * d;
+                if (declive(sx, sz) > 0.45f) continue;   // toco não fica pendurado numa encosta
+                placeStatic(stump, sx, sz, rnd.nextFloat() * 360f, 2.6f, 0.35f);
             }
         }
         addPlacesAndPlants(rnd);
