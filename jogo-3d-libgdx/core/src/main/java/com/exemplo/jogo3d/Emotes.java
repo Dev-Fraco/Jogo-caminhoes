@@ -18,8 +18,8 @@ final class Emotes {
      * Ícone de cada espaço (silhueta branca, em hud2/lobby) ou null. Espaço com ícone não mostra nome.
      * Espaço sem ícone mostra o rótulo: o nome do arquivo do emote, ou o nome da referência se ainda não há arquivo.
      */
-    static final String[] ICONES = {"emote_danca", null, "emote_vitoria", null, null, null, "emote_saudacao", null};
-    static final String[] ROTULOS = {null, "Loucura", null, "Reboladinha", "Flexão", "Choro", null, "Aplaudir"};
+    static final String[] ICONES = {"emote_danca", null, "emote_vitoria", "emote_desafio", null, null, "emote_saudacao", null};
+    static final String[] ROTULOS = {null, "Loucura", null, null, "Flexão", "Choro", null, "Aplaudir"};
 
     /**
      * Clipe de cada espaço (nome no modelo) ou null = ainda sem arquivo. Associação provisória pelos nomes dos
