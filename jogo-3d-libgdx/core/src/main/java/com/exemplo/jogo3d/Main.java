@@ -32,7 +32,7 @@ import com.badlogic.gdx.utils.Array;
 public class Main extends ApplicationAdapter {
 
     // ---------- Ajustes ----------
-    static final float CAMERA_DISTANCE = 4.5f;
+    static final float CAMERA_DISTANCE = 3.4f;   // câmera mais perto do personagem (antes 4,5)
     static final float CAMERA_DISTANCE_INSIDE = 1.7f;   // dentro da casa a câmera chega perto do personagem
     static final float LOOK_SENSITIVITY = 0.006f;
 
@@ -608,7 +608,7 @@ public class Main extends ApplicationAdapter {
         Vector3 forward = new Vector3(MathUtils.sin(yaw), 0f, MathUtils.cos(yaw));
         // Dentro da casa a câmera chega perto e baixa um pouco, para enxergar o interior
         boolean inside = !inPlane && world.insideHouse(player.pos);
-        float targetDist = inPlane ? 48f : parachuting ? 12f : combat ? (adsOn ? 1.9f : 3.0f)
+        float targetDist = inPlane ? 48f : parachuting ? 12f : combat ? (adsOn ? 1.9f : 2.3f)
                 : inside ? CAMERA_DISTANCE_INSIDE : CAMERA_DISTANCE;
         Vector3 pivot = inPlane ? new Vector3(world.airplane.pos).add(0f, 3f, 0f)   // no avião: câmera segue o avião
                 : new Vector3(player.pos.x, player.pos.y + (parachuting ? 2.5f : inside ? 1.2f : 1.4f), player.pos.z);

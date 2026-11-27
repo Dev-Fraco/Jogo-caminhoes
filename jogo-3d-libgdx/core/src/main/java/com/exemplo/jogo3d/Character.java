@@ -23,7 +23,7 @@ import com.badlogic.gdx.utils.JsonReader;
 public class Character {
 
     // Modelo em metros. Frente do modelo = +z (igual ao Player.facing).
-    static final float MODEL_SCALE = 1.0f;
+    static final float MODEL_SCALE = 1.12f;   // personagem um pouco maior, para o corpo e a cabeça aparecerem melhor
     static final float STATE_HOLD = 0.12f;       // tempo mínimo para trocar de animação (s)
     static final float WALK_CLIP_SPEED = 1.8f;   // quadril anda ~1,8 m/s no clipe
     static final float RUN_CLIP_SPEED = 5.8f;    // quadril anda ~5,8 m/s no clipe
