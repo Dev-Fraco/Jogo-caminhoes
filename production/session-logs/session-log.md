@@ -15582,3 +15582,266 @@ production/session-logs/.session-end.hash
 production/session-logs/session-log.md
 ---
 
+## Session End: 20261127_211255
+### Commits
+51255c3 docs: registro da sessão (hook de fim de sessão)
+1d19634 docs: registro da sessão (hook de fim de sessão)
+bf81aee docs: registro da sessão (hook de fim de sessão)
+721f97e docs: registro da sessão (hook de fim de sessão)
+c2f3279 docs: registro da sessão (hook de fim de sessão)
+fa662b0 docs: registro da sessão (hook de fim de sessão)
+1c75b28 test: revisão da mira, mudança de direção, borda do cone e controle manual
+0871bb9 docs: registro da sessão (hook de fim de sessão)
+c764614 docs: registro da sessão (hook de fim de sessão)
+dacf823 feat: mira com limite de velocidade, tracking, freio e centro na seleção
+133e27b docs: registro da sessão (hook de fim de sessão)
+7f1f560 docs: registro da sessão (hook de fim de sessão)
+37678cb feat: fase B da mira, parâmetros ligados ao jogo
+bbf2194 docs: registro da sessão (hook de fim de sessão)
+c7b7623 docs: registro da sessão (hook de fim de sessão)
+6c842a5 docs: registro da sessão (hook de fim de sessão)
+5a85b47 feat: fase A da mira, configuração com os parâmetros da Garena
+75f1f7b docs: registro da sessão (hook de fim de sessão)
+b3d1cae docs: registro da sessão (hook de fim de sessão)
+c5b43f1 docs: registro da sessão (hook de fim de sessão)
+d094c67 docs: registro da sessão (hook de fim de sessão)
+d959cfb docs: registro da sessão (hook de fim de sessão)
+56fd543 docs: registro da sessão (hook de fim de sessão)
+aedaf23 docs: registro da sessão (hook de fim de sessão)
+4db2c38 docs: registro da sessão (hook de fim de sessão)
+b1806c8 docs: registro da sessão (hook de fim de sessão)
+86264a0 docs: registro da sessão (hook de fim de sessão)
+4c3a0fa docs: registro da sessão (hook de fim de sessão)
+3d3cf7c docs: registro da sessão (hook de fim de sessão)
+24017ca docs: registro da sessão (hook de fim de sessão)
+7385f08 feat: mira com quatro tracinhos e ponto vermelho no centro
+6b8f9dc docs: registro da sessão (hook de fim de sessão)
+a44c33d docs: registro da sessão (hook de fim de sessão)
+301ae4b feat: câmera mais perto e personagem um pouco maior
+051ac49 docs: registro da sessão (hook de fim de sessão)
+2cb36ac feat: botões do HUD 25% maiores por padrão
+366839f docs: registro da sessão (hook de fim de sessão)
+dca9d75 feat: paredes de proteção somem no começo de cada round da arena
+076adf1 docs: registro da sessão (hook de fim de sessão)
+2748a51 feat: arena sem caixas e sem nomes sobre os inimigos
+81a2a6b docs: registro da sessão (hook de fim de sessão)
+0998ad6 docs: registro da sessão (hook de fim de sessão)
+1bb4f3e fix: tiro e granada do jogador não atingem companheiros na arena
+1719106 docs: registro da sessão (hook de fim de sessão)
+4c577b0 feat: bots da sala maiores e mais largos
+3a0cf77 docs: registro da sessão (hook de fim de sessão)
+b6d5ef7 feat: arma comprada na arena vai para a mão na hora
+78ff748 docs: registro da sessão (hook de fim de sessão)
+f996bd7 fix: parede de proteção na arena e nomes dos inimigos legíveis
+c8e86fd docs: registro da sessão (hook de fim de sessão)
+9ab1461 docs: registro da sessão (hook de fim de sessão)
+f25e4f9 fix: caveira de abate 40% menor
+88beb54 docs: registro da sessão (hook de fim de sessão)
+292fa81 feat: arena com munição sem fim, paredes sem limite, nascimento em linha e nomes
+71cf3d0 docs: registro da sessão (hook de fim de sessão)
+b872ea5 docs: registro da sessão (hook de fim de sessão)
+ae0fc0a docs: registro da sessão (hook de fim de sessão)
+f1c3ae0 feat: bots põem paredes, paredes racham até quebrar e bloqueiam tiros
+c791b0c docs: registro da sessão (hook de fim de sessão)
+4783618 feat: vida máxima 200 para jogador e bots
+455f200 docs: registro da sessão (hook de fim de sessão)
+8af8ae9 feat: emblema de caveira no abate e tela de fim de round completa
+0d945de docs: registro da sessão (hook de fim de sessão)
+c821d01 feat: IA por equipe e abates creditados ao atirador na sala personalizada
+16d94e5 docs: registro da sessão (hook de fim de sessão)
+a6e76a8 docs: registro da sessão (hook de fim de sessão)
+999acf4 fix: portal da arena de mira encostado na parede esquerda do galpão, longe dos bonecos
+871b1e1 docs: registro da sessão (hook de fim de sessão)
+e77a90c feat: portal ARENA DE MIRA no treinamento, com 3 bots (correndo, andando, parado)
+a5682b6 docs: registro da sessão (hook de fim de sessão)
+db2ec97 feat: sala personalizada com 15 rounds, loja de armas, espectador e placar
+19b4944 docs: registro da sessão (hook de fim de sessão)
+f85080d feat: caixas e containers aleatórios na ARENA LIVRE
+032eedd docs: registro da sessão (hook de fim de sessão)
+1c9e2c9 feat: SALA PERSONALIZADA (4x4 com amigos) com regras, telas e ARENA LIVRE (local)
+f5ce2db docs: registro da sessão (hook de fim de sessão)
+6baa603 docs: registro da sessão (hook de fim de sessão)
+8f8d69d docs: registro da sessão (hook de fim de sessão)
+f3dcbfe feat: tela Perfil do jogador no layout da arte enviada
+3829b8e docs: registro da sessão (hook de fim de sessão)
+a0ce495 feat: tela Perfil do jogador em tela cheia com o menu lateral (conteúdo vazio)
+fe5059b docs: registro da sessão (hook de fim de sessão)
+7c45746 feat: toque no perfil abre a tela Perfil do jogador (vazia por enquanto)
+40dca0d docs: registro da sessão (hook de fim de sessão)
+5deaad1 fix: clipe que o modelo não tem não derruba o jogo (erro ao usar emote no lobby)
+964b619 docs: registro da sessão (hook de fim de sessão)
+d04a367 docs: registro da sessão (hook de fim de sessão)
+e014ed3 docs: registro da sessão (hook de fim de sessão)
+a00f06e docs: registro da sessão (hook de fim de sessão)
+977c415 feat: símbolo do SEM LIMITES menor e painel do jogador encostado nele
+46cbf12 docs: registro da sessão (hook de fim de sessão)
+9ffff24 feat: símbolo SEM LIMITES no lugar do logo do lobby
+5613ea7 docs: registro da sessão (hook de fim de sessão)
+252ce77 feat: ícone do Reboladinha no espaço Desafio (sem nome)
+e43eaab docs: registro da sessão (hook de fim de sessão)
+3da6455 feat: ícones dos emotes na roda e rótulos com o nome do arquivo
+a7becd1 docs: registro da sessão (hook de fim de sessão)
+26772d3 docs: registro da sessão (hook de fim de sessão)
+05ba8a4 docs: registro da sessão (hook de fim de sessão)
+9bb31dd docs: registro da sessão (hook de fim de sessão)
+dc7a24b docs: registro da sessão (hook de fim de sessão)
+a072863 docs: registro da sessão (hook de fim de sessão)
+b61fe55 feat: roda de emotes no lobby (8 espaços, execução no modelo 3D)
+d0b7bb0 docs: registro da sessão (hook de fim de sessão)
+131fd38 docs: registro da sessão (hook de fim de sessão)
+b402009 docs: registro da sessão (hook de fim de sessão)
+eff0fed feat: lobby com o cenário e o personagem 3D em pé no centro
+a948db5 docs: registro da sessão (hook de fim de sessão)
+70dc770 feat: nome e ícone do app (SEM LIMITES)
+ae999fb docs: registro da sessão (hook de fim de sessão)
+6b74478 fix: andar relativo à câmera e abertura com a imagem inteira
+195dcc0 docs: registro da sessão (hook de fim de sessão)
+640d0fc docs: registro da sessão (hook de fim de sessão)
+79d9aa7 feat: agachar com a animação Crouching (retargetada do Mixamo)
+4abde59 docs: registro da sessão (hook de fim de sessão)
+6d84c14 docs: registro da sessão (hook de fim de sessão)
+f23f932 feat: sensi X e Y ao atirar (horizontal e vertical)
+7e8272d docs: registro da sessão (hook de fim de sessão)
+74edf25 fix: abertura aparece na tela (sem preto) e analógico anda sem girar
+af96a2b docs: registro da sessão (hook de fim de sessão)
+64932a8 docs: registro da sessão (hook de fim de sessão)
+2e32b8b docs: registro da sessão (hook de fim de sessão)
+baca80c feat: abertura aparece já no primeiro quadro, com música em loop
+0fe0326 docs: registro da sessão (hook de fim de sessão)
+39956ed fix: pegar outra arma não apaga a que já está equipada (arsenal do treino)
+a862b5a docs: registro da sessão (hook de fim de sessão)
+28ec72d fix: girar a câmera pelo botão de tiro não cancela a corrida
+---
+
+## Session End: 20261127_211430
+### Commits
+51255c3 docs: registro da sessão (hook de fim de sessão)
+1d19634 docs: registro da sessão (hook de fim de sessão)
+bf81aee docs: registro da sessão (hook de fim de sessão)
+721f97e docs: registro da sessão (hook de fim de sessão)
+c2f3279 docs: registro da sessão (hook de fim de sessão)
+fa662b0 docs: registro da sessão (hook de fim de sessão)
+1c75b28 test: revisão da mira, mudança de direção, borda do cone e controle manual
+0871bb9 docs: registro da sessão (hook de fim de sessão)
+c764614 docs: registro da sessão (hook de fim de sessão)
+dacf823 feat: mira com limite de velocidade, tracking, freio e centro na seleção
+133e27b docs: registro da sessão (hook de fim de sessão)
+7f1f560 docs: registro da sessão (hook de fim de sessão)
+37678cb feat: fase B da mira, parâmetros ligados ao jogo
+bbf2194 docs: registro da sessão (hook de fim de sessão)
+c7b7623 docs: registro da sessão (hook de fim de sessão)
+6c842a5 docs: registro da sessão (hook de fim de sessão)
+5a85b47 feat: fase A da mira, configuração com os parâmetros da Garena
+75f1f7b docs: registro da sessão (hook de fim de sessão)
+b3d1cae docs: registro da sessão (hook de fim de sessão)
+c5b43f1 docs: registro da sessão (hook de fim de sessão)
+d094c67 docs: registro da sessão (hook de fim de sessão)
+d959cfb docs: registro da sessão (hook de fim de sessão)
+56fd543 docs: registro da sessão (hook de fim de sessão)
+aedaf23 docs: registro da sessão (hook de fim de sessão)
+4db2c38 docs: registro da sessão (hook de fim de sessão)
+b1806c8 docs: registro da sessão (hook de fim de sessão)
+86264a0 docs: registro da sessão (hook de fim de sessão)
+4c3a0fa docs: registro da sessão (hook de fim de sessão)
+3d3cf7c docs: registro da sessão (hook de fim de sessão)
+24017ca docs: registro da sessão (hook de fim de sessão)
+7385f08 feat: mira com quatro tracinhos e ponto vermelho no centro
+6b8f9dc docs: registro da sessão (hook de fim de sessão)
+a44c33d docs: registro da sessão (hook de fim de sessão)
+301ae4b feat: câmera mais perto e personagem um pouco maior
+051ac49 docs: registro da sessão (hook de fim de sessão)
+2cb36ac feat: botões do HUD 25% maiores por padrão
+366839f docs: registro da sessão (hook de fim de sessão)
+dca9d75 feat: paredes de proteção somem no começo de cada round da arena
+076adf1 docs: registro da sessão (hook de fim de sessão)
+2748a51 feat: arena sem caixas e sem nomes sobre os inimigos
+81a2a6b docs: registro da sessão (hook de fim de sessão)
+0998ad6 docs: registro da sessão (hook de fim de sessão)
+1bb4f3e fix: tiro e granada do jogador não atingem companheiros na arena
+1719106 docs: registro da sessão (hook de fim de sessão)
+4c577b0 feat: bots da sala maiores e mais largos
+3a0cf77 docs: registro da sessão (hook de fim de sessão)
+b6d5ef7 feat: arma comprada na arena vai para a mão na hora
+78ff748 docs: registro da sessão (hook de fim de sessão)
+f996bd7 fix: parede de proteção na arena e nomes dos inimigos legíveis
+c8e86fd docs: registro da sessão (hook de fim de sessão)
+9ab1461 docs: registro da sessão (hook de fim de sessão)
+f25e4f9 fix: caveira de abate 40% menor
+88beb54 docs: registro da sessão (hook de fim de sessão)
+292fa81 feat: arena com munição sem fim, paredes sem limite, nascimento em linha e nomes
+71cf3d0 docs: registro da sessão (hook de fim de sessão)
+b872ea5 docs: registro da sessão (hook de fim de sessão)
+ae0fc0a docs: registro da sessão (hook de fim de sessão)
+f1c3ae0 feat: bots põem paredes, paredes racham até quebrar e bloqueiam tiros
+c791b0c docs: registro da sessão (hook de fim de sessão)
+4783618 feat: vida máxima 200 para jogador e bots
+455f200 docs: registro da sessão (hook de fim de sessão)
+8af8ae9 feat: emblema de caveira no abate e tela de fim de round completa
+0d945de docs: registro da sessão (hook de fim de sessão)
+c821d01 feat: IA por equipe e abates creditados ao atirador na sala personalizada
+16d94e5 docs: registro da sessão (hook de fim de sessão)
+a6e76a8 docs: registro da sessão (hook de fim de sessão)
+999acf4 fix: portal da arena de mira encostado na parede esquerda do galpão, longe dos bonecos
+871b1e1 docs: registro da sessão (hook de fim de sessão)
+e77a90c feat: portal ARENA DE MIRA no treinamento, com 3 bots (correndo, andando, parado)
+a5682b6 docs: registro da sessão (hook de fim de sessão)
+db2ec97 feat: sala personalizada com 15 rounds, loja de armas, espectador e placar
+19b4944 docs: registro da sessão (hook de fim de sessão)
+f85080d feat: caixas e containers aleatórios na ARENA LIVRE
+032eedd docs: registro da sessão (hook de fim de sessão)
+1c9e2c9 feat: SALA PERSONALIZADA (4x4 com amigos) com regras, telas e ARENA LIVRE (local)
+f5ce2db docs: registro da sessão (hook de fim de sessão)
+6baa603 docs: registro da sessão (hook de fim de sessão)
+8f8d69d docs: registro da sessão (hook de fim de sessão)
+f3dcbfe feat: tela Perfil do jogador no layout da arte enviada
+3829b8e docs: registro da sessão (hook de fim de sessão)
+a0ce495 feat: tela Perfil do jogador em tela cheia com o menu lateral (conteúdo vazio)
+fe5059b docs: registro da sessão (hook de fim de sessão)
+7c45746 feat: toque no perfil abre a tela Perfil do jogador (vazia por enquanto)
+40dca0d docs: registro da sessão (hook de fim de sessão)
+5deaad1 fix: clipe que o modelo não tem não derruba o jogo (erro ao usar emote no lobby)
+964b619 docs: registro da sessão (hook de fim de sessão)
+d04a367 docs: registro da sessão (hook de fim de sessão)
+e014ed3 docs: registro da sessão (hook de fim de sessão)
+a00f06e docs: registro da sessão (hook de fim de sessão)
+977c415 feat: símbolo do SEM LIMITES menor e painel do jogador encostado nele
+46cbf12 docs: registro da sessão (hook de fim de sessão)
+9ffff24 feat: símbolo SEM LIMITES no lugar do logo do lobby
+5613ea7 docs: registro da sessão (hook de fim de sessão)
+252ce77 feat: ícone do Reboladinha no espaço Desafio (sem nome)
+e43eaab docs: registro da sessão (hook de fim de sessão)
+3da6455 feat: ícones dos emotes na roda e rótulos com o nome do arquivo
+a7becd1 docs: registro da sessão (hook de fim de sessão)
+26772d3 docs: registro da sessão (hook de fim de sessão)
+05ba8a4 docs: registro da sessão (hook de fim de sessão)
+9bb31dd docs: registro da sessão (hook de fim de sessão)
+dc7a24b docs: registro da sessão (hook de fim de sessão)
+a072863 docs: registro da sessão (hook de fim de sessão)
+b61fe55 feat: roda de emotes no lobby (8 espaços, execução no modelo 3D)
+d0b7bb0 docs: registro da sessão (hook de fim de sessão)
+131fd38 docs: registro da sessão (hook de fim de sessão)
+b402009 docs: registro da sessão (hook de fim de sessão)
+eff0fed feat: lobby com o cenário e o personagem 3D em pé no centro
+a948db5 docs: registro da sessão (hook de fim de sessão)
+70dc770 feat: nome e ícone do app (SEM LIMITES)
+ae999fb docs: registro da sessão (hook de fim de sessão)
+6b74478 fix: andar relativo à câmera e abertura com a imagem inteira
+195dcc0 docs: registro da sessão (hook de fim de sessão)
+640d0fc docs: registro da sessão (hook de fim de sessão)
+79d9aa7 feat: agachar com a animação Crouching (retargetada do Mixamo)
+4abde59 docs: registro da sessão (hook de fim de sessão)
+6d84c14 docs: registro da sessão (hook de fim de sessão)
+f23f932 feat: sensi X e Y ao atirar (horizontal e vertical)
+7e8272d docs: registro da sessão (hook de fim de sessão)
+74edf25 fix: abertura aparece na tela (sem preto) e analógico anda sem girar
+af96a2b docs: registro da sessão (hook de fim de sessão)
+64932a8 docs: registro da sessão (hook de fim de sessão)
+2e32b8b docs: registro da sessão (hook de fim de sessão)
+baca80c feat: abertura aparece já no primeiro quadro, com música em loop
+0fe0326 docs: registro da sessão (hook de fim de sessão)
+39956ed fix: pegar outra arma não apaga a que já está equipada (arsenal do treino)
+### Uncommitted Changes
+production/session-logs/.session-end.hash
+production/session-logs/session-log.md
+---
+
