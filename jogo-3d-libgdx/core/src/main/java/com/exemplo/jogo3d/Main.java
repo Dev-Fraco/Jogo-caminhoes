@@ -81,8 +81,8 @@ public class Main extends ApplicationAdapter {
     // Menu principal: o jogo abre aqui; morrer ou sair da partida volta para cá
     private boolean inMenu = true;
     private Intro intro;                          // abertura (só ao iniciar o jogo)
-    private final float[][] menuRects = new float[MENU_ITEMS.length][4];
-    private static final String[] MENU_ITEMS = {"BATTLE ROYALE", "TREINAMENTO", "CONFIGURAÇÕES"};
+    private final Lobby lobby = new Lobby();      // lobby (menu principal)
+
     private boolean training = false;   // modo treinamento (galpão com dois bonecos) em vez do battle royale
     private boolean trainPanel = false; // caixa de equipamentos do treino (lista de armas)
     private boolean trainBoxNear = false;   // perto da caixa de equipamentos (mostra o botão de ação)
@@ -731,7 +731,7 @@ public class Main extends ApplicationAdapter {
                 if (i == runPointer) runPointer = -1;
                 if (i == jumpPointer) jumpPointer = -1;
                 if (i == firePointer) firePointer = -1;
-                if (i == arsenalPointer) { arsenal.release(); arsenalPointer = -1; }
+                if (i == arsenalPointer) { arsenal.release(); lobby.release(); arsenalPointer = -1; }
                 if (i == fire2Pointer) fire2Pointer = -1;
                 if (i == wallPointer) releaseWall();
                 if (i == grenPointer) {
@@ -759,6 +759,7 @@ public class Main extends ApplicationAdapter {
                 continue;
             }
             if (trainPanel && i == arsenalPointer) arsenal.drag(yb);
+            if (inMenu && i == arsenalPointer) lobby.drag(yb);
             if (i == joyPointer) {
                 float[] r = hud.rect(hud.get("joystick"));
                 float cx = r[0] + r[2] / 2f, cy = r[1] + r[3] / 2f;
@@ -831,6 +832,7 @@ public class Main extends ApplicationAdapter {
             return;
         }
         if (inMenu) {
+            arsenalPointer = i;   // o dedo que abre o arsenal do lobby pode rolar a grade
             menuPress(x, yb);
             return;
         }
@@ -1125,75 +1127,21 @@ public class Main extends ApplicationAdapter {
 
     // ---------- Menu principal ----------
 
-    private void menuLayout(int W, int H) {
-        float bw = Math.min(W * 0.6f, H * 1.1f), bh = H * 0.1f, gap = H * 0.03f, top = H * 0.42f;
-        for (int i = 0; i < MENU_ITEMS.length; i++) {
-            menuRects[i][0] = (W - bw) / 2f;
-            menuRects[i][1] = top - i * (bh + gap);
-            menuRects[i][2] = bw;
-            menuRects[i][3] = bh;
-        }
-    }
-
+    /** Menu principal: o lobby (fundo preto, ícones e painéis). */
     private void drawMenu(int W, int H) {
-        menuLayout(W, H);
         hudCamera.setToOrtho(false, W, H);
         hudCamera.update();
-        shapes.setProjectionMatrix(hudCamera.combined);
         batch.setProjectionMatrix(hudCamera.combined);
-        Gdx.gl.glClearColor(0.72f, 0.82f, 0.92f, 1f);   // céu pálido de seca
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
-        Gdx.gl.glEnable(GL20.GL_BLEND);
-        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
-        shapes.begin(ShapeRenderer.ShapeType.Filled);
-        shapes.setColor(0.86f, 0.74f, 0.50f, 1f);   // chão de terra
-        shapes.rect(0, 0, W, H * 0.30f);
-        shapes.setColor(0.62f, 0.42f, 0.22f, 1f);
-        shapes.rect(0, H * 0.30f, W, H * 0.02f);
-        for (float[] r : menuRects) {
-            shapes.setColor(0.42f, 0.26f, 0.13f, 0.97f);
-            shapes.rect(r[0], r[1], r[2], r[3]);
-        }
-        shapes.end();
-        shapes.begin(ShapeRenderer.ShapeType.Line);
-        shapes.setColor(0.95f, 0.8f, 0.45f, 1f);
-        for (float[] r : menuRects) shapes.rect(r[0], r[1], r[2], r[3]);
-        shapes.end();
-        batch.begin();
-        font.getData().setScale(Math.max(1.5f, H / 480f));
-        font.setColor(0.35f, 0.2f, 0.1f, 1f);
-        String title = "NORDESTE";
-        layout.setText(font, title);
-        font.draw(batch, title, (W - layout.width) / 2f, H * 0.86f);
-        title = "SECA BRABA";
-        layout.setText(font, title);
-        font.draw(batch, title, (W - layout.width) / 2f, H * 0.74f);
-        font.getData().setScale(Math.max(1f, H / 900f));
-        String sub = "Sertão do Ceará · 1915";
-        layout.setText(font, sub);
-        font.draw(batch, sub, (W - layout.width) / 2f, H * 0.66f);
-        font.getData().setScale(Math.max(1.2f, H / 700f));
-        for (int i = 0; i < MENU_ITEMS.length; i++) {
-            float[] r = menuRects[i];
-            layout.setText(font, MENU_ITEMS[i]);
-            font.setColor(1f, 0.95f, 0.8f, 1f);
-            font.draw(batch, MENU_ITEMS[i], r[0] + (r[2] - layout.width) / 2f, r[1] + (r[3] + layout.height) / 2f);
-        }
-        font.getData().setScale(1.1f);
-        batch.end();
+        lobby.draw(batch, shapes, font, world != null ? world.weapons : null, hudCamera.combined, W, H,
+                Math.min(Gdx.graphics.getDeltaTime(), 0.05f));
         if (settingsOpen) drawSettings(W, H);
-        Gdx.gl.glDisable(GL20.GL_BLEND);
     }
 
     private void menuPress(float x, float yb) {
-        for (int i = 0; i < MENU_ITEMS.length; i++) {
-            float[] r = menuRects[i];
-            if (x < r[0] || x > r[0] + r[2] || yb < r[1] || yb > r[1] + r[3]) continue;
-            if (i == 0) startMatch();
-            else if (i == 1) startTraining();
-            else settingsOpen = true;
-            return;
-        }
+        Lobby.Act act = lobby.press(x, yb, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        if (act == Lobby.Act.BATTLE) startMatch();
+        else if (act == Lobby.Act.TRAINING) startTraining();
+        else if (act == Lobby.Act.SETTINGS) settingsOpen = true;
     }
 
     /** Jogar: partida nova (avião e alvo de volta ao começo). */
@@ -1233,6 +1181,8 @@ public class Main extends ApplicationAdapter {
         inMenu = false;
         respawn();
         if (enemies != null) enemies.clear();
+        int choice = lobby.weaponChoice();
+        if (choice >= 0 && world.weapons != null) world.weapons.giveStart(choice, character);   // arma escolhida no arsenal
     }
 
     // ---------- Treinamento: caixa de armas ----------
@@ -1578,6 +1528,7 @@ public class Main extends ApplicationAdapter {
     @Override
     public void dispose() {
         if (intro != null) intro.dispose();
+        lobby.dispose();
         modelBatch.dispose();
         if (scope != null) scope.dispose();
         if (sight != null) sight.dispose();
