@@ -182,17 +182,19 @@ public class Character {
 
     /** Toca uma animação uma vez (ex.: "LieDown", "GetUp"). Ao terminar, fica na última pose. */
     public void playOnce(String clip) {
+        com.badlogic.gdx.graphics.g3d.model.Animation a = model.getAnimation(clip);
+        if (a == null) return;   // este modelo não tem o clipe: não toca (em vez de derrubar o jogo)
         onceClip = clip;
         onceT = 0f;
         onceDone = false;
         onceLoop = false;
-        com.badlogic.gdx.graphics.g3d.model.Animation a = model.getAnimation(clip);
-        onceDur = a != null && a.duration > 0f ? a.duration : 1.2f;
+        onceDur = a.duration > 0f ? a.duration : 1.2f;
         anim.animate(clip, 1, 1f, null, 0.2f);
     }
 
     /** Toca uma animação repetindo, fora do andar/parado, até endOnce() (ex.: "Falling" na queda livre). */
     public void playLoop(String clip) {
+        if (model.getAnimation(clip) == null) return;   // sem o clipe neste modelo
         onceClip = clip;
         onceT = 0f;
         onceDone = false;

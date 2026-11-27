@@ -85,6 +85,14 @@ public class EmoteTests extends ApplicationAdapter {
         passar(19.5f);
         check("a dança termina depois das duas vezes", !em.emoteAtivo(), "");
 
+        System.out.println("== Modelo sem o clipe: não derruba o jogo e o emote termina ==");
+        boolean semErro = true;
+        try { ch.playOnce("Emote_QueNaoExiste"); } catch (Throwable t) { semErro = false; }
+        check("tocar um clipe que o modelo não tem não lança erro", semErro, "");
+        em.executar(0, ch);
+        passar(20f); passar(20f);
+        check("emote com repetições sempre termina", !em.emoteAtivo(), "");
+
         System.out.println("== Roda: o toque cai no espaço certo (topo = Dança, horário) ==");
         int W = 1280, H = 720;
         float raio = Math.min(W, H) * 0.46f * 0.85f;   // roda fechada (abertura 0)
