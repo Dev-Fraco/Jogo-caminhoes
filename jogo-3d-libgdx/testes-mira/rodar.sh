@@ -21,6 +21,7 @@ java -cp "$OUT:$CP" com.exemplo.jogo3d.TargetBotTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.AnimTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.ControlTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.ClimaTests
+java -cp "$OUT:$CP" com.exemplo.jogo3d.RelevoTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.WallTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.SurvivalTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.ScopeTests

@@ -40,7 +40,7 @@ public class World {
     static final int CHUNKS = 6;             // o terreno é feito em 6 x 6 pedaços (cada um dentro do limite de vértices)
     static final int GRID = 48;              // células por lado de cada pedaço (4 vértices por célula: menos memória)
     static final float ROAD_HALF = 3.5f;     // estrada de barro: meia largura (7 m), no eixo x (z = 0)
-    static final float ROAD_SHOULDER = 5f;   // faixa em que o terreno se ajusta suavemente à estrada
+    static final float ROAD_SHOULDER = 30f;  // faixa em que o terreno se ajusta suavemente à estrada (larga: em encosta a estrada não vira degrau)
     static final float HOUSE_Z = 30f;        // casas ao lado da estrada (distância do eixo)
     static final float TOWN_X = 100f;        // cidade: centro (onde a estrada é quase reta)
     static final float TOWN_Z = roadZ(TOWN_X);
@@ -234,11 +234,95 @@ public class World {
         return maxObsRadius;
     }
 
-    /** Altura do terreno em (x, z). A estrada (z = 0) é plana, e o terreno se ajusta suavemente a ela. */
+    // Grade de alturas (a cada ALT_PASSO m): o relevo é calculado uma vez e depois só se interpola
+    static final float ALT_PASSO = 3f;
+    static final int ALT_N = (int) (SIZE / ALT_PASSO) + 1;
+    private float[] alturas;        // ALT_N x ALT_N (linha = z)
+    private float[] perfilEstrada;  // altura suave da estrada em cada coluna da grade
+
+    /** Altura do terreno em (x, z): interpolação da grade (rápida, usada o jogo inteiro). */
     public float heightAt(float x, float z) {
         if (training) return 0f;   // treino: chão reto
+        if (alturas == null) return computeHeight(x, z);
+        float fx = MathUtils.clamp((x + HALF) / ALT_PASSO, 0f, ALT_N - 1.001f);
+        float fz = MathUtils.clamp((z + HALF) / ALT_PASSO, 0f, ALT_N - 1.001f);
+        int i = (int) fx, j = (int) fz;
+        float tx = fx - i, tz = fz - j;
+        float a = alturas[j * ALT_N + i], b = alturas[j * ALT_N + i + 1];
+        float c = alturas[(j + 1) * ALT_N + i], d = alturas[(j + 1) * ALT_N + i + 1];
+        return (a + (b - a) * tx) * (1f - tz) + (c + (d - c) * tx) * tz;
+    }
+
+    /** Monta a grade de alturas do mundo (depois de escolher e proteger os lugares). */
+    void montaRelevo() {
+        townH = Float.NaN;   // a altura da vila é recalculada com as zonas protegidas
+        perfilEstrada = new float[ALT_N];
+        float sig = 35f / ALT_PASSO;
+        int raio = (int) (3f * sig) + 1;
+        for (int i = 0; i < ALT_N; i++) {
+            float soma = 0f, pesos = 0f;
+            for (int k = -raio; k <= raio; k++) {
+                int ii = MathUtils.clamp(i + k, 0, ALT_N - 1);
+                float xk = -HALF + ii * ALT_PASSO;
+                float w = (float) Math.exp(-(k * k) / (2f * sig * sig));
+                soma += w * baseHeight(xk, roadZ(xk));
+                pesos += w;
+            }
+            // dentro dos lugares protegidos a estrada segue o chão plano deles, não a média de fora
+            float crua = baseHeight(-HALF + i * ALT_PASSO, roadZ(-HALF + i * ALT_PASSO));
+            float f = Relevo.fator(-HALF + i * ALT_PASSO, roadZ(-HALF + i * ALT_PASSO));
+            perfilEstrada[i] = crua + (soma / pesos - crua) * f;
+        }
+        alturas = new float[ALT_N * ALT_N];
+        for (int j = 0; j < ALT_N; j++)
+            for (int i = 0; i < ALT_N; i++)
+                alturas[j * ALT_N + i] = computeHeight(-HALF + i * ALT_PASSO, -HALF + j * ALT_PASSO);
+    }
+
+    /** Altura mínima e máxima da grade dentro de um retângulo (para a caixa de desenho do pedaço). */
+    private float[] minMaxAlturas(float x0, float z0, float x1, float z1) {
+        int i0 = MathUtils.clamp((int) Math.floor((x0 + HALF) / ALT_PASSO), 0, ALT_N - 1);
+        int i1 = MathUtils.clamp((int) Math.ceil((x1 + HALF) / ALT_PASSO), 0, ALT_N - 1);
+        int j0 = MathUtils.clamp((int) Math.floor((z0 + HALF) / ALT_PASSO), 0, ALT_N - 1);
+        int j1 = MathUtils.clamp((int) Math.ceil((z1 + HALF) / ALT_PASSO), 0, ALT_N - 1);
+        float mn = 1e9f, mx = -1e9f;
+        for (int j = j0; j <= j1; j++)
+            for (int i = i0; i <= i1; i++) {
+                float h = alturas[j * ALT_N + i];
+                mn = Math.min(mn, h);
+                mx = Math.max(mx, h);
+            }
+        return new float[]{mn, mx};
+    }
+
+    /** Altura da estrada em x (perfil suave: a estrada não tem degraus nem ladeiras fortes). */
+    private float roadBase(float x) {
+        if (perfilEstrada == null) return baseHeight(x, roadZ(x));
+        float f = MathUtils.clamp((x + HALF) / ALT_PASSO, 0f, ALT_N - 1.001f);
+        int i = (int) f;
+        float t = f - i;
+        return perfilEstrada[i] + (perfilEstrada[i + 1] - perfilEstrada[i]) * t;
+    }
+
+    /** Inclinação local (subida por metro) numa escala de 3 m. */
+    float declive(float x, float z) {
+        float e = 3f;
+        float dx = (heightAt(x + e, z) - heightAt(x - e, z)) / (2f * e);
+        float dz = (heightAt(x, z + e) - heightAt(x, z - e)) / (2f * e);
+        return (float) Math.sqrt(dx * dx + dz * dz);
+    }
+
+    /** Dá para ir de (x0, z0) a (x1, z1) num passo? Subida mais íngreme que ~43° é paredão. */
+    boolean podeAndar(float x0, float z0, float x1, float z1) {
+        float len = (float) Math.hypot(x1 - x0, z1 - z0);
+        float dy = heightAt(x1, z1) - heightAt(x0, z0);
+        return dy <= 0.95f * len + 0.02f;
+    }
+
+    /** Altura completa do terreno (relevo, estrada, vila, cemitério): usada para montar a grade. */
+    private float computeHeight(float x, float z) {
         float rz = roadZ(x);
-        float road = baseHeight(x, rz);
+        float road = roadBase(x);
         float t = MathUtils.clamp((Math.abs(z - rz) - ROAD_HALF) / ROAD_SHOULDER, 0f, 1f);
         float w = t * t * (3f - 2f * t);
         float base = baseHeight(x, z);
@@ -302,19 +386,9 @@ public class World {
         return -70f + 15f * MathUtils.sin(z * 0.025f);
     }
 
-    /** Relevo natural (sem a estrada): plano perto do spawn, colinas ao redor. */
+    /** Relevo natural com as zonas protegidas, o açude e o rio seco. */
     private float baseHeight(float x, float z) {
-        float h = 2.8f * MathUtils.sin(x * 0.040f + 0.7f) * MathUtils.cos(z * 0.035f - 0.3f)
-                + 1.7f * MathUtils.sin(x * 0.100f - z * 0.070f + 2.1f)
-                + 0.8f * MathUtils.sin(x * 0.230f + 1.7f) * MathUtils.sin(z * 0.190f + 0.4f);
-        float r = (float) Math.sqrt(x * x + z * z);
-        float t = MathUtils.clamp((r - SPAWN_CLEAR) / 14f, 0f, 1f);
-        float flat = t * t * (3f - 2f * t);
-        float edge = Math.max(Math.abs(x), Math.abs(z));
-        float k = MathUtils.clamp((edge - 430f) / 110f, 0f, 1f);
-        k = k * k * (3f - 2f * k);
-        float corners = 16f * k * (0.6f + 0.4f * MathUtils.sin(x * 0.07f + 0.5f) * MathUtils.cos(z * 0.06f - 0.9f));
-        float y = h * flat + corners + Regions.hillHeight(x, z);   // serras (longe da estrada e da vila)
+        float y = Relevo.base(x, z);
         if (hasDam) {
             // Açude: fundo rebaixado 35 cm, com as bordas subindo suavemente
             float d = (float) Math.sqrt((x - damX) * (x - damX) + (z - damZ) * (z - damZ));
@@ -409,7 +483,7 @@ public class World {
             if (nearWellOrDam(x, z, 50f) || Regions.farmDist(x, z) < 60f) continue;
             float mn = 1e9f, mx = -1e9f;
             for (int i = -4; i <= 4; i++) for (int j = -4; j <= 4; j++) {
-                float h = heightAt(x + i * 3.75f, z + j * 3.75f);
+                float h = Relevo.bruto(x + i * 3.75f, z + j * 3.75f);
                 mn = Math.min(mn, h);
                 mx = Math.max(mx, h);
             }
@@ -425,7 +499,7 @@ public class World {
             float sum = 0f;
             int n = 0;
             for (float lx = -10f; lx <= 10.01f; lx += 2f) for (float lz = -10f; lz <= 10.01f; lz += 2f) {
-                sum += heightAt(cemX + lx, cemZ + lz);
+                sum += Relevo.bruto(cemX + lx, cemZ + lz);
                 n++;
             }
             cemH = sum / n;
@@ -453,11 +527,11 @@ public class World {
         float mn = 1e9f, mx = -1e9f;
         for (int i = 0; i < 8; i++) {
             float a = MathUtils.PI2 * i / 8f;
-            float h = heightAt(x + r * MathUtils.cos(a), z + r * MathUtils.sin(a));
+            float h = Relevo.bruto(x + r * MathUtils.cos(a), z + r * MathUtils.sin(a));
             mn = Math.min(mn, h);
             mx = Math.max(mx, h);
         }
-        float c = heightAt(x, z);
+        float c = Relevo.bruto(x, z);
         mn = Math.min(mn, c);
         mx = Math.max(mx, c);
         return mx - mn <= maxRange;
@@ -614,6 +688,16 @@ public class World {
         crackTexture = new Texture(Gdx.files.internal("textures/cracks.jpg"));
         crackTexture.setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat);
         choosePlacesForLandmarks();
+        // Relevo: lugares importantes ficam planos; o resto é o relevo natural (montes, vales, platôs)
+        Relevo.limpa();
+        Relevo.protege(0f, 0f, 60f, 40f);                       // nascimento
+        Relevo.protege(TOWN_X, TOWN_Z, 110f, 70f);              // vila
+        for (int f = 0; f < Regions.FARM_X.length; f++) Relevo.protege(Regions.FARM_X[f], Regions.FARM_Z[f], 35f, 50f);
+        if (hasCem) cemH = Relevo.protege(cemX, cemZ, 40f, 45f);   // cemitério: o chão do cercado é a mesma altura do relevo protegido
+        if (hasDam) Relevo.protege(damX, damZ, 16f, 30f);       // açude
+        if (hasWell) Relevo.protege(wellX, wellZ, 10f, 25f);    // cacimba
+        for (float[] c : casasDaEstrada()) Relevo.protege(c[0], c[1], 22f, 40f);   // casas da estrada
+        montaRelevo();
 
         ModelBuilder mb = new ModelBuilder();
 
@@ -644,8 +728,9 @@ public class World {
                 instances.add(mi);
                 terrainParts.add(mi);
                 // caixa do pedaço (centro e meias-dimensões): só desenha se estiver na frente da câmera
-                terrainBox.put(mi, new float[]{-HALF + ci * chunk + chunk / 2f, 40f, -HALF + cj * chunk + chunk / 2f,
-                        chunk / 2f + 1f, 60f, chunk / 2f + 1f});
+                float[] mm = minMaxAlturas(-HALF + ci * chunk, -HALF + cj * chunk, -HALF + (ci + 1) * chunk, -HALF + (cj + 1) * chunk);
+                terrainBox.put(mi, new float[]{-HALF + ci * chunk + chunk / 2f, (mm[0] + mm[1]) / 2f, -HALF + cj * chunk + chunk / 2f,
+                        chunk / 2f + 1f, (mm[1] - mm[0]) / 2f + 4f, chunk / 2f + 1f});
             }
         }
 
@@ -750,15 +835,8 @@ public class World {
                 ModelIO.load("models/cactus1.g3dj"),
                 ModelIO.load("models/cactus2.g3dj")};
         cartModel = ModelIO.load("models/carroca.g3dj");
-        // Casas ao lado da estrada, nos dois lados, sempre longe uma da outra; a porta fica voltada para a estrada
-        final float[][] houseSpots = {
-                {-30f, 1f}, {30f, -1f}, {-90f, -1f}, {-150f, 1f}, {150f, -1f},
-                {-30f, -1f}, {30f, 1f}, {-90f, 1f}, {-150f, -1f}, {150f, 1f}};   // x = 90: lugar da cidade
-        for (float[] s : houseSpots) {
-            float hx = s[0], hz = roadZ(hx) + s[1] * HOUSE_Z;
-            if (Math.abs(hx - riverX(hz)) < 14f) hx += 22f;   // não encosta no leito do rio
-            addEnclosedHouse(rnd, hx, hz, s[1] > 0f ? 180f : 0f);
-        }
+        // Casas ao lado da estrada (lugares protegidos no relevo, ver casasDaEstrada)
+        for (float[] c : casasDaEstrada()) addEnclosedHouse(rnd, c[0], c[1], c[2]);
         // Cidade: casas de bairro e de taipa, pracinha com poço e capela, roçado (os moradores vêm depois)
         if (pocoModel == null) {
             pocoModel = ModelIO.load("models/poco/poco.g3dj");
@@ -1329,7 +1407,8 @@ public class World {
             x = (rnd.nextFloat() * 2f - 1f) * (HALF - margin);
             z = (rnd.nextFloat() * 2f - 1f) * (HALF - margin);
         } while (Math.sqrt(x * x + z * z) < 14f || Math.abs(z - roadZ(x)) < ROAD_HALF + 6f
-                || Math.abs(x - riverX(z)) < 6f || nearEnclosure(x, z) || inTown(x, z) || nearCemetery(x, z, 6f));
+                || Math.abs(x - riverX(z)) < 6f || nearEnclosure(x, z) || inTown(x, z) || nearCemetery(x, z, 6f)
+                || declive(x, z) > 0.45f);
         return new float[]{x, z};
     }
 
@@ -1450,6 +1529,20 @@ public class World {
      * Coloca a casa de taipa (modelo real, ~8,4 m x 6,4 m, porta na frente) num ponto plano e com rotação aleatória.
      * É um objeto independente: pode ser posicionado em qualquer lugar do mapa.
      */
+    /** Lugares das casas ao lado da estrada: x, z e direção (graus). Sempre longe uma da outra, porta para a estrada. */
+    static float[][] casasDaEstrada() {
+        final float[][] spots = {
+                {-30f, 1f}, {30f, -1f}, {-90f, -1f}, {-150f, 1f}, {150f, -1f},
+                {-30f, -1f}, {30f, 1f}, {-90f, 1f}, {-150f, -1f}, {150f, 1f}};   // x = 90: lugar da cidade
+        float[][] out = new float[spots.length][];
+        for (int i = 0; i < spots.length; i++) {
+            float hx = spots[i][0], hz = roadZ(hx) + spots[i][1] * HOUSE_Z;
+            if (Math.abs(hx - riverX(hz)) < 14f) hx += 22f;   // não encosta no leito do rio
+            out[i] = new float[]{hx, hz, spots[i][1] > 0f ? 180f : 0f};
+        }
+        return out;
+    }
+
     private void addEnclosedHouse(Random rnd, float tx, float tz, float yaw) {
         // Perto do lugar combinado, escolhe o ponto mais plano para a casa
         float bestX = tx, bestZ = tz, bestRange = 1e9f;

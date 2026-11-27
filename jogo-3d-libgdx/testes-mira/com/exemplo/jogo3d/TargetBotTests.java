@@ -122,12 +122,12 @@ public class TargetBotTests extends ApplicationAdapter {
             check("cemitério: sem cacto, árvore ou pedra dentro", strays == 0, strays + " obstáculos grandes");
             // entra pelo portão: anda do lado de fora até o centro
             Vector3 p = new Vector3(w.cemX - sn * (World.CEM_HD + 4f), 0f, w.cemZ - cs * (World.CEM_HD + 4f));
-            for (int f = 0; f < 400; f++) { p.x += sn * 0.05f; p.z += cs * 0.05f; w.resolveCollisions(p, 0.35f); }
+            for (int f = 0; f < 400; f++) { p.x += sn * 0.05f; p.z += cs * 0.05f; p.y = w.heightAt(p.x, p.z); w.resolveCollisions(p, 0.35f); }
             float inside = (p.x - w.cemX) * sn + (p.z - w.cemZ) * cs + World.CEM_HD;   // distância do portão para dentro
             check("cemitério: dá para entrar pelo portão e andar no corredor", inside > 12f, String.format("%.1f m para dentro", inside));
             // pela lateral a cerca segura
             Vector3 q = new Vector3(w.cemX + cs * (World.CEM_HW + 3f), 0f, w.cemZ - sn * (World.CEM_HW + 3f));
-            for (int f = 0; f < 200; f++) { q.x -= cs * 0.05f; q.z += sn * 0.05f; w.resolveCollisions(q, 0.35f); }
+            for (int f = 0; f < 200; f++) { q.x -= cs * 0.05f; q.z += sn * 0.05f; q.y = w.heightAt(q.x, q.z); w.resolveCollisions(q, 0.35f); }
             float side = (float) Math.hypot(q.x - w.cemX, q.z - w.cemZ);
             check("cemitério: a cerca não deixa atravessar", side > World.CEM_HW, String.format("%.1f m do centro", side));
             Vector3 eye = new Vector3(p.x, w.cemH + 1.0f, p.z);

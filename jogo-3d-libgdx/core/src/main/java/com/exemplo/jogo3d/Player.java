@@ -81,8 +81,10 @@ public class Player {
             int steps = Math.max(1, (int) Math.ceil(dist / 0.1f));
             float stx = dx * dist / steps, stz = dz * dist / steps;
             for (int i = 0; i < steps; i++) {
+                float ox = pos.x, oz = pos.z;
                 pos.x += stx;
                 pos.z += stz;
+                if (!world.podeAndar(ox, oz, pos.x, pos.z)) { pos.x = ox; pos.z = oz; break; }   // paredão: não sobe
                 world.resolveCollisions(pos, RADIUS);
             }
 

@@ -387,6 +387,7 @@ final class Enemy {
             pos.z += MathUtils.cos(moveDir) * speed * dt;
             pos.x = MathUtils.clamp(pos.x, -World.HALF + 3f, World.HALF - 3f);
             pos.z = MathUtils.clamp(pos.z, -World.HALF + 3f, World.HALF - 3f);
+            if (!w.podeAndar(px, pz, pos.x, pos.z)) { pos.x = px; pos.z = pz; }   // paredão: o inimigo não sobe
             w.resolveCollisions(pos, 0.35f);
             // preso numa parede: troca de lado / desiste do ponto
             float moved = (float) Math.hypot(pos.x - px, pos.z - pz);
