@@ -1048,7 +1048,7 @@ public class Main extends ApplicationAdapter {
         mapUi = training ? null : new MapUi(world);
         places = training ? null : new Places(world);
         enemies = character.model() != null
-                ? new Enemies(world, character.model(), world.weapons != null ? world.weapons.models() : null, mannequin()) : null;
+                ? new Enemies(world, Character.modelo("models/jake/jake.g3dj"), world.weapons != null ? world.weapons.models() : null, mannequin()) : null;
         if (grenades != null) grenades.enemies = enemies;
         if (world.weapons != null) {
             if (shooting != null) shooting.dispose();   // sons do sistema de tiro anterior

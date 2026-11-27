@@ -93,6 +93,16 @@ public class Character {
         loadSounds();
     }
 
+    /** Modelo de um caminho (carregado uma vez e compartilhado). Usado pelos inimigos, que são sempre o Jake. */
+    static Model modelo(String caminho) {
+        Model m = MODELOS.get(caminho);
+        if (m == null) {
+            m = ModelIO.load(caminho);
+            MODELOS.put(caminho, m);
+        }
+        return m;
+    }
+
     /** Põe na cena a personagem escolhida (troca sem reiniciar o jogo; vale ao começar a próxima partida). */
     void trocarModelo() {
         String caminho = Personagens.caminho();
