@@ -32,7 +32,7 @@ final class Lobby {
 
     // Áreas tocáveis (ref): id, x, y, w, h
     private static final Object[][] HIT = {
-            {"perfil", 338f, 14f, 382f, 76f}, {"moedas+", 1106f, 28f, 30f, 30f}, {"diamantes+", 1346f, 28f, 30f, 30f},
+            {"perfil", 112f, 14f, 382f, 76f}, {"moedas+", 1106f, 28f, 30f, 30f}, {"diamantes+", 1346f, 28f, 30f, 30f},
             {"amigos", 1418f, 14f, 62f, 62f}, {"mensagens", 1500f, 14f, 62f, 62f}, {"config", 1585f, 14f, 62f, 62f},
             {"armas", 15f, 185f, 290f, 66f}, {"personagem", 15f, 280f, 290f, 66f}, {"inventario", 15f, 370f, 290f, 66f},
             {"loja", 15f, 462f, 290f, 66f}, {"configuracoes", 15f, 555f, 290f, 66f},
@@ -208,7 +208,7 @@ final class Lobby {
         // Fundos e bordas
         sh.setProjectionMatrix(proj);
         sh.begin(ShapeRenderer.ShapeType.Filled);
-        box(sh, 338, 14, 382, 76, false);
+        box(sh, 112, 14, 382, 76, false);
         box(sh, 930, 22, 215, 50, false);
         box(sh, 1170, 22, 215, 50, false);
         fill(sh, 1106, 28, 30, 30, GOLD);
@@ -224,8 +224,8 @@ final class Lobby {
         box(sh, 1245, 628, 390, 78, false);
         fill(sh, 1130, 722, 520, 176, GOLD);
         // Barra de experiência e passe
-        fill(sh, 445, 78, 270, 8, BROWN);
-        fill(sh, 445, 78, 270 * Progresso.xp() / (float) Progresso.xpParaNivel(Progresso.nivel()), 8, GOLD);
+        fill(sh, 219, 78, 270, 8, BROWN);
+        fill(sh, 219, 78, 270 * Progresso.xp() / (float) Progresso.xpParaNivel(Progresso.nivel()), 8, GOLD);
         fill(sh, 1392, 340, 250, 12, BROWN);
         fill(sh, 1392, 340, 250 * passe, 12, GOLD);
         sh.end();
@@ -239,17 +239,17 @@ final class Lobby {
         edge(sh, 1245, 628, 390, 78, GOLD);
         edge(sh, 930, 22, 215, 50, GOLD);
         edge(sh, 1170, 22, 215, 50, GOLD);
-        edge(sh, 338, 14, 382, 76, GOLD);
+        edge(sh, 112, 14, 382, 76, GOLD);
         edge(sh, 15, 850, 890, 68, GOLD);
         sh.end();
         // Ícones, textos e avisos
         b.setProjectionMatrix(proj);
         b.begin();
-        img(b, "logo", 6, 0, 134, 134);   // símbolo SEM LIMITES (quadrado)
-        img(b, "personagem", 344, 20, 70, 64);
-        text(b, font, "JOGADOR", 428, 46, 1.9f, WHITE, false);
-        text(b, font, "Nv. " + Progresso.nivel(), 428, 72, 1.4f, GOLD, false);
-        text(b, font, Progresso.xp() + " / " + Progresso.xpParaNivel(Progresso.nivel()), 715, 72, 1.3f, WHITE, true);
+        img(b, "logo", 6, 8, 100, 100);   // símbolo SEM LIMITES (quadrado), encostado no perfil
+        img(b, "personagem", 118, 20, 70, 64);
+        text(b, font, "JOGADOR", 202, 46, 1.9f, WHITE, false);
+        text(b, font, "Nv. " + Progresso.nivel(), 202, 72, 1.4f, GOLD, false);
+        text(b, font, Progresso.xp() + " / " + Progresso.xpParaNivel(Progresso.nivel()), 489, 72, 1.3f, WHITE, true);
         img(b, "moedas", 934, 24, 46, 46);
         text(b, font, String.format("%,d", Progresso.moedas()).replace(',', '.'), 1000, 56, 2.0f, WHITE, false);
         img(b, "diamantes", 1174, 24, 46, 46);
