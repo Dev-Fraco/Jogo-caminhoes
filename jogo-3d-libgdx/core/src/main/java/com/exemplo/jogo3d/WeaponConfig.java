@@ -202,7 +202,7 @@ final class WeaponConfig {
 
     // Revólver Magnum .357 (pistola do arsenal): 210 na cabeça e 50 no corpo, de qualquer distância
     static final WeaponConfig MAGNUM357 = new WeaponConfig("MAGNUM 357", Category.REVOLVER, FireMode.AUTO, 1, 0f, 50f, 4.2f, 1f, 1f,
-            0.4f, 6, 30, 2.0f, 70f, 20f, 0.6f, 2.4f, 0.7f, 2.20f, 0.30f, 1, 0.110f, 1.3f, 0.45f).asFlat(210f, 50f).withFirstShotDelay(0.1f);
+            0.777f, 6, 30, 2.0f, 70f, 20f, 0.6f, 2.4f, 0.7f, 2.20f, 0.30f, 1, 0.110f, 1.3f, 0.45f).asFlat(210f, 50f).withFirstShotDelay(0.25f);
 
     static final WeaponConfig[] BY_TYPE = {AKM, AUG, GROZA, M16A4, M416, SCARL, AWM, M1014, MAGNUM357};
 }
