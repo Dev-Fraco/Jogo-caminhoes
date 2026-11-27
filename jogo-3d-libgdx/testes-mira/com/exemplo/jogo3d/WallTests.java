@@ -117,23 +117,22 @@ public class WallTests extends ApplicationAdapter {
         }
         check("pela boca do U o jogador entra no miolo", Math.hypot(m.x - px, m.z - pz) < 0.8f, String.format("ficou a %.2f m do centro", Math.hypot(m.x - px, m.z - pz)));
 
-        // Sem espaço: nada de muro em cima de outro
+        // Sem restrição: pode pôr muro em cima de outro
         String overlap = tryPlace(w, px, pz);
-        check("não põe muro em cima de outro", overlap != null, overlap == null ? "" : overlap);
+        check("pode pôr muro em cima de outro (sem restrição)", overlap == null, overlap == null ? "" : overlap);
 
-        // Encaixe: um muro a 4,4 m (0,3 m longe do encaixe) vai para a linha do outro, encostado, e cabe
+        // Sem encaixe automático: o muro vai exatamente onde foi pedido
         World.WallSpot sp = new World.WallSpot();
         String msgEnc = w.wallSpot(wall.x + 4.4f, wall.z, 0f, 0.55f, sp);
-        check("encaixe: muro ao lado, encostado na ponta, cabe", msgEnc == null, msgEnc == null ? "" : msgEnc);
-        check("encaixe: vai para a distância certa (4,10 m), na mesma linha",
-                Math.abs(Math.abs(sp.x - wall.x) - World.WALL_PITCH) < 0.01f && Math.abs(sp.z - wall.z) < 0.01f,
+        check("muro ao lado cabe em qualquer lugar", msgEnc == null, msgEnc == null ? "" : msgEnc);
+        check("sem encaixe: fica onde foi pedido (4,4 m)", Math.abs(sp.x - (wall.x + 4.4f)) < 0.01f && Math.abs(sp.z - wall.z) < 0.01f,
                 String.format("dx %.2f dz %.2f", sp.x - wall.x, sp.z - wall.z));
         int wallsBefore = w.walls.size;
         if (msgEnc == null) w.placeWallSpot(sp);
-        check("encaixe: o segundo muro entra no mundo", msgEnc == null && w.walls.size == wallsBefore + 1, "" + w.walls.size);
-        // Sombra: onde a mira aponta, longe do muro: cabe; em cima do muro: não cabe (fica vermelha)
+        check("o segundo muro entra no mundo", msgEnc == null && w.walls.size == wallsBefore + 1, "" + w.walls.size);
+        // Sombra: em cima de outro muro também cabe (sem vermelho)
         String msgInside = w.wallSpot(px, pz, 0f, 0f, sp);
-        check("sombra vermelha: não cabe em cima de outro muro", msgInside != null, "");
+        check("sombra: em cima de outro muro também cabe", msgInside == null, msgInside == null ? "" : msgInside);
 
         // Tiro: o muro aguenta 600 de dano e quebra ao chegar a zero
         int nBefore = w.walls.size;
@@ -145,14 +144,10 @@ public class WallTests extends ApplicationAdapter {
         check("muro quebra com 600 de dano", w.walls.size == nBefore - 1 && w.walls.indexOf(alvo, true) < 0, "muros " + w.walls.size);
         check("muro quebrado sai da colisão", w.obstacles.indexOf(pedra, true) < 0, "");
 
-        // Limite: o mais antigo sai quando passa de MAX_WALLS
-        int placed = 1;
-        for (int t = 0; t < 40 * 40 && placed < World.MAX_WALLS + 2; t++) {
-            float x = -390f + (t % 40) * 20f, z = -390f + (t / 40) * 20f;
-            if (tryPlace(w, x, z) == null) placed++;
-        }
-        check("guarda no máximo " + World.MAX_WALLS + " muros", w.walls.size == World.MAX_WALLS, "" + w.walls.size);
-        check("o primeiro (mais antigo) saiu", w.walls.indexOf(wall, true) < 0, "");
+        // Sem limite de quantidade: quatro muros um dentro do outro
+        int before4 = w.walls.size;
+        for (int k = 0; k < 4; k++) tryPlace(w, px, pz);
+        check("quatro muros no mesmo lugar, um dentro do outro", w.walls.size == before4 + 4, "" + w.walls.size);
 
         System.out.println("  (info) muros no mundo: " + w.walls.size + "; colisões por muro: " + w.walls.get(0).cols.size);
     }
