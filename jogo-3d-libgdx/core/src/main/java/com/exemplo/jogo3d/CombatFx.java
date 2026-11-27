@@ -278,7 +278,7 @@ final class CombatFx implements DamageSystem.Listener {
 
         batch.begin();
         if (armedView && weapons != null && !hideCross) drawCross(batch, cx, cy, H, overEnemy);
-        if (showPanel) WeaponPanel.drawBatch(batch, font, pr[0], pr[1], pr[2], pr[3], weapons, !weapons.holstered());
+        if (showPanel) WeaponPanel.drawBatch(batch, pr[0], pr[1], pr[2], pr[3], weapons, !weapons.holstered());
         float base = font.getData().scaleX;
         // Números de dano: cada tiro tem o seu. Peito amarelo, cabeça vermelha e maior, parede azul.
         // Tamanho cresce com o dano; sobe devagar, aparece rápido e some suavemente, ao lado do alvo.

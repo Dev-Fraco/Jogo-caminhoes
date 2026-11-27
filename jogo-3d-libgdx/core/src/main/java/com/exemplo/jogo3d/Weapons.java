@@ -97,6 +97,37 @@ final class Weapons {
             if (iconFbo[i] == null)
                 iconFbo[i] = new com.badlogic.gdx.graphics.glutils.FrameBuffer(com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888, 512, 256, true);   // ícones em alta resolução
             icons[i] = Items.renderIcon(batch, env, models[i], iconFbo[i], 90f);
+            if (iconsHud[i] == null) iconsHud[i] = silhueta(iconFbo[i], icons[i]);
+        }
+    }
+
+    /**
+     * Silhueta branca do ícone da arma (mesma forma, sem sombreamento) para o painel do HUD. Se não der para
+     * ler o framebuffer, usa o ícone normal.
+     */
+    private com.badlogic.gdx.graphics.g2d.TextureRegion silhueta(com.badlogic.gdx.graphics.glutils.FrameBuffer fbo,
+                                                                 com.badlogic.gdx.graphics.g2d.TextureRegion normal) {
+        try {
+            int w = fbo.getWidth(), h = fbo.getHeight();
+            fbo.begin();
+            com.badlogic.gdx.graphics.Pixmap pm = com.badlogic.gdx.utils.ScreenUtils.getFrameBufferPixmap(0, 0, w, h);
+            fbo.end();
+            for (int y = 0; y < h; y++) {
+                for (int x = 0; x < w; x++) {
+                    int a = pm.getPixel(x, y) & 0xff;
+                    int alpha = Math.min(255, (int) (a * 1.35f));   // borda um pouco mais firme
+                    pm.drawPixel(x, y, 0xFFFFFF00 | alpha);
+                }
+            }
+            com.badlogic.gdx.graphics.Texture t = new com.badlogic.gdx.graphics.Texture(pm, true);   // com mipmap: reduz sem serrilhar
+            t.setFilter(com.badlogic.gdx.graphics.Texture.TextureFilter.MipMapLinearLinear,
+                    com.badlogic.gdx.graphics.Texture.TextureFilter.Linear);
+            pm.dispose();
+            com.badlogic.gdx.graphics.g2d.TextureRegion r = new com.badlogic.gdx.graphics.g2d.TextureRegion(t);
+            r.flip(false, true);
+            return r;
+        } catch (RuntimeException e) {
+            return normal;
         }
     }
 
@@ -107,6 +138,54 @@ final class Weapons {
     int magOf(int type) { return type >= 0 ? mag[type] : 0; }
     int reserveOf(int type) { return type >= 0 ? reserve[type] : 0; }
     int slotType(int s) { return slot[s]; }
+
+    // ---- Ordem do painel de armas: 1 item em cima (na mão) e 3 embaixo; cada item aparece uma vez ----
+    static final int ITEM_PUNHO = 3;            // código do punho no painel (armas: 0..2 = slot)
+    private final int[] baixo = {-1, -1, -1};  // o que está em cada caixa de baixo (-1 = vazia)
+
+    /** Item em cima: a arma na mão, ou o punho quando está sem arma. */
+    private int itemTopo() { return (heldType < 0 || holstered) ? ITEM_PUNHO : activeSlot; }
+
+    private boolean itemExiste(int c) { return c == ITEM_PUNHO || (c >= 0 && c < slot.length && slot[c] >= 0); }
+
+    /**
+     * Ordem atual do painel: [em cima, caixa 0, caixa 1, caixa 2]. Itens sem arma somem; o que sobe para a mão
+     * deixa a caixa e o que estava na mão ocupa essa caixa. Nunca repete um item.
+     */
+    int[] ordemHud() {
+        int top = itemTopo();
+        for (int p = 0; p < baixo.length; p++) {
+            int c = baixo[p];
+            boolean repetido = false;
+            for (int q = 0; q < p; q++) if (baixo[q] == c) repetido = true;
+            if (c < 0 || c == top || !itemExiste(c) || repetido) baixo[p] = -1;
+        }
+        for (int c = 0; c <= ITEM_PUNHO; c++) {
+            if (c == top || !itemExiste(c) || noBaixo(c)) continue;
+            for (int p = 0; p < baixo.length; p++) if (baixo[p] < 0) { baixo[p] = c; break; }
+        }
+        return new int[]{top, baixo[0], baixo[1], baixo[2]};
+    }
+
+    private boolean noBaixo(int c) {
+        for (int b : baixo) if (b == c) return true;
+        return false;
+    }
+
+    /** Toque numa caixa de baixo: o item sobe para a mão e o que estava na mão ocupa a caixa. */
+    void tocarBaixo(int p, Character ch) {
+        ordemHud();
+        if (p < 0 || p >= baixo.length || baixo[p] < 0) return;
+        int c = baixo[p];
+        baixo[p] = itemTopo();          // o item de cima desce para a mesma caixa
+        if (c == ITEM_PUNHO) toggleHold(ch);
+        else equipSlot(c, ch);
+        ordemHud();
+    }
+
+    // Silhuetas dos ícones para o painel (alta resolução, sem sombreamento)
+    private final com.badlogic.gdx.graphics.g2d.TextureRegion[] iconsHud = new com.badlogic.gdx.graphics.g2d.TextureRegion[FILES.length];
+    com.badlogic.gdx.graphics.g2d.TextureRegion iconHud(int type) { return type >= 0 ? iconsHud[type] : null; }
     int activeSlotIndex() { return activeSlot; }
     int heldType() { return heldType; }
     int heldMag() { return magOf(heldType); }
@@ -446,5 +525,7 @@ final class Weapons {
     void dispose() {
         for (Model m : models) if (m != null) m.dispose();
         for (com.badlogic.gdx.graphics.glutils.FrameBuffer f : iconFbo) if (f != null) f.dispose();
+        for (int i = 0; i < iconsHud.length; i++)
+            if (iconsHud[i] != null && iconsHud[i] != icons[i]) iconsHud[i].getTexture().dispose();   // só as silhuetas geradas
     }
 }

@@ -119,6 +119,37 @@ public class ControlTests extends ApplicationAdapter {
         check("punho com a pistola na mão guarda ela", wp.holstered() && !wp.armed() && wp.slotType(2) == 8, "");
         wp.equipSlot(0, ch);
         check("tocar no fuzil depois de guardar leva o fuzil", wp.heldName().equals("AKM") && wp.armed(), wp.heldName());
+
+        System.out.println("== Painel: 1 em cima, 3 embaixo, nunca repete; tocar troca de lugar ==");
+        wp.unequip(ch);
+        wp.pickUp(new Weapons.Pickup(0, new ModelInstance(wp.models()[0]), 0, 0, 0), w, ch, pl);
+        wp.pickUp(new Weapons.Pickup(2, new ModelInstance(wp.models()[2]), 0, 0, 0), w, ch, pl);
+        wp.pickUp(new Weapons.Pickup(8, new ModelInstance(wp.models()[8]), 0, 0, 0), w, ch, pl);
+        int[] o = wp.ordemHud();
+        check("com 3 armas, o painel mostra 1 em cima e 3 embaixo, sem repetir", o.length == 4 && semRepetir(o) && o[0] >= 0 && o[1] >= 0 && o[2] >= 0 && o[3] >= 0, java.util.Arrays.toString(o));
+        int topo = o[0], caixa0 = o[1];
+        wp.tocarBaixo(0, ch);
+        int[] d = wp.ordemHud();
+        check("tocar na caixa 0 leva o item dela para a mão", d[0] == caixa0, java.util.Arrays.toString(d));
+        check("o item que estava na mão ocupa a caixa 0", d[1] == topo, java.util.Arrays.toString(d));
+        check("depois da troca, ainda sem repetição", semRepetir(d), java.util.Arrays.toString(d));
+        wp.tocarBaixo(0, ch);
+        check("tocar de volta devolve a ordem", wp.ordemHud()[0] == topo && wp.ordemHud()[1] == caixa0, java.util.Arrays.toString(wp.ordemHud()));
+        wp.toggleHold(ch);
+        int[] g = wp.ordemHud();
+        check("punho sem arma: o punho vai para cima e as 3 armas ficam embaixo", g[0] == Weapons.ITEM_PUNHO && semRepetir(g), java.util.Arrays.toString(g));
+        int p = -1;
+        for (int i = 1; i <= 3; i++) if (g[i] == Weapons.ITEM_PUNHO) p = i;
+        check("o punho não aparece duas vezes", p == -1, java.util.Arrays.toString(g));
+        wp.tocarBaixo(0, ch);
+        check("tocar numa arma depois de guardar a põe na mão", !wp.holstered() && wp.armed(), wp.heldName());
+    }
+
+    static boolean semRepetir(int[] o) {
+        for (int i = 0; i < o.length; i++)
+            for (int j = i + 1; j < o.length; j++)
+                if (o[i] >= 0 && o[i] == o[j]) return false;
+        return true;
     }
 
     public static void main(String[] args) {
