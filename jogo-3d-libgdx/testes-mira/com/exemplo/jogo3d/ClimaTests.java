@@ -4,7 +4,9 @@ import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.backends.headless.HeadlessApplication;
 import com.badlogic.gdx.backends.headless.HeadlessApplicationConfiguration;
 
-/** Quadrantes e mistura dos climas do mapa. */
+import java.io.File;
+
+/** Quadrantes dos climas, texturas e pedaços do terreno (cada pedaço num único clima). */
 public class ClimaTests extends ApplicationAdapter {
     private static int ok = 0, falhas = 0;
 
@@ -32,24 +34,27 @@ public class ClimaTests extends ApplicationAdapter {
         check("3 (esquerda de baixo) é inverno", Clima.quadrante(-100f, 100f) == Clima.INVERNO, "");
         check("4 (direita de baixo) é deserto", Clima.quadrante(100f, 100f) == Clima.DESERTO, "");
 
-        System.out.println("== Mistura do chão ==");
-        float[] longe = {0.5f, 0.4f, 0.3f};
-        Clima.mistura(-300f, -300f, longe);
-        check("longe da borda, quadrante 1 fica branco-azulado", longe[0] > 0.85f && longe[2] > 0.85f, String.format("%.2f %.2f %.2f", longe[0], longe[1], longe[2]));
-        float[] deserto = {0.5f, 0.4f, 0.3f};
-        Clima.mistura(300f, 300f, deserto);
-        check("deserto (quadrante 4) mantém a cor da região", deserto[0] == 0.5f && deserto[1] == 0.4f && deserto[2] == 0.3f, "");
-        float[] mangue = {0.5f, 0.4f, 0.3f};
-        Clima.mistura(300f, -300f, mangue);
-        check("longe da borda, quadrante 2 fica verde-lama", mangue[1] < 0.4f && mangue[0] < 0.4f, String.format("%.2f %.2f %.2f", mangue[0], mangue[1], mangue[2]));
-        float[] borda = {0.5f, 0.4f, 0.3f};
-        Clima.mistura(0f, 0f, borda);
-        check("na borda (0,0) a cor é intermediária", borda[0] > 0.3f && borda[0] < 0.9f, String.format("%.2f", borda[0]));
-        float[] suavizada = {0.5f, 0.4f, 0.3f};
-        Clima.mistura(-1f, 0f, suavizada);
-        float[] antes = {0.5f, 0.4f, 0.3f};
-        Clima.mistura(-2f, 0f, antes);
-        check("a transição é suave (pontos vizinhos com cores vizinhas)", Math.abs(suavizada[0] - antes[0]) < 0.02f, String.format("%.3f x %.3f", suavizada[0], antes[0]));
+        System.out.println("== Texturas ==");
+        for (Clima c : Clima.values()) {
+            File f = new File(c.arquivo);
+            check("textura de " + c + " existe", f.exists(), c.arquivo);
+        }
+
+        System.out.println("== Pedaços do terreno ==");
+        float chunk = World.SIZE / World.CHUNKS;
+        boolean todos = true;
+        int misturados = 0;
+        for (int ci = 0; ci < World.CHUNKS; ci++) {
+            for (int cj = 0; cj < World.CHUNKS; cj++) {
+                float x0 = -World.HALF + ci * chunk, z0 = -World.HALF + cj * chunk;
+                Clima ref = Clima.quadrante(x0 + 0.01f, z0 + 0.01f);
+                for (float dx : new float[]{0.01f, chunk - 0.01f})
+                    for (float dz : new float[]{0.01f, chunk - 0.01f})
+                        if (Clima.quadrante(x0 + dx, z0 + dz) != ref) { todos = false; misturados++; }
+            }
+        }
+        check("cada pedaço do terreno fica num único clima", todos, "pedaços misturados: " + misturados);
+        check("o meio do mapa cai na borda de pedaços (CHUNKS par)", World.CHUNKS % 2 == 0, "CHUNKS = " + World.CHUNKS);
 
         System.out.println("\n" + (falhas == 0 ? "Todos os testes de clima passaram." : "Há falhas."));
     }

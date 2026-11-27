@@ -373,7 +373,8 @@ public class World {
         float steep = 1f - n.y;
         float shade = 1f - MathUtils.clamp((steep - 0.10f) * 0.6f, 0f, 0.25f);
         Regions.tint(x, z, tintRgb);
-        Clima.mistura(x, z, tintRgb);   // clima do quadrante (inverno, mangue ou deserto)
+        // Neve e lama têm cor própria na textura: só o deserto mantém a cor da região
+        if (Clima.quadrante(x, z) != Clima.DESERTO) { tintRgb[0] = 1f; tintRgb[1] = 1f; tintRgb[2] = 1f; }
         return new Color(shade * tintRgb[0], shade * tintRgb[1], shade * tintRgb[2], 1f);
     }
 
@@ -460,6 +461,19 @@ public class World {
         mn = Math.min(mn, c);
         mx = Math.max(mx, c);
         return mx - mn <= maxRange;
+    }
+
+    /** Texturas do chão de cada clima (carregadas na primeira vez). */
+    private final java.util.EnumMap<Clima, Texture> climaTextures = new java.util.EnumMap<>(Clima.class);
+
+    private Texture climaTexture(Clima c) {
+        Texture t = climaTextures.get(c);
+        if (t == null) {
+            t = new Texture(Gdx.files.internal(c.arquivo));
+            t.setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat);
+            climaTextures.put(c, t);
+        }
+        return t;
     }
 
     private VertexInfo vertex(float x, float z) {
@@ -609,9 +623,11 @@ public class World {
         for (int ci = 0; ci < CHUNKS; ci++) {
             for (int cj = 0; cj < CHUNKS; cj++) {
                 mb.begin();
+                // Cada pedaço fica num único quadrante, então usa a textura do clima dele
+                Clima clima = Clima.quadrante(-HALF + (ci + 0.5f) * chunk, -HALF + (cj + 0.5f) * chunk);
                 MeshPartBuilder part = mb.part("terrain", GL20.GL_TRIANGLES,
                         Usage.Position | Usage.Normal | Usage.ColorPacked | Usage.TextureCoordinates,
-                        new Material(TextureAttribute.createDiffuse(dirtTexture)));
+                        new Material(TextureAttribute.createDiffuse(climaTexture(clima))));
                 for (int i = 0; i < GRID; i++) {
                     for (int j = 0; j < GRID; j++) {
                         float x0 = -HALF + ci * chunk + i * step, x1 = x0 + step;
@@ -1616,6 +1632,8 @@ public class World {
         if (crackTexture != null) crackTexture.dispose();
         if (signTexture != null) signTexture.dispose();
         if (dirtTexture != null) dirtTexture.dispose();
+        for (Texture t : climaTextures.values()) t.dispose();
+        climaTextures.clear();
     }
 
     private static void disposeQuietly(Object o) {
