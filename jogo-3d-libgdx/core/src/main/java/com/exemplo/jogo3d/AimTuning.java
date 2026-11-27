@@ -37,8 +37,18 @@ final class AimTuning {
     static float shrinkSpeed = 0f;
     /** Piso do freio da mira (experimental, não é valor da Garena): a sensibilidade nunca cai abaixo disso. */
     static float frictionFloor = 0.35f;
-    /** Duração do deslizamento da mira depois de apertar o tiro (s). Experimental (não é valor da Garena). */
-    static float glideSeg = 0.45f;
+    /** Duração da aquisição do alvo depois de apertar o tiro (s). Experimental (não é valor da Garena). */
+    static float aquisicaoSeg = 0.30f;
+    /** Velocidade máxima da aquisição (°/s), separada do acompanhamento. Experimental. */
+    static float aquisicaoVel = 150f;
+    /** Intensidade da aquisição: fração do erro corrigida por quadro (0 a 1). Experimental. */
+    static float aquisicaoForca = 1f;
+    /** Zona de tolerância vertical em torno da barriga (°): dentro dela a assistência não empurra. Experimental. */
+    static float zonaVertical = 0.4f;
+    /** Histerese da zona vertical (°): liga a correção só acima de zona + histerese. Experimental. */
+    static float histerese = 0.3f;
+    /** Resistência vertical durante o arrasto manual deliberado (fração da resistência normal). Experimental. */
+    static float resistenciaArrasto = 0.15f;
     /** Ganho do tracking sobre o erro (1/s): quão rápido a mira fecha o atraso de um alvo em movimento. Experimental. */
     static float trackingGain = 6f;
 
@@ -54,7 +64,12 @@ final class AimTuning {
         scatterMax = 0f;
         shrinkSpeed = 0f;
         frictionFloor = 0.35f;
-        glideSeg = 0.45f;
+        aquisicaoSeg = 0.30f;
+        aquisicaoVel = 150f;
+        aquisicaoForca = 1f;
+        zonaVertical = 0.4f;
+        histerese = 0.3f;
+        resistenciaArrasto = 0.15f;
         trackingGain = 6f;
     }
 
@@ -69,7 +84,12 @@ final class AimTuning {
         scatterMax = Math.max(0f, scatterMax);
         shrinkSpeed = Math.max(0f, shrinkSpeed);
         frictionFloor = clamp(frictionFloor, 0.05f, 1f);
-        glideSeg = Math.max(0.05f, glideSeg);
+        aquisicaoSeg = Math.max(0.05f, aquisicaoSeg);
+        aquisicaoVel = Math.max(10f, aquisicaoVel);
+        aquisicaoForca = clamp(aquisicaoForca, 0f, 1f);
+        zonaVertical = Math.max(0f, zonaVertical);
+        histerese = Math.max(0f, histerese);
+        resistenciaArrasto = clamp(resistenciaArrasto, 0f, 1f);
         trackingGain = Math.max(0f, trackingGain);
     }
 
@@ -86,7 +106,12 @@ final class AimTuning {
             scatterMax = p.getFloat("scatterMax", scatterMax);
             shrinkSpeed = p.getFloat("shrinkSpeed", shrinkSpeed);
             frictionFloor = p.getFloat("frictionFloor", frictionFloor);
-            glideSeg = p.getFloat("glideSeg", glideSeg);
+            aquisicaoSeg = p.getFloat("aquisicaoSeg", aquisicaoSeg);
+            aquisicaoVel = p.getFloat("aquisicaoVel", aquisicaoVel);
+            aquisicaoForca = p.getFloat("aquisicaoForca", aquisicaoForca);
+            zonaVertical = p.getFloat("zonaVertical", zonaVertical);
+            histerese = p.getFloat("histerese", histerese);
+            resistenciaArrasto = p.getFloat("resistenciaArrasto", resistenciaArrasto);
             trackingGain = p.getFloat("trackingGain", trackingGain);
             validar();
         } catch (Throwable t) {
@@ -107,7 +132,12 @@ final class AimTuning {
             p.putFloat("scatterMax", scatterMax);
             p.putFloat("shrinkSpeed", shrinkSpeed);
             p.putFloat("frictionFloor", frictionFloor);
-            p.putFloat("glideSeg", glideSeg);
+            p.putFloat("aquisicaoSeg", aquisicaoSeg);
+            p.putFloat("aquisicaoVel", aquisicaoVel);
+            p.putFloat("aquisicaoForca", aquisicaoForca);
+            p.putFloat("zonaVertical", zonaVertical);
+            p.putFloat("histerese", histerese);
+            p.putFloat("resistenciaArrasto", resistenciaArrasto);
             p.putFloat("trackingGain", trackingGain);
             p.flush();
         } catch (Throwable t) {

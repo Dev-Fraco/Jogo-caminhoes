@@ -67,11 +67,17 @@ public class AimFluxoTests extends ApplicationAdapter {
 
         System.out.println("== Alvo parado: a mira chega à barriga sem salto ==");
         Medida[] parado = cenarioParado(WeaponConfig.Category.FUZIL, 2.5f);
-        float passoMax = maxPasso(parado);
-        float limiteGrau = WeaponConfig.Category.FUZIL.maxDegPerSec;
-        check("passo máximo por quadro respeita maxDegPerSec da categoria (fuzil)",
-                passoMax <= limiteGrau / FPS_PADRAO * 1.002f + 1e-4f,
-                String.format("maior passo %.3f°/quadro, limite %.3f°/quadro", passoMax, limiteGrau / FPS_PADRAO));
+        // Aquisição (primeiros aquisicaoSeg): limite próprio; depois, o acompanhamento segue maxDegPerSec
+        float passoAq = 0f, passoAcomp = 0f;
+        for (int i = 0; i < parado.length; i++) {
+            if (i / FPS_PADRAO < AimTuning.aquisicaoSeg) passoAq = Math.max(passoAq, parado[i].passoGrau);
+            else passoAcomp = Math.max(passoAcomp, parado[i].passoGrau);
+        }
+        float limiteAq = AimTuning.aquisicaoVel / FPS_PADRAO, limiteGrau = WeaponConfig.Category.FUZIL.maxDegPerSec / FPS_PADRAO;
+        check("aquisição respeita a velocidade própria (aquisicaoVel)", passoAq <= limiteAq * 1.002f + 1e-4f,
+                String.format("maior passo %.3f°/quadro, limite %.3f°/quadro", passoAq, limiteAq));
+        check("acompanhamento respeita maxDegPerSec da categoria (fuzil)", passoAcomp <= limiteGrau * 1.002f + 1e-4f,
+                String.format("maior passo %.3f°/quadro, limite %.3f°/quadro", passoAcomp, limiteGrau));
         float tConv = tempoAteErro(parado, 0.5f, FPS_PADRAO);
         check("alvo parado: erro abaixo de 0,5° em menos de 1,5 s", tConv > 0f && tConv < 1.5f, String.format("%.2f s", tConv));
         check("alvo parado: erro final pequeno (≤ 0,2°)", parado[parado.length - 1].erroGrau <= 0.2f,
@@ -120,8 +126,9 @@ public class AimFluxoTests extends ApplicationAdapter {
         float t30 = tempoAteErro(cenarioParadoFps(30f), 0.5f, 30f);
         float t60 = tempoAteErro(cenarioParadoFps(60f), 0.5f, 60f);
         float t90 = tempoAteErro(cenarioParadoFps(90f), 0.5f, 90f);
-        check("mesmo tempo de convergência em 30, 60 e 90 FPS (±20%)",
-                t60 > 0f && Math.abs(t30 - t60) / t60 < 0.2f && Math.abs(t90 - t60) / t60 < 0.2f,
+        // Convergência em quadros: no máximo 1 quadro de diferença entre as taxas (a aquisição é curta)
+        check("mesmo tempo de convergência em 30, 60 e 90 FPS (no máximo 1 quadro de 30 FPS)",
+                t60 > 0f && Math.abs(t30 - t60) <= 1f / 30f + 1e-4f && Math.abs(t90 - t60) <= 1f / 30f + 1e-4f,
                 String.format("30: %.2f s, 60: %.2f s, 90: %.2f s", t30, t60, t90));
 
         System.out.println("== Liberdade do jogador: o freio não trava a mira ==");
@@ -144,11 +151,16 @@ public class AimFluxoTests extends ApplicationAdapter {
         for (WeaponConfig.Category cat : WeaponConfig.Category.values()) {
             float cone = AimSettings.fovDeg() * cat.radiusScale;
             Medida[] borda = cenarioBorda(cat, 0.9f * cone);
-            float maior = maxPasso(borda);
-            float limite = cat.maxDegPerSec / FPS_PADRAO;
-            boolean ok = maior <= limite * 1.002f + 1e-4f;
+            // aquisição (primeiros aquisicaoSeg): limite próprio; depois, o acompanhamento segue maxDegPerSec
+            float aq = 0f, comp = 0f;
+            for (int i = 0; i < borda.length; i++) {
+                if (i / FPS_PADRAO < AimTuning.aquisicaoSeg) aq = Math.max(aq, borda[i].passoGrau);
+                else comp = Math.max(comp, borda[i].passoGrau);
+            }
+            float limAq = AimTuning.aquisicaoVel / FPS_PADRAO, limite = cat.maxDegPerSec / FPS_PADRAO;
+            boolean ok = aq <= limAq * 1.002f + 1e-4f && comp <= limite * 1.002f + 1e-4f;
             todasRespeitam &= ok;
-            detalhe.append(String.format("%s %.3f/%.3f; ", cat.name(), maior, limite));
+            detalhe.append(String.format("%s aq %.3f/%.3f comp %.3f/%.3f; ", cat.name(), aq, limAq, comp, limite));
         }
         check("maxDegPerSec respeitado em todas as armas, alvo na borda do cone", todasRespeitam, detalhe.toString());
 
@@ -166,18 +178,82 @@ public class AimFluxoTests extends ApplicationAdapter {
         // Início do tiro: erro inicial e tempos (explica 0,45 s de deslizamento × convergência até 0,5°)
         Medida[] inicio = cenarioParado(WeaponConfig.Category.FUZIL, 2.5f);
         System.out.println(String.format("  INFO   início do tiro (fuzil): erro no 1º quadro %.2f°; até 0,5° em %.2f s; até 0,05° em %.2f s; deslizamento = %.2f s",
-                inicio[0].erroGrau, tempoAteErro(inicio, 0.5f, FPS_PADRAO), tempoAteErro(inicio, 0.05f, FPS_PADRAO), AimTuning.glideSeg));
+                inicio[0].erroGrau, tempoAteErro(inicio, 0.5f, FPS_PADRAO), tempoAteErro(inicio, 0.05f, FPS_PADRAO), AimTuning.aquisicaoSeg));
+
+        System.out.println("== Subida da barriga à cabeça com o dedo (arrasto manual) ==");
+        float[] sub = subidaParaCabeca(0.25f, 90);
+        // sub[0] = arrasto total do dedo (°), sub[1] = correção total da assistência (°), sub[2] = quadros em que a assistência empurra contra o dedo
+        // Acompanhamento de alvo rápido: a mira precisa correr atrás, então o limite contínuo é exercitado de verdade
+        boolean limiteContinuo = true;
+        StringBuilder det2 = new StringBuilder();
+        for (WeaponConfig.Category cat : WeaponConfig.Category.values()) {
+            Medida[] rapido = cenarioAlvoRapido(cat);
+            float comp = 0f;
+            for (int i = 0; i < rapido.length; i++) if (i / FPS_PADRAO >= AimTuning.aquisicaoSeg) comp = Math.max(comp, rapido[i].passoGrau);
+            float limite = cat.maxDegPerSec / FPS_PADRAO;
+            limiteContinuo &= comp <= limite * 1.002f + 1e-4f;
+            det2.append(String.format("%s %.3f/%.3f; ", cat.name(), comp, limite));
+        }
+        check("acompanhamento de alvo rápido respeita maxDegPerSec em todas as armas", limiteContinuo, det2.toString());
+
+        check("subida com o dedo: a mira nunca reverte o movimento do dedo (sem tremedeira)", sub[2] == 0f,
+                String.format("quadros em que a mira não sobe com o dedo: %.0f; dedo %.2f°, assistência %.2f°", sub[2], sub[0], sub[1]));
+        check("subida com o dedo: a resistência fica reduzida (≤15% do arrasto)", Math.abs(sub[1]) <= 0.15f * Math.abs(sub[0]) + 1e-3f,
+                String.format("dedo %.2f°, assistência %.2f°", sub[0], sub[1]));
 
         System.out.println("\nRESULTADO: " + pass + " ok, " + fail + " falhas");
     }
 
+    /** Alvo a 15 m correndo lateralmente a 6 m/s; a mira começa nele. Mede o passo do acompanhamento. */
+    private Medida[] cenarioAlvoRapido(WeaponConfig.Category cat) {
+        Enemy e = inimigo(-4f, 0f, 15f);
+        cam.set(0f, 1.7f, 0f);
+        return simula(e, t -> {
+            float x = -4f + 6f * t;
+            return new Vector3(x, w.groundAt(x, 15f), 15f);
+        }, FPS_PADRAO, 2.0f, cat, 1f, true);
+    }
+
     // ---------- cenários de revisão ----------
+
+    /**
+     * Sobe a mira da barriga com o dedo (arrasto para cima), segurando o tiro, alvo parado a 25 m.
+     * Devolve {arrasto total do dedo em °, correção total da assistência em °, quadros em que a assistência empurra contra o dedo}.
+     */
+    private float[] subidaParaCabeca(float passoGrau, int frames) {
+        Enemy e = inimigo(0f, 0f, 25f);
+        cam.set(0f, 1.7f, 0f);
+        aimAt(new Vector3(e.hitbox.belly));
+        AimAssist aa = new AimAssist();
+        float dt = 1f / FPS_PADRAO;
+        float dedo = 0f, assist = 0f;
+        int contra = 0;
+        for (int i = 0; i < frames; i++) {
+            e.pos.set(0f, w.groundAt(0f, 25f), 25f);
+            e.pose(0f);
+            e.hitbox.update(++frame);
+            // arrasto para cima: a mira sobe, o que diminui o pitch
+            float passo = (float) -Math.toRadians(passoGrau);
+            pitch += passo;
+            dedo += passo;
+            Vector3 d = dir();
+            float camYaw = MathUtils.atan2(d.x, d.z), camPitch = -(float) Math.asin(MathUtils.clamp(d.y, -1f, 1f));
+            aa.update(dt, cam, d, camYaw, camPitch, e, WeaponConfig.Category.FUZIL, true, i == 0, false);
+            yaw += aa.dYaw;
+            pitch += aa.dPitch;
+            assist += aa.dPitch;
+            // dedo para cima = pitch diminui: a mira deve subir junto (total < 0). Se não, há tremedeira.
+            if (passo + aa.dPitch < 0f) {
+                // sobe com o dedo: ok
+            } else contra++;
+        }
+        return new float[]{(float) Math.toDegrees(dedo), (float) Math.toDegrees(assist), contra};
+    }
 
     /** Alvo a 25 m que anda para a direita por 1,5 s e depois volta para a esquerda; erro médio depois de virar. */
     private float erroAposVirar(WeaponConfig.Category cat, float trackingScale) {
         Enemy e = inimigo(0f, 0f, 20f);
-        miraInicial = new Vector3(0f, 1.5f, 20f);
-        cam.set(0f, 1.7f, 0f);
+        cam.set(0f, 1.7f, 0f);   // a mira começa na altura do terreno do alvo + 1,5 m (o padrão da simulação)
         Medida[] m = simula(e, t -> {
             float x = t <= 1.5f ? 2.5f * t : 2.5f * 1.5f - 2.5f * (t - 1.5f);
             return new Vector3(x, w.groundAt(x, 20f), 20f);
@@ -194,7 +270,8 @@ public class AimFluxoTests extends ApplicationAdapter {
         float d = 25f;
         float lado = d * (float) Math.tan(Math.toRadians(grauFora));
         Enemy e = inimigo(lado, 0f, d);
-        miraInicial = new Vector3(0f, 1.5f, d);
+        // a mira começa no centro (x = 0), na altura do terreno + 1,5 m; o alvo fica na borda do cone
+        miraInicial = new Vector3(0f, w.groundAt(0f, d) + 1.5f, d);
         cam.set(0f, 1.7f, 0f);
         Medida[] m = simula(e, t -> new Vector3(lado, w.groundAt(lado, d), d), FPS_PADRAO, 2.0f, cat, 1f, true);
         miraInicial = null;
@@ -299,7 +376,7 @@ public class AimFluxoTests extends ApplicationAdapter {
 
     private Vector3 dir() {
         float el = -pitch;
-        return new Vector3(MathUtils.sin(yaw) * MathUtils.cos(el), MathUtils.sin(el), MathUtils.cos(yaw) * MathUtils.cos(el));
+        return new Vector3((float) Math.sin(yaw) * (float) Math.cos(el), (float) Math.sin(el), (float) Math.cos(yaw) * (float) Math.cos(el));
     }
 
     /** Distância angular (rad) entre a mira e a barriga do alvo. */

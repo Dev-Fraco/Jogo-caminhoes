@@ -243,8 +243,8 @@ public class AimTests extends ApplicationAdapter {
         float e1 = errBelly(ta);
         // Sem salto: o passo do primeiro quadro respeita o limite de velocidade da categoria (maxDegPerSec × dt)
         float passo1 = (float) Math.toDegrees(Math.hypot(aa.dYaw, aa.dPitch));
-        check("apertar o tiro sem salto: o passo respeita o limite maxDegPerSec",
-                passo1 <= fuzil.maxDegPerSec / 30f + 0.01f && Math.abs(e1) < Math.abs(e0),
+        check("apertar o tiro: aquisição rápida, limitada pela velocidade da aquisição",
+                passo1 <= AimTuning.aquisicaoVel / 30f + 0.01f && Math.abs(e1) < Math.abs(e0),
                 String.format("erro %.3f -> %.3f rad; passo %.2f° (limite %.2f°)", e0, e1, passo1, fuzil.maxDegPerSec / 30f));
         for (int q = 0; q < 45; q++) {   // 1,5 s segurando o tiro
             aa.update(1f / 30f, cam, dir(), yaw, pitch, ta, fuzil, true, false, false);
@@ -279,15 +279,20 @@ public class AimTests extends ApplicationAdapter {
         }
         check("segurando o tiro na barriga, a assistência não sobe para o peito nem a cabeça", drift < 0.01f, String.format("desvio %.4f rad", drift));
         // 5. Dentro do FOV, a resistência desconta parte do movimento para cima (sem prender)
-        float freeIn = climbOffset(ta, aa, fuzil, 0f, 0f, 0.02f, 20);
-        float resistIn = climbOffset(ta, aa, fuzil, 0.90f, 0f, 0.02f, 20);
+        float freeIn = climbOffset(ta, aa, fuzil, 0f, 0f, 0.001f, 60);   // 60 quadros: o 1º (sem referência) pesa pouco
+        float resistIn = climbOffset(ta, aa, fuzil, 0.90f, 0f, 0.001f, 60);
         float kept = freeIn > 1e-4f ? resistIn / freeIn : -1f;
-        check("acima da barriga, subir devagar: 90% do movimento volta", kept > 0f && kept < 0.15f,
+        check("acima da barriga, subir devagar (abaixo do arrasto): 90% do movimento volta", kept > 0f && kept < 0.15f,
                 String.format("livre %.3f rad, com resistência %.3f rad (%.1f%%)", freeIn, resistIn, kept * 100f));
+        // 2b. Arrasto deliberado (rápido): a resistência é reduzida para o dedo subir até a cabeça
+        float freeFast = climbOffset(ta, aa, fuzil, 0f, 0f, 0.02f, 20);
+        float resistFast = climbOffset(ta, aa, fuzil, 0.90f, 0f, 0.02f, 20);
+        check("arrasto deliberado para cima: a resistência é reduzida (o dedo sobe)", freeFast > 1e-4f && resistFast / freeFast > 0.7f,
+                String.format("livre %.3f rad, com resistência %.3f rad (%.1f%%)", freeFast, resistFast, 100f * resistFast / Math.max(1e-6f, freeFast)));
         // 5b. Fora do FOV a assistência não age: a subida é livre mesmo com resistência máxima
         float outStart = (AimSettings.fovDeg() * MathUtils.degreesToRadians) + 0.1f;
-        float outFree = climbOffset(ta, aa, fuzil, 0f, outStart, 0.002f, 20);
-        float outResist = climbOffset(ta, aa, fuzil, 0.95f, outStart, 0.002f, 20);
+        float outFree = climbOffset(ta, aa, fuzil, 0f, outStart, 0.001f, 20);
+        float outResist = climbOffset(ta, aa, fuzil, 0.95f, outStart, 0.001f, 20);
         check("fora do FOV a resistência continua valendo (sensibilidade alta não escapa)", (outResist - outStart) < 0.2f * (outFree - outStart),
                 String.format("livre %.4f, resistência 100%% %.4f", outFree, outResist));
         // 5c. De perto (3 m), com arrasto rápido para cima: a resistência segura a mira fora da faixa do peito
@@ -296,8 +301,8 @@ public class AimTests extends ApplicationAdapter {
         aa.reset();
         aimAt(tc.hitbox.chest);
         aa.reset();
-        float closeOff = climbOffset(tc, aa, fuzil, 0.90f, 0.0f, 0.03f, 8);   // arrasto rápido: ~50°/s
-        check("de perto, arrasto rápido para cima sobe pouco (90% volta; o 1º quadro não tem referência)", closeOff < 0.08f,
+        float closeOff = climbOffset(tc, aa, fuzil, 0.90f, 0.0f, 0.001f, 8);   // arrasto lento: abaixo do limiar
+        check("de perto, arrasto lento para cima sobe pouco (90% volta; o 1º quadro não tem referência)", closeOff < 0.08f,
                 String.format("%.3f rad acima da barriga", closeOff));
         float headRel = elev(tc.hitbox.headTop) - elev(tc.hitbox.belly);
         float closeHead = climbOffset(tc, aa, fuzil, 0.90f, 0.0f, 0.12f, 8 + 130);   // arrasto rápido e sustentado (a descida para a barriga equilibra a subida)
@@ -324,15 +329,15 @@ public class AimTests extends ApplicationAdapter {
         cam.set(ax, gy + 1.7f, az - 14f);
         Enemy tz = spawn(ax, az, MathUtils.PI, "Idle");
         for (float s : new float[]{0.5f, 1f, 2f, 3f}) {
-            float livre = subirComDedo(tz, s, 0f, 30, 6f);
-            float pesada = subirComDedo(tz, s, 0.90f, 30, 6f);
+            float livre = subirComDedo(tz, s, 0f, 60, 0.5f);
+            float pesada = subirComDedo(tz, s, 0.90f, 60, 0.5f);
             float fracao = livre > 0.02f ? pesada / livre : -1f;
             check(String.format("sensibilidade %.0f%%: 90%% do arrasto para cima volta", s * 100f),
                     fracao > 0f && fracao <= 0.15f,
                     String.format("livre %.3f rad, pesada %.3f rad (%.1f%%)", livre, pesada, fracao * 100f));
         }
-        float pequeno = subirComDedo(tz, 1f, 0.90f, 30, 1f);
-        check("movimento pequeno do dedo não sobe a mira", pequeno < 0.02f, String.format("%.4f rad", pequeno));
+        float pequeno = subirComDedo(tz, 1f, 0.90f, 30, 0.5f);
+        check("movimento muito lento do dedo (≈30 px/s) não sobe a mira", pequeno < 0.02f, String.format("%.4f rad", pequeno));
         float headRelZ = elev(tz.hitbox.headTop) - elev(tz.hitbox.belly);
         float cabeca = subirComDedo(tz, 1f, 0.90f, 300, 8f);   // arrasto rápido e sustentado: chega na cabeça
         check("sensibilidade 100%: arrasto longo ainda chega na cabeça (controlável)", cabeca >= headRelZ,
