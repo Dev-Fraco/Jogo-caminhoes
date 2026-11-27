@@ -153,7 +153,7 @@ final class ShootingSystem {
             }
             hitDetect.shoot(in.cam, shotDir, muzzle, c.range, enemies, world, res);
             if (res.obstacle != null) {   // muro: a bala tira vida dele (e mostra o número azul)
-                world.damageObstacle(res.obstacle, c.damage);
+                world.damageObstacle(res.obstacle, c.damage, res.point, in.playerPos);
                 fx.wallHit(res.point, c.damage);
             }
             if (c.separate) damage.applyPellet(c, res, in.playerPos);

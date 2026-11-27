@@ -7,7 +7,7 @@ import com.badlogic.gdx.math.MathUtils;
 /**
  * Vida e energia (boost) do jogador, e o uso dos itens de cura.
  *
- * Cura: bandagem (4 s, +15 até 75%) e kit médico (8 s, enche a vida) — o personagem se abaixa e,
+ * Cura: bandagem (4 s, +75 de vida) e kit médico (8 s, enche a vida) — o personagem se abaixa e,
  * se andar, correr ou pular, cancela. Energia: analgésico (+60), injeção (+100) e energético (+40) —
  * dá para usar andando. Com energia, a vida volta devagar e, acima de 60%, corre um pouco mais.
  * Descansar (fogueira, rede) recupera vida.
@@ -59,7 +59,7 @@ final class Survival {
             if (!dead) say("JÁ ESTÁ USANDO OUTRO ITEM");
             return false;
         }
-        if (type == BANDAGEM && health >= 0.75f * VIDA_MAX) { say("BANDAGEM SÓ CURA ATÉ 75%"); return false; }
+        if (type == BANDAGEM && health >= VIDA_MAX) { say("VIDA JÁ ESTÁ CHEIA"); return false; }
         if (type == MEDKIT && health >= VIDA_MAX) { say("VIDA JÁ ESTÁ CHEIA"); return false; }
         if (isBoost(type) && boost >= 100f) { say("ENERGIA JÁ ESTÁ CHEIA"); return false; }
         return using != type;
@@ -119,7 +119,7 @@ final class Survival {
     private void apply(int type) {
         switch (type) {
             case MEDKIT: health = VIDA_MAX; break;
-            case BANDAGEM: health = Math.max(health, Math.min(0.75f * VIDA_MAX, health + 15f)); break;
+            case BANDAGEM: health = Math.min(VIDA_MAX, health + 75f); break;
             case ANALGESICO: boost = Math.min(100f, boost + 60f); break;
             case INJECAO: boost = 100f; break;
             case ENERGETICO: boost = Math.min(100f, boost + 40f); break;

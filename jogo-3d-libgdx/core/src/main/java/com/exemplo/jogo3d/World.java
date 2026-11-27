@@ -171,16 +171,105 @@ public class World {
     private boolean gridDirty = true;
     private float maxObsRadius = 0f;
 
-    /** Dano num muro atingido por tiro: quebra (e some) quando a vida chega a zero. */
-    void damageObstacle(Obstacle o, float dmg) {
+    /** Dano num muro atingido por tiro (sem posição: sem rachadura). */
+    void damageObstacle(Obstacle o, float dmg) { damageObstacle(o, dmg, null, null); }
+
+    /**
+     * Dano num muro atingido por tiro: cada impacto racha o muro no ponto 'at' (vindo de 'de') e ele quebra
+     * (e some, com as rachaduras) quando a vida chega a zero.
+     */
+    void damageObstacle(Obstacle o, float dmg, Vector3 at, Vector3 de) {
         for (int i = 0; i < walls.size; i++) {
             StoneWall w = walls.get(i);
             if (w.cols.contains(o, true)) {
                 w.hp -= dmg;
+                if (at != null && de != null) {
+                    addRacha(w, at, de);
+                    w.tremor = 0.3f;
+                }
                 if (w.hp <= 0f) removeWall(w);
                 return;
             }
         }
+    }
+
+    private Model crackModel;
+
+    /** Caixa unitária para as rachaduras (escurecida), criada uma vez. */
+    private Model crackModel() {
+        if (crackModel == null) {
+            crackModel = new ModelBuilder().createBox(1f, 1f, 1f,
+                    new Material(ColorAttribute.createDiffuse(0.06f, 0.05f, 0.04f, 1f)), Usage.Position | Usage.Normal);
+            loaded.add(crackModel);
+        }
+        return crackModel;
+    }
+
+    /** Uma rachadura nova na face do muro, voltada para quem atirou. */
+    private void addRacha(StoneWall w, Vector3 at, Vector3 de) {
+        if (w.rachas.size >= MAX_RACHAS) return;
+        float nx = de.x - at.x, nz = de.z - at.z;
+        float n = (float) Math.hypot(nx, nz);
+        if (n < 1e-4f) { nx = 0f; nz = 1f; } else { nx /= n; nz /= n; }
+        Vector3 p = new Vector3(at).add(nx * 0.03f, 0f, nz * 0.03f);
+        float yaw = (float) Math.toDegrees(Math.atan2(nx, nz));
+        StoneWall.Racha r = new StoneWall.Racha(crackModel(), p, yaw,
+                MathUtils.random(-70f, 70f), MathUtils.random(0.25f, 0.5f));
+        r.aplica();
+        w.rachas.add(r);
+        instances.add(r.mi);
+    }
+
+    static final int MAX_RACHAS = 18;
+
+    /** Anima os muros: rachaduras crescem e o muro treme um pouco quando leva um impacto. */
+    void tickWalls(float dt) {
+        for (int i = 0; i < walls.size; i++) {
+            StoneWall w = walls.get(i);
+            if (w.tremor > 0f) {
+                w.tremor = Math.max(0f, w.tremor - dt);
+                float j = w.tremor > 0f ? (float) Math.sin(w.tremor * 80f) * 0.03f : 0f;
+                w.mi.transform.set(w.base).translate(j, 0f, 0f);
+            }
+            for (int k = 0; k < w.rachas.size; k++) {
+                StoneWall.Racha r = w.rachas.get(k);
+                if (r.crescimento < 1f) {
+                    r.crescimento = Math.min(1f, r.crescimento + dt / 0.25f);
+                    r.aplica();
+                }
+            }
+        }
+    }
+
+    /**
+     * Parede de proteção na linha de tiro de a até b (os muros bloqueiam bala). Devolve a pedra atingida e
+     * preenche 'ponto' com o lugar do impacto; null se a linha está livre.
+     */
+    Obstacle muroNaLinha(Vector3 a, Vector3 b, Vector3 ponto) {
+        Obstacle melhor = null;
+        float melhorT = 2f;
+        float dx = b.x - a.x, dz = b.z - a.z, len2 = dx * dx + dz * dz;
+        for (int i = 0; i < walls.size; i++) {
+            StoneWall w = walls.get(i);
+            for (int k = 0; k < w.cols.size; k++) {
+                Obstacle o = w.cols.get(k);
+                float t = len2 < 1e-6f ? 0f : MathUtils.clamp(((o.x - a.x) * dx + (o.z - a.z) * dz) / len2, 0f, 1f);
+                float px = a.x + dx * t - o.x, pz = a.z + dz * t - o.z;
+                if (px * px + pz * pz > o.radius * o.radius) continue;
+                float y = a.y + (b.y - a.y) * t;
+                if (y < o.baseY || y > o.baseY + o.height) continue;
+                if (t < melhorT) { melhorT = t; melhor = o; }
+            }
+        }
+        if (melhor != null && ponto != null) ponto.set(a).lerp(b, melhorT);
+        return melhor;
+    }
+
+    /** Quantos muros este dono tem no mundo. */
+    int murosDe(Object dono) {
+        int n = 0;
+        for (int i = 0; i < walls.size; i++) if (walls.get(i).dono == dono) n++;
+        return n;
     }
 
     /** Acrescenta um obstáculo (carroça, por exemplo) e marca a grade para refazer. */
@@ -1135,14 +1224,25 @@ public class World {
         return null;
     }
 
-    /** Limite de paredes de proteção colocadas: ao colocar a oitava, some a primeira. */
+    /** Dono dos muros do jogador. */
+    static final Object JOGADOR = new Object();
+    /** Limite de paredes do jogador: ao colocar a oitava, some a primeira dele. */
     static final int MAX_WALLS = 7;
+    /** Limite de paredes por inimigo. */
+    static final int BOT_MAX_WALLS = 2;
 
-    /** Põe o muro no lugar calculado por wallSpot (já sabendo que cabe). */
-    void placeWallSpot(WallSpot s) {
-        while (walls.size >= MAX_WALLS) removeWall(walls.first());   // a mais antiga sai (modelo e colisão)
+    /** Põe o muro do jogador no lugar calculado por wallSpot (já sabendo que cabe). */
+    void placeWallSpot(WallSpot s) { placeWallSpot(s, JOGADOR); }
+
+    /** Põe um muro para 'dono' (jogador ou inimigo). Ao passar do limite do dono, sai o mais antigo dele. */
+    void placeWallSpot(WallSpot s, Object dono) {
+        int cap = dono == JOGADOR ? MAX_WALLS : BOT_MAX_WALLS;
+        while (murosDe(dono) >= cap) {
+            for (int i = 0; i < walls.size; i++) if (walls.get(i).dono == dono) { removeWall(walls.get(i)); break; }
+        }
         float c = MathUtils.cosDeg(s.yawDeg), sn = MathUtils.sinDeg(s.yawDeg);
         StoneWall w = new StoneWall(wallModel, s.x, s.groundY, s.z, s.yawDeg);
+        w.dono = dono;
         instances.add(w.mi);
         for (float[] k : wallCircles) {
             Obstacle o = new Obstacle(s.x + k[0] * c + k[1] * sn, s.z - k[0] * sn + k[1] * c, k[2], s.groundY, StoneWall.HEIGHT);
@@ -1180,6 +1280,7 @@ public class World {
     /** Tira um muro: o modelo e a colisão. */
     void removeWall(StoneWall w) {
         instances.removeValue(w.mi, true);
+        for (int i = 0; i < w.rachas.size; i++) instances.removeValue(w.rachas.get(i).mi, true);
         for (int i = 0; i < w.cols.size; i++) removeObstacle(w.cols.get(i));
         walls.removeValue(w, true);
     }
@@ -1192,6 +1293,7 @@ public class World {
 
     /** Atualiza enfeites (porta, rede) e o fogo. Chame todo quadro. */
     public void update(float dt, com.badlogic.gdx.graphics.PerspectiveCamera cam) {
+        tickWalls(dt);
         for (int i = 0; i < decors.size; i++) decors.get(i).update(dt);
         fire.update(dt, cam);
         updateBirds(dt);

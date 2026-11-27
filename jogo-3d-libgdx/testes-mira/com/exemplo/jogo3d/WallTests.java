@@ -134,14 +134,21 @@ public class WallTests extends ApplicationAdapter {
         String msgInside = w.wallSpot(px, pz, 0f, 0f, sp);
         check("sombra: em cima de outro muro também cabe", msgInside == null, msgInside == null ? "" : msgInside);
 
-        // Tiro: o muro aguenta 600 de dano e quebra ao chegar a zero
+        // Tiro: o muro aguenta 400 de dano e quebra ao chegar a zero (rachaduras aparecem a cada impacto)
         int nBefore = w.walls.size;
         StoneWall alvo = w.walls.get(0);
         World.Obstacle pedra = alvo.cols.get(0);
-        w.damageObstacle(pedra, 300f);
-        check("muro aguenta 300 de dano", w.walls.size == nBefore && alvo.hp == 300f, "vida " + alvo.hp);
-        w.damageObstacle(pedra, 300f);
-        check("muro quebra com 600 de dano", w.walls.size == nBefore - 1 && w.walls.indexOf(alvo, true) < 0, "muros " + w.walls.size);
+        com.badlogic.gdx.math.Vector3 de = new com.badlogic.gdx.math.Vector3(alvo.x, 1f, alvo.z + 6f);
+        w.damageObstacle(pedra, 200f, new com.badlogic.gdx.math.Vector3(pedra.x, 1f, pedra.z), de);
+        check("muro aguenta 200 de dano", w.walls.size == nBefore && alvo.hp == 200f, "vida " + alvo.hp);
+        check("cada impacto racha o muro", alvo.rachas.size == 1, "rachaduras " + alvo.rachas.size);
+        float alturaTiro = pedra.baseY + 1f;   // a parede pode estar num morro: o tiro é na altura dela
+        com.badlogic.gdx.math.Vector3 ca = new com.badlogic.gdx.math.Vector3(pedra.x, alturaTiro, pedra.z + 3f), cb = new com.badlogic.gdx.math.Vector3(pedra.x, alturaTiro, pedra.z - 3f);
+        World.Obstacle barrou = w.muroNaLinha(ca, cb, null);
+        check("tiro que atravessa a parede é barrado pela própria parede", barrou != null && alvo.cols.contains(barrou, true), "");
+        check("tiro longe da parede passa livre", w.muroNaLinha(new com.badlogic.gdx.math.Vector3(pedra.x + 30f, 1f, pedra.z + 3f), new com.badlogic.gdx.math.Vector3(pedra.x + 30f, 1f, pedra.z - 3f), null) == null, "");
+        w.damageObstacle(pedra, 200f);
+        check("muro quebra com 400 de dano", w.walls.size == nBefore - 1 && w.walls.indexOf(alvo, true) < 0, "muros " + w.walls.size);
         check("muro quebrado sai da colisão", w.obstacles.indexOf(pedra, true) < 0, "");
 
         // Sem limite de quantidade: quatro muros um dentro do outro

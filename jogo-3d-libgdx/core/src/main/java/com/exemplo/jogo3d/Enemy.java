@@ -209,6 +209,8 @@ final class Enemy {
     int equipe = -1;
     /** Nome de quem causou o último dano (creditado no abate); null = granada ou desconhecido. */
     String ultimoAtacante;
+    /** Tempo até o inimigo poder pôr outro muro de proteção (segundos). */
+    float wallCd = 0f;
     /** Multiplicador de precisão (dificuldade dos bots): 1 é médio. */
     float precisao = 1f;
 

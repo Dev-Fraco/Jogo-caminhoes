@@ -205,7 +205,11 @@ final class Enemies {
                 e.lodT = 0f;
                 fired = e.update(dt, w, this, playerPos, alive);
             }
-            if (fired) enemyShot(e, playerPos, sv, playerMove, stance);
+            if (e.alive() && e.state == Enemy.State.COMBAT) {
+                Vector3 alvo = e.targetEnemy != null ? e.targetEnemy.pos : (e.targetPlayer && alive ? playerPos : null);
+                botParede(e, w, alvo, dt);
+            }
+            if (fired) enemyShot(e, playerPos, sv, playerMove, stance, w);
             // corpos somem depois de um tempo; a arma que tinham cai no chão
             if (!e.alive() && e.deadT > 40f) {
                 if (e.weapon != null) w.weapons.dropAt(w, e.weapon, e.pos.x, e.pos.z);
@@ -215,14 +219,38 @@ final class Enemies {
         }
     }
 
+    /**
+     * Bot em combate põe uma parede de proteção à frente, voltada para o alvo, quando o alvo está a média
+     * distância. Até World.BOT_MAX_WALLS por bot, com intervalo entre uma e outra.
+     */
+    private void botParede(Enemy e, World w, Vector3 alvo, float dt) {
+        e.wallCd = Math.max(0f, e.wallCd - dt);
+        if (alvo == null || e.wallCd > 0f || w.murosDe(e) >= World.BOT_MAX_WALLS) return;
+        float dist = e.pos.dst(alvo);
+        if (dist < 5f || dist > 22f) return;
+        World.WallSpot s = new World.WallSpot();
+        float yaw = MathUtils.atan2(alvo.x - e.pos.x, alvo.z - e.pos.z);
+        if (w.wallSpot(e.pos.x, e.pos.z, yaw, 1.6f, s) == null) {
+            w.placeWallSpot(s, e);
+            e.wallCd = 12f;
+        }
+    }
+
     /** Bot atirando em outro bot: acerta ou erra pela distância e movimento do alvo; o atingido revida. */
-    private void botShot(Enemy e, Enemy t) {
+    private void botShot(Enemy e, Enemy t, World w) {
         float d = e.pos.dst(t.pos);
         float p = MathUtils.clamp((0.55f - d * 0.009f - t.vel.len() * 0.04f) * e.precisao, 0.06f, 0.92f);
         Vector3 to = new Vector3(t.pos).add(0f, 1.2f, 0f);
         boolean hit = MathUtils.random() < p;
         if (!hit) to.add(MathUtils.random(-1.2f, 1.2f), MathUtils.random(-0.6f, 1.2f), MathUtils.random(-1.2f, 1.2f));
         shots.add(new Vector3[]{new Vector3(e.muzzle), to});
+        Vector3 ponto = new Vector3();
+        World.Obstacle parede = w.muroNaLinha(e.muzzle, to, ponto);
+        if (parede != null) {   // parede de proteção na linha: ela leva o tiro
+            w.damageObstacle(parede, WeaponConfig.RIFLE_INIMIGO.damageAt(WeaponConfig.Region.TORSO, d), ponto, e.muzzle);
+            alert(e.muzzle, 35f, e);
+            return;
+        }
         if (hit) {
             WeaponConfig.Region r = MathUtils.random() < 0.12f ? WeaponConfig.Region.HEAD : WeaponConfig.Region.TORSO;
             t.ultimoAtacante = e.nome;
@@ -232,9 +260,9 @@ final class Enemies {
         alert(e.muzzle, 35f, e);   // o tiro chama quem estiver perto
     }
 
-    private void enemyShot(Enemy e, Vector3 player, Survival sv, float playerMove, int stance) {
+    private void enemyShot(Enemy e, Vector3 player, Survival sv, float playerMove, int stance, World w) {
         if (e.targetEnemy != null) {
-            botShot(e, e.targetEnemy);
+            botShot(e, e.targetEnemy, w);
             return;
         }
         float d = e.pos.dst(player);
@@ -244,6 +272,12 @@ final class Enemies {
         boolean hitPlayer = MathUtils.random() < p;
         if (!hitPlayer) to.add(MathUtils.random(-1.2f, 1.2f), MathUtils.random(-0.6f, 1.2f), MathUtils.random(-1.2f, 1.2f));
         shots.add(new Vector3[]{new Vector3(e.muzzle), to});
+        Vector3 ponto = new Vector3();
+        World.Obstacle parede = w.muroNaLinha(e.muzzle, to, ponto);
+        if (parede != null) {   // parede de proteção na linha: o tiro para nela
+            w.damageObstacle(parede, WeaponConfig.RIFLE_INIMIGO.damageAt(WeaponConfig.Region.TORSO, d), ponto, e.muzzle);
+            return;
+        }
         if (hitPlayer && sv != null) {
             WeaponConfig.Region r = MathUtils.random() < 0.12f ? WeaponConfig.Region.HEAD : WeaponConfig.Region.TORSO;
             sv.damage(WeaponConfig.RIFLE_INIMIGO.damageAt(r, d), true);
