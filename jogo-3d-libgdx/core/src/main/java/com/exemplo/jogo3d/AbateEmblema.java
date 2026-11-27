@@ -59,7 +59,7 @@ final class AbateEmblema {
         if (!ativo() || tex == null) return;
         float a = alpha();
         float k = Math.max(0.9f, Math.min(W, H) / 600f);
-        float lado = 230f * k * escala();
+        float lado = 138f * k * escala();   // 40% menor que antes (230)
         float cx = W / 2f, cy = H * 0.66f;
         float brilho = 0.35f + 0.25f * (float) Math.sin(t * 9f);
 
