@@ -173,6 +173,65 @@ public class ControlTests extends ApplicationAdapter {
         check("tocar manualmente no fuzil: a referência vira a pistola", wp.heldName().equals("AKM") && wp.ultimoItem() == 2, "ultimo=" + wp.ultimoItem());
         wp.trocaRapida(ch);
         check("depois da seleção manual, a troca rápida volta à pistola", wp.heldName().equals("MAGNUM 357") && wp.armed(), wp.heldName());
+
+        System.out.println("== SCAR: 10 tiros por segundo, independente do FPS ==");
+        for (double fps : new double[]{30, 60, 144, 240}) {
+            prepararScar(wp, w, ch, pl);
+            java.util.List<Double> t = tirosContinuos(wp, 1.0 / fps, 6.0);
+            check("SCAR com pente cheio dispara 30 tiros (" + (int) fps + " fps)", t.size() == 30, "" + t.size());
+            double pausa = 0, maior = 0;
+            for (int i = 1; i < t.size(); i++) {
+                double intervalo = t.get(i) - t.get(i - 1);
+                maior = Math.max(maior, Math.abs(intervalo - 0.10));
+            }
+            if (t.size() > 1) pausa = t.get(t.size() - 1) - t.get(0);
+            check("pente vazio em ~2,9 s (" + (int) fps + " fps)", Math.abs(pausa - 2.9) <= 1.0 / fps + 1e-6, String.format("%.3f s", pausa));
+            check("intervalo de 0,10 s entre tiros (" + (int) fps + " fps)", maior <= 1.0 / fps + 1e-6, String.format("desvio máx %.4f s", maior));
+        }
+
+        System.out.println("== SCAR: soltar o botão para o disparo na hora ==");
+        prepararScar(wp, w, ch, pl);
+        int tiros = 0, apos = 0;
+        double dt = 1.0 / 60.0, agora = 0;
+        boolean primeiro = true;
+        while (agora < 0.5) {
+            wp.tick((float) dt);
+            if (wp.tryFire(true, primeiro) == 1) tiros++;
+            primeiro = false;
+            agora += dt;
+        }
+        for (int i = 0; i < 60; i++) {
+            wp.tick((float) dt);
+            if (wp.tryFire(false, false) == 1) apos++;
+        }
+        check("atirou enquanto segurava e parou ao soltar", tiros >= 4 && apos == 0, "tiros=" + tiros + " depois de soltar=" + apos);
+    }
+
+    /** SCAR na mão, com o pente cheio e a animação de sacar terminada. */
+    static void prepararScar(Weapons wp, World w, Character ch, Player pl) {
+        wp.unequip(ch);
+        wp.pickUp(new Weapons.Pickup(5, new ModelInstance(wp.models()[5]), 0, 0, 0), w, ch, pl);
+        if (wp.magOf(5) < 30) {
+            wp.startReload();
+            wp.tick(2f);
+        }
+        for (int i = 0; i < 100; i++) wp.tick(0.02f);   // deixa acabar o sacar
+    }
+
+    /** Simula o botão de tiro segurado num quadro de dt segundos; para no clique de pente vazio. */
+    static java.util.List<Double> tirosContinuos(Weapons wp, double dt, double limite) {
+        java.util.List<Double> t = new java.util.ArrayList<>();
+        double agora = 0;
+        boolean primeiro = true;
+        while (agora < limite) {
+            wp.tick((float) dt);
+            int r = wp.tryFire(true, primeiro);
+            primeiro = false;
+            if (r == -1) break;
+            if (r == 1) t.add(agora);
+            agora += dt;
+        }
+        return t;
     }
 
     static boolean semRepetir(int[] o) {

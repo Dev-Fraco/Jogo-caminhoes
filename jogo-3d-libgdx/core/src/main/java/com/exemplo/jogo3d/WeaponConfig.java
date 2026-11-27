@@ -158,6 +158,14 @@ final class WeaponConfig {
 
     WeaponConfig withFirstShotDelay(float s) { firstShotDelay = s; return this; }
 
+    /**
+     * Cadência exata: o intervalo entre tiros é mantido em média independente do FPS (o excedente de um
+     * quadro é descontado do próximo tiro). Só as armas que pedem isso usam; as demais seguem como estavam.
+     */
+    boolean cadenciaExata = false;
+
+    WeaponConfig comCadenciaExata() { cadenciaExata = true; return this; }
+
     /** Raio (m) do grupo de chumbos num tiro que erra: sai do corpo do alvo e cresce com a distância. */
     /** Raio (m) em volta do ponto de mira onde caem os chumbos de um tiro que acerta (fica no corpo). */
     static final float SHOT_HIT_R = 0.2f;
@@ -193,7 +201,7 @@ final class WeaponConfig {
     static final WeaponConfig M416 = new WeaponConfig("M416", Category.FUZIL, FireMode.AUTO, 1, 0f, 27f, 2.0f, 0.75f, 0.75f,
             0.090f, 30, 120, 1.1f, 150f, 50f, 0.70f, 2.5f, 0.6f, 0.55f, 0.22f, 1, 0.055f, 1.0f, 0.50f);
     static final WeaponConfig SCARL = new WeaponConfig("SCAR-L", Category.FUZIL, FireMode.AUTO, 1, 0f, 28f, 2.0f, 0.75f, 0.75f,
-            0.095f, 30, 120, 1.3f, 150f, 50f, 0.70f, 2.6f, 0.6f, 0.62f, 0.25f, 1, 0.060f, 1.0f, 0.50f);
+            0.100f, 30, 120, 1.3f, 150f, 50f, 0.70f, 2.6f, 0.6f, 0.62f, 0.25f, 1, 0.060f, 1.0f, 0.50f).comCadenciaExata();
     // Fuzil de precisão AWM: luneta (zoom real), sem assistência de mira, um tiro por mira e recarga de 0,5 s
     static final WeaponConfig AWM = new WeaponConfig("AWM", Category.PRECISAO, FireMode.SEMI, 1, 0f, 85f, 2.4f, 0.8f, 0.8f,
             1.200f, 5, 20, 0.5f, 300f, 150f, 0.85f, 6.0f, 0.05f, 3.20f, 0.20f, 1, 0.140f, 1.4f, 0.70f).asScope();

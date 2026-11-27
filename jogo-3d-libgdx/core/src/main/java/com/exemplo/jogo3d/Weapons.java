@@ -282,7 +282,9 @@ final class Weapons {
 
     /** Tempo: cadência e recarga. */
     void tick(float dt) {
-        cooldown = Math.max(0f, cooldown - dt);
+        WeaponConfig cc = config();
+        if (cc != null && cc.cadenciaExata) cooldown = Math.max(-cc.fireInterval, cooldown - dt);   // deixa o excedente
+        else cooldown = Math.max(0f, cooldown - dt);
         if (armT >= 0f) armT += dt;
         if (reloadT > 0f) {
             reloadT -= dt;
@@ -340,7 +342,7 @@ final class Weapons {
             return -1;
         }
         if (!infinite) mag[heldType]--;   // treino: munição infinita
-        cooldown = c.fireInterval;
+        cooldown = proximoIntervalo(c);
         if (c.scope) spent = true;
         kickPos = Math.min(kickPos + c.kick, c.kick * 2f);
         if (c.mode == WeaponConfig.FireMode.BURST) {
@@ -350,6 +352,17 @@ final class Weapons {
             else cooldown = 0f;   // enquanto durar a rajada o controle é do burstLeft
         }
         return 1;
+    }
+
+    /**
+     * Tempo até o próximo tiro. Armas comuns: o intervalo inteiro. Cadência exata: cooldown (<= 0) é o quanto o
+     * tiro atrasou além do ponto previsto; o próximo tiro sai no ponto previsto seguinte, sem acumular atraso.
+     * Atraso grande (pausa, quadro longo) não gera rajada de tiros atrasados: reinicia o ritmo.
+     */
+    private float proximoIntervalo(WeaponConfig c) {
+        if (!c.cadenciaExata) return c.fireInterval;
+        if (cooldown < -c.fireInterval * 0.5f) return c.fireInterval;
+        return c.fireInterval + cooldown;
     }
 
     /** Recuo visual atual da arma (m). */
