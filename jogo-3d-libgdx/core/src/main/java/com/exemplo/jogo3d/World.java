@@ -22,6 +22,7 @@ import com.badlogic.gdx.utils.IntArray;
 import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Quaternion;
 import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.math.collision.BoundingBox;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.JsonValue;
 
@@ -530,10 +531,13 @@ public class World {
         for (float z = -SHED_HD; z <= SHED_HD + 0.01f; z += 4f) addTrainVisual(mb, attrs, 2 * SHED_HW, 0.4f, 0.25f, 0f, SHED_H - 0.3f, z, metal);
         for (float x : new float[]{-SHED_HW, SHED_HW, -12.5f, 12.5f}) for (float z : new float[]{-SHED_HD, SHED_HD})
             addTrainVisual(mb, attrs, 0.45f, SHED_H, 0.45f, x, SHED_H / 2f, z, woodDark);
-        // Caixa de equipamentos: corpo verde-oliva e tampa
-        addTrainVisual(mb, attrs, 1.6f, 0.9f, 1.0f, TRAIN_BOX_X, 0.45f, TRAIN_BOX_Z, olive);
-        addTrainVisual(mb, attrs, 1.7f, 0.1f, 1.1f, TRAIN_BOX_X, 0.95f, TRAIN_BOX_Z, metalDark);
-        boxes.add(new Box(new Matrix4().setToTranslation(TRAIN_BOX_X, 0f, TRAIN_BOX_Z), 0.85f, 0.55f, 1.0f));
+        // Prateleira de equipamentos (modelo real, em metros): colisão do tamanho dela
+        shelfModel = ModelIO.load("models/prateleira.g3dj");
+        loaded.add(shelfModel);
+        ModelInstance shelf = new ModelInstance(shelfModel);
+        shelf.transform.setToTranslation(TRAIN_BOX_X, 0f, TRAIN_BOX_Z);
+        instances.add(shelf);
+        boxes.add(new Box(new Matrix4().setToTranslation(TRAIN_BOX_X, 0f, TRAIN_BOX_Z), SHELF_HD, SHELF_HL, SHELF_H));
         // Cerca invisível em volta do treino (colisão e tiro)
         float L = TRAIN_LIMIT;
         boxes.add(new Box(new Matrix4().setToTranslation(-L, 0f, 0f).rotate(Vector3.Y, 90f), L, 0.5f, 6f));   // lado oeste (corre em z)
@@ -543,7 +547,39 @@ public class World {
         // Armas e itens (sem nada espalhado), fogo sem fontes
         fire = new Fire();
         weapons = new Weapons();
+        placeShelfWeapons();
         items = new Items();
+    }
+
+    // Prateleira: meias medidas do modelo (profundidade em x, comprimento em z, altura em y)
+    static final float SHELF_HD = 0.6f, SHELF_HL = 1.62f, SHELF_H = 2.54f;
+    // Topo de cada tábua usada (níveis de baixo) e espaçamento entre as armas do mesmo nível
+    static final float[] SHELF_LEVELS = {0.24f, 0.94f, 1.68f};
+    static final float SHELF_SLOT = 0.9f;
+    static final int SHELF_PER_LEVEL = 3;
+    private Model shelfModel;
+
+    /**
+     * Arma deitada sobre a tábua: cano paralelo à profundidade, centrada no nível e na linha, sem flutuar
+     * (a base do modelo encosta na tábua). Três níveis, três armas por nível, espaçamento uniforme.
+     */
+    private void placeShelfWeapons() {
+        Model[] ms = weapons.models();
+        BoundingBox bb = new BoundingBox();
+        int n = Math.min(ms.length, SHELF_LEVELS.length * SHELF_PER_LEVEL);
+        for (int type = 0; type < n; type++) {
+            int level = type / SHELF_PER_LEVEL, col = type % SHELF_PER_LEVEL;
+            int inLevel = Math.min(SHELF_PER_LEVEL, n - level * SHELF_PER_LEVEL);
+            float zSlot = (col - (inLevel - 1) / 2f) * SHELF_SLOT;
+            ms[type].calculateBoundingBox(bb);
+            float cx = (bb.min.x + bb.max.x) / 2f, cz = (bb.min.z + bb.max.z) / 2f;
+            float y = SHELF_LEVELS[level] - bb.min.y + 0.005f;
+            // Gira 90° em Y: o eixo do cano (z) vira x; o centro do modelo cai sobre (TRAIN_BOX_X, zSlot)
+            Matrix4 t = new Matrix4().setToTranslation(TRAIN_BOX_X - cz, y, TRAIN_BOX_Z + zSlot + cx).rotate(Vector3.Y, 90f);
+            ModelInstance mi = new ModelInstance(ms[type]);
+            mi.transform.set(t);
+            instances.add(mi);
+        }
     }
 
     private void addTrainVisual(ModelBuilder mb, long attrs, float w, float h, float d, float x, float y, float z, Color c) {
