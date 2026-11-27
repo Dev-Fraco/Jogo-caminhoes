@@ -72,13 +72,28 @@ public class ControlTests extends ApplicationAdapter {
         wp.swap(ch);
         check("trocar de volta: GROZA na mão", wp.heldName().equals("GROZA"), wp.heldName());
 
-        System.out.println("== Sem guardar: a arma fica sempre na mão ==");
+        System.out.println("== Punho guarda a arma; caixa da arma leva de volta ==");
         wp.unequip(ch);
         wp.pickUp(new Weapons.Pickup(1, new ModelInstance(wp.models()[1]), 0, 0, 0), w, ch, pl);
         wp.swap(ch);
         check("trocar com uma arma só não guarda: a arma continua na mão", !wp.holstered() && wp.armed(), "");
         wp.toggleHold(ch);
-        check("tocar no punho não guarda a arma", !wp.holstered() && wp.armed(), "");
+        check("tocar no punho guarda a arma: sem arma na mão, arma continua no HUD", wp.holstered() && !wp.armed() && wp.hasWeapon(), "");
+        wp.equipSlot(0, ch);
+        check("tocar na caixa do fuzil leva ele de volta para a mão", !wp.holstered() && wp.armed() && wp.heldName().equals("AUG"), wp.heldName());
+
+        System.out.println("== Três slots: dois fuzis e uma pistola ==");
+        wp.unequip(ch);
+        wp.pickUp(new Weapons.Pickup(8, new ModelInstance(wp.models()[8]), 0, 0, 0), w, ch, pl);
+        check("pistola/revólver vai para o slot 2", wp.slotType(2) == 8 && wp.slotType(0) < 0 && wp.slotType(1) < 0, "");
+        wp.pickUp(new Weapons.Pickup(0, new ModelInstance(wp.models()[0]), 0, 0, 0), w, ch, pl);
+        check("fuzil com pistola levada vai para o slot 0 e fica na mão", wp.slotType(0) == 0 && wp.slotType(2) == 8 && wp.heldName().equals("AKM"), wp.heldName());
+        wp.equipSlot(2, ch);
+        check("tocar na caixa da pistola leva a pistola para a mão", wp.heldName().equals("MAGNUM 357") && !wp.holstered(), wp.heldName());
+        wp.toggleHold(ch);
+        check("punho com a pistola na mão guarda ela", wp.holstered() && !wp.armed() && wp.slotType(2) == 8, "");
+        wp.equipSlot(0, ch);
+        check("tocar no fuzil depois de guardar leva o fuzil", wp.heldName().equals("AKM") && wp.armed(), wp.heldName());
     }
 
     public static void main(String[] args) {

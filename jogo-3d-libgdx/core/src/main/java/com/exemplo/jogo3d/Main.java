@@ -933,7 +933,7 @@ public class Main extends ApplicationAdapter {
                 int area = WeaponPanel.hitArea((x - ar[0]) / ar[2], (yb - ar[1]) / ar[3]);
                 if (area == WeaponPanel.TOP) {
                     if (world.weapons.startReload()) adsOn = false;
-                } else if (area == 0 || area == 1) {
+                } else if (area >= 0 && area < WeaponPanel.FIST) {
                     world.weapons.equipSlot(area, character);
                 } else if (area == WeaponPanel.FIST) {
                     world.weapons.toggleHold(character);

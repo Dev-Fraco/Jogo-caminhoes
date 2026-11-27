@@ -11,23 +11,25 @@ import com.badlogic.gdx.math.MathUtils;
 
 /**
  * Painel de armas (botão "arma" do HUD), no desenho da arte nova:
- * em cima, a arma na mão com a munição (e a barra de recarga); embaixo, as duas armas levadas e o punho.
+ * em cima, a arma na mão com a munição (e a barra de recarga); embaixo, as três armas levadas
+ * (dois fuzis e uma pistola) e o punho.
  *
  * Coordenadas do painel em frações da largura e da altura (origem embaixo à esquerda).
- * Toque: em cima recarrega; embaixo, a caixa da arma leva essa arma para a mão; o punho guarda ou saca.
+ * Toque: em cima recarrega; embaixo, a caixa de uma arma leva essa arma para a mão; o punho guarda a arma.
  */
 final class WeaponPanel {
     static final float TOP_Y = 0.47f;                                   // acima disso é o painel da arma na mão
-    static final float[][] TILE_X = {{0.000f, 0.325f}, {0.3375f, 0.6625f}, {0.675f, 1.000f}};   // as três caixas de baixo
-    static final int TOP = 9, FIST = 2;
+    // Quatro caixas de baixo: fuzil, fuzil, pistola (slots 0, 1, 2) e punho (3)
+    static final float[][] TILE_X = {{0.000f, 0.2406f}, {0.2531f, 0.4937f}, {0.5063f, 0.7469f}, {0.7594f, 1.000f}};
+    static final int TOP = 9, FIST = 3;
 
     private static Texture bulletsTex, fistTex;
     private static final GlyphLayout layout = new GlyphLayout();
 
-    /** Área tocada: 0 e 1 = as duas armas, FIST = punho, TOP = painel de cima, -1 = fora. */
+    /** Área tocada: 0, 1 e 2 = as armas levadas, FIST = punho, TOP = painel de cima, -1 = fora. */
     static int hitArea(float lx, float ly) {
         if (ly >= TOP_Y) return TOP;
-        for (int i = 0; i < 3; i++) if (lx >= TILE_X[i][0] && lx <= TILE_X[i][1]) return i == 2 ? FIST : i;
+        for (int i = 0; i < TILE_X.length; i++) if (lx >= TILE_X[i][0] && lx <= TILE_X[i][1]) return i;
         return -1;
     }
 
@@ -50,7 +52,7 @@ final class WeaponPanel {
         shapes.setColor(0.10f, 0.08f, 0.02f, 0.9f);
         // Caixas de baixo: fundo escuro
         float by = y, bh = h * (TOP_Y - 0.02f);
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < TILE_X.length; i++) {
             float bx = x + w * TILE_X[i][0], bw = w * (TILE_X[i][1] - TILE_X[i][0]);
             shapes.setColor(0.05f, 0.05f, 0.05f, 0.9f);
             shapes.rect(bx, by, bw, bh);
@@ -74,9 +76,9 @@ final class WeaponPanel {
             shapes.setColor(0.98f, 0.82f, 0.1f, 1f);
             shapes.rect(x + d, ty + d, w - 2 * d, h * (1f - TOP_Y) - 2 * d);
         }
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < TILE_X.length; i++) {
             float bxi = x + w * TILE_X[i][0], bwi = w * (TILE_X[i][1] - TILE_X[i][0]);
-            boolean on = (i < 2 && i == active && held) || (i == FIST && !held && wp.heldType() >= 0);
+            boolean on = (i < FIST && i == active && held) || (i == FIST && !held && wp.heldType() >= 0);
             for (int k = 0; k < 2; k++) {
                 float d = k * h * 0.006f;
                 if (on) shapes.setColor(0.98f, 0.82f, 0.1f, 1f);
@@ -113,7 +115,7 @@ final class WeaponPanel {
         font.draw(batch, held && wp.heldType() >= 0 ? Weapons.NAMES[wp.heldType()] : "PUNHO", x + w * 0.04f, y + h * 0.56f);
         // Caixas de baixo: as armas levadas (ícone e munição) e o punho
         font.getData().setScale(h / 470f);
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < FIST; i++) {
             float bx = x + w * TILE_X[i][0], bw = w * (TILE_X[i][1] - TILE_X[i][0]);
             int t = wp.slotType(i);
             if (t < 0) {

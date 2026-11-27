@@ -36,9 +36,16 @@ final class Weapons {
     private final Model[] models = new Model[FILES.length];
     final Array<Pickup> ground = new Array<>();
     private int heldType = -1;
-    private final int[] slot = {-1, -1};   // duas armas levadas (tipo, ou -1 = vazio)
+    static final int PISTOL_SLOT = 2;      // slots 0 e 1 = fuzis; slot 2 = pistola/revólver
+    private final int[] slot = {-1, -1, -1};   // três armas levadas (tipo, ou -1 = vazio)
     private int activeSlot = 0;            // a que está na mão
-    private boolean holstered = false;     // guardada (fora da mão)
+    private boolean holstered = false;     // guardada pelo punho (sem arma na mão)
+
+    /** Pistola e revólver vão para o slot de pistola; o resto, para os fuzis. */
+    static boolean isPistol(int type) {
+        WeaponConfig.Category c = WeaponConfig.BY_TYPE[type].category;
+        return c == WeaponConfig.Category.PISTOLA || c == WeaponConfig.Category.REVOLVER;
+    }
     private ModelInstance held;
     private final Vector3 hand = new Vector3();
     // Munição de cada arma (fica com a arma ao trocar)
@@ -108,23 +115,30 @@ final class Weapons {
 
     /** Começa com uma arma na mão (modo treinamento). */
     void giveStart(int type, Character ch) {
-        slot[0] = type;
-        slot[1] = -1;
-        activeSlot = 0;
+        for (int i = 0; i < slot.length; i++) slot[i] = -1;
+        int s = isPistol(type) ? PISTOL_SLOT : 0;
+        slot[s] = type;
+        activeSlot = s;
         equipNew(type, ch);
     }
 
-    /** Toque na caixa de uma das duas armas: leva essa arma para a mão. */
+    /** Toque na caixa de uma arma (fuzil ou pistola): leva essa arma para a mão. */
     void equipSlot(int s, Character ch) {
-        if (s < 0 || s > 1 || slot[s] < 0) return;
+        if (s < 0 || s >= slot.length || slot[s] < 0) return;
         if (!holstered && s == activeSlot) return;
         activeSlot = s;
         equipNew(slot[s], ch);
     }
 
-    /** Toque no punho: guarda a arma na mão ou, guardada, saca de novo. */
+    /** Toque no punho: guarda a arma (sai da mão, fica só no HUD) e fica sem arma até tocar numa caixa. */
     void toggleHold(Character ch) {
-        // Guardar e sacar foram removidos: a arma fica sempre na mão
+        if (heldType < 0 || holstered) return;
+        if (held != null) ch.instances.removeValue(held, true);
+        held = null;
+        holstered = true;
+        reloadT = 0f;   // guardar cancela a recarga
+        burstLeft = 0;
+        ch.setArmed(false);
     }
 
     /** Configuração da arma na mão (null se desarmado). */
@@ -253,8 +267,7 @@ final class Weapons {
         if (held != null) ch.instances.removeValue(held, true);
         held = null;
         heldType = -1;
-        slot[0] = -1;
-        slot[1] = -1;
+        for (int i = 0; i < slot.length; i++) slot[i] = -1;
         activeSlot = 0;
         holstered = false;
         reloadT = 0f;
@@ -319,22 +332,24 @@ final class Weapons {
         return best;
     }
 
-    /** Pega a arma do chão; se já tinha uma, a antiga fica no chão no lugar. */
-    /** Pega a arma do chão. Com slot livre, ela entra nele; com os dois cheios, a da mão cai no lugar. */
+    /** Pega a arma do chão. Pistola vai para o slot de pistola; fuzil, para o primeiro fuzil livre.
+     *  Se o slot já estiver ocupado, a arma antiga cai no chão no lugar. */
     boolean pickUp(Pickup g, World w, Character ch, Player player) {
-        if (slot[0] == g.type || slot[1] == g.type) return false;   // a mesma arma não entra duas vezes (a munição é dela)
+        for (int s : slot) if (s == g.type) return false;   // a mesma arma não entra duas vezes (a munição é dela)
         ground.removeValue(g, true);
         w.instances.removeValue(g.inst, true);
-        int empty = slot[0] < 0 ? 0 : slot[1] < 0 ? 1 : -1;
-        if (empty >= 0) {
-            slot[empty] = g.type;
-            activeSlot = empty;
-        } else {
+        int target;
+        if (isPistol(g.type)) target = PISTOL_SLOT;
+        else if (slot[0] < 0) target = 0;
+        else if (slot[1] < 0) target = 1;
+        else target = activeSlot == 1 ? 1 : 0;   // os dois fuzis cheios: cai o que está na mão (ou o primeiro)
+        if (slot[target] >= 0) {
             Random r = new Random();
-            drop(w, slot[activeSlot], player.pos.x + 0.6f * MathUtils.sin(player.facing + 1.2f),
+            drop(w, slot[target], player.pos.x + 0.6f * MathUtils.sin(player.facing + 1.2f),
                     player.pos.z + 0.6f * MathUtils.cos(player.facing + 1.2f), r);
-            slot[activeSlot] = g.type;
         }
+        slot[target] = g.type;
+        activeSlot = target;
         equipNew(g.type, ch);
         return true;
     }
@@ -356,27 +371,27 @@ final class Weapons {
         ch.setArmed(true);
     }
 
-    /** Troca para a outra arma (se houver). Com uma arma só, guarda ou saca a que está na mão. */
+    /** Troca para a próxima arma levada, na ordem dos slots. */
     void swap(Character ch) {
-        int other = activeSlot == 0 ? 1 : 0;
-        if (slot[other] >= 0) {
-            activeSlot = other;
-            equipNew(slot[other], ch);
-            return;
+        for (int k = 1; k < slot.length; k++) {
+            int s = (activeSlot + k) % slot.length;
+            if (slot[s] >= 0) {
+                activeSlot = s;
+                equipNew(slot[s], ch);
+                return;
+            }
         }
-    }
-
-    /** Guarda a arma: some da mão (a animação de guardar fica por conta da pose do braço). */
-    void holster(Character ch) {
-        // Guardar removido: a arma nunca sai da mão
     }
 
     boolean holstered() { return holstered; }
 
-    boolean hasWeapon() { return slot[0] >= 0 || slot[1] >= 0; }
+    boolean hasWeapon() { return slot[0] >= 0 || slot[1] >= 0 || slot[2] >= 0; }
 
     /** Há outra arma levada para trocar? */
-    boolean hasOtherWeapon() { return slot[activeSlot == 0 ? 1 : 0] >= 0; }
+    boolean hasOtherWeapon() {
+        for (int k = 1; k < slot.length; k++) if (slot[(activeSlot + k) % slot.length] >= 0) return true;
+        return false;
+    }
 
     /** Texto do botão de troca (guardar e sacar foram removidos). */
     String swapLabel() {
