@@ -236,12 +236,12 @@ public class AimTests extends ApplicationAdapter {
         AimAssist aa = new AimAssist();
         // 1. Mira na cabeça, aperta o tiro: vai para o peito na fração escolhida (80%)
         aimAt(ta.hitbox.headCenter);
-        float e0 = errChest(ta);
+        float e0 = errBelly(ta);
         aa.update(1f / 30f, cam, dir(), yaw, pitch, ta, fuzil, true, true, false);
         yaw += aa.dYaw;
         pitch += aa.dPitch;
-        float e1 = errChest(ta);
-        check("apertar o tiro gruda a mira no peito na hora", Math.abs(e1) < Math.abs(e0) * 0.05f,
+        float e1 = errBelly(ta);
+        check("apertar o tiro gruda a mira na barriga na hora", Math.abs(e1) < Math.abs(e0) * 0.05f,
                 String.format("erro %.3f -> %.3f rad", e0, e1));
         // 1b. Desviada para o lado, a correção horizontal é pequena (assistência horizontal 10%)
         aimAt(ta.hitbox.chest);
@@ -259,27 +259,26 @@ public class AimTests extends ApplicationAdapter {
         aa.update(1f / 30f, cam, dir(), yaw, pitch, ta, fuzil, true, true, false);
         check("alvo fora do FOV: a mira não é puxada", aa.dYaw == 0f && aa.dPitch == 0f, "");
         // 4. Mira no peito e segurando o tiro: não sobe sozinha para a cabeça
-        aimAt(ta.hitbox.chest);
+        aimAt(ta.hitbox.belly);
         float drift = 0f;
         for (int f = 0; f < 60; f++) {
             aa.update(1f / 30f, cam, dir(), yaw, pitch, ta, fuzil, true, false, false);
             yaw += aa.dYaw;
             pitch += aa.dPitch;
-            drift = Math.max(drift, Math.abs(errChest(ta)));
+            drift = Math.max(drift, Math.abs(errBelly(ta)));
         }
-        check("segurando o tiro no peito, a assistência não sobe para a cabeça", drift < 0.01f, String.format("desvio %.4f rad", drift));
+        check("segurando o tiro na barriga, a assistência não sobe para o peito nem a cabeça", drift < 0.01f, String.format("desvio %.4f rad", drift));
         // 5. Dentro do FOV, a resistência desconta parte do movimento para cima (sem prender)
-        float freeIn = climbOffset(ta, aa, fuzil, 0f, 0.02f, 0.0015f, 20);
-        float resistIn = climbOffset(ta, aa, fuzil, 0.95f, 0.02f, 0.0015f, 20);
-        float gainFree = freeIn - 0.02f, gainResist = resistIn - 0.02f;
-        float kept = gainFree > 1e-4f ? gainResist / gainFree : -1f;
-        check("arrasto lento para cima: a mira volta ao peito (assistência 20%)", Math.abs(resistIn) < 0.012f,
-                String.format("%.4f rad em relação ao peito depois de subir devagar", resistIn));
+        float freeIn = climbOffset(ta, aa, fuzil, 0f, 0f, 0.02f, 20);
+        float resistIn = climbOffset(ta, aa, fuzil, 0.90f, 0f, 0.02f, 20);
+        float kept = freeIn > 1e-4f ? resistIn / freeIn : -1f;
+        check("acima da barriga, subir devagar: 90% do movimento volta", kept > 0f && kept < 0.15f,
+                String.format("livre %.3f rad, com resistência %.3f rad (%.1f%%)", freeIn, resistIn, kept * 100f));
         // 5b. Fora do FOV a assistência não age: a subida é livre mesmo com resistência máxima
         float outStart = (AimSettings.fovDeg() * MathUtils.degreesToRadians) + 0.1f;
         float outFree = climbOffset(ta, aa, fuzil, 0f, outStart, 0.002f, 20);
-        float outResist = climbOffset(ta, aa, fuzil, 1f, outStart, 0.002f, 20);
-        check("fora do FOV a mira sobe livre, mesmo com resistência máxima", Math.abs(outResist - outFree) < 1e-3f,
+        float outResist = climbOffset(ta, aa, fuzil, 0.95f, outStart, 0.002f, 20);
+        check("fora do FOV a resistência continua valendo (sensibilidade alta não escapa)", (outResist - outStart) < 0.2f * (outFree - outStart),
                 String.format("livre %.4f, resistência 100%% %.4f", outFree, outResist));
         // 5c. De perto (3 m), com arrasto rápido para cima: a resistência segura a mira fora da faixa do peito
         cam.set(ax, gy + 1.7f, az - 3f);
@@ -287,9 +286,13 @@ public class AimTests extends ApplicationAdapter {
         aa.reset();
         aimAt(tc.hitbox.chest);
         aa.reset();
-        float closeOff = climbOffset(tc, aa, fuzil, 0.95f, 0.0f, 0.03f, 8);   // arrasto de ~50°/s
-        check("de perto, arrasto rápido para cima sobe além do peito (chega na cabeça)", closeOff > 0.05f,
-                String.format("%.3f rad acima do peito (cabeça ~%.3f)", closeOff, elev(tc.hitbox.headTop) - elev(tc.hitbox.chest)));
+        float closeOff = climbOffset(tc, aa, fuzil, 0.90f, 0.0f, 0.03f, 8);   // arrasto rápido: ~50°/s
+        check("de perto, arrasto rápido para cima sobe pouco (90% volta; o 1º quadro não tem referência)", closeOff < 0.08f,
+                String.format("%.3f rad acima da barriga", closeOff));
+        float headRel = elev(tc.hitbox.headTop) - elev(tc.hitbox.belly);
+        float closeHead = climbOffset(tc, aa, fuzil, 0.90f, 0.0f, 0.03f, 8 + 130);   // muito mais arrasto
+        check("de perto, com muito mais arrasto a mira chega na cabeça (controlável)", closeHead >= headRel,
+                String.format("%.3f rad acima da barriga (cabeça a %.3f)", closeHead, headRel));
         // 5d. Abertura da mira por arma: padrão 100%, ajustável por porcentagem
         AimSettings.reset();
         check("abertura da mira padrão 100% em todas as armas", AimSettings.openPct(0) == 1f && AimSettings.openPct(5) == 1f, "");
@@ -304,6 +307,38 @@ public class AimTests extends ApplicationAdapter {
         float f1 = AimSettings.fovDeg();
         AimSettings.fovPct = savedFov;
         check("FOV do aim assist vai de 2° a 15°", Math.abs(f0 - 2f) < 1e-3f && Math.abs(f1 - 15f) < 1e-3f, String.format("%.1f° a %.1f°", f0, f1));
+
+        System.out.println("== Subida de capa: pesada em qualquer sensibilidade ==");
+        float sensSalva = AimSettings.general;
+        en.list.clear();
+        cam.set(ax, gy + 1.7f, az - 14f);
+        Enemy tz = spawn(ax, az, MathUtils.PI, "Idle");
+        for (float s : new float[]{0.5f, 1f, 2f, 3f}) {
+            float livre = subirComDedo(tz, s, 0f, 30, 6f);
+            float pesada = subirComDedo(tz, s, 0.90f, 30, 6f);
+            float fracao = livre > 0.02f ? pesada / livre : -1f;
+            check(String.format("sensibilidade %.0f%%: 90%% do arrasto para cima volta", s * 100f),
+                    fracao > 0f && fracao <= 0.15f,
+                    String.format("livre %.3f rad, pesada %.3f rad (%.1f%%)", livre, pesada, fracao * 100f));
+        }
+        float pequeno = subirComDedo(tz, 1f, 0.90f, 30, 1f);
+        check("movimento pequeno do dedo não sobe a mira", pequeno < 0.02f, String.format("%.4f rad", pequeno));
+        float headRelZ = elev(tz.hitbox.headTop) - elev(tz.hitbox.belly);
+        float cabeca = subirComDedo(tz, 1f, 0.90f, 300, 5f);   // ~1,5 tela de arrasto: controlável, mas bem pesado
+        check("sensibilidade 100%: arrasto longo ainda chega na cabeça (controlável)", cabeca >= headRelZ,
+                String.format("%.3f rad acima da barriga (cabeça a %.3f)", cabeca, headRelZ));
+        float[] snap = new float[2];
+        float[] gens = {0.5f, 3f};
+        for (int k = 0; k < 2; k++) {
+            AimSettings.general = gens[k];
+            aimAt(tz.hitbox.headCenter);
+            AimAssist as = new AimAssist();
+            as.update(1f / 30f, cam, dir(), yaw, pitch, tz, WeaponConfig.Category.FUZIL, true, true, false);
+            snap[k] = as.dPitch;
+        }
+        check("a assistência não depende da sensibilidade geral", Math.abs(snap[0] - snap[1]) < 1e-6f,
+                String.format("sensibilidade 50%%: %.5f, 300%%: %.5f", snap[0], snap[1]));
+        AimSettings.general = sensSalva;
 
         System.out.println("== Desempenho ==");
         en.list.clear();
@@ -339,7 +374,7 @@ public class AimTests extends ApplicationAdapter {
     float climbOffset(Enemy ta, AimAssist aa, WeaponConfig.Category cat, float up, float start, float step, int frames) {
         float saved = AimSettings.upResist;
         AimSettings.upResist = up;
-        aimAt(ta.hitbox.chest);
+        aimAt(ta.hitbox.belly);
         pitch -= start;
         aa.reset();
         for (int f = 0; f < frames; f++) {
@@ -348,9 +383,48 @@ public class AimTests extends ApplicationAdapter {
             yaw += aa.dYaw;
             pitch += aa.dPitch;
         }
-        float off = -errChest(ta);
+        float off = -errBelly(ta);
         AimSettings.upResist = saved;
         return off;
+    }
+
+    /** Erro de elevação entre a barriga do alvo e a mira (negativo = a mira está acima da barriga). */
+    float errBelly(Enemy e) {
+        Vector3 b = e.hitbox.belly;
+        float dx = b.x - cam.x, dy = b.y - cam.y, dz = b.z - cam.z;
+        return MathUtils.atan2(dy, (float) Math.sqrt(dx * dx + dz * dz)) - (-pitch);
+    }
+
+    /**
+     * Dedo sobe pxPorQuadro pixels por quadro durante 'frames' quadros, com a sensibilidade geral 'sens' e a
+     * resistência vertical 'resist', a partir da barriga (com o tiro apertado). Devolve a altura da mira acima
+     * da barriga (rad), pelo caminho real: AimController (sensibilidade) + AimAssist (assistência).
+     */
+    float subirComDedo(Enemy t, float sens, float resist, int frames, float pxPorQuadro) {
+        float savedGen = AimSettings.general, savedRes = AimSettings.upResist;
+        AimSettings.general = sens;
+        AimSettings.upResist = resist;
+        AimController ctl = new AimController();
+        AimAssist as = new AimAssist();
+        WeaponConfig.Category cat = WeaponConfig.Category.FUZIL;
+        float dt = 1f / 30f;
+        aimAt(t.hitbox.belly);
+        as.update(dt, cam, dir(), yaw, pitch, t, cat, true, true, false);   // aperta o tiro: gruda na barriga
+        yaw += as.dYaw;
+        pitch += as.dPitch;
+        for (int f = 0; f < frames; f++) {
+            ctl.addDrag(0f, -pxPorQuadro);   // dedo para cima
+            ctl.update(dt, 1080f, false, cat, 1f);
+            yaw += ctl.yawDelta;
+            pitch += ctl.pitchDelta;
+            as.update(dt, cam, dir(), yaw, pitch, t, cat, true, false, false);
+            yaw += as.dYaw;
+            pitch += as.dPitch;
+        }
+        float rise = -errBelly(t);
+        AimSettings.general = savedGen;
+        AimSettings.upResist = savedRes;
+        return rise;
     }
 
     float lastMaxStep;

@@ -17,10 +17,10 @@ final class AimSettingsUi {
 
     void draw(SpriteBatch batch, ShapeRenderer shapes, BitmapFont font, int W, int H) {
         float pw = Math.min(W * 0.92f, H * 2.0f), ph = H * 0.9f, px = (W - pw) / 2f, py = (H - ph) / 2f;
-        float pad = H * 0.025f, rowH = (ph - pad * 4f - H * 0.16f) / 8f, colW = (pw - pad * 3f) / 2f, bw = rowH * 1.1f;
+        float pad = H * 0.025f, rowH = (ph - pad * 4f - H * 0.16f) / 9f, colW = (pw - pad * 3f) / 2f, bw = rowH * 1.1f;
         int n = AimSettings.NAMES.length;
         for (int i = 0; i < n; i++) {
-            int col = i < 8 ? 0 : 1, row = i < 8 ? i : i - 8;
+            int col = i < 9 ? 0 : 1, row = i < 9 ? i : i - 9;
             float x = px + pad + col * (colW + pad), y = py + ph - pad - H * 0.08f - (row + 1) * rowH;
             set(minus[i], x + colW - bw * 2.1f, y + rowH * 0.1f, bw, rowH * 0.8f);
             set(plus[i], x + colW - bw, y + rowH * 0.1f, bw, rowH * 0.8f);
@@ -56,14 +56,14 @@ final class AimSettingsUi {
         for (int i = 0; i < n; i++) {
             float[] m = minus[i];
             font.setColor(1f, 0.95f, 0.85f, 1f);
-            int col = i < 8 ? 0 : 1;
+            int col = i < 9 ? 0 : 1;
             float x = px + pad + col * (colW + pad);
             font.draw(batch, AimSettings.NAMES[i], x, m[1] + m[3] * 0.65f);
             String v = AimSettings.text(i);
             layout.setText(font, v);
             font.setColor(1f, 0.8f, 0.35f, 1f);
             font.draw(batch, v, m[0] - layout.width - pad * 0.6f, m[1] + m[3] * 0.65f);
-            label(batch, font, minus[i], i == 3 ? "<" : "−");
+            label(batch, font, minus[i], i == 3 ? "<" : "-");   // a fonte padrão não tem o sinal "−" (U+2212)
             label(batch, font, plus[i], i == 3 ? ">" : "+");
         }
         label(batch, font, back, "Voltar");

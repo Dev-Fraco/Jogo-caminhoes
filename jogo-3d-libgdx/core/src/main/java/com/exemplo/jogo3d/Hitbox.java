@@ -42,6 +42,7 @@ final class Hitbox {
     final Vector3 center = new Vector3();   // centro aproximado (para teste rápido)
     float boundR = 1.3f;
     final Vector3 headCenter = new Vector3(), chest = new Vector3(), pelvis = new Vector3(), headTop = new Vector3();
+    final Vector3 belly = new Vector3();   // barriga (região abdominal): ponto de atração do aim assist
     private final Vector3 tmp = new Vector3(), up = new Vector3();
     private long stamp = -1;
 
@@ -87,6 +88,7 @@ final class Hitbox {
         }
         chest.set(a[2]).lerp(b[2], 0.45f);
         pelvis.set(a[1]);
+        belly.set(pelvis).lerp(chest, 0.5f);   // entre o quadril e o peito
         center.set(pelvis).lerp(headTop, 0.5f);
         float r = 0f;
         for (int i = 0; i < N; i++) r = Math.max(r, Math.max(center.dst(a[i]), center.dst(b[i])) + RADIUS[i]);

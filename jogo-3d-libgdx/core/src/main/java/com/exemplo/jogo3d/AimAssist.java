@@ -4,14 +4,14 @@ import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector3;
 
 /**
- * Assistência de mira, com três controles em porcentagem (AimSettings):
+ * Assistência de mira, com três parâmetros independentes (AimSettings):
  *
- * - Ao apertar para atirar, se o alvo estiver dentro do FOV, a mira vai na hora para o PEITO
- *   (fração "Atração ao peito" do caminho). O jogador é quem arrasta para cima até a cabeça.
- * - Enquanto segura o tiro: se a mira ficou abaixo do peito, sobe até ele; se subiu acima dele,
- *   a "Resistência para cima" (80% por padrão) devolve essa fração do movimento do dedo para cima:
- *   subir 10% vira 8% para baixo, de volta ao peito. 0% = livre, 100% = não sai do peito.
- * - Nunca sobe sozinha para a cabeça.
+ * - Ao apertar para atirar, com o alvo no FOV, a mira gruda na BARRIGA (ponto entre quadril e peito).
+ * - Enquanto segura o tiro, puxa de volta para a barriga com a "Força abdominal" (10% por padrão: suave).
+ *   Nunca puxa para o peito nem para a cabeça.
+ * - Resistência vertical: acima da barriga, a fração "Resistência vertical" (90% por padrão) do movimento
+ *   do dedo para cima volta para baixo. Subir 10 unidades rende 1. Fica sempre pesada, em qualquer sensibilidade.
+ * - Assistência horizontal: correção para os lados (10% por padrão).
  *
  * A assistência só soma correções à câmera (dYaw, dPitch); a sensibilidade do jogador não muda.
  */
@@ -60,29 +60,34 @@ final class AimAssist {
         float ang = (float) Math.toDegrees(Math.acos(MathUtils.clamp(v.dot(dir) / dist, -1f, 1f)));
         float tYaw = MathUtils.atan2(v.x, v.z);
         float errYaw = wrap(tYaw - yaw);
-        float errElev = elev(cam, c) - (-pitch);   // > 0: o peito está acima da mira
+        // Ponto de atração: a BARRIGA (nunca o peito nem a cabeça). > 0: a barriga está acima da mira
+        float errBelly = elev(cam, target.hitbox.belly) - (-pitch);
         // Faixa da cabeça: a mira entre o peito e o topo da cabeça também conta (de perto a cabeça sai do FOV)
         boolean inFov = ang <= fov;
         boolean inHead = -pitch <= elev(cam, target.hitbox.headTop) + 0.03f;
-        if (!inFov && !inHead) {
-            lastPitch = pitch;
-            return;
-        }
-
+        // A resistência vale com o alvo travado, mesmo fora do FOV: a sensibilidade alta não escapa dela.
+        // Só a atração (gruda e puxa) depende de o alvo estar no FOV.
         if (firePress && inFov) {
-            // Ao apertar o tiro, com o boneco no FOV: a mira gruda no peito na hora
+            // Ao apertar o tiro, com o boneco no FOV: a mira gruda na barriga na hora
             dYaw += errYaw;
-            dPitch += -errElev;
+            dPitch += -errBelly;
         }
-        if (inFov && !(firePress)) {
-            // Segurando o tiro com o boneco no FOV: a mira volta para o peito (abaixo ou acima dele) na força da assistência vertical
-            // Proporcional à força da assistência vertical: arrastar devagar é puxado de volta, arrastar rápido chega na cabeça
-            dPitch += -errElev * Math.min(1f, 30f * dt) * AimSettings.vertAssist;
+        if (inFov && !firePress) {
+            // Segurando o tiro: se a mira está ABAIXO da barriga, sobe até ela devagar (força abdominal baixa).
+            // Acima da barriga não puxa para baixo: quem segura é a resistência, e mais arrasto sempre chega mais alto.
+            if (errBelly > 0f) dPitch += -errBelly * Math.min(1f, 10f * dt) * AimSettings.abdAssist;
             dYaw += errYaw * Math.min(1f, 8f * dt) * AimSettings.horizAssist;
         }
+        // Resistência vertical: acima da barriga, a fração configurada do movimento do dedo para cima volta para baixo.
+        // É fração do movimento já escalado pela sensibilidade, então a sensibilidade alta não elimina a resistência.
+        if (userDelta < 0f && errBelly < 0f) {
+            dPitch += -userDelta * AimSettings.upResist;
+        }
 
-        active = true;
-        strengthNow = Math.max(strengthNow, 0.5f + 0.5f * AimSettings.vertAssist);
+        if (inFov || inHead) {
+            active = true;
+            strengthNow = Math.max(strengthNow, 0.5f + 0.5f * AimSettings.abdAssist);
+        }
         lastPitch = pitch + dPitch;
     }
 

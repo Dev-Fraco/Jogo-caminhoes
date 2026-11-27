@@ -11,7 +11,7 @@ import com.badlogic.gdx.math.MathUtils;
  * (ligar/desligar), a atração ao peito e o FOV do aim assist. Os outros valores são fixos no código.
  */
 final class AimSettings {
-    static final String PREFS = "aim_settings_v8";   // v8: abertura da mira por arma
+    static final String PREFS = "aim_settings_v9";   // v9: aim assist na barriga, resistência vertical própria
 
     static float general = 1.0f;          // sensibilidade geral
     static float scope2x = 0.6f;          // mira 2x (luneta): multiplica a sensibilidade ao mirar
@@ -21,20 +21,26 @@ final class AimSettings {
     static float smoothing = 0.35f;       // fixo: suavização
     static final float[] category = {1f, 1f, 1f, 1f, 1f, 0.8f};   // fixo: por categoria de arma (ordem do enum)
     static boolean assistOn = true;
-    static float vertAssist = 0.2f;       // 0..1: força da volta ao peito ao arrastar para cima (20% padrão)
+    static float abdAssist = 0.10f;       // 0..1: força com que a mira é puxada para a BARRIGA ao atirar (10%: suave)
     static float horizAssist = 0.1f;      // 0..1: força da correção para os lados ao atirar (baixa: sem puxão lateral)
     static float fovPct = 0.4f;           // 0..1: raio do FOV do aim assist (2° a 15°)
     /** Abertura da mira por arma (ordem de Weapons.BY_TYPE): 1 = 100% da abertura padrão. */
     static final float[] openPct = {1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f};
-    static float upResist = 0.95f;        // fixo: fração do movimento para cima que volta para o peito
+    /**
+     * Resistência vertical ao atirar: fração do movimento do dedo para cima, acima da barriga, que é devolvida.
+     * 90% = subir 10 cm de dedo sobe 1 cm. Não depende da sensibilidade (é fração do movimento já escalado).
+     */
+    static float upResist = 0.90f;
 
     /** Ajuste da tela: nome, mínimo, máximo e passo. */
     static final String[] NAMES = {"Sensibilidade geral", "Mira 2x", "Mira 4x", "Assistência de mira",
-            "Assistência vertical (subida)", "Assistência horizontal", "FOV do Aim Assist",
-            "Abertura AKM", "Abertura AUG", "Abertura GROZA", "Abertura M16A4", "Abertura M416", "Abertura SCAR-L", "Abertura AWM", "Abertura M1014", "Abertura MAGNUM 357"};
+            "Força abdominal (atração à barriga)", "Assistência horizontal", "FOV do Aim Assist",
+            "Abertura AKM", "Abertura AUG", "Abertura GROZA", "Abertura M16A4", "Abertura M416", "Abertura SCAR-L", "Abertura AWM", "Abertura M1014", "Abertura MAGNUM 357",
+            "Resistência vertical (subida)"};
     private static final float[][] RANGE = {{0.2f, 3f, 0.1f}, {0.1f, 2f, 0.05f}, {0.05f, 2f, 0.05f},
             {0f, 1f, 1f}, {0f, 1f, 0.05f}, {0f, 1f, 0.05f}, {0f, 1f, 0.05f},
-            {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}};
+            {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f},
+            {0f, 0.95f, 0.05f}};
 
     /** Abertura da mira da arma (ordem de BY_TYPE); fora da lista, o padrão. */
     static float openPct(int type) { return type >= 0 && type < openPct.length ? openPct[type] : 1f; }
@@ -51,9 +57,10 @@ final class AimSettings {
             case 1: return scope2x;
             case 2: return scope4x;
             case 3: return assistOn ? 1f : 0f;
-            case 4: return vertAssist;
+            case 4: return abdAssist;
             case 5: return horizAssist;
             case 6: return fovPct;
+            case 16: return upResist;
             default: return openPct[i - 7];
         }
     }
@@ -66,9 +73,10 @@ final class AimSettings {
             case 1: scope2x = v; break;
             case 2: scope4x = v; break;
             case 3: assistOn = v > 0.5f; break;
-            case 4: vertAssist = v; break;
+            case 4: abdAssist = v; break;
             case 5: horizAssist = v; break;
             case 6: fovPct = v; break;
+            case 16: upResist = v; break;
             default: openPct[i - 7] = v; break;
         }
     }
@@ -81,7 +89,7 @@ final class AimSettings {
 
     static String text(int i) {
         if (i == 3) return assistOn ? "LIGADA" : "DESLIGADA";
-        if (i == 6) return String.format(java.util.Locale.US, "%.0f%% (%.1f°)", get(i) * 100f, fovDeg());
+        if (i == 6) return String.format(java.util.Locale.US, "%.0f%% (%.1f gr)", get(i) * 100f, fovDeg());
         if (i >= 7) return Math.round(get(i) * 100f) + "%";
         if (i == 1 || i == 2) return String.format(java.util.Locale.US, "%.2fx", get(i) / 1f);
         return Math.round(get(i) * 100f) + "%";
@@ -111,7 +119,7 @@ final class AimSettings {
 
     static void reset() {
         general = 1f; scope2x = 0.6f; scope4x = 0.35f; assistOn = true;
-        vertAssist = 0.2f; horizAssist = 0.1f; fovPct = 0.4f;
+        abdAssist = 0.10f; horizAssist = 0.1f; fovPct = 0.4f; upResist = 0.90f;
         java.util.Arrays.fill(openPct, 1f);
     }
 }
