@@ -21,6 +21,8 @@ final class DamageSystem {
     private final Vector3[] where = new Vector3[MAX];
     private int n;
     int kills;
+    /** Nome de quem atira com este sistema (o jogador na arena); null fora da sala personalizada. */
+    String atirador;
     int headshots;
     private final Listener listener;
 
@@ -59,6 +61,7 @@ final class DamageSystem {
         if (r.enemy == null || r.region == null || !r.enemy.alive()) return;
         float dmg = Math.max(1, Math.round(cfg.damageAt(r.region, r.distance)));
         boolean head = r.region == WeaponConfig.Region.HEAD;
+        r.enemy.ultimoAtacante = atirador;
         boolean killed = r.enemy.damage(dmg, shooter);
         if (head) headshots++;
         if (killed) kills++;
@@ -71,6 +74,7 @@ final class DamageSystem {
             Enemy e = who[k];
             if (!e.alive()) continue;
             float dmg = Math.round(sum[k]);
+            e.ultimoAtacante = atirador;
             boolean killed = e.damage(dmg, shooter);
             if (head[k]) headshots++;
             if (killed) kills++;

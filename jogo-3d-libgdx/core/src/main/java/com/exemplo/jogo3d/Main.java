@@ -84,7 +84,10 @@ public class Main extends ApplicationAdapter {
     private Sala arenaSala;
     private final java.util.Map<String, Integer> arenaEquipes = new java.util.HashMap<>();
     private boolean lojaFechada, espectando, finalAberto, arenaFimRegistrado;
-    private int alvoEsp = 0, inimigosVivosAntes = 0;
+    private int alvoEsp = 0;
+    /** Feed de abates da arena: linhas recentes e tempo que cada uma fica na tela. */
+    private final java.util.ArrayList<String> feed = new java.util.ArrayList<>();
+    private final java.util.ArrayList<Float> feedT = new java.util.ArrayList<>();
     private String bannerFim = null;
     // Arena de mira (portal do treinamento): o treinamento fica guardado enquanto o jogador treina na arena
     private boolean mira = false, portalPerto = false;
@@ -1361,11 +1364,9 @@ public class Main extends ApplicationAdapter {
         player.spawn(0f, 0f, world.heightAt(0f, 0f));
         player.facing = 0f;
         if (enemies != null && arenaSala != null) {
-            int inimigos = arenaSala.ocupados(Sala.B);
-            int aliados = Math.max(0, arenaSala.ocupados(Sala.A) - 1);
-            enemies.spawnArenaTimes(world, inimigos, aliados);
-            inimigosVivosAntes = inimigos;
+            enemies.spawnArenaTimes(world, nomesAliados(), nomesInimigos(), 1f);
         }
+        if (damage != null) damage.atirador = SalaUi.EU;   // o que o jogador acertar é creditado a ele
         espectando = false;
         alvoEsp = 0;
     }
@@ -1446,12 +1447,25 @@ public class Main extends ApplicationAdapter {
             respawnArena();
         }
         enemies.ativo = rodadas.combate();
+        for (int i = feedT.size() - 1; i >= 0; i--) {   // o feed some sozinho
+            float t = feedT.get(i) - dt;
+            if (t <= 0f) { feed.remove(i); feedT.remove(i); } else feedT.set(i, t);
+        }
         if (rodadas.combate()) {
-            int vivos = enemies.vivosInimigos();
-            if (vivos < inimigosVivosAntes) {   // abates: creditados ao jogador (aproximação local)
-                for (int k = vivos; k < inimigosVivosAntes; k++) economia.registraEliminacao(SalaUi.EU);
-                inimigosVivosAntes = vivos;
+            // Cada inimigo abatido entra uma vez, creditado a quem causou o último dano (ver Enemy.ultimoAtacante)
+            for (int i = 0; i < enemies.list.size; i++) {
+                Enemy e = enemies.list.get(i);
+                if (e.equipe >= 0 && !e.alive()) {
+                    enemies.abates.registra(e, e.ultimoAtacante != null ? e.ultimoAtacante : "GRANADA", e.nome);
+                }
             }
+            for (Abates.Abate a : enemies.abates.drenar()) {
+                if (a.atacante.equals(SalaUi.EU)) economia.registraEliminacao(SalaUi.EU);
+                feed.add(0, a.atacante + "  ELIMINOU  " + a.vitima);
+                feedT.add(0, 4f);
+            }
+            while (feed.size() > 4) { feed.remove(4); feedT.remove(4); }
+            int vivos = enemies.vivosInimigos();
             boolean timeVivo = !survival.dead || enemies.aliadosVivos() > 0;
             if (vivos == 0) rodadas.encerraRound(0);
             else if (!timeVivo) rodadas.encerraRound(1);
@@ -1538,6 +1552,18 @@ public class Main extends ApplicationAdapter {
                 : rodadas.compraLiberada() ? "compra: " + (int) Math.ceil(rodadas.tempo) + "s" : "";
         arenaUi.draw(batch, shapes, font, hudCamera.combined, W, H, rodadas.pontos[0], rodadas.pontos[1], loja, espectando,
                 nomeAlvo, estado, rodadas.fase == Rodadas.Fase.FIM_ROUND ? bannerFim : null);
+        if (!feed.isEmpty()) {   // feed de abates, canto superior direito
+            batch.begin();
+            font.getData().setScale(1f);
+            for (int i = 0; i < feed.size(); i++) {
+                String linha = feed.get(i);
+                font.setColor(1f, 1f, 1f, Math.min(1f, feedT.get(i)));
+                layout.setText(font, linha);
+                font.draw(batch, linha, W - 20f - layout.width, H - 250f - i * 34f);
+            }
+            font.setColor(1f, 1f, 1f, 1f);
+            batch.end();
+        }
         if (finalAberto) arenaUi.desenhaFinal(batch, shapes, font, hudCamera.combined, W, H,
                 rodadas.pontos[0], rodadas.pontos[1], rodadas.vencedorPartida);
     }
@@ -1603,10 +1629,17 @@ public class Main extends ApplicationAdapter {
         batch.end();
     }
 
-    /** Nomes dos aliados vivos (na mesma ordem de Enemies.aliado): jogadores da sala da equipe azul, sem o jogador. */
+    /** Nomes dos aliados (equipe azul da sala, sem o jogador). */
     private String[] nomesAliados() {
         java.util.List<String> lista = new java.util.ArrayList<>();
         if (arenaSala != null) for (String nome : arenaSala.nomes[Sala.A]) if (nome != null && !nome.equals(SalaUi.EU)) lista.add(nome);
+        return lista.toArray(new String[0]);
+    }
+
+    /** Nomes dos inimigos (equipe vermelha da sala). */
+    private String[] nomesInimigos() {
+        java.util.List<String> lista = new java.util.ArrayList<>();
+        if (arenaSala != null) for (String nome : arenaSala.nomes[Sala.B]) if (nome != null) lista.add(nome);
         return lista.toArray(new String[0]);
     }
 
@@ -1650,6 +1683,9 @@ public class Main extends ApplicationAdapter {
             economia = null;
             arenaUi = null;
             arenaSala = null;
+            if (damage != null) damage.atirador = null;
+            feed.clear();
+            feedT.clear();
             finalAberto = false;
             espectando = false;
             loadWorld(false, false);

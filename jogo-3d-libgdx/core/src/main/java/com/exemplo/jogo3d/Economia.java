@@ -12,6 +12,12 @@ final class Economia {
 
     static final int VITORIA = 3250, DERROTA_BASE = 1400, DERROTA_PASSO = 300, DERROTA_MAX = 2300, ELIMINACAO = 300;
 
+    /**
+     * Economia ativa? Desligada por enquanto: créditos 0, todas as armas e equipamentos são gratuitos e não há
+     * recompensas. A estrutura de preços e créditos continua pronta para ligar depois.
+     */
+    static boolean ativa = false;
+
     /** Item da loja. tipoArma = índice em Weapons.NAMES (-1 se não é arma). */
     static final class Item {
         final String nome, descricao;
@@ -48,7 +54,7 @@ final class Economia {
 
     /** Cada jogador começa com o crédito inicial da partida. */
     void entrar(String jogador) {
-        creditos.put(jogador, Rodadas.CREDITO_INICIAL);
+        creditos.put(jogador, ativa ? Rodadas.CREDITO_INICIAL : 0);
         eliminacoes.put(jogador, 0);
         armasCompradas.put(jogador, new java.util.ArrayList<>());
         municoesExtras.put(jogador, 0);
@@ -64,8 +70,10 @@ final class Economia {
         if (indice < 0 || indice >= CATALOGO.length || !creditos.containsKey(jogador)) return Erro.ITEM_INVALIDO;
         Item it = CATALOGO[indice];
         int saldo = creditos.get(jogador);
-        if (saldo < it.preco) return Erro.SEM_CREDITO;
-        creditos.put(jogador, saldo - it.preco);
+        if (ativa) {
+            if (saldo < it.preco) return Erro.SEM_CREDITO;
+            creditos.put(jogador, saldo - it.preco);
+        }
         if (it.tipoArma >= 0) {
             armasCompradas.get(jogador).add(it.tipoArma);
             if (!armaEscolhida.containsKey(jogador)) armaEscolhida.put(jogador, it.tipoArma);
@@ -81,6 +89,10 @@ final class Economia {
 
     /** Equipa uma arma comprada (ela passa a ser a arma da próxima entrada em combate). */
     Erro equipar(String jogador, int tipoArma) {
+        if (!ativa && tipoArma >= 0 && tipoArma < 9) {   // sem economia: qualquer arma pode ser escolhida
+            armaEscolhida.put(jogador, tipoArma);
+            return Erro.NENHUM;
+        }
         java.util.List<Integer> lista = armasCompradas.get(jogador);
         if (lista == null || !lista.contains(tipoArma)) return Erro.SEM_ARMA_COMPRADA;
         armaEscolhida.put(jogador, tipoArma);
@@ -107,6 +119,7 @@ final class Economia {
      * derrotas seguidas (até DERROTA_MAX). Cada eliminação rende ELIMINACAO. Empate (-1) não paga derrota nem vitória.
      */
     void recompensarRound(int vencedor, java.util.Map<String, Integer> equipeDoJogador) {
+        if (!ativa) return;   // sem economia: nada de recompensa financeira
         for (Map.Entry<String, Integer> e : equipeDoJogador.entrySet()) {
             String j = e.getKey();
             int eq = e.getValue();

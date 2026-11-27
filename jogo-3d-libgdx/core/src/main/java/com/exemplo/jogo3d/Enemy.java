@@ -203,6 +203,21 @@ final class Enemy {
     /** Bot da arena de mira: só anda na faixa e recebe dano; não ataca (sem IA de combate). Null nos demais. */
     BotMira bot;
 
+    /** Nome exibido no feed de abates (ex.: AMIGO002, INIMIGO001). */
+    String nome = "";
+    /** Equipe na sala personalizada: 0 azul (aliado do jogador), 1 vermelha, -1 sem equipe (battle royale). */
+    int equipe = -1;
+    /** Nome de quem causou o último dano (creditado no abate); null = granada ou desconhecido. */
+    String ultimoAtacante;
+    /** Multiplicador de precisão (dificuldade dos bots): 1 é médio. */
+    float precisao = 1f;
+
+    /** Dois bots da mesma equipe não se atacam. Sem equipe (-1) não se usa esta regra. */
+    static boolean mesmaEquipe(int equipeA, int equipeB) { return equipeA >= 0 && equipeA == equipeB; }
+
+    /** Só a equipe vermelha ataca o jogador; os aliados azuis não atiram nele. Sem equipe, ataca como antes. */
+    static boolean podeMirarJogador(int equipe) { return equipe != 0; }
+
     /** Bot de mira: morto, reaparece no início da faixa depois de RESPAWN_SEG. Vivo, anda e atualiza a hitbox. */
     private boolean botStep(float dt, World w, Enemies all) {
         if (state == State.DEAD) {
@@ -266,13 +281,13 @@ final class Enemy {
                     float bd = Float.MAX_VALUE;
                     Enemy be = null;
                     boolean bp = false;
-                    if (playerAlive) {
+                    if (playerAlive && podeMirarJogador(equipe)) {
                         float d = (float) Math.hypot(player.x - pos.x, player.z - pos.z);
                         if (d > prev && d < SIGHT && d < bd) { bd = d; bp = true; }
                     }
                     for (int i = 0; i < all.list.size; i++) {
                         Enemy o = all.list.get(i);
-                        if (o == this || !o.alive()) continue;
+                        if (o == this || !o.alive() || mesmaEquipe(equipe, o.equipe)) continue;
                         float d = (float) Math.hypot(o.pos.x - pos.x, o.pos.z - pos.z);
                         if (d > prev && d < SIGHT && d < bd) { bd = d; be = o; bp = false; }
                     }

@@ -58,7 +58,8 @@ public class RodadasTests {
         passarRound(g, 1);
         check("o round decisivo decide a partida", g.partidaAcabou() && g.vencedorPartida == 1, "vencedor " + g.vencedorPartida);
 
-        System.out.println("== Economia e loja ==");
+        System.out.println("== Economia e loja (ligada) ==");
+        Economia.ativa = true;
         Economia eco = new Economia();
         eco.entrar("A1");
         eco.entrar("B1");
@@ -100,6 +101,40 @@ public class RodadasTests {
         check("anterior a partir do 1 pula o 0 (morto) e vai ao 3", Espectador.proximo(vivos, 1, -1) == 3, "" + Espectador.proximo(vivos, 1, -1));
         check("equipe sem ninguém vivo perde o round", Espectador.equipePerdeRound(new boolean[]{false, false}), "");
         check("equipe com alguém vivo não perde", !Espectador.equipePerdeRound(new boolean[]{false, true}), "");
+
+        System.out.println("== Economia desligada: armas gratuitas, sem créditos ==");
+        Economia.ativa = false;
+        Economia off = new Economia();
+        off.entrar("P1");
+        check("sem economia, o saldo começa em 0", off.creditos("P1") == 0, "" + off.creditos("P1"));
+        check("sem economia, compra de AKM é grátis", off.comprar("P1", 0, new Rodadas()) == Economia.Erro.NENHUM, "");
+        check("sem economia, o saldo continua 0", off.creditos("P1") == 0, "" + off.creditos("P1"));
+        check("sem economia, equipar qualquer arma funciona", off.equipar("P1", 8) == Economia.Erro.NENHUM && off.armaEquipada("P1") == 8, "");
+        Map<String, Integer> eq = new HashMap<>();
+        eq.put("P1", 0);
+        off.recompensarRound(0, eq);
+        check("sem economia, não há recompensa", off.creditos("P1") == 0, "" + off.creditos("P1"));
+        Economia.ativa = true;
+
+        System.out.println("== Abates: cada vítima conta uma vez, ao atirador ==");
+        Abates ab = new Abates();
+        Object v1 = new Object();
+        check("abate novo é registrado", ab.registra(v1, "JOGADOR", "INIMIGO001"), "");
+        check("o mesmo abate não conta duas vezes", !ab.registra(v1, "AMIGO002", "INIMIGO001"), "");
+        check("o abate fica com quem atirou", ab.drenar().get(0).atacante.equals("JOGADOR"), "");
+        check("depois de entregue, a fila fica vazia", ab.drenar().isEmpty(), "");
+
+        System.out.println("== IA por equipe: aliados não atacam aliados nem o jogador ==");
+        int azul1 = 0, azul2 = 0, verm = 1;
+        check("dois azuis são da mesma equipe", Enemy.mesmaEquipe(azul1, azul2), "");
+        check("azul e vermelho não são da mesma equipe", !Enemy.mesmaEquipe(azul1, verm), "");
+        check("sem equipe (-1) não há aliado", !Enemy.mesmaEquipe(-1, -1), "");
+        check("azul não mira no jogador", !Enemy.podeMirarJogador(0), "");
+        check("vermelho mira no jogador", Enemy.podeMirarJogador(1), "");
+        check("sem equipe, mantém o comportamento antigo", Enemy.podeMirarJogador(-1), "");
+        Abates ab2 = new Abates();
+        Object botVermelho = new Object();
+        check("abate de bot creditado ao bot que atirou", ab2.registra(botVermelho, "AMIGO001", "INIMIGO001") && ab2.drenar().get(0).atacante.equals("AMIGO001"), "");
 
         System.out.println("\nRESULTADO: " + pass + " ok, " + fail + " falhas");
         System.exit(fail == 0 ? 0 : 1);
