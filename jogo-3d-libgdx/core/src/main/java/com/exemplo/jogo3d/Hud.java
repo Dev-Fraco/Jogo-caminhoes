@@ -70,7 +70,7 @@ public class Hud {
             new El("mira", "Mirar", "hud2/mira.png", 132f / REF_H, 0f),
             new El("atirar", "Atirar", "hud2/atirar.png", 293f / REF_H, 0f),
             new El("trocar", "Trocar", null, 0.085f, 2.4f),
-            new El("abrir", "Ação", null, 0.085f, 4.6f),
+            new El("abrir", "Ação", "hud2/abrir.png", 170f / REF_H, 0f),
             new El("parede", "Parede", "hud2/parede.png", 0.11f, 0f),
             new El("atirar2", "Atirar (fixo)", "hud2/atirar.png", 170f / REF_H, 0f),
     };
