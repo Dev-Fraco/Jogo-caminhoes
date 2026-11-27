@@ -85,8 +85,8 @@ public class Main extends ApplicationAdapter {
     private boolean training = false;   // modo treinamento (galpão com dois bonecos) em vez do battle royale
     private boolean trainPanel = false; // caixa de equipamentos do treino (lista de armas)
     private boolean trainBoxNear = false;   // perto da caixa de equipamentos (mostra o botão de ação)
-    private final float[] trainUsar = new float[WeaponConfig.BY_TYPE.length * 4];   // botões USAR de cada arma (x, y, w, h)
-    private final float[] trainFechar = new float[4];
+    private final Arsenal arsenal = new Arsenal();   // arsenal de treino (abas, grade, EQUIPAR)
+    private int arsenalPointer = -1;                  // dedo que está rolando a grade do arsenal
     // Itens: vida/energia/água, granadas, HUD dos itens e mapa
     private Survival survival;
     private Grenades grenades;
@@ -722,6 +722,7 @@ public class Main extends ApplicationAdapter {
                 if (i == runPointer) runPointer = -1;
                 if (i == jumpPointer) jumpPointer = -1;
                 if (i == firePointer) firePointer = -1;
+                if (i == arsenalPointer) { arsenal.release(); arsenalPointer = -1; }
                 if (i == fire2Pointer) fire2Pointer = -1;
                 if (i == wallPointer) releaseWall();
                 if (i == grenPointer) {
@@ -748,6 +749,7 @@ public class Main extends ApplicationAdapter {
                 hud.editDrag(i, x, yb);
                 continue;
             }
+            if (trainPanel && i == arsenalPointer) arsenal.drag(yb);
             if (i == joyPointer) {
                 float[] r = hud.rect(hud.get("joystick"));
                 float cx = r[0] + r[2] / 2f, cy = r[1] + r[3] / 2f;
@@ -803,7 +805,10 @@ public class Main extends ApplicationAdapter {
         }
         if (training && !inMenu && !settingsOpen) {
             if (trainPanel) {
-                trainPress(x, yb);
+                arsenalPointer = i;
+                Arsenal.Act act = arsenal.press(x, yb);
+                if (act == Arsenal.Act.CLOSE) trainPanel = false;
+                else if (act == Arsenal.Act.EQUIP) equipArsenal();
                 return;
             }
             float[] b = trainButton(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
@@ -857,7 +862,7 @@ public class Main extends ApplicationAdapter {
             Vector3 bp = new Vector3(World.TRAIN_BOX_X, 0.5f, World.TRAIN_BOX_Z);
             camera.project(bp);
             if (Math.hypot(bp.x - x, bp.y - yb) < H * 0.12f) {
-                trainPanel = true;
+                openArsenal();
                 return;
             }
         }
@@ -964,7 +969,7 @@ public class Main extends ApplicationAdapter {
                 return;
             case "abrir":
                 if (trainBoxNear) {   // no treino, perto da caixa: abre a lista de armas
-                    trainPanel = true;
+                    openArsenal();
                     return;
                 }
                 if (inPlane) {
@@ -1253,75 +1258,22 @@ public class Main extends ApplicationAdapter {
             batch.end();
             return;
         }
-        float pw = W * 0.56f, ph = H * 0.80f, px = (W - pw) / 2f, py = (H - ph) / 2f;
-        shapes.setColor(0f, 0f, 0f, 0.6f);
-        shapes.rect(0, 0, W, H);
-        shapes.setColor(0.30f, 0.19f, 0.10f, 0.97f);
-        shapes.rect(px, py, pw, ph);
-        shapes.end();
-        float rowH = ph * 0.128f, top = py + ph - ph * 0.12f;
-        for (int i = 0; i < WeaponConfig.BY_TYPE.length; i++) {
-            float ry = top - (i + 1) * rowH;
-            float ub = rowH * 0.5f, ux = px + pw - pw * 0.2f, uy = ry + (rowH - ub) / 2f;
-            trainUsar[i * 4] = ux;
-            trainUsar[i * 4 + 1] = uy;
-            trainUsar[i * 4 + 2] = pw * 0.16f;
-            trainUsar[i * 4 + 3] = ub;
-        }
-        shapes.begin(ShapeRenderer.ShapeType.Filled);
-        for (int i = 0; i < WeaponConfig.BY_TYPE.length; i++) {
-            shapes.setColor(0.18f, 0.12f, 0.07f, 0.9f);
-            shapes.rect(px + pw * 0.03f, top - (i + 1) * rowH + rowH * 0.08f, pw * 0.94f, rowH * 0.84f);
-            shapes.setColor(0.85f, 0.55f, 0.2f, 1f);
-            float[] u = trainUsar;
-            shapes.rect(u[i * 4], u[i * 4 + 1], u[i * 4 + 2], u[i * 4 + 3]);
-        }
-        trainFechar[0] = px + pw * 0.3f;
-        trainFechar[1] = py + ph * 0.025f;
-        trainFechar[2] = pw * 0.4f;
-        trainFechar[3] = ph * 0.075f;
-        shapes.setColor(0.62f, 0.4f, 0.2f, 1f);
-        shapes.rect(trainFechar[0], trainFechar[1], trainFechar[2], trainFechar[3]);
-        shapes.end();
-        batch.begin();
-        for (int i = 0; i < WeaponConfig.BY_TYPE.length; i++) {
-            float ry = top - (i + 1) * rowH;
-            com.badlogic.gdx.graphics.g2d.TextureRegion ic = world.weapons != null ? world.weapons.iconOf(i) : null;
-            if (ic != null) {
-                float s = rowH * 0.7f;
-                batch.draw(ic, px + pw * 0.06f, ry + (rowH - s) / 2f, s * 1.6f, s);
-            }
-            font.getData().setScale(Math.max(0.9f, rowH / 80f));
-            font.setColor(1f, 0.95f, 0.85f, 1f);
-            font.draw(batch, Weapons.NAMES[i], px + pw * 0.34f, ry + rowH * 0.64f);
-            font.getData().setScale(1.1f);
-            float[] u = trainUsar;
-            layout.setText(font, "USAR");
-            font.setColor(0.1f, 0.06f, 0.03f, 1f);
-            font.draw(batch, "USAR", u[i * 4] + (u[i * 4 + 2] - layout.width) / 2f, u[i * 4 + 1] + (u[i * 4 + 3] + layout.height) / 2f);
-        }
-        layout.setText(font, "FECHAR");
-        font.setColor(1f, 0.95f, 0.85f, 1f);
-        font.draw(batch, "FECHAR", trainFechar[0] + (trainFechar[2] - layout.width) / 2f,
-                trainFechar[1] + (trainFechar[3] + layout.height) / 2f);
-        layout.setText(font, "EQUIPAMENTOS");
-        font.draw(batch, "EQUIPAMENTOS", px + (pw - layout.width) / 2f, py + ph - ph * 0.04f);
-        batch.end();
+        arsenal.draw(batch, shapes, font, world.weapons, W, H);
     }
 
-    /** Toque dentro da caixa de armas: USAR leva a arma para a mão; FECHAR (ou fora) fecha. */
-    private void trainPress(float x, float yb) {
-        for (int i = 0; i < WeaponConfig.BY_TYPE.length; i++) {
-            float[] u = trainUsar;
-            if (x >= u[i * 4] && x <= u[i * 4] + u[i * 4 + 2] && yb >= u[i * 4 + 1] && yb <= u[i * 4 + 1] + u[i * 4 + 3]) {
-                if (world.weapons != null) world.weapons.giveStart(i, character);
-                if (enemies != null) for (int k = 0; k < enemies.list.size; k++) enemies.list.get(k).dummyDamage = 0f;
-                survival.say(Weapons.NAMES[i]);
-                trainPanel = false;
-                return;
-            }
-        }
-        trainPanel = false;   // FECHAR e qualquer toque fora da caixa
+    /** Abre o arsenal de treino com a arma da mão em destaque. */
+    private void openArsenal() {
+        trainPanel = true;
+        arsenal.open(world.weapons != null ? world.weapons.heldType() : -1);
+    }
+
+    /** EQUIPAR: a arma escolhida vai para a mão, com o carregador cheio. */
+    private void equipArsenal() {
+        int t = arsenal.sel;
+        if (world.weapons != null) world.weapons.giveStart(t, character);
+        if (enemies != null) for (int k = 0; k < enemies.list.size; k++) enemies.list.get(k).dummyDamage = 0f;
+        survival.say(Weapons.NAMES[t]);
+        trainPanel = false;
     }
 
     /** Treinamento: mundo próprio (galpão, caixa e bonecos). O jogador nasce dentro, com um AKM. */

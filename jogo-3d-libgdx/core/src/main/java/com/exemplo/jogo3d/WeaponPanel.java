@@ -96,17 +96,18 @@ final class WeaponPanel {
         int hm = wp.heldMag(), hr = wp.heldReserve();
         TextureRegion big = wp.iconOf(wp.heldType());
         if (big != null && held) {
-            float s = Math.min(w * 0.46f, h * 0.44f);
-            batch.draw(big, x + w * 0.52f - s / 2f, y + h * 0.66f - s / 2f, s, s * 0.5f);
+            // Arma na mão: à direita, abaixo da munição (não encosta no número)
+            float s = Math.min(w * 0.42f, h * 0.40f);
+            batch.draw(big, x + w * 0.54f, y + h * 0.26f, s, s * 0.5f);
         }
         float bs = h * 0.20f;
         batch.setColor(1f, 0.92f, 0.5f, 1f);
         batch.draw(bulletsTex, x + w * 0.04f, y + h * 0.62f, bs, bs);
         batch.setColor(1f, 1f, 1f, 1f);
-        font.getData().setScale(h / 330f);
+        font.getData().setScale(h / 420f);
         font.setColor(1f, 1f, 1f, 1f);
         String ammo = hm + "/" + hr;
-        font.draw(batch, ammo, x + w * 0.04f + bs * 1.15f, y + h * 0.84f);
+        font.draw(batch, ammo, x + w * 0.04f + bs * 1.3f, y + h * 0.80f);
         font.getData().setScale(h / 520f);
         font.setColor(1f, 0.85f, 0.3f, 1f);
         font.draw(batch, held && wp.heldType() >= 0 ? Weapons.NAMES[wp.heldType()] : "PUNHO", x + w * 0.04f, y + h * 0.56f);
