@@ -7,7 +7,7 @@
         android:allowBackup="true"
         android:largeHeap="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="Jogo 3D"
+        android:label="SEM LIMITES"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
         <activity
