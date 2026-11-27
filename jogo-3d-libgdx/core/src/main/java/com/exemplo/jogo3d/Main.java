@@ -399,7 +399,8 @@ public class Main extends ApplicationAdapter {
                 && !dead && !ui;
         if (!combat) adsOn = false;
         if (combat) {
-            player.facing = yaw;   // armado: o corpo acompanha a mira
+            // armado: o corpo só acompanha a mira ao mirar ou atirar; parado e sem mirar, fica como está
+            if (adsOn || fireHeld) player.facing = yaw;
             if (world.weapons.reloading()) adsOn = false;
         }
         WeaponConfig cfg = world.weapons != null ? world.weapons.config() : null;

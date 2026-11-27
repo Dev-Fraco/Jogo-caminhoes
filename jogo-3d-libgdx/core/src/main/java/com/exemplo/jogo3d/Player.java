@@ -20,6 +20,7 @@ public class Player {
     public static final float RUN_SPEED = 5.5f;      // velocidade de corrida (joystick no máximo)
     public static final float ACCEL = 12f;           // aceleração (m/s²): começa e para suave
     public static final float TURN_SPEED = 10f;      // quão rápido o personagem vira
+    static final float RUN_TURN = 9f;                 // correndo: o corpo acompanha a câmera (suave)
     public static final float GRAVITY = 18f;
     public static final float JUMP_VELOCITY = 6.5f;
     public static final float GROUND_TOLERANCE = 0.3f; // degrau que ainda conta como chão
@@ -52,9 +53,11 @@ public class Player {
     public void update(float dtRaw, float inX, float inY, float camYaw, boolean jumpPressed, boolean runHeld, World world) {
         float dt = Math.min(dtRaw, MAX_DT);
 
-        // 1) Direção desejada, relativa à câmera
-        float fx = MathUtils.sin(camYaw), fz = MathUtils.cos(camYaw);   // frente da câmera
-        float rx = -fz, rz = fx;                                       // direita da câmera
+        // 1) Direção desejada, relativa ao CORPO: girar a câmera não muda o caminho de quem anda.
+        //    Correndo, o corpo vira suavemente para onde a câmera aponta e corre para frente (como no Free Fire).
+        if (runHeld) facing = lerpAngle(facing, camYaw, 1f - (float) Math.exp(-RUN_TURN * dt));
+        float fx = MathUtils.sin(facing), fz = MathUtils.cos(facing);   // frente do corpo
+        float rx = -fz, rz = fx;                                        // direita do corpo
         float dx = fx * inY + rx * inX;
         float dz = fz * inY + rz * inX;
         float inMag = Math.min(1f, (float) Math.sqrt(inX * inX + inY * inY));
