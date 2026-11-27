@@ -276,7 +276,7 @@ public class Main extends ApplicationAdapter {
         try {
             if (intro != null && intro.running()) {   // abertura: toque pula; ao acabar, o lobby aparece do preto
                 if (Gdx.input.justTouched()) intro.skip();
-                intro.update(Math.min(Gdx.graphics.getDeltaTime(), 0.05f));
+                intro.update(Math.min(Gdx.graphics.getDeltaTime(), 0.25f));   // tempo real: 5 s também em celular lento
                 if (intro.running()) intro.draw(batch, hudCamera.combined, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
                 return;
             }

@@ -68,10 +68,7 @@ final class Intro {
     }
 
     void update(float dt) {
-        if (ended) {
-            if (fadeIn > 0f) fadeIn = Math.max(0f, fadeIn - dt);
-            return;
-        }
+        if (ended) return;
         t += dt;
         if (!hit1 && t >= 0.9f) { hit1 = true; impact.play(0.9f); flash = 1f; shake = 1f; }
         if (!hit2 && t >= 2.6f) { hit2 = true; impact.play(0.55f); flash = 0.6f; shake = 0.5f; }
@@ -146,6 +143,7 @@ final class Intro {
     /** Depois da abertura: o lobby aparece do preto. Chamado depois da cena, sobre o menu. */
     void drawFadeIn(SpriteBatch batch, Matrix4 proj, int W, int H) {
         if (fadeIn <= 0f) return;
+        fadeIn = Math.max(0f, fadeIn - Gdx.graphics.getDeltaTime());
         batch.setProjectionMatrix(proj);
         batch.begin();
         batch.setColor(0f, 0f, 0f, fadeIn / FADE_IN);
