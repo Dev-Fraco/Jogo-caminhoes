@@ -82,6 +82,14 @@ public class ControlTests extends ApplicationAdapter {
         wp.equipSlot(0, ch);
         check("tocar na caixa do fuzil leva ele de volta para a mão", !wp.holstered() && wp.armed() && wp.heldName().equals("AUG"), wp.heldName());
 
+        System.out.println("== Progresso ==");
+        int nv0 = Progresso.nivel(), xp0 = Progresso.xp();
+        Progresso.ganha(Progresso.xpParaNivel(nv0) - xp0, 0);
+        check("juntar o XP do nível sobe 1 nível", Progresso.nivel() == nv0 + 1 && Progresso.xp() == 0, "nível " + Progresso.nivel());
+        boolean primeira = Progresso.resgataRecompensa(), segunda = Progresso.resgataRecompensa();
+        check("recompensa diária vale uma vez por dia", primeira && !segunda && !Progresso.recompensaDisponivel(), "");
+        check("não gasta mais moedas do que tem", !Progresso.gasta(Progresso.moedas() + 1), "");
+
         System.out.println("== Loot de inimigo morto ==");
         if (w.items != null) {
             int antes = w.items.ground.size;

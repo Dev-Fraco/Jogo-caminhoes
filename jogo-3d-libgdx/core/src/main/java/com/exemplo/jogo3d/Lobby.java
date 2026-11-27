@@ -47,11 +47,8 @@ final class Lobby {
     private boolean arsenalOpen = false;
     private int weaponChoice = -1;          // arma escolhida no arsenal: entra na próxima partida
     private String panel = null;            // painel de informação aberto (null = nenhum)
-    private boolean claimed = false;        // recompensa diária já resgatada
     private String toast = null;            // aviso curto
     private float toastT;
-    private int coins = 12350, gems = 480;
-    private final int level = 12, xp = 4560, xpMax = 6000;
     private final float passe = 0.6f;
 
     private float s, ox, oy;                // escala e deslocamento (px da tela por px da referência)
@@ -86,10 +83,8 @@ final class Lobby {
         }
         if (panel != null) {
             if (in(CLOSE, rx, ry)) panel = null;
-            else if ("Recompensas".equals(panel) && !claimed && in(CLAIM, rx, ry)) {
-                claimed = true;
-                coins += 100;
-                toast("+100 moedas");
+            else if ("Recompensas".equals(panel) && Progresso.recompensaDisponivel() && in(CLAIM, rx, ry)) {
+                if (Progresso.resgataRecompensa()) toast("+" + Progresso.MOEDAS_DIARIA + " moedas");
             } else if ("Loja".equals(panel) && (in(rect("moedas+"), rx, ry) || in(rect("diamantes+"), rx, ry))) {
                 toast("Pacotes em breve");
             } else if ("Personagem".equals(panel)) {
@@ -209,7 +204,7 @@ final class Lobby {
         fill(sh, 1130, 722, 520, 176, GOLD);
         // Barra de experiência e passe
         fill(sh, 445, 78, 270, 8, BROWN);
-        fill(sh, 445, 78, 270 * xp / (float) xpMax, 8, GOLD);
+        fill(sh, 445, 78, 270 * Progresso.xp() / (float) Progresso.xpParaNivel(Progresso.nivel()), 8, GOLD);
         fill(sh, 1392, 340, 250, 12, BROWN);
         fill(sh, 1392, 340, 250 * passe, 12, GOLD);
         sh.end();
@@ -232,12 +227,12 @@ final class Lobby {
         img(b, "logo", 6, 0, 330, 134);
         img(b, "personagem", 344, 20, 70, 64);
         text(b, font, "JOGADOR", 428, 46, 1.9f, WHITE, false);
-        text(b, font, "Nv. " + level, 428, 72, 1.4f, GOLD, false);
-        text(b, font, xp + " / " + xpMax, 715, 72, 1.3f, WHITE, true);
+        text(b, font, "Nv. " + Progresso.nivel(), 428, 72, 1.4f, GOLD, false);
+        text(b, font, Progresso.xp() + " / " + Progresso.xpParaNivel(Progresso.nivel()), 715, 72, 1.3f, WHITE, true);
         img(b, "moedas", 934, 24, 46, 46);
-        text(b, font, String.format("%,d", coins).replace(',', '.'), 1000, 56, 2.0f, WHITE, false);
+        text(b, font, String.format("%,d", Progresso.moedas()).replace(',', '.'), 1000, 56, 2.0f, WHITE, false);
         img(b, "diamantes", 1174, 24, 46, 46);
-        text(b, font, String.valueOf(gems), 1240, 56, 2.0f, WHITE, false);
+        text(b, font, String.valueOf(Progresso.diamantes()), 1240, 56, 2.0f, WHITE, false);
         text(b, font, "+", 1110, 52, 2.0f, INK, false);
         text(b, font, "+", 1350, 52, 2.0f, INK, false);
         img(b, "amigos", 1418, 14, 62, 62);
@@ -327,7 +322,7 @@ final class Lobby {
         sh.rect(0, 0, screenW, screenH);   // véu escuro (cobre a tela inteira)
         fill(sh, 330, 150, 1010, 640, DARK);
         fill(sh, 1280, 160, 52, 52, GOLD);
-        if ("Recompensas".equals(panel)) fill(sh, CLAIM[0], CLAIM[1], CLAIM[2], CLAIM[3], claimed ? BROWN : GOLD);
+        if ("Recompensas".equals(panel)) fill(sh, CLAIM[0], CLAIM[1], CLAIM[2], CLAIM[3], !Progresso.recompensaDisponivel() ? BROWN : GOLD);
         if (cartoes) cardFills(sh);
         sh.end();
         sh.begin(ShapeRenderer.ShapeType.Line);
@@ -338,7 +333,7 @@ final class Lobby {
         img(b, "fechar", CLOSE[0] + 8, CLOSE[1] + 8, CLOSE[2] - 16, CLOSE[3] - 16);
         text(b, font, panel.toUpperCase(), 365, 214, 2.6f, GOLD, false);
         if (cartoes) {
-            text(b, font, "Nível " + level + "   ·   XP " + xp + " / " + xpMax, 365, 246, 1.5f, MUTED, false);
+            text(b, font, "Nível " + Progresso.nivel() + "   ·   XP " + Progresso.xp() + " / " + Progresso.xpParaNivel(Progresso.nivel()), 365, 246, 1.5f, MUTED, false);
             cardTexts(b, font);
         } else {
             String[] lines = body(panel);
@@ -346,7 +341,7 @@ final class Lobby {
             for (String l : lines) { text(b, font, l, 365, y, 1.7f, WHITE, false); y += 48; }
         }
         if ("Recompensas".equals(panel)) {
-            text(b, font, claimed ? "RESGATADA" : "RESGATAR", CLAIM[0] + CLAIM[2] / 2f, CLAIM[1] + 40, 1.9f, INK, true);
+            text(b, font, !Progresso.recompensaDisponivel() ? "RESGATADA" : "RESGATAR", CLAIM[0] + CLAIM[2] / 2f, CLAIM[1] + 40, 1.9f, INK, true);
         }
         if ("Loja".equals(panel)) {
             img(b, "moedas", 365, 500, 60, 60);
@@ -357,12 +352,12 @@ final class Lobby {
 
     private String[] body(String p) {
         switch (p) {
-            case "Personagem": return new String[]{"Nível " + level, "Experiência " + xp + " / " + xpMax, "Visual do personagem: em breve"};
+            case "Personagem": return new String[]{"Nível " + Progresso.nivel(), "Experiência " + Progresso.xp() + " / " + Progresso.xpParaNivel(Progresso.nivel()), "Visual do personagem: em breve"};
             case "Inventário": return new String[]{"Kits, granadas e munição ficam com você nas partidas.", "Organização do inventário: em breve."};
-            case "Loja": return new String[]{"Moedas: " + coins, "Diamantes: " + gems, "Pacotes e itens: em breve"};
+            case "Loja": return new String[]{"Moedas: " + Progresso.moedas(), "Diamantes: " + Progresso.diamantes(), "Pacotes e itens: em breve"};
             case "Evento especial": return new String[]{"A SECA DE 1915", "Evento temporário: em breve."};
             case "Passe de batalha": return new String[]{"Progresso do passe: 60%", "Recompensas de cada nível: em breve."};
-            case "Recompensas": return new String[]{"Recompensa diária: 100 moedas", claimed ? "Você já resgatou a recompensa de hoje." : "Toque em RESGATAR."};
+            case "Recompensas": return new String[]{"Recompensa diária: " + Progresso.MOEDAS_DIARIA + " moedas", !Progresso.recompensaDisponivel() ? "Você já resgatou a recompensa de hoje." : "Toque em RESGATAR."};
             case "Eventos": return new String[]{"Nenhum evento novo no momento."};
             case "Amigos": return new String[]{"Lista de amigos: em breve."};
             case "Mensagens": return new String[]{"Nenhuma mensagem nova."};

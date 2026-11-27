@@ -81,6 +81,7 @@ final class Enemies {
             if (!e.alive() && !e.lootDone) {
                 e.lootDone = true;
                 if (w.items != null) w.items.loot(w, e.pos.x, e.pos.z, lootRnd);
+                if (!e.dummy) Progresso.ganha(Progresso.XP_INIMIGO, Progresso.MOEDAS_INIMIGO);   // XP e moedas pelo abate
             }
             float dx = e.pos.x - cam.position.x, dz = e.pos.z - cam.position.z;
             e.visibleToCam = dx * dx + dz * dz < near;
