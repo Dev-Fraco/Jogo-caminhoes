@@ -103,8 +103,8 @@ public class Player {
 
         // Limita ao terreno
         if (world.arena) {   // arena livre: retângulo de 60 x 40 m, dentro do muro
-            pos.x = MathUtils.clamp(pos.x, -World.ARENA_HW + 1f, World.ARENA_HW - 1f);
-            pos.z = MathUtils.clamp(pos.z, -World.ARENA_HD + 1f, World.ARENA_HD - 1f);
+            pos.x = MathUtils.clamp(pos.x, -world.halfX + 1f, world.halfX - 1f);
+            pos.z = MathUtils.clamp(pos.z, -world.halfZ + 1f, world.halfZ - 1f);
         } else {
             float half = (world.training ? World.TRAIN_LIMIT : World.HALF) - 2f;
             pos.x = MathUtils.clamp(pos.x, -half, half);

@@ -598,6 +598,24 @@ public class World {
     /** @param arena ARENA LIVRE (sala personalizada): chão plano, muro ao redor, sem teto. */
     World(boolean training, boolean arena) { this.training = training; this.arena = arena; }
 
+    // ---------- Arena de mira (treino de tiro): arena plana e ampla, sem cobertura ----------
+    static final float MIRA_HW = 40f, MIRA_HD = 55f;
+    /** Meia-largura da área de jogo (X e Z) desta arena. */
+    float halfX = ARENA_HW, halfZ = ARENA_HD;
+    /** Arena de mira (bots de treino, sem cobertura). */
+    boolean mira;
+
+    static World arenaMira() {
+        World w = new World(false, true);
+        w.mira = true;
+        w.halfX = MIRA_HW;
+        w.halfZ = MIRA_HD;
+        return w;
+    }
+
+    // Portal no treinamento: leva para a arena de mira
+    static final float PORTAL_X = -6f, PORTAL_Z = 0f;
+
     // ---------- Arena livre (sala personalizada) ----------
     static final float ARENA_HW = 30f, ARENA_HD = 20f, ARENA_H = 4f;   // 60 x 40 m (2x a área do galpão), muro de 4 m
     final boolean arena;
@@ -619,7 +637,7 @@ public class World {
         TextureAttribute tex = TextureAttribute.createDiffuse(dirtTexture);
         tex.scaleU = 20f;
         tex.scaleV = 14f;
-        Model ground = mb.createBox(2 * ARENA_HW, 0.2f, 2 * ARENA_HD, new Material(tex), attrs);
+        Model ground = mb.createBox(2 * halfX, 0.2f, 2 * halfZ, new Material(tex), attrs);
         loaded.add(ground);
         ModelInstance gi = new ModelInstance(ground);
         gi.transform.setToTranslation(0f, -0.1f, 0f);
@@ -627,15 +645,15 @@ public class World {
         // Muro contínuo nos quatro lados (colisão e visual)
         Color concreto = new Color(0.55f, 0.54f, 0.52f, 1f);
         float t = 0.6f;
-        addTrainWall(mb, attrs, 0f, ARENA_HD, 2 * ARENA_HW + t, t, false, 0f, ARENA_H, concreto);
-        addTrainWall(mb, attrs, 0f, -ARENA_HD, 2 * ARENA_HW + t, t, false, 0f, ARENA_H, concreto);
-        addTrainWall(mb, attrs, -ARENA_HW, 0f, 2 * ARENA_HD, t, true, 0f, ARENA_H, concreto);
-        addTrainWall(mb, attrs, ARENA_HW, 0f, 2 * ARENA_HD, t, true, 0f, ARENA_H, concreto);
+        addTrainWall(mb, attrs, 0f, halfZ, 2 * halfX + t, t, false, 0f, ARENA_H, concreto);
+        addTrainWall(mb, attrs, 0f, -halfZ, 2 * halfX + t, t, false, 0f, ARENA_H, concreto);
+        addTrainWall(mb, attrs, -halfX, 0f, 2 * halfZ, t, true, 0f, ARENA_H, concreto);
+        addTrainWall(mb, attrs, halfX, 0f, 2 * halfZ, t, true, 0f, ARENA_H, concreto);
         // Sistemas que o jogo usa sempre (fogo e armas); a arena não tem prateleira nem itens espalhados
         fire = new Fire();
         weapons = new Weapons();
         // Cobertura espalhada ao acaso: caixas, containers e pilhas, sem bloquear o nascimento
-        montaCoberturaArena(mb, attrs, new java.util.Random());
+        if (!mira) montaCoberturaArena(mb, attrs, new java.util.Random());   // a arena de mira fica sem cobertura
     }
 
     /** Caixas e containers de cobertura da arena, depois de (x, z, meia-largura X, meia-largura Z). */
@@ -672,6 +690,16 @@ public class World {
                 addTrainVisual(mb, attrs, w * 0.8f, 1.4f, d * 0.8f, x, h + 0.7f, z, madeira);
             }
         }
+    }
+
+    /** Portal dourado do treinamento: dois pilares (com colisão) e um arco por cima. */
+    private void addPortal(ModelBuilder mb, long attrs) {
+        Color ouro = new Color(0.95f, 0.72f, 0.18f, 1f);
+        for (float dx : new float[]{-1.3f, 1.3f}) {
+            addTrainVisual(mb, attrs, 0.45f, 3.4f, 0.45f, PORTAL_X + dx, 1.7f, PORTAL_Z, ouro);
+            boxes.add(new Box(new Matrix4().setToTranslation(PORTAL_X + dx, 0f, PORTAL_Z), 0.23f, 0.23f, 3.4f));
+        }
+        addTrainVisual(mb, attrs, 3.1f, 0.4f, 0.45f, PORTAL_X, 3.5f, PORTAL_Z, ouro);       // arco
     }
 
     /** Há cobertura da arena dentro de 'raio' do ponto (x, z)? */
@@ -722,6 +750,8 @@ public class World {
         shelf.transform.setToTranslation(TRAIN_BOX_X, 0f, TRAIN_BOX_Z);
         instances.add(shelf);
         boxes.add(new Box(new Matrix4().setToTranslation(TRAIN_BOX_X, 0f, TRAIN_BOX_Z), SHELF_HD, SHELF_HL, SHELF_H));
+        // Portal para a ARENA DE MIRA (pilares com colisão e arco dourado)
+        addPortal(mb, attrs);
         // Cerca invisível em volta do treino (colisão e tiro)
         float L = TRAIN_LIMIT;
         boxes.add(new Box(new Matrix4().setToTranslation(-L, 0f, 0f).rotate(Vector3.Y, 90f), L, 0.5f, 6f));   // lado oeste (corre em z)

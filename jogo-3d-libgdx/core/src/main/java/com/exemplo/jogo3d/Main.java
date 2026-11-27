@@ -86,6 +86,12 @@ public class Main extends ApplicationAdapter {
     private boolean lojaFechada, espectando, finalAberto, arenaFimRegistrado;
     private int alvoEsp = 0, inimigosVivosAntes = 0;
     private String bannerFim = null;
+    // Arena de mira (portal do treinamento): o treinamento fica guardado enquanto o jogador treina na arena
+    private boolean mira = false, portalPerto = false;
+    private World treinoWorld;
+    private Enemies treinoEnemies;
+    private ShootingSystem treinoShooting;
+    private Grenades treinoGrenades;
     private boolean trainPanel = false; // caixa de equipamentos do treino (lista de armas)
     private boolean trainBoxNear = false;   // perto da caixa de equipamentos (mostra o botão de ação)
     private final Arsenal arsenal = new Arsenal();   // arsenal de treino (abas, grade, EQUIPAR)
@@ -312,6 +318,7 @@ public class Main extends ApplicationAdapter {
             if (intro != null) intro.drawFadeIn(batch, hudCamera.combined, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
             // HUD da partida da arena por último: fica por cima do HUD de armas e da loja
             if (arena && !inMenu && rodadas != null && arenaUi != null) drawArena(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+            if (mira || (training && portalPerto) || (training && world != null)) drawMiraHud(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         } catch (Throwable t) {
             errorText = "ERRO AO RODAR:\n" + describe(t);
             showError();
@@ -514,6 +521,8 @@ public class Main extends ApplicationAdapter {
         }
         firePressed = false;
         if (arena) arenaQuadro(dt);
+        portalPerto = training && !mira && world != null
+                && Math.hypot(player.pos.x - World.PORTAL_X, player.pos.z - World.PORTAL_Z) < 3.5;
         // Inimigos
         if (enemies != null) {
             int stance = prone > 0 ? 2 : (crouchOn ? 1 : 0);
@@ -790,6 +799,8 @@ public class Main extends ApplicationAdapter {
 
     private void onPress(int i, float x, float rawY, float yb, int W, int H) {
         if (arena && onPressArena(x, yb, W, H)) return;
+        if (mira && dentroBotao(x, yb, miraSairRect(W, H))) { sairMira(); return; }
+        if (portalPerto && !mira && dentroBotao(x, yb, portalEntrarRect(W, H))) { entrarMira(); return; }
         if (fullMapOpen) {   // o mapa inteiro fecha com qualquer toque
             fullMapOpen = false;
             return;
@@ -840,7 +851,8 @@ public class Main extends ApplicationAdapter {
         }
         if (survival != null && survival.dead) {
             if (survival.deadT > 3f) {
-                if (training) respawnTraining();   // no treino, morrer só reaparece no galpão
+                if (mira) respawnMira();           // na arena de mira, morrer só reaparece na arena
+                else if (training) respawnTraining();   // no treino, morrer só reaparece no galpão
                 else if (arena) { }                // na arena, morrer não reaparece: o espectador acompanha ou o round acaba
                 else goMenu();
             }
@@ -1358,6 +1370,70 @@ public class Main extends ApplicationAdapter {
         alvoEsp = 0;
     }
 
+    /** Entra na ARENA DE MIRA pelo portal: guarda o treinamento (mesmas armas e personagem) e carrega a arena. */
+    private void entrarMira() {
+        treinoWorld = world;
+        treinoEnemies = enemies;
+        treinoShooting = shooting;
+        treinoGrenades = grenades;
+        World m = World.arenaMira();
+        try {
+            m.create();
+        } catch (Throwable t) {
+            errorText = "ERRO NA ARENA DE MIRA:\n" + describe(t);
+            return;
+        }
+        m.weapons = treinoWorld.weapons;            // mesmas armas e munição do treinamento
+        world = m;
+        mira = true;
+        training = false;
+        enemies = new Enemies(world, Character.modelo("models/jake/jake.g3dj"), world.weapons.models(), mannequin());
+        enemies.progresso = false;                 // não conta nas estatísticas oficiais
+        enemies.spawnMira(world);
+        grenades = null;
+        shooting = new ShootingSystem(world, world.weapons, enemies, damage, fx, environment);
+        fx.setAudio(shooting.audio);
+        mapUi = null;
+        places = null;
+        inPlane = false;
+        respawnMira();
+        Musica.parar();
+    }
+
+    /** Volta ao treinamento (galpão) exatamente como estava: armas, munição e bonecos. */
+    private void sairMira() {
+        World m = world;
+        world = treinoWorld;
+        enemies = treinoEnemies;
+        shooting = treinoShooting;
+        grenades = treinoGrenades;
+        treinoWorld = null;
+        treinoEnemies = null;
+        treinoShooting = null;
+        treinoGrenades = null;
+        mira = false;
+        training = true;
+        m.weapons = null;                           // as armas são do treinamento: não descarte aqui
+        m.dispose();
+        survival.reset();
+        player.spawn(World.TRAIN_PLAYER_X, World.TRAIN_PLAYER_Z, world.heightAt(World.TRAIN_PLAYER_X, World.TRAIN_PLAYER_Z));
+        player.facing = 0f;
+    }
+
+    /** Morreu na arena de mira: volta ao nascimento da arena (armas e bonecos seguem). */
+    private void respawnMira() {
+        survival.reset();
+        adsOn = false;
+        dyingShown = false;
+        aiming = false;
+        prone = 0;
+        character.endOnce();
+        character.setTilt(0f, 0f, 0f);
+        yaw = 0f;
+        player.spawn(0f, -6f, world.heightAt(0f, -6f));
+        player.facing = 0f;
+    }
+
     /** Quadro da partida da arena: avança o round, decide o fim, reconhece abates e o espectador. */
     private void arenaQuadro(float dt) {
         if (rodadas == null || enemies == null) return;
@@ -1464,6 +1540,67 @@ public class Main extends ApplicationAdapter {
                 nomeAlvo, estado, rodadas.fase == Rodadas.Fase.FIM_ROUND ? bannerFim : null);
         if (finalAberto) arenaUi.desenhaFinal(batch, shapes, font, hudCamera.combined, W, H,
                 rodadas.pontos[0], rodadas.pontos[1], rodadas.vencedorPartida);
+    }
+
+    /** Retângulos (pixels, origem embaixo): botão ENTRAR no portal (perto dele) e VOLTAR na arena de mira. */
+    private float[] portalEntrarRect(int W, int H) { return new float[]{W / 2f - 230f, 110f, 460f, 70f}; }
+
+    private float[] miraSairRect(int W, int H) { return new float[]{W / 2f - 150f, H - 120f, 300f, 60f}; }
+
+    private static boolean dentroBotao(float x, float yb, float[] r) {
+        return x >= r[0] && x <= r[0] + r[2] && yb >= r[1] && yb <= r[1] + r[3];
+    }
+
+    /** Botão do portal (perto dele), botão de voltar e legenda da arena de mira, e o nome do portal no treino. */
+    private void drawMiraHud(int W, int H) {
+        hudCamera.setToOrtho(false, W, H);
+        hudCamera.update();
+        shapes.setProjectionMatrix(hudCamera.combined);
+        batch.setProjectionMatrix(hudCamera.combined);
+        boolean mostraEntrar = training && !mira && portalPerto;
+        if (mostraEntrar || mira) {
+            float[] r = mira ? miraSairRect(W, H) : portalEntrarRect(W, H);
+            shapes.begin(ShapeRenderer.ShapeType.Filled);
+            shapes.setColor(0.08f, 0.06f, 0.05f, 0.92f);
+            shapes.rect(r[0], r[1], r[2], r[3]);
+            shapes.end();
+            shapes.begin(ShapeRenderer.ShapeType.Line);
+            shapes.setColor(0.98f, 0.78f, 0.25f, 1f);
+            shapes.rect(r[0], r[1], r[2], r[3]);
+            shapes.end();
+        }
+        batch.begin();
+        font.getData().setScale(1.2f);
+        font.setColor(0.98f, 0.78f, 0.25f, 1f);
+        if (mostraEntrar) {
+            layout.setText(font, "ENTRAR NA ARENA DE MIRA");
+            float[] r = portalEntrarRect(W, H);
+            font.draw(batch, "ENTRAR NA ARENA DE MIRA", r[0] + (r[2] - layout.width) / 2f, r[1] + r[3] / 2f + layout.height / 2f);
+        }
+        if (mira) {
+            float[] r = miraSairRect(W, H);
+            layout.setText(font, "VOLTAR AO TREINAMENTO");
+            font.draw(batch, "VOLTAR AO TREINAMENTO", r[0] + (r[2] - layout.width) / 2f, r[1] + r[3] / 2f + layout.height / 2f);
+            layout.setText(font, "ARENA DE MIRA");
+            font.draw(batch, "ARENA DE MIRA", (W - layout.width) / 2f, H - 130f);
+            font.getData().setScale(0.95f);
+            font.setColor(0.92f, 0.9f, 0.84f, 1f);
+            String legenda = "Perto: parado   ·   Médio: andando   ·   Longe: correndo";
+            layout.setText(font, legenda);
+            font.draw(batch, legenda, (W - layout.width) / 2f, H - 170f);
+        }
+        if (training && !mira && world != null) {
+            Vector3 p = camera.project(new Vector3(World.PORTAL_X, 4.3f, World.PORTAL_Z));
+            if (p.z > 0f && p.z < 1f) {
+                font.getData().setScale(1.1f);
+                font.setColor(0.98f, 0.78f, 0.25f, 1f);
+                layout.setText(font, "ARENA DE MIRA");
+                font.draw(batch, "ARENA DE MIRA", p.x - layout.width / 2f, p.y);
+            }
+        }
+        font.getData().setScale(1.1f);
+        font.setColor(1f, 1f, 1f, 1f);
+        batch.end();
     }
 
     /** Nomes dos aliados vivos (na mesma ordem de Enemies.aliado): jogadores da sala da equipe azul, sem o jogador. */

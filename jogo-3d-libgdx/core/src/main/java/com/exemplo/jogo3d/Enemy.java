@@ -200,7 +200,40 @@ final class Enemy {
     /**
      * Um passo do comportamento. Devolve true se disparou neste quadro (o Enemies decide se acertou).
      */
+    /** Bot da arena de mira: só anda na faixa e recebe dano; não ataca (sem IA de combate). Null nos demais. */
+    BotMira bot;
+
+    /** Bot de mira: morto, reaparece no início da faixa depois de RESPAWN_SEG. Vivo, anda e atualiza a hitbox. */
+    private boolean botStep(float dt, World w, Enemies all) {
+        if (state == State.DEAD) {
+            deadT += dt;
+            pose(dt);
+            if (deadT >= BotMira.RESPAWN_SEG) {
+                health = MAX_HEALTH;
+                state = State.PATROL;
+                deadT = 0f;
+                hitT = 0f;
+                headSnap = 0f;
+                glow(false);
+                bot.reinicia();
+                pos.set(bot.x(), w.groundAt(bot.x(), bot.z), bot.z);
+                clip = null;
+            }
+            hitbox.update(all.frame());
+            return false;
+        }
+        facing = bot.passo(dt, lootRndBot);
+        pos.set(bot.x(), w.groundAt(bot.x(), bot.z), bot.z);
+        setClip(bot.clipe(), 1f);
+        pose(dt);
+        hitbox.update(all.frame());
+        return false;
+    }
+
+    private static final java.util.Random lootRndBot = new java.util.Random();
+
     boolean update(float dt, World w, Enemies all, Vector3 player, boolean playerAlive) {
+        if (bot != null) return botStep(dt, w, all);
         if (state == State.DEAD) {
             deadT += dt;
             if (visibleToCam) anim.update(dt);

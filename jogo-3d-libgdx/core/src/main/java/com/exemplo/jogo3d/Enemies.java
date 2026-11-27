@@ -124,6 +124,25 @@ final class Enemies {
         return null;
     }
 
+    /** Abates e XP só valem no battle royale: na arena de mira não contam nas estatísticas oficiais. */
+    boolean progresso = true;
+
+    /** Arena de mira: três bots (correndo, andando e parado) em distâncias diferentes, sem atirar. */
+    void spawnMira(World w) {
+        list.clear();
+        BotMira.Tipo[] tipos = {BotMira.Tipo.PARADO, BotMira.Tipo.ANDANDO, BotMira.Tipo.CORRENDO};
+        float[][] faixas = {{-2f, 2f, 10f}, {-20f, 20f, 26f}, {-35f, 35f, 46f}};   // x0, x1, z (curta, média, longa)
+        for (int i = 0; i < tipos.length; i++) {
+            BotMira b = new BotMira(tipos[i], faixas[i][0], faixas[i][1], faixas[i][2]);
+            Enemy e = new Enemy(body, null, b.x(), b.z, 0.2f + i * 0.3f);
+            e.bot = b;
+            e.dummy = false;
+            e.pos.set(b.x(), w.groundAt(b.x(), b.z), b.z);
+            e.facing = (float) Math.atan2(-b.x(), -b.z);
+            list.add(e);
+        }
+    }
+
     /** Partida nova do battle royale: nenhum boneco no mundo. */
     void clear() { list.clear(); }
 
@@ -159,7 +178,7 @@ final class Enemies {
             if (!e.alive() && !e.lootDone) {
                 e.lootDone = true;
                 if (w.items != null) w.items.loot(w, e.pos.x, e.pos.z, lootRnd);
-                if (!e.dummy) Progresso.ganha(Progresso.XP_INIMIGO, Progresso.MOEDAS_INIMIGO);   // XP e moedas pelo abate
+                if (!e.dummy && progresso) Progresso.ganha(Progresso.XP_INIMIGO, Progresso.MOEDAS_INIMIGO);   // XP e moedas pelo abate
             }
             float dx = e.pos.x - cam.position.x, dz = e.pos.z - cam.position.z;
             e.visibleToCam = dx * dx + dz * dz < near;
