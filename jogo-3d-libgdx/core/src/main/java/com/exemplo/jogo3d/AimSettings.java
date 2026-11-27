@@ -7,8 +7,10 @@ import com.badlogic.gdx.math.MathUtils;
 /**
  * Ajustes de mira e sensibilidade (tela "Mira e sensibilidade").
  *
- * Na tela ficam só: sensibilidade geral, mira 2x e mira 4x (as lunetas), a assistência de mira
- * (ligar/desligar), a atração ao peito e o FOV do aim assist. Os outros valores são fixos no código.
+ * Os valores ficam em unidades do jogo (multiplicadores e frações). A tela mostra cada um numa barra de
+ * 0 a 200: sensibilidades e aberturas valem s/100 (100 = 1,0 = padrão); assistências e o FOV valem s/200
+ * (fração); a resistência vertical vai até 95% (s = 190). Assim os valores atuais são preservados ao
+ * migrar a tela: 100% de sensibilidade vira 100, 10% de força abdominal vira 20, 90% de resistência vira 180.
  */
 final class AimSettings {
     static final String PREFS = "aim_settings_v9";   // v9: aim assist na barriga, resistência vertical própria
@@ -21,7 +23,7 @@ final class AimSettings {
     static float smoothing = 0.35f;       // fixo: suavização
     static final float[] category = {1f, 1f, 1f, 1f, 1f, 0.8f};   // fixo: por categoria de arma (ordem do enum)
     static boolean assistOn = true;
-    static float abdAssist = 0.10f;       // 0..1: força com que a mira é puxada para a BARRIGA ao atirar (10%: suave)
+    static float abdAssist = 0.10f;       // 0..1: força com que a mira sobe até a BARRIGA ao atirar (10%: suave)
     static float horizAssist = 0.1f;      // 0..1: força da correção para os lados ao atirar (baixa: sem puxão lateral)
     static float fovPct = 0.4f;           // 0..1: raio do FOV do aim assist (2° a 15°)
     /** Abertura da mira por arma (ordem de Weapons.BY_TYPE): 1 = 100% da abertura padrão. */
@@ -32,15 +34,22 @@ final class AimSettings {
      */
     static float upResist = 0.90f;
 
-    /** Ajuste da tela: nome, mínimo, máximo e passo. */
+    /** Itens da tela: índice = posição em NAMES (ordem interna, usada também para salvar). */
     static final String[] NAMES = {"Sensibilidade geral", "Mira 2x", "Mira 4x", "Assistência de mira",
             "Força abdominal (atração à barriga)", "Assistência horizontal", "FOV do Aim Assist",
             "Abertura AKM", "Abertura AUG", "Abertura GROZA", "Abertura M16A4", "Abertura M416", "Abertura SCAR-L", "Abertura AWM", "Abertura M1014", "Abertura MAGNUM 357",
             "Resistência vertical (subida)"};
-    private static final float[][] RANGE = {{0.2f, 3f, 0.1f}, {0.1f, 2f, 0.05f}, {0.05f, 2f, 0.05f},
-            {0f, 1f, 1f}, {0f, 1f, 0.05f}, {0f, 1f, 0.05f}, {0f, 1f, 0.05f},
-            {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f}, {0.2f, 2f, 0.05f},
-            {0f, 0.95f, 0.05f}};
+
+    // Tipos de barra: multiplicador (0..2), fração (0..1), resistência (0..0,95) e liga/desliga
+    static final int K_MULT = 0, K_FRAC = 1, K_RESIST = 2, K_TOGGLE = 3;
+    static final float RESIST_MAX = 0.95f;
+
+    static int kind(int i) {
+        if (i == 3) return K_TOGGLE;
+        if (i == 4 || i == 5 || i == 6) return K_FRAC;
+        if (i == 16) return K_RESIST;
+        return K_MULT;   // sensibilidades e aberturas
+    }
 
     /** Abertura da mira da arma (ordem de BY_TYPE); fora da lista, o padrão. */
     static float openPct(int type) { return type >= 0 && type < openPct.length ? openPct[type] : 1f; }
@@ -65,34 +74,49 @@ final class AimSettings {
         }
     }
 
-    static void set(int i, float v) {
-        v = MathUtils.clamp(v, RANGE[i][0], RANGE[i][1]);
-        v = Math.round(v / RANGE[i][2]) * RANGE[i][2];
-        switch (i) {
-            case 0: general = v; break;
-            case 1: scope2x = v; break;
-            case 2: scope4x = v; break;
-            case 3: assistOn = v > 0.5f; break;
-            case 4: abdAssist = v; break;
-            case 5: horizAssist = v; break;
-            case 6: fovPct = v; break;
-            case 16: upResist = v; break;
-            default: openPct[i - 7] = v; break;
+    /** Valor de um item na escala da tela (0..200). */
+    static int toSlider(int i) {
+        switch (kind(i)) {
+            case K_MULT: return Math.round(get(i) * 100f);
+            case K_TOGGLE: return assistOn ? 200 : 0;
+            default: return Math.round(get(i) * 200f);
         }
     }
 
-    /** Aumenta (+1) ou diminui (-1) um passo. */
-    static void step(int i, int dir) {
-        if (i == 3) { assistOn = !assistOn; return; }
-        set(i, get(i) + dir * RANGE[i][2]);
+    /** Converte uma posição da barra (0..200) para o valor do jogo, dentro dos limites de cada item. */
+    static float fromSlider(int i, int s) {
+        s = MathUtils.clamp(s, 0, 200);
+        switch (kind(i)) {
+            case K_MULT: return s / 100f;
+            case K_TOGGLE: return s >= 100 ? 1f : 0f;
+            case K_RESIST: return Math.min(s / 200f, RESIST_MAX);
+            default: return s / 200f;
+        }
     }
+
+    static void setSlider(int i, int s) { set(i, fromSlider(i, s)); }
+
+    static void set(int i, float v) {
+        switch (i) {
+            case 0: general = clampMult(v); break;
+            case 1: scope2x = clampMult(v); break;
+            case 2: scope4x = clampMult(v); break;
+            case 3: assistOn = v > 0.5f; break;
+            case 4: abdAssist = clampFrac(v); break;
+            case 5: horizAssist = clampFrac(v); break;
+            case 6: fovPct = clampFrac(v); break;
+            case 16: upResist = MathUtils.clamp(v, 0f, RESIST_MAX); break;
+            default: openPct[i - 7] = clampMult(v); break;
+        }
+    }
+
+    private static float clampMult(float v) { return MathUtils.clamp(v, 0f, 2f); }
+
+    private static float clampFrac(float v) { return MathUtils.clamp(v, 0f, 1f); }
 
     static String text(int i) {
         if (i == 3) return assistOn ? "LIGADA" : "DESLIGADA";
-        if (i == 6) return String.format(java.util.Locale.US, "%.0f%% (%.1f gr)", get(i) * 100f, fovDeg());
-        if (i >= 7) return Math.round(get(i) * 100f) + "%";
-        if (i == 1 || i == 2) return String.format(java.util.Locale.US, "%.2fx", get(i) / 1f);
-        return Math.round(get(i) * 100f) + "%";
+        return String.valueOf(toSlider(i));
     }
 
     static void load() {

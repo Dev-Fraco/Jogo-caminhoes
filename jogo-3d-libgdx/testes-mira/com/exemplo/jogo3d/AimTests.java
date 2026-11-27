@@ -297,7 +297,7 @@ public class AimTests extends ApplicationAdapter {
         AimSettings.reset();
         check("abertura da mira padrão 100% em todas as armas", AimSettings.openPct(0) == 1f && AimSettings.openPct(5) == 1f, "");
         AimSettings.set(7, 0.5f);
-        check("abertura do AKM ajustável por porcentagem (50%)", Math.abs(AimSettings.openPct(0) - 0.5f) < 1e-3f && AimSettings.text(7).equals("50%"), AimSettings.text(7));
+        check("abertura do AKM ajustável por porcentagem (50%)", Math.abs(AimSettings.openPct(0) - 0.5f) < 1e-3f && AimSettings.text(7).equals("50"), AimSettings.text(7));
         AimSettings.reset();
         // 6. FOV em porcentagem: 0% = 2°, 100% = 15°
         float savedFov = AimSettings.fovPct;

@@ -112,6 +112,7 @@ public class Main extends ApplicationAdapter {
     private DamageSystem damage;
     private CombatFx fx;
     private final AimSettingsUi aimUi = new AimSettingsUi();
+    private int aimPointer = -1;   // dedo que está arrastando uma barra da tela de mira
     private int firePointer = -1;
     // Muro (botão PAREDE): toque põe na frente; segurar mostra a sombra, e soltar põe onde ela está
     private static final float WALL_HOLD = 0.25f;   // segundos segurando para virar sombra
@@ -637,6 +638,15 @@ public class Main extends ApplicationAdapter {
             boolean down = Gdx.input.isTouched(i);
             boolean pressed = down && !wasDown[i];
             wasDown[i] = down;
+            if (aimUi.open && i == aimPointer) {
+                // tela de mira: o dedo que começou numa barra arrasta o valor até soltar
+                if (down) aimUi.drag(Gdx.input.getX(i), H - Gdx.input.getY(i));
+                else {
+                    aimUi.release();
+                    aimPointer = -1;
+                }
+                continue;
+            }
 
             if (!down) {
                 if (i == joyPointer) { joyPointer = -1; joyX = 0f; joyY = 0f; }
@@ -741,7 +751,12 @@ public class Main extends ApplicationAdapter {
             }
         }
         if (settingsOpen) {
-            settingsPress(x, yb);
+            if (aimUi.open) {
+                aimUi.press(x, yb);
+                aimPointer = i;   // o dedo que tocou a tela de mira segue arrastando a barra
+            } else {
+                settingsPress(x, yb);
+            }
             return;
         }
         if (inMenu) {
