@@ -17,13 +17,13 @@ final class Arsenal {
 
     static final String[] TABS = {"FUZIS", "SMGs", "ESCOPETAS", "SNIPERS", "PISTOLAS", "CORPO A CORPO", "ACESSÓRIOS"};
     // Categoria (índice em TABS) de cada arma, na ordem de WeaponConfig.BY_TYPE
-    private static final int[] TAB_OF = {0, 0, 0, 0, 0, 0, 3, 2};
+    private static final int[] TAB_OF = {0, 0, 0, 0, 0, 0, 3, 2, 4};
     private static final String[] SUB = {"FUZIL DE ASSALTO", "FUZIL DE ASSALTO", "FUZIL DE ASSALTO", "FUZIL DE ASSALTO",
-            "FUZIL DE ASSALTO", "FUZIL DE ASSALTO", "FUZIL DE PRECISÃO", "ESPINGARDA"};
+            "FUZIL DE ASSALTO", "FUZIL DE ASSALTO", "FUZIL DE PRECISÃO", "ESPINGARDA", "REVÓLVER"};
     // Atributos de 0 a 1 (dano, precisão, alcance) para as barras
     private static final float[][] STAT = {
             {0.55f, 0.60f, 0.70f}, {0.50f, 0.65f, 0.70f}, {0.60f, 0.50f, 0.60f}, {0.60f, 0.65f, 0.80f},
-            {0.55f, 0.70f, 0.75f}, {0.60f, 0.60f, 0.75f}, {0.90f, 0.95f, 1.00f}, {0.70f, 0.35f, 0.35f}};
+            {0.55f, 0.70f, 0.75f}, {0.60f, 0.60f, 0.75f}, {0.90f, 0.95f, 1.00f}, {0.70f, 0.35f, 0.35f}, {0.50f, 0.70f, 0.55f}};
     private static final String[] ATTR = {"DANO", "PRECISÃO", "ALCANCE"};
     private static final int COLS = 3;
 

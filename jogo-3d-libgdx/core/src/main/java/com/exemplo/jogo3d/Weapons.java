@@ -16,8 +16,8 @@ import java.util.Random;
  * cidade e soltos pelo mapa). Perto de uma, dá para pegar; a arma fica na mão direita do personagem.
  */
 final class Weapons {
-    static final String[] NAMES = {"AKM", "AUG", "GROZA", "M16A4", "M416", "SCAR-L", "AWM", "M1014"};
-    private static final String[] FILES = {"akm", "aug", "groza", "m16a4", "m416", "scarl", "awm", "m1014"};
+    static final String[] NAMES = {"AKM", "AUG", "GROZA", "M16A4", "M416", "SCAR-L", "AWM", "M1014", "MAGNUM 357"};
+    private static final String[] FILES = {"akm", "aug", "groza", "m16a4", "m416", "scarl", "awm", "m1014", "magnum357"};
     private static final float PICK_RANGE = 1.8f;
 
     /** Arma no chão. */

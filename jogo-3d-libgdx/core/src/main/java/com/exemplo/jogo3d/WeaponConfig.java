@@ -188,5 +188,9 @@ final class WeaponConfig {
     static final WeaponConfig M1014 = new WeaponConfig("M1014", Category.ESPINGARDA, FireMode.AUTO, 1, 0f, 12f, 2.92f, 0.8f, 0.8f,
             0.8f, 5, 30, 2.4f, 40f, 5f, 0.25f, 0f, 0f, 0f, 0f, 8, 0.13f, 1.7f, 0.6f).asSeparate();
 
-    static final WeaponConfig[] BY_TYPE = {AKM, AUG, GROZA, M16A4, M416, SCARL, AWM, M1014};
+    // Revólver Magnum .357 (pistola do arsenal). Dano provisório até o valor ser definido.
+    static final WeaponConfig MAGNUM357 = new WeaponConfig("MAGNUM 357", Category.REVOLVER, FireMode.SEMI, 1, 0f, 45f, 2.0f, 0.8f, 0.8f,
+            0.550f, 6, 30, 2.0f, 70f, 20f, 0.6f, 2.4f, 0.7f, 2.20f, 0.30f, 1, 0.110f, 1.3f, 0.45f);
+
+    static final WeaponConfig[] BY_TYPE = {AKM, AUG, GROZA, M16A4, M416, SCARL, AWM, M1014, MAGNUM357};
 }
