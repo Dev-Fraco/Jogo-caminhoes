@@ -162,6 +162,7 @@ public class Main extends ApplicationAdapter {
         shaderConfig.defaultCullFace = 0;
         modelBatch = new ModelBatch(new DefaultShaderProvider(shaderConfig));
         scope = new Scope();
+        scope.rate = 40f;   // AWM: luneta abre e fecha quase na hora
         sight = new Scope();
 
         environment = new Environment();
@@ -403,8 +404,10 @@ public class Main extends ApplicationAdapter {
         }
         WeaponConfig cfg = world.weapons != null ? world.weapons.config() : null;
         WeaponConfig.Category cat = cfg != null ? cfg.category : WeaponConfig.Category.FUZIL;
+        // AWM: segurar o tiro abre a luneta sem disparar (só a AWM; os outros fuzis seguem como estavam)
+        boolean awmAim = combat && cfg != null && cfg.scope && fireHeld;
         // Câmera pelo toque (com o atrito da assistência do quadro anterior)
-        aimCtl.update(dt, Gdx.graphics.getHeight(), adsOn, combat ? cat : null, combat ? assist.friction : 1f);
+        aimCtl.update(dt, Gdx.graphics.getHeight(), adsOn || awmAim, combat ? cat : null, combat ? assist.friction : 1f);
         yaw += aimCtl.yawDelta;
         pitch += aimCtl.pitchDelta;
         aimDir.set(camera.direction).nor();
@@ -424,8 +427,8 @@ public class Main extends ApplicationAdapter {
         // Arma na mão (o cano acompanha a mira) e o sistema de disparo: modos, cadência, recuo, dispersão,
         // clarão, som, impacto e dano. O coice e a volta da mira vêm dele.
         if (world.weapons != null) {
-            world.weapons.ads = adsOn;
-            world.weapons.scopeAimUpdate(adsOn);
+            world.weapons.ads = adsOn || awmAim;
+            world.weapons.scopeAimUpdate(adsOn || awmAim);
             world.weapons.aimElev = -pitch;
             world.weapons.update(character, player);
         }
@@ -433,7 +436,7 @@ public class Main extends ApplicationAdapter {
             // Pose do braço: mirar, coice do tiro, recarga (ao peito), sacar (braço baixo) e tronco que recua ao levar tiro
             float reloadPose = world.weapons.reloading() ? (float) Math.sin(Math.PI * world.weapons.reloadProgress()) : 0f;
             float kickPose = shooting != null ? Math.min(1f, world.weapons.kickOffset() / 0.075f) : 0f;
-            float aimPose = combat && !parachuting ? (adsOn ? 1f : 0.45f) : 0f;
+            float aimPose = combat && !parachuting ? ((adsOn || awmAim) ? 1f : 0.45f) : 0f;
             float leanPose = survival != null ? Math.min(1f, survival.shake / 0.12f) : 0f;
             // Arma guardada: o braço fica no lugar de descanso (a pose de guardar só vale ao sacar/guardar)
             character.setArmPose(aimPose, kickPose, reloadPose, world.weapons.holstered() ? 0f : world.weapons.drawAmount(), leanPose);
@@ -441,7 +444,7 @@ public class Main extends ApplicationAdapter {
         if (shooting != null) {
             shootIn.fireHeld = fireHeld;
             shootIn.firePressed = firePressed;
-            shootIn.ads = adsOn;
+            shootIn.ads = adsOn || awmAim;
             shootIn.crouch = crouchOn;
             shootIn.prone = prone > 0;
             shootIn.grounded = player.grounded;
@@ -553,7 +556,7 @@ public class Main extends ApplicationAdapter {
             pivot.set(player.pos.x - MathUtils.cos(yaw) * sh, player.pos.y + hy, player.pos.z + MathUtils.sin(yaw) * sh);
         }
         // Luneta: a câmera principal fica normal (o zoom é só dentro da lente); a transição é suave
-        boolean scoped = combat && adsOn && cfg != null && cfg.scope;
+        boolean scoped = combat && (adsOn || awmAim) && cfg != null && cfg.scope;
         if (scope != null) scope.update(dt, scoped);
         // Mira red dot: todas as armas, ao mirar (menos o AWM, que tem a luneta); some o retículo normal
         if (sight != null) sight.update(dt, combat && adsOn && cfg != null && !cfg.scope);

@@ -25,6 +25,7 @@ final class Scope {
     // Medidas da imagem da moldura (px): centro do anel, raio externo do anel e raio da lente
     private static final float IMG_W = 1536f, IMG_H = 1024f, CX = 765f, CY = 511f, RING_R = 503f, LENS_R = 391f;
     private static final float RATE = 9f;   // velocidade da transição (1/s)
+    float rate = RATE;                      // velocidade desta luneta (a AWM usa uma mais rápida)
     private static final int SEG = 56;      // segmentos do círculo da lente
 
     /** 0 = sem luneta, 1 = luneta toda aberta. */
@@ -57,7 +58,7 @@ final class Scope {
 
     /** Avança a transição: entra quando mirando com o fuzil de precisão, sai ao largar a mira. */
     void update(float dt, boolean wanted) {
-        t += ((wanted ? 1f : 0f) - t) * Math.min(1f, dt * RATE);
+        t += ((wanted ? 1f : 0f) - t) * Math.min(1f, dt * rate);
         if (t < 0.001f && !wanted) t = 0f;
         if (t > 0.999f && wanted) t = 1f;
     }

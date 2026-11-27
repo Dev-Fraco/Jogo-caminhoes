@@ -233,7 +233,7 @@ final class WeaponConfig {
             0.200f, 30, 120, 1.3f, 150f, 50f, 0.70f, 2.6f, 0.6f, 0.62f, 0.25f, 1, 0.060f, 1.0f, 0.50f).comCadenciaExata();
     // Fuzil de precisão AWM: luneta (zoom real), sem assistência de mira, um tiro por mira e recarga de 0,5 s
     static final WeaponConfig AWM = new WeaponConfig("AWM", Category.PRECISAO, FireMode.SEMI, 1, 0f, 85f, 2.4f, 0.8f, 0.8f,
-            1.200f, 5, 20, 0.5f, 300f, 150f, 0.85f, 6.0f, 0.05f, 3.20f, 0.20f, 1, 0.140f, 1.4f, 0.70f).asScope();
+            1.200f, 5, 20, 0.5f, 300f, 150f, 0.85f, 6.0f, 0.05f, 3.20f, 0.20f, 1, 0.140f, 1.4f, 0.15f).asScope();
     // Categorias que ainda não têm modelo 3D no jogo (prontas para quando a arma entrar)
     static final WeaponConfig PISTOLA = new WeaponConfig("Pistola", Category.PISTOLA, FireMode.SEMI, 1, 0f, 22f, 1.8f, 0.8f, 0.8f,
             0.200f, 12, 48, 0.4f, 60f, 15f, 0.55f, 2.2f, 0.9f, 0.90f, 0.20f, 1, 0.050f, 0.7f, 0.35f);

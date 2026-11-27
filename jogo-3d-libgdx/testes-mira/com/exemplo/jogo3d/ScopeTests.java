@@ -57,23 +57,32 @@ public class ScopeTests extends ApplicationAdapter {
         wp.tick(2f);   // terminar de sacar
         int mag0 = wp.ammo(), res0 = wp.reserveAmmo();
 
-        check("sem mirar, não dispara", wp.tryFire(false, true) == 0 && wp.ammo() == mag0, "");
-        wp.scopeAimUpdate(true);
-        check("mirando, dispara um tiro", wp.tryFire(false, true) == 1, "");
-        check("o tiro gasta uma bala do tambor", wp.ammo() == mag0 - 1, "" + wp.ammo());
+        // AWM: segurar abre a luneta sem disparar; toque rápido (solta em até 0,25 s) dispara um tiro
+        check("segurar o botão não dispara (abre a luneta)", wp.tryFire(true, true) == 0 && wp.ammo() == mag0, "");
+        wp.tick(0.6f);
+        check("segurando por 0,6 s: continua sem disparar", wp.tryFire(true, false) == 0 && wp.ammo() == mag0, "");
+        check("soltar depois de segurar: não dispara", wp.tryFire(false, false) == 0 && wp.ammo() == mag0, "");
         wp.tick(2f);
-        check("depois do tiro, não dispara de novo mirando", wp.tryFire(false, true) == 0, "");
-        wp.scopeAimUpdate(false);
-        check("ao largar a mira, começa a recarregar", wp.reloading(), "");
+        wp.tryFire(true, true);
+        wp.tick(0.1f);
+        check("toque rápido (0,1 s): dispara um tiro ao soltar", wp.tryFire(false, false) == 1, "");
+        check("o tiro gasta uma bala do tambor", wp.ammo() == mag0 - 1, "" + wp.ammo());
+        check("o tambor recarrega depois do tiro (0,5 s)", wp.reloading(), "");
         wp.tick(0.49f);
         check("ainda recarregando aos 0,49 s", wp.reloading(), "");
         wp.tick(0.06f);
         check("recarga termina em 0,5 s", !wp.reloading(), "");
         check("tambor cheio de novo e a reserva gastou 1", wp.ammo() == mag0 && wp.reserveAmmo() == res0 - 1,
                 wp.ammo() + " / " + wp.reserveAmmo());
-        wp.scopeAimUpdate(true);
         wp.tick(2f);
-        check("depois de recarregar, mira e atira de novo", wp.tryFire(false, true) == 1, "");
+        wp.tryFire(true, true);
+        wp.tick(2f);
+        check("segurando por muito tempo, não dispara (sem disparo contínuo)", wp.tryFire(true, false) == 0 && wp.ammo() == mag0, "");
+        wp.tryFire(false, false);
+        wp.tick(2f);
+        wp.tryFire(true, true);
+        wp.tick(0.1f);
+        check("outro toque rápido depois de soltar: dispara de novo", wp.tryFire(false, false) == 1, "");
 
         // Outras armas seguem como eram (automática, sem luneta)
         wp.giveStart(0, ch);

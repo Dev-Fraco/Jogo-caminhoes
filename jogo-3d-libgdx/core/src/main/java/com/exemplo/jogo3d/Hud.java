@@ -24,6 +24,7 @@ public class Hud {
         final float aspectNoTex; // largura/altura quando não há textura (botão desenhado em código)
         float fx, fy;           // centro, fração de W e de H (origem embaixo à esquerda)
         float scale = 1f;       // escala escolhida pelo jogador
+        float alpha = 1f;       // transparência escolhida pelo jogador (0,2 a 1)
         Texture tex;
 
         El(String id, String label, String file, float hf, float aspectNoTex) {
@@ -112,7 +113,7 @@ public class Hud {
     private int dragPointer = -1;
     private float grabX, grabY;
     private final GlyphLayout layout = new GlyphLayout();
-    private static final String[] EDIT_BUTTONS = {"-", "+", "Salvar", "Restaurar", "Fechar"};
+    private static final String[] EDIT_BUTTONS = {"-", "+", "Opac -", "Opac +", "Salvar", "Restaurar", "Fechar"};
     private final float[][] editRects = new float[EDIT_BUTTONS.length][4];
 
     public void create() {
@@ -157,6 +158,7 @@ public class Hud {
     void resetLayout(boolean onlyDefaultsOfMissing) {
         for (int i = 0; i < els.length; i++) {
             els[i].scale = 1f;
+            els[i].alpha = 1f;
             els[i].fx = REF_POS[i][0] / REF_W;
             els[i].fy = 1f - REF_POS[i][1] / REF_H;
         }
@@ -187,6 +189,8 @@ public class Hud {
                 float s = p.getFloat(e.id + "_s", Float.NaN);
                 if (!Float.isNaN(x) && !Float.isNaN(y)) { e.fx = x; e.fy = y; }
                 if (!Float.isNaN(s)) e.scale = MathUtils.clamp(s, MIN_SCALE, MAX_SCALE);
+                float al = p.getFloat(e.id + "_a", Float.NaN);
+                if (!Float.isNaN(al)) e.alpha = MathUtils.clamp(al, 0.2f, 1f);
             }
         } catch (Throwable t) {
             // sem preferências salvas: fica com o layout padrão
@@ -200,6 +204,7 @@ public class Hud {
                 p.putFloat(e.id + "_x", e.fx);
                 p.putFloat(e.id + "_y", e.fy);
                 p.putFloat(e.id + "_s", e.scale);
+                p.putFloat(e.id + "_a", e.alpha);
             }
             p.flush();
         } catch (Throwable t) {
@@ -263,6 +268,12 @@ public class Hud {
                 break;
             case "+":
                 if (selected != null) { El e = get(selected); e.scale = Math.min(MAX_SCALE, e.scale * 1.1f); }
+                break;
+            case "Opac -":
+                if (selected != null) { El e = get(selected); e.alpha = Math.max(0.2f, e.alpha - 0.1f); }
+                break;
+            case "Opac +":
+                if (selected != null) { El e = get(selected); e.alpha = Math.min(1f, e.alpha + 0.1f); }
                 break;
             case "Salvar":
                 save();
@@ -336,7 +347,7 @@ public class Hud {
         for (El e : els) {
             if (!visible(e)) continue;
             float[] r = rect(e);
-            float a = 1f;
+            float a = e.alpha;
             float tint = 1f;
             if (e.id.equals("correr") && runOn) tint = 1.25f;
             if (e.id.equals("pular") && jumpDown) tint = 1.25f;
@@ -421,7 +432,7 @@ public class Hud {
         }
         if (selected != null) {
             El e = get(selected);
-            String info = e.label + "  -  tamanho " + Math.round(e.scale * 100f) + "%";
+            String info = e.label + "  -  tamanho " + Math.round(e.scale * 100f) + "%  -  transparência " + Math.round(e.alpha * 100f) + "%";
             layout.setText(font, info);
             font.setColor(1f, 0.9f, 0.5f, 1f);
             font.draw(batch, info, (W - layout.width) / 2f, editRects[0][1] + editRects[0][3] + 26f);

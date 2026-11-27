@@ -306,6 +306,7 @@ final class Weapons {
             }
         }
         if (burstT > 0f) burstT -= dt;
+        if (awmPress) awmHoldT += dt;
         if (emptyT > 0f) emptyT -= dt;
         if (equipT > 0f) equipT -= dt;
         kickPos -= kickPos * Math.min(1f, dt * 16f);   // volta ao lugar
@@ -322,8 +323,8 @@ final class Weapons {
     int tryFire(boolean held, boolean pressed) {
         WeaponConfig c = config();
         if (c != null && !(c.mode == WeaponConfig.FireMode.AUTO ? held : pressed)) armT = -1f;   // soltou: zera o atraso
+        if (c != null && c.scope) return tryFireAwm(c, held, pressed);   // AWM: regra própria (luneta e toque)
         if (c == null || reloadT > 0f || equipT > 0f) return 0;
-        if (c.scope && (!scopeAim || spent)) return 0;   // luneta: só mirando, e um tiro por mira
         // Continuação da rajada (não precisa do botão)
         if (burstLeft > 0) {
             if (burstT > 0f) return 0;
@@ -351,7 +352,6 @@ final class Weapons {
         }
         if (!infinite) mag[heldType]--;   // treino: munição infinita
         cooldown = proximoIntervalo(c);
-        if (c.scope) spent = true;
         kickPos = Math.min(kickPos + c.kick, c.kick * 2f);
         if (c.mode == WeaponConfig.FireMode.BURST) {
             burstLeft = Math.min(c.burstCount - 1, mag[heldType]);
@@ -359,6 +359,32 @@ final class Weapons {
             if (burstLeft == 0) cooldown = c.fireInterval;
             else cooldown = 0f;   // enquanto durar a rajada o controle é do burstLeft
         }
+        return 1;
+    }
+
+    /** AWM (luneta), regra própria: segurar só abre a luneta, sem disparar; toque rápido (solta em até 0,25 s)
+     *  dispara um tiro e o tambor recarrega. Nunca dispara enquanto o botão segue apertado. */
+    static final float AWM_TAP_MAX = 0.25f;
+    private boolean awmPress = false;   // botão apertado desde o aperto (até soltar)
+    private float awmHoldT = 0f;        // tempo segurando o botão (s)
+
+    private int tryFireAwm(WeaponConfig c, boolean held, boolean pressed) {
+        if (pressed) { awmPress = true; awmHoldT = 0f; }
+        if (!awmPress || held) return 0;
+        awmPress = false;                                   // soltou
+        if (awmHoldT > AWM_TAP_MAX) return 0;               // segurou: a luneta fecha sem tiro
+        if (reloadT > 0f || equipT > 0f || cooldown > 0f) return 0;
+        if (mag[heldType] <= 0) {
+            cooldown = 0.3f;
+            emptyT = 0.25f;
+            events |= EV_EMPTY;
+            startReload();
+            return -1;
+        }
+        if (!infinite) mag[heldType]--;   // treino: munição infinita
+        cooldown = c.fireInterval;
+        kickPos = Math.min(kickPos + c.kick, c.kick * 2f);
+        startReload();                    // o tambor recarrega (0,5 s) depois de cada tiro
         return 1;
     }
 
