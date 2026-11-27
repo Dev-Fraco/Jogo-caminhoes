@@ -99,9 +99,12 @@ public class RelevoTests extends ApplicationAdapter {
         for (float z = -500f; z <= 500f; z += 50f) {
             float xr = World.riverX(z);
             tot2++;
-            if (w.heightAt(xr, z) < w.heightAt(xr + 8f, z) - 1f) ok2++;
+            // a água no centro fica 35 cm acima do leito, e na borda (4,5 m) não sobe acima do terreno
+            float borda = w.heightAt(xr + 4.5f, z);
+            float agua = w.alturaAgua(xr, z);
+            if (Math.abs(agua - w.heightAt(xr, z) - 0.35f) < 1e-3f && agua >= borda - 0.5f) ok2++;
         }
-        check("o leito do rio fica abaixo das margens (todo o trecho)", ok2 == tot2, ok2 + "/" + tot2);
+        check("a água do rio fica 35 cm acima do leito e não flutua nas bordas", ok2 == tot2, ok2 + "/" + tot2);
 
         System.out.println("== Alcance do jogador ==");
         int step = 6;

@@ -560,6 +560,18 @@ public class World {
         return t;
     }
 
+    /** Vértice da lâmina do rio: 35 cm acima do leito no centro; na borda desce até o terreno (não flutua). */
+    private VertexInfo aguaVertice(float x, float z, float centroX) {
+        float chao = heightAt(x, z);
+        float y = Math.min(heightAt(centroX, z) + 0.35f, chao + 0.02f);
+        return new VertexInfo().setPos(x, y, z).setNor(0f, 1f, 0f);
+    }
+
+    /** Altura da lâmina do rio no ponto (x, z) do centro do leito: para testes. */
+    float alturaAgua(float x, float z) {
+        return heightAt(x, z) + 0.35f;
+    }
+
     private VertexInfo vertex(float x, float z) {
         return vertexCamada(x, z, 1f, 0f);
     }
@@ -791,11 +803,8 @@ public class World {
         for (float z = -HALF; z < HALF - 0.01f; z += 3f) {
             float z1 = Math.min(z + 3f, HALF);
             float x0 = riverX(z), x1 = riverX(z1);
-            float y0 = heightAt(x0, z) + 0.35f, y1 = heightAt(x1, z1) + 0.35f;
-            agua.rect(new VertexInfo().setPos(x0 - margemAgua, y0, z).setNor(0f, 1f, 0f),
-                    new VertexInfo().setPos(x0 + margemAgua, y0, z).setNor(0f, 1f, 0f),
-                    new VertexInfo().setPos(x1 + margemAgua, y1, z1).setNor(0f, 1f, 0f),
-                    new VertexInfo().setPos(x1 - margemAgua, y1, z1).setNor(0f, 1f, 0f));
+            agua.rect(aguaVertice(x0 - margemAgua, z, x0), aguaVertice(x0 + margemAgua, z, x0),
+                    aguaVertice(x1 + margemAgua, z1, x1), aguaVertice(x1 - margemAgua, z1, x1));
         }
         Model aguaModel = mb.end();
         loaded.add(aguaModel);
