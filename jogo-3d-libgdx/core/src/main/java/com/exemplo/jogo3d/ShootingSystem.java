@@ -143,8 +143,7 @@ final class ShootingSystem {
         }
         for (int p = 0; p < c.pellets; p++) {
             if (c.separate) {
-                float rr = onTarget ? WeaponConfig.SHOT_HIT_R * (float) Math.sqrt(MathUtils.random())
-                        : 1.2f + WeaponConfig.pelletRadius(pelletD) * MathUtils.random();
+                float rr = WeaponConfig.pelletOffsetM(onTarget, pelletD, MathUtils.random());
                 float a = MathUtils.random(MathUtils.PI2);
                 float tn = rr / pelletD;
                 shotDir.set(in.aim).mulAdd(side1, MathUtils.cos(a) * tn).mulAdd(side2, MathUtils.sin(a) * tn).nor();

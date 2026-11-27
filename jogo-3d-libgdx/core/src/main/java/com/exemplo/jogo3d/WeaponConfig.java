@@ -194,7 +194,15 @@ final class WeaponConfig {
 
     /** Raio (m) do grupo de chumbos num tiro que erra: sai do corpo do alvo e cresce com a distância. */
     /** Raio (m) em volta do ponto de mira onde caem os chumbos de um tiro que acerta (fica no corpo). */
-    static final float SHOT_HIT_R = 0.2f;
+    static final float SHOT_HIT_R = 0.08f;   // M1014: chumbos que pegam o alvo caem num disco de 8 cm de raio (grupo apertado)
+
+    /**
+     * Desvio (m, à distância pelletD) de um chumbo da M1014, a partir do ponto da mira. u = número aleatório em [0,1).
+     * Pegou o alvo: disco uniforme de raio SHOT_HIT_R (centrado na mira). Errou: fora do boneco.
+     */
+    static float pelletOffsetM(boolean onTarget, float pelletD, float u) {
+        return onTarget ? SHOT_HIT_R * (float) Math.sqrt(u) : 1.2f + 0.5f * pelletRadius(pelletD) * u;
+    }
 
     /**
      * Chance de a espingarda pegar o alvo da mira, pela distância: 100% até 3 m, 80% de 3,5 a 6 m,
@@ -252,7 +260,7 @@ final class WeaponConfig {
     /** Configuração das armas do jogo, na ordem de Weapons.NAMES. */
     // Espingarda M1014: 8 projéteis por disparo, 0,8 s entre tiros (segurando, automático), carregador de 5
     static final WeaponConfig M1014 = new WeaponConfig("M1014", Category.ESPINGARDA, FireMode.AUTO, 1, 0f, 12f, 2.92f, 0.8f, 0.8f,
-            0.8f, 5, 30, 2.4f, 40f, 5f, 0.25f, 0f, 0f, 0f, 0f, 8, 0.13f, 1.7f, 0.6f).asSeparate();
+            0.355f, 5, 30, 2.4f, 40f, 5f, 0.25f, 0f, 0f, 0f, 0f, 8, 0.13f, 1.7f, 0.6f).asSeparate();
 
     // Revólver Magnum .357 (pistola do arsenal): 210 na cabeça e 50 no corpo, de qualquer distância
     static final WeaponConfig MAGNUM357 = new WeaponConfig("MAGNUM 357", Category.REVOLVER, FireMode.AUTO, 1, 0f, 50f, 4.2f, 1f, 1f,

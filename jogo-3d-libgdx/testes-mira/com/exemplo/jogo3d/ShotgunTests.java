@@ -23,7 +23,7 @@ public class ShotgunTests extends ShootTests {
                 && c.damageAt(WeaponConfig.Region.TORSO, 5f) == 12f, "");
         show("aos 17 m o dano cai para 25%", Math.abs(c.damageAt(WeaponConfig.Region.HEAD, 17f) - 35f * 0.25f) < 1e-3f,
                 "" + c.damageAt(WeaponConfig.Region.HEAD, 17f));
-        show("8 projéteis, 0,8 s entre disparos, carregador de 5, automática", c.pellets == 8 && c.fireInterval == 0.8f
+        show("8 projéteis, 0,355 s entre disparos, carregador de 5, automática", c.pellets == 8 && c.fireInterval == 0.355f
                 && c.magazine == 5 && c.mode == WeaponConfig.FireMode.AUTO && c.separate, "");
         show("dispersão cresce com a distância (17 m bem maior que 5 m)",
                 WeaponConfig.pelletRadius(17f) > 3f * WeaponConfig.pelletRadius(5f) && WeaponConfig.pelletRadius(5f) < 0.7f,
@@ -56,13 +56,13 @@ public class ShotgunTests extends ShootTests {
         show("cada projétil que acerta dá o seu número (12 peito, 35 cabeça, 10 membro; nunca somado)", perPellet && events.size() >= 1,
                 "acertos " + events.size() + (events.isEmpty() ? "" : ", primeiro " + events.get(0)[0]));
 
-        System.out.println("== Automático: 0,8 s entre disparos ==");
+        System.out.println("== Automático: 0,355 s entre disparos ==");
         wp.infinite = true;
         for (int f = 0; f < 30; f++) step(1f / 30f, false, false);   // 1 s parado: zera o intervalo do tiro anterior
         int s0 = sh.shotsFired;
         for (int f = 0; f < 60; f++) step(1f / 30f, true, false);   // 2 s segurando
         int fired = sh.shotsFired - s0;
-        show("segurando por 2 s, dispara 3 vezes (0,8 s entre tiros)", fired == 3, "tiros " + fired);
+        show("segurando por 2 s, dispara 6 vezes (0,355 s entre tiros)", fired == 6, "tiros " + fired);
 
         System.out.println("== Longe (17 m): quase nenhum chumbo acerta ==");
         wp.infinite = true;
@@ -84,6 +84,23 @@ public class ShotgunTests extends ShootTests {
         show("3,5 a 6 m: pega cerca de 80%", Math.abs(h45 - 0.8) <= 0.15, String.format("%.0f%%", h45 * 100));
         show("6 a 10 m: pega cerca de 40%", Math.abs(h8 - 0.4) <= 0.15, String.format("%.0f%%", h8 * 100));
         show("depois de 10 m: não pega", h12 <= 0.05, String.format("%.0f%%", h12 * 100));
+        System.out.println("== Agrupamento da M1014: chumbos juntos e centrados na mira, em qualquer distância ==");
+        for (float d : new float[]{2f, 5f, 8f}) {
+            float maxAng = 0f, soma = 0f;
+            int n = 400;
+            for (int i = 0; i < n; i++) {
+                float off = WeaponConfig.pelletOffsetM(true, d, (i + 0.5f) / n);   // grade uniforme de números aleatórios
+                maxAng = Math.max(maxAng, off / d);
+                soma += off;
+            }
+            show(String.format("a %.0f m, chumbos que pegam ficam em até %.2f° do centro da mira (grupo de 16 cm)", d, Math.toDegrees(WeaponConfig.SHOT_HIT_R / d)),
+                    maxAng <= WeaponConfig.SHOT_HIT_R / d + 1e-6f, String.format("máx %.3f°", Math.toDegrees(maxAng)));
+            show(String.format("a %.0f m, a maioria fica perto do centro (variação natural, sem todos iguais)", d),
+                    soma / n < 0.7f * WeaponConfig.SHOT_HIT_R && WeaponConfig.pelletOffsetM(true, d, 0.9f) != WeaponConfig.pelletOffsetM(true, d, 0.2f),
+                    String.format("média %.3f m", soma / n));
+        }
+        float missD = 6f;
+        show("chumbos que erram continuam fora do boneco (a partir de 1,2 m)", WeaponConfig.pelletOffsetM(false, missD, 0f) >= 1.2f - 1e-6f, "");
     }
 
     /** Fração dos tiros (com pelo menos um chumbo) que acertam um alvo parado à distância d. */
