@@ -153,33 +153,42 @@ final class Town {
             tri(walls, -wd / 2f, h, dp / 2f, wd / 2f, h, dp / 2f, 0f, h + rise, dp / 2f);
             tri(walls, wd / 2f, h, -dp / 2f, -wd / 2f, h, -dp / 2f, 0f, h + rise, -dp / 2f);
         }
-        // Porta e janelas na frente
-        MeshPartBuilder door = mb.part("porta", GL20.GL_TRIANGLES, attr, new Material(ColorAttribute.createDiffuse(DOOR)));
-        MeshPartBuilder win = mb.part("janelas", GL20.GL_TRIANGLES, attr, new Material(ColorAttribute.createDiffuse(shutter)));
+        // Extras de paredes e telhado (torre do sino, pirâmide, platibanda). Precisam ser escritos ANTES de
+        // criar outra parte: no ModelBuilder, criar uma parte fecha a anterior, e o que for escrito nela depois
+        // não entra na malha (a parte fica vazia e o aparelho dá "No buffer allocated!").
+        if (chapel) {
+            // Torre do sino (ao lado da fachada), com telhado em pirâmide
+            BoxShapeBuilder.build(walls, -5.4f, 4.25f, 4.6f, 2.6f, 8.5f, 2.6f);
+            pyramid(roof, -5.4f, 8.5f, 4.6f, 1.55f, 1.8f);
+        } else if (parapet) {
+            // Platibanda: mureta na frente que esconde o telhado
+            BoxShapeBuilder.build(walls, 0f, h + 0.6f, dp / 2f + 0.02f, wd + 0.1f, 1.2f, 0.18f);
+        }
+        // Porta (escrita inteira antes de criar as janelas)
         float fz = dp / 2f + 0.04f;
+        MeshPartBuilder door = mb.part("porta", GL20.GL_TRIANGLES, attr, new Material(ColorAttribute.createDiffuse(DOOR)));
         if (chapel) {
             BoxShapeBuilder.build(door, 0f, 1.5f, fz, 1.6f, 3.0f, 0.1f);
+            BoxShapeBuilder.build(door, 0f, h + rise + 0.75f, dp / 2f, 0.14f, 1.5f, 0.14f);   // cruz
+            BoxShapeBuilder.build(door, 0f, h + rise + 1.05f, dp / 2f, 0.8f, 0.14f, 0.14f);
+        } else {
+            BoxShapeBuilder.build(door, -wd * 0.22f, 1.05f, fz, 1.0f, 2.1f, 0.08f);
+        }
+        // Janelas (e faixa da platibanda)
+        MeshPartBuilder win = mb.part("janelas", GL20.GL_TRIANGLES, attr, new Material(ColorAttribute.createDiffuse(shutter)));
+        if (chapel) {
             BoxShapeBuilder.build(win, -2.4f, 2.6f, fz, 0.8f, 1.4f, 0.1f);
             BoxShapeBuilder.build(win, 2.4f, 2.6f, fz, 0.8f, 1.4f, 0.1f);
             for (float zz = -3f; zz <= 3.01f; zz += 3f) {
                 BoxShapeBuilder.build(win, wd / 2f + 0.04f, 2.8f, zz, 0.1f, 1.6f, 0.8f);
                 BoxShapeBuilder.build(win, -wd / 2f - 0.04f, 2.8f, zz, 0.1f, 1.6f, 0.8f);
             }
-            // Torre do sino (ao lado da fachada), com telhado em pirâmide e a cruz na fachada
-            BoxShapeBuilder.build(walls, -5.4f, 4.25f, 4.6f, 2.6f, 8.5f, 2.6f);
             BoxShapeBuilder.build(win, -5.4f, 7.2f, 4.6f + 1.34f, 0.9f, 1.2f, 0.06f);
-            pyramid(roof, -5.4f, 8.5f, 4.6f, 1.55f, 1.8f);
-            BoxShapeBuilder.build(door, 0f, h + rise + 0.75f, dp / 2f, 0.14f, 1.5f, 0.14f);
-            BoxShapeBuilder.build(door, 0f, h + rise + 1.05f, dp / 2f, 0.8f, 0.14f, 0.14f);
         } else {
-            float doorX = -wd * 0.22f;
-            BoxShapeBuilder.build(door, doorX, 1.05f, fz, 1.0f, 2.1f, 0.08f);
             BoxShapeBuilder.build(win, wd * 0.22f, 1.6f, fz, 1.1f, 1.1f, 0.08f);
             BoxShapeBuilder.build(win, wd / 2f + 0.04f, 1.6f, 0f, 0.08f, 1.0f, 1.0f);
             BoxShapeBuilder.build(win, -wd / 2f - 0.04f, 1.6f, 0f, 0.08f, 1.0f, 1.0f);
             if (parapet) {
-                // Platibanda: mureta na frente que esconde o telhado, com uma faixa em cima
-                BoxShapeBuilder.build(walls, 0f, h + 0.6f, dp / 2f + 0.02f, wd + 0.1f, 1.2f, 0.18f);
                 BoxShapeBuilder.build(win, 0f, h + 1.25f, dp / 2f + 0.02f, wd + 0.2f, 0.12f, 0.24f);
             }
         }
@@ -264,11 +273,14 @@ final class Town {
         ModelBuilder mb = new ModelBuilder();
         mb.begin();
         long attr = Usage.Position | Usage.Normal;
+        // Cada parte é escrita inteira antes de criar a próxima (ver buildHouse)
         MeshPartBuilder soil = mb.part("leiras", GL20.GL_TRIANGLES, attr, new Material(ColorAttribute.createDiffuse(SOIL)));
+        for (int r = 0; r < 4; r++) {
+            BoxShapeBuilder.build(soil, 0f, 0.1f, -r * 2.5f, 22f, 0.2f, 0.8f);
+        }
         MeshPartBuilder plants = mb.part("plantas", GL20.GL_TRIANGLES, attr, new Material(ColorAttribute.createDiffuse(PLANT)));
         for (int r = 0; r < 4; r++) {
             float z = -r * 2.5f;
-            BoxShapeBuilder.build(soil, 0f, 0.1f, z, 22f, 0.2f, 0.8f);
             for (float x = -10.5f; x <= 10.5f; x += 1.2f) {
                 float hgt = 0.6f + rnd.nextFloat() * 0.5f;
                 BoxShapeBuilder.build(plants, x, 0.2f + hgt / 2f, z, 0.12f, hgt, 0.12f);
