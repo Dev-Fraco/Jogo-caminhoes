@@ -67,6 +67,8 @@ final class Enemies {
      * Atualiza todos. Tiros dos inimigos que acertam vão para o Survival do jogador.
      * playerMove = velocidade do jogador; stance 0 em pé, 1 agachado, 2 deitado.
      */
+    private final java.util.Random lootRnd = new java.util.Random();
+
     void update(float dt, World w, Vector3 playerPos, Survival sv, float playerMove, int stance, Camera cam, float drawDist) {
         frame++;
         shots.clear();
@@ -75,6 +77,11 @@ final class Enemies {
         float near = far * far;
         for (int i = 0; i < list.size; i++) {
             Enemy e = list.get(i);
+            // inimigo que morreu deixa o loot no chão, uma vez só (pega com o botão de coletar)
+            if (!e.alive() && !e.lootDone) {
+                e.lootDone = true;
+                if (w.items != null) w.items.loot(w, e.pos.x, e.pos.z, lootRnd);
+            }
             float dx = e.pos.x - cam.position.x, dz = e.pos.z - cam.position.z;
             e.visibleToCam = dx * dx + dz * dz < near;
             e.closeToCam = dx * dx + dz * dz < 60f * 60f;

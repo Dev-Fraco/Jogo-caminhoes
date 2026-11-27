@@ -106,6 +106,16 @@ final class Items {
         ground.add(new Pickup(type, mi, x, y, z));
     }
 
+    /** Loot de um inimigo morto: 1 ou 2 itens (kit, bandagem, analgésico, energético, granada) perto do corpo. */
+    void loot(World w, float x, float z, Random rnd) {
+        int[] tabela = {0, 0, 1, 1, 2, 4, 5};   // kit e bandagem são os mais comuns
+        int n = rnd.nextFloat() < 0.25f ? 2 : 1;
+        for (int k = 0; k < n; k++) {
+            float ox = (rnd.nextFloat() * 2f - 1f) * 0.6f, oz = (rnd.nextFloat() * 2f - 1f) * 0.6f;
+            drop(w, tabela[rnd.nextInt(tabela.length)], x + ox, z + oz, rnd);
+        }
+    }
+
     Pickup nearest(Vector3 p) {
         Pickup best = null;
         float bd = PICK_RANGE * PICK_RANGE;

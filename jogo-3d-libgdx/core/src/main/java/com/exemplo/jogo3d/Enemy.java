@@ -193,6 +193,9 @@ final class Enemy {
 
     boolean alive() { return state != State.DEAD; }
 
+    /** Verdadeiro depois que o loot do corpo foi para o chão. */
+    boolean lootDone;
+
     /**
      * Um passo do comportamento. Devolve true se disparou neste quadro (o Enemies decide se acertou).
      */

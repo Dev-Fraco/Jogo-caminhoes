@@ -82,6 +82,14 @@ public class ControlTests extends ApplicationAdapter {
         wp.equipSlot(0, ch);
         check("tocar na caixa do fuzil leva ele de volta para a mão", !wp.holstered() && wp.armed() && wp.heldName().equals("AUG"), wp.heldName());
 
+        System.out.println("== Loot de inimigo morto ==");
+        if (w.items != null) {
+            int antes = w.items.ground.size;
+            w.items.loot(w, 10f, 10f, new java.util.Random(7));
+            int depois = w.items.ground.size;
+            check("inimigo morto deixa 1 ou 2 itens no chão", depois - antes >= 1 && depois - antes <= 2, (depois - antes) + " itens");
+        }
+
         System.out.println("== Três slots: dois fuzis e uma pistola ==");
         wp.unequip(ch);
         wp.pickUp(new Weapons.Pickup(8, new ModelInstance(wp.models()[8]), 0, 0, 0), w, ch, pl);
