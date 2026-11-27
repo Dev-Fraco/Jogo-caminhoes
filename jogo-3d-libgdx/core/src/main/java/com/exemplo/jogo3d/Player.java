@@ -91,10 +91,9 @@ public class Player {
                 world.resolveCollisions(pos, RADIUS);
             }
 
-            // Vira suavemente para onde anda (não gira sozinho ao parar)
-            float targetYaw = (float) Math.atan2(dx, dz);
-            float k = 1f - (float) Math.exp(-TURN_SPEED * dt);
-            facing = lerpAngle(facing, targetYaw, k);
+            // Andando, o corpo NÃO vira para a direção do analógico: a direção já é relativa ao corpo,
+            // então virar para ela faria o corpo girar sem parar (ao andar de lado ou na diagonal).
+            // O corpo só gira correndo (segue a câmera) ou mirando/atirando.
         }
 
         // Limita ao terreno

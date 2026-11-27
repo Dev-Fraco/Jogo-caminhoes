@@ -260,6 +260,21 @@ public class Main extends ApplicationAdapter {
         batch.end();
     }
 
+    /**
+     * Desenha um quadro da abertura. Limpa a tela e desliga o teste de profundidade: com ele ligado e sem
+     * limpar, a arte era descartada e a tela ficava preta. Religa o teste para o jogo em 3D.
+     */
+    private void desenharAbertura() {
+        int W = Gdx.graphics.getWidth(), H = Gdx.graphics.getHeight();
+        Gdx.gl.glDisable(GL20.GL_DEPTH_TEST);
+        Gdx.gl.glClearColor(0f, 0f, 0f, 1f);
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
+        // A câmera de HUD só recebe a tela inteira depois; sem isto a arte sai deslocada e some metade
+        hudCamera.setToOrtho(false, W, H);
+        intro.draw(batch, hudCamera.combined, W, H);
+        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST);
+    }
+
     @Override
     public void render() {
         if (errorText != null) {
@@ -270,7 +285,7 @@ public class Main extends ApplicationAdapter {
             if (!carregado) {
                 // Primeiro quadro: a abertura aparece já e a música começa; o jogo carrega no quadro seguinte
                 Musica.tocar();
-                intro.draw(batch, hudCamera.combined, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+                desenharAbertura();
                 if (++quadrosAbertura >= 2) {
                     carregarJogo();
                     carregado = true;
@@ -280,7 +295,7 @@ public class Main extends ApplicationAdapter {
             if (intro != null && intro.running()) {   // abertura: toque pula a animação; na cena final, toque segue para o lobby
                 if (Gdx.input.justTouched()) intro.toque();
                 intro.update(Math.min(Gdx.graphics.getDeltaTime(), 0.25f));   // tempo real: 5 s também em celular lento
-                if (intro.running()) intro.draw(batch, hudCamera.combined, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+                if (intro.running()) desenharAbertura();
                 return;
             }
             renderGame();

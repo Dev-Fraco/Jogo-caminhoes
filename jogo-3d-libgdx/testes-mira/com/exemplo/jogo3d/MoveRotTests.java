@@ -108,6 +108,22 @@ public class MoveRotTests extends ApplicationAdapter {
             if (i > 15) erroMax = Math.max(erroMax, Math.abs(MathUtils.atan2(MathUtils.sin(p4.facing - camAtual), MathUtils.cos(p4.facing - camAtual))));
         }
         check("correndo com a câmera girando, o corpo acompanha (erro < 0,3 rad)", erroMax < 0.3f, String.format("erro máx %.3f rad", erroMax));
+
+        System.out.println("== 5. Andando de lado (analógico para a direita, sem correr): anda e não fica girando ==");
+        Player p5 = new Player();
+        p5.spawn(0f, 0f, 0f);
+        p5.facing = 0.5f;
+        float x5 = p5.pos.x, z5 = p5.pos.z, f5 = p5.facing;
+        simular(p5, w, 1f, 0f, false, 0f, 0f, 2f);
+        float dist5 = (float) Math.sqrt((p5.pos.x - x5) * (p5.pos.x - x5) + (p5.pos.z - z5) * (p5.pos.z - z5));
+        check("andando de lado, o personagem anda", dist5 > 2f, String.format("andou %.2f m", dist5));
+        check("andando de lado, o corpo não fica girando", Math.abs(p5.facing - f5) < 0.05f, String.format("corpo %.3f rad (era %.3f)", p5.facing, f5));
+        System.out.println("== 6. Analógico na diagonal, sem correr: anda e não gira ==");
+        Player p6 = new Player();
+        p6.spawn(0f, 0f, 0f);
+        p6.facing = 0f;
+        simular(p6, w, 0.7f, -0.7f, false, 0f, 0f, 2f);
+        check("diagonal, o corpo não gira sem parar", Math.abs(p6.facing) < 0.05f, String.format("corpo %.3f rad", p6.facing));
         System.out.println("\nRESULTADO: " + pass + " ok, " + fail + " falhas");
         System.exit(fail == 0 ? 0 : 1);
     }
