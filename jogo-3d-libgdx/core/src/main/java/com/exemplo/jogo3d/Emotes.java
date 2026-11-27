@@ -14,8 +14,12 @@ import com.badlogic.gdx.math.MathUtils;
  * emote interrompe o atual. Espaços sem arquivo de animação ficam vazios (não tocam nada).
  */
 final class Emotes {
-    /** Espaços da roda, em ordem (horário, a partir do topo), como na imagem de referência. */
-    static final String[] NOMES = {"Dança", "Provocação", "Vitória", "Desafio", "Flexão", "Choro", "Saudação", "Aplaudir"};
+    /**
+     * Ícone de cada espaço (silhueta branca, em hud2/lobby) ou null. Espaço com ícone não mostra nome.
+     * Espaço sem ícone mostra o rótulo: o nome do arquivo do emote, ou o nome da referência se ainda não há arquivo.
+     */
+    static final String[] ICONES = {"emote_danca", null, "emote_vitoria", null, null, null, "emote_saudacao", null};
+    static final String[] ROTULOS = {null, "Loucura", null, "Reboladinha", "Flexão", "Choro", null, "Aplaudir"};
 
     /**
      * Clipe de cada espaço (nome no modelo) ou null = ainda sem arquivo. Associação provisória pelos nomes dos
@@ -38,6 +42,7 @@ final class Emotes {
     private static final float ANG_SLOT = 45f;           // 360 / 8
 
     private Texture roda;
+    private Texture[] icones;
     private Texture pixel;
     private BitmapFont fonte;
     private final GlyphLayout layout = new GlyphLayout();
@@ -51,6 +56,12 @@ final class Emotes {
         if (roda != null) return;
         roda = new Texture(Gdx.files.internal("hud2/lobby/roda_emotes.png"));
         roda.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        icones = new Texture[ICONES.length];
+        for (int i = 0; i < ICONES.length; i++) {
+            if (ICONES[i] == null) continue;
+            icones[i] = new Texture(Gdx.files.internal("hud2/lobby/" + ICONES[i] + ".png"));
+            icones[i].setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        }
         Pixmap pm = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
         pm.setColor(1f, 1f, 1f, 1f);
         pm.fill();
@@ -128,13 +139,25 @@ final class Emotes {
         b.setColor(1f, 1f, 1f, a);
         b.draw(roda, cx - raio, cy - raio, raio * 2f, raio * 2f);
         fonte.getData().setScale(Math.max(0.3f, raio / 560f));
-        for (int i = 0; i < NOMES.length; i++) {
+        for (int i = 0; i < ROTULOS.length; i++) {
             double rad = Math.toRadians(i * ANG_SLOT);
             float rx = cx + (float) Math.sin(rad) * raio * 0.66f;
             float ry = cy + (float) Math.cos(rad) * raio * 0.66f;
-            layout.setText(fonte, NOMES[i]);
-            fonte.setColor(1f, 1f, 1f, a * (CLIPES[i] != null ? 1f : 0.45f));
-            fonte.draw(b, layout, rx - layout.width / 2f, ry + layout.height / 2f);
+            float alfa = a * (CLIPES[i] != null ? 1f : 0.45f);
+            if (icones[i] != null) {
+                // ícone: cabe numa caixa quadrada, sem distorcer
+                Texture t = icones[i];
+                float caixa = raio * 0.36f;
+                float k = Math.min(caixa / t.getWidth(), caixa / t.getHeight());
+                float w = t.getWidth() * k, h = t.getHeight() * k;
+                b.setColor(1f, 1f, 1f, alfa);
+                b.draw(t, rx - w / 2f, ry - h / 2f, w, h);
+                b.setColor(1f, 1f, 1f, a);
+            } else {
+                layout.setText(fonte, ROTULOS[i]);
+                fonte.setColor(1f, 1f, 1f, alfa);
+                fonte.draw(b, layout, rx - layout.width / 2f, ry + layout.height / 2f);
+            }
         }
         fonte.setColor(1f, 1f, 1f, 1f);
         b.setColor(1f, 1f, 1f, 1f);
@@ -144,6 +167,8 @@ final class Emotes {
     void dispose() {
         if (roda != null) roda.dispose();
         if (pixel != null) pixel.dispose();
+        if (icones != null) for (Texture t : icones) if (t != null) t.dispose();
+        icones = null;
         if (fonte != null) fonte.dispose();
         roda = null;
         pixel = null;
