@@ -75,9 +75,9 @@ final class AimAssist {
             dPitch += -errElev;
         }
         if (inFov && !(firePress)) {
-            // Segurando o tiro com o boneco no FOV: a mira vai para o peito com força total, abaixo ou acima dele
-            // (ao subir, ela desce de volta ao peito na hora)
-            dPitch += -errElev * Math.min(1f, 30f * dt);
+            // Segurando o tiro com o boneco no FOV: a mira volta para o peito (abaixo ou acima dele) na força da assistência vertical
+            // Proporcional à força da assistência vertical: arrastar devagar é puxado de volta, arrastar rápido chega na cabeça
+            dPitch += -errElev * Math.min(1f, 30f * dt) * AimSettings.vertAssist;
             dYaw += errYaw * Math.min(1f, 8f * dt) * AimSettings.horizAssist;
         }
 

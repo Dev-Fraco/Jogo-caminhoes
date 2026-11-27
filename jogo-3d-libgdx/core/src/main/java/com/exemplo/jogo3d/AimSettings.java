@@ -21,7 +21,7 @@ final class AimSettings {
     static float smoothing = 0.35f;       // fixo: suavização
     static final float[] category = {1f, 1f, 1f, 1f, 1f, 0.8f};   // fixo: por categoria de arma (ordem do enum)
     static boolean assistOn = true;
-    static float vertAssist = 0.4f;       // 0..1: força da subida automática (até o peito) ao atirar
+    static float vertAssist = 0.2f;       // 0..1: força da volta ao peito ao arrastar para cima (20% padrão)
     static float horizAssist = 0.1f;      // 0..1: força da correção para os lados ao atirar (baixa: sem puxão lateral)
     static float fovPct = 0.4f;           // 0..1: raio do FOV do aim assist (2° a 15°)
     /** Abertura da mira por arma (ordem de Weapons.BY_TYPE): 1 = 100% da abertura padrão. */
@@ -111,7 +111,7 @@ final class AimSettings {
 
     static void reset() {
         general = 1f; scope2x = 0.6f; scope4x = 0.35f; assistOn = true;
-        vertAssist = 0.4f; horizAssist = 0.1f; fovPct = 0.4f;
+        vertAssist = 0.2f; horizAssist = 0.1f; fovPct = 0.4f;
         java.util.Arrays.fill(openPct, 1f);
     }
 }

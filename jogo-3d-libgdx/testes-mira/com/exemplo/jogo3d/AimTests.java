@@ -273,8 +273,8 @@ public class AimTests extends ApplicationAdapter {
         float resistIn = climbOffset(ta, aa, fuzil, 0.95f, 0.02f, 0.0015f, 20);
         float gainFree = freeIn - 0.02f, gainResist = resistIn - 0.02f;
         float kept = gainFree > 1e-4f ? gainResist / gainFree : -1f;
-        check("subir dentro do FOV: a mira volta ao peito com força total", Math.abs(resistIn) < 0.003f,
-                String.format("%.4f rad em relação ao peito depois de subir", resistIn));
+        check("arrasto lento para cima: a mira volta ao peito (assistência 20%)", Math.abs(resistIn) < 0.012f,
+                String.format("%.4f rad em relação ao peito depois de subir devagar", resistIn));
         // 5b. Fora do FOV a assistência não age: a subida é livre mesmo com resistência máxima
         float outStart = (AimSettings.fovDeg() * MathUtils.degreesToRadians) + 0.1f;
         float outFree = climbOffset(ta, aa, fuzil, 0f, outStart, 0.002f, 20);
@@ -288,7 +288,7 @@ public class AimTests extends ApplicationAdapter {
         aimAt(tc.hitbox.chest);
         aa.reset();
         float closeOff = climbOffset(tc, aa, fuzil, 0.95f, 0.0f, 0.03f, 8);   // arrasto de ~50°/s
-        check("de perto, arrasto rápido para cima não sobe fácil até a cabeça", closeOff < 0.05f,
+        check("de perto, arrasto rápido para cima sobe além do peito (chega na cabeça)", closeOff > 0.05f,
                 String.format("%.3f rad acima do peito (cabeça ~%.3f)", closeOff, elev(tc.hitbox.headTop) - elev(tc.hitbox.chest)));
         // 5d. Abertura da mira por arma: padrão 100%, ajustável por porcentagem
         AimSettings.reset();
