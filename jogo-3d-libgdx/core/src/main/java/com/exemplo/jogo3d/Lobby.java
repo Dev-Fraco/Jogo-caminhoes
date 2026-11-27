@@ -114,7 +114,7 @@ final class Lobby {
         if (in(rect("jogar"), rx, ry)) return Act.BATTLE;
         if (in(rect("treino"), rx, ry)) return Act.TRAINING;
         if (in(rect("config"), rx, ry) || in(rect("configuracoes"), rx, ry)) return Act.SETTINGS;
-        String[][] panels = {{"perfil", "Personagem"}, {"personagem", "Personagem"}, {"inventario", "Inventário"},
+        String[][] panels = {{"perfil", "Perfil do jogador"}, {"personagem", "Personagem"}, {"inventario", "Inventário"},
                 {"loja", "Loja"}, {"moedas+", "Loja"}, {"diamantes+", "Loja"}, {"evento", "Evento especial"},
                 {"passe", "Passe de batalha"}, {"recompensas", "Recompensas"}, {"eventos", "Eventos"},
                 {"amigos", "Amigos"}, {"mensagens", "Mensagens"}, {"chat", "Chat"}};
