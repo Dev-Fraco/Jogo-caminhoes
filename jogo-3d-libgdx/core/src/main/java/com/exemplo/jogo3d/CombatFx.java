@@ -326,23 +326,6 @@ final class CombatFx implements DamageSystem.Listener {
             layout.setText(font, t);
             font.draw(batch, t, cx - layout.width / 2f, H * 0.72f);
         }
-        // Painel da arma: munição e nome
-        if (cfg != null && armedView) {
-            float[] r = hud.rect(hud.get("arma"));
-            font.getData().setScale(Math.max(1.2f, r[3] / 58f));
-            font.setColor(0.98f, 0.95f, 0.88f, 1f);
-            String ammo = weapons.ammo() + "/" + weapons.reserveAmmo();
-            layout.setText(font, ammo);
-            font.draw(batch, ammo, r[0] + r[2] * 0.07f, r[1] + r[3] * 0.86f);
-            font.getData().setScale(Math.max(1f, r[3] / 120f));
-            font.setColor(0.95f, 0.85f, 0.6f, 1f);
-            String sub = weapons.reloading() ? "Recarregando..." : cfg.name + "  ·  " + weapons.modeLabel();
-            font.draw(batch, sub, r[0] + r[2] * 0.07f, r[1] + r[3] * 0.44f);
-            if (gunIcon != null) {
-                float iw = r[2] * 0.42f, ih = iw * 0.5f;
-                batch.draw(gunIcon, r[0] + r[2] * 0.42f, r[1] + r[3] * 0.38f, iw, ih);
-            }
-        }
         // Contadores: vivos e abates
         font.getData().setScale(Math.max(1.2f, hud.rect(hud.get("vivos"))[3] / 30f));
         font.setColor(0.98f, 0.97f, 0.95f, 1f);
