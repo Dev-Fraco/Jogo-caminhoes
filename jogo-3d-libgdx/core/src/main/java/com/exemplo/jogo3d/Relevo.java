@@ -138,7 +138,7 @@ final class Relevo {
         // bordas do mapa: elevações irregulares
         float edge = Math.max(Math.abs(x), Math.abs(z));
         float k = suave((edge - 430f) / 110f);
-        y += 16f * k * (0.6f + 0.4f * MathUtils.sin(x * 0.07f + 0.5f) * MathUtils.cos(z * 0.06f - 0.9f));
+        y += 16f * k * (0.6f + 0.4f * ruido(x / 220f + 2.7f, z / 220f - 1.9f));   // ruído suave (sem padrão repetido)
         return y;
     }
 
