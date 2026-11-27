@@ -81,6 +81,7 @@ final class Enemies {
      * por bot, na ordem dos nomes; sem eles, nascem em lugar aleatório.
      */
     void spawnArenaTimes(World w, String[] aliados, String[] inimigos, float precisao, float[][] pAzul, float[][] pVerm) {
+        protegeAliados = true;   // na arena, tiro e granada do time não atingem os companheiros
         Model gunModel = guns != null && guns.length > 0 ? guns[0] : null;
         list.clear();
         abates.limpa();
@@ -186,6 +187,9 @@ final class Enemies {
      * playerMove = velocidade do jogador; stance 0 em pé, 1 agachado, 2 deitado.
      */
     private final java.util.Random lootRnd = new java.util.Random();
+
+    /** Arena: aliados (equipe azul) não recebem bala nem granada do time. */
+    boolean protegeAliados = false;
 
     boolean ativo = true;   // falso na preparação da sala personalizada: os inimigos ficam parados
 
@@ -309,6 +313,7 @@ final class Enemies {
         for (int i = 0; i < list.size; i++) {
             Enemy e = list.get(i);
             if (!includeDead && !e.alive()) continue;
+            if (protegeAliados && e.equipe == 0) continue;   // companheiro de time: a bala passa
             // teste rápido antes de atualizar as cápsulas
             float ox = e.pos.x - o.x, oy = e.pos.y + 0.9f - o.y, oz = e.pos.z - o.z;
             float along = ox * d.x + oy * d.y + oz * d.z;
@@ -337,7 +342,7 @@ final class Enemies {
         alert(at, 60f);
         for (int i = 0; i < list.size; i++) {
             Enemy e = list.get(i);
-            if (!e.alive()) continue;
+            if (!e.alive() || (protegeAliados && e.equipe == 0)) continue;   // granada não machuca companheiro
             float d = at.dst(e.pos.x, e.pos.y + 0.9f, e.pos.z);
             if (d < radius) {
                 float k = 1f - d / radius;
