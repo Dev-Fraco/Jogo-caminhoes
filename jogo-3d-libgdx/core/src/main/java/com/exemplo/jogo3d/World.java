@@ -614,7 +614,8 @@ public class World {
     }
 
     // Portal no treinamento: leva para a arena de mira
-    static final float PORTAL_X = -6f, PORTAL_Z = 0f;
+    // Portal encostado na parede lateral esquerda do galpão (x = -25), longe dos bonecos (z = 6)
+    static final float PORTAL_X = -23.8f, PORTAL_Z = -4f;
 
     // ---------- Arena livre (sala personalizada) ----------
     static final float ARENA_HW = 30f, ARENA_HD = 20f, ARENA_H = 4f;   // 60 x 40 m (2x a área do galpão), muro de 4 m
@@ -695,11 +696,12 @@ public class World {
     /** Portal dourado do treinamento: dois pilares (com colisão) e um arco por cima. */
     private void addPortal(ModelBuilder mb, long attrs) {
         Color ouro = new Color(0.95f, 0.72f, 0.18f, 1f);
-        for (float dx : new float[]{-1.3f, 1.3f}) {
-            addTrainVisual(mb, attrs, 0.45f, 3.4f, 0.45f, PORTAL_X + dx, 1.7f, PORTAL_Z, ouro);
-            boxes.add(new Box(new Matrix4().setToTranslation(PORTAL_X + dx, 0f, PORTAL_Z), 0.23f, 0.23f, 3.4f));
+        // Portal de frente para a sala: pilares ao longo da parede (eixo Z) e arco por cima
+        for (float dz : new float[]{-1.3f, 1.3f}) {
+            addTrainVisual(mb, attrs, 0.45f, 3.4f, 0.45f, PORTAL_X, 1.7f, PORTAL_Z + dz, ouro);
+            boxes.add(new Box(new Matrix4().setToTranslation(PORTAL_X, 0f, PORTAL_Z + dz), 0.23f, 0.23f, 3.4f));
         }
-        addTrainVisual(mb, attrs, 3.1f, 0.4f, 0.45f, PORTAL_X, 3.5f, PORTAL_Z, ouro);       // arco
+        addTrainVisual(mb, attrs, 0.45f, 0.4f, 3.1f, PORTAL_X, 3.5f, PORTAL_Z, ouro);       // arco
     }
 
     /** Há cobertura da arena dentro de 'raio' do ponto (x, z)? */
