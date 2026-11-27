@@ -159,7 +159,7 @@ final class WeaponConfig {
     WeaponConfig withFirstShotDelay(float s) { firstShotDelay = s; return this; }
 
     /** Raio (m) onde caem os chumbos a d metros do atirador: fecha de perto, abre bem com a distância. */
-    static float pelletRadius(float d) { float e = Math.max(0f, d - 5f); return 0.2f + 0.0125f * d * d + 0.05f * e * e; }
+    static float pelletRadius(float d) { float e = Math.max(0f, d - 5f); return 0.2f + 0.009f * d * d + 0.025f * e * e; }
 
     // ---------- Tabela das armas ----------
     // Os parâmetros, em ordem:  nome, categoria, modo, tiros/rajada, intervalo da rajada, dano, ×cabeça, ×braço, ×perna,
