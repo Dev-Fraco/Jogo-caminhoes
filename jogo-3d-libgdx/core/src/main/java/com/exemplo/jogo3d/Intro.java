@@ -6,6 +6,8 @@ import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Matrix4;
@@ -16,28 +18,30 @@ import java.nio.ByteOrder;
 import java.util.Random;
 
 /**
- * Abertura do SEM LIMITES – BATTLE ROYALE, só ao iniciar o jogo. A arte original fica inteira e sem
- * distorção (preenche a tela e corta só as bordas): zoom de aproximação, câmera suave, brilho,
- * partículas, vento, impacto com tremor e um brilho que passa pelo nome. 5 s; toque pula.
+ * Abertura do SEM LIMITES – BATTLE ROYALE, ao iniciar o jogo. A imagem aparece já no primeiro quadro
+ * (sem tela preta), com a música em loop. A animação (zoom, brilho, partículas, impacto) dura 5 s e
+ * depois a cena para com o nome e "clique para prosseguir". Com o toque, a tela escurece e entra o lobby.
+ * O toque durante a animação pula direto para a cena final.
  */
 final class Intro {
-    static final float DURATION = 5f;        // cena inteira (s)
-    static final float FADE_START = 4.4f;    // começa a escurecer para a transição
+    static final float DURATION = 5f;        // animação (s); depois a cena fica parada esperando o toque
+    static final float SAIDA = 0.6f;         // escurecimento ao sair para o lobby (s)
     static final float FADE_IN = 0.6f;       // o lobby aparece do preto
-    static final float SKIP_LOCK = 0.3f;     // o toque só pula depois disto (sem pular sem querer)
+    static final float SKIP_LOCK = 0.3f;     // o toque só age depois disto (sem pular sem querer)
     private static final int RATE = 22050;
     private static final int SPARKS = 46, STREAKS = 18;
 
     private final Texture art, pixel;
     private final TextureRegion artReg, pixelReg;
     private final float iw, ih;
-    private final Sound wind, impact;
-    private final long windId;
+    private final Sound impact;
+    private final BitmapFont fonteTitulo, fonteDica;
+    private final GlyphLayout layout = new GlyphLayout();
     private final Random rnd = new Random(1915);
     private final float[][] sparks = new float[SPARKS][5];      // x, y, vx, vy, vida
     private final float[][] streaks = new float[STREAKS][4];    // x, y, comprimento, velocidade
-    private float t, fadeIn;
-    private boolean ended, hit1, hit2;
+    private float t, parada, saida, fadeIn;
+    private boolean parado, saindo, ended, hit1, hit2;
     private float flash, shake;
 
     Intro() {
@@ -52,40 +56,46 @@ final class Intro {
         pixel = new Texture(pm);
         pm.dispose();
         pixelReg = new TextureRegion(pixel);
+        fonteTitulo = new BitmapFont(Gdx.files.internal("hud2/texto.fnt"), false);
+        fonteDica = new BitmapFont(Gdx.files.internal("hud2/texto.fnt"), false);
         for (float[] s : sparks) resetSpark(s, true);
         for (float[] s : streaks) resetStreak(s, true);
-        wind = Gdx.audio.newSound(writeWav("intro_vento.wav", wind(), RATE));
         impact = Gdx.audio.newSound(writeWav("intro_impacto.wav", impact(), RATE));
-        windId = wind.play(0.35f);
     }
 
-    /** A abertura ainda está rodando (cena ou escurecimento)? */
+    /** A abertura ainda está na tela? */
     boolean running() { return !ended; }
 
-    /** Toque: pula para o escurecimento final. */
-    void skip() {
-        if (!ended && t > SKIP_LOCK && t < FADE_START) t = FADE_START;
+    /** Toque: pula a animação, ou (na cena final, depois de um instante) segue para o lobby. */
+    void toque() {
+        if (ended || saindo) return;
+        if (!parado) {
+            if (t > SKIP_LOCK) { t = DURATION; parado = true; hit1 = true; hit2 = true; }
+            return;
+        }
+        if (parada > SKIP_LOCK) saindo = true;
     }
 
     void update(float dt) {
         if (ended) return;
-        t += dt;
-        if (!hit1 && t >= 0.9f) { hit1 = true; impact.play(0.9f); flash = 1f; shake = 1f; }
-        if (!hit2 && t >= 2.6f) { hit2 = true; impact.play(0.55f); flash = 0.6f; shake = 0.5f; }
+        if (saindo) {
+            saida += dt / SAIDA;
+            if (saida >= 1f) { ended = true; fadeIn = FADE_IN; }
+            return;
+        }
+        if (!parado) {
+            t += dt;
+            if (!hit1 && t >= 0.9f) { hit1 = true; impact.play(0.9f); flash = 1f; shake = 1f; }
+            if (!hit2 && t >= 2.6f) { hit2 = true; impact.play(0.55f); flash = 0.6f; shake = 0.5f; }
+            if (t >= DURATION) { t = DURATION; parado = true; }
+        } else {
+            parada += dt;
+        }
         flash = Math.max(0f, flash - dt * 2.5f);
         shake = Math.max(0f, shake - dt * 2.2f);
-        float fadeOut = fadeOut();
-        wind.setVolume(windId, 0.35f * (1f - fadeOut));
         for (float[] s : sparks) updateSpark(s, dt);
         for (float[] s : streaks) updateStreak(s, dt);
-        if (t >= DURATION) {
-            ended = true;
-            fadeIn = FADE_IN;
-            wind.stop();
-        }
     }
-
-    private float fadeOut() { return MathUtils.clamp((t - FADE_START) / (DURATION - FADE_START), 0f, 1f); }
 
     /** Desenha a cena da abertura (a tela inteira). */
     void draw(SpriteBatch batch, Matrix4 proj, int W, int H) {
@@ -96,7 +106,7 @@ final class Intro {
         float sx = shake * 0.02f * H * MathUtils.sin(t * 61f), sy = shake * 0.02f * H * MathUtils.cos(t * 47f);
         float px = MathUtils.sin(t * 0.6f) * 0.012f * W, py = MathUtils.cos(t * 0.45f) * 0.01f * H;
         float x = W / 2f - w / 2f + px + sx, y = H / 2f - h / 2f + py + sy;
-        float fo = fadeOut();
+        float fo = saida;   // escurecimento só ao sair para o lobby
 
         batch.setProjectionMatrix(proj);
         batch.begin();
@@ -133,9 +143,27 @@ final class Intro {
         batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         // Flash do impacto
         if (flash > 0f) { batch.setColor(1f, 1f, 1f, 0.35f * flash); batch.draw(pixelReg, 0, 0, W, H); }
-        // Começa preta e escurece no fim
-        float black = Math.max(1f - t / 0.9f, fo);
-        if (black > 0f) { batch.setColor(0f, 0f, 0f, black); batch.draw(pixelReg, 0, 0, W, H); }
+        // Cena final: nome e instrução, esperando o toque
+        if (parado && !saindo) {
+            float a = MathUtils.clamp(parada / 0.8f, 0f, 1f);
+            float escala = H / 720f;
+            // faixa escura embaixo, para o texto ler bem sobre a arte
+            batch.setColor(0f, 0f, 0f, 0.55f * a);
+            batch.draw(pixelReg, 0, 0, W, H * 0.3f);
+            fonteTitulo.getData().setScale(0.8f * escala);
+            layout.setText(fonteTitulo, "SEM LIMITES - BATTLE ROYALE");
+            fonteTitulo.setColor(1f, 0.9f, 0.45f, a);
+            fonteTitulo.draw(batch, layout, W / 2f - layout.width / 2f, H * 0.19f);
+            fonteDica.getData().setScale(0.42f * escala);
+            layout.setText(fonteDica, "CLIQUE PARA PROSSEGUIR");
+            float pulso = 0.55f + 0.45f * (0.5f + 0.5f * MathUtils.sin(parada * 3f));
+            fonteDica.setColor(1f, 1f, 1f, a * pulso);
+            fonteDica.draw(batch, layout, W / 2f - layout.width / 2f, H * 0.08f);
+            fonteTitulo.setColor(1f, 1f, 1f, 1f);
+            fonteDica.setColor(1f, 1f, 1f, 1f);
+        }
+        // Saída: escurece até o preto e entra o lobby
+        if (fo > 0f) { batch.setColor(0f, 0f, 0f, fo); batch.draw(pixelReg, 0, 0, W, H); }
         batch.setColor(1f, 1f, 1f, 1f);
         batch.end();
     }
@@ -155,11 +183,12 @@ final class Intro {
     void dispose() {
         art.dispose();
         pixel.dispose();
-        wind.dispose();
         impact.dispose();
+        fonteTitulo.dispose();
+        fonteDica.dispose();
     }
 
-    // ---------- partículas e vento ----------
+    // ---------- partículas ----------
 
     private void resetSpark(float[] s, boolean anywhere) {
         s[0] = rnd.nextFloat();
@@ -190,22 +219,7 @@ final class Intro {
 
     private static float ease(float x) { return 1f - (1f - x) * (1f - x) * (1f - x); }
 
-    // ---------- áudio gerado em código (sem arquivos de som) ----------
-
-    /** Vento: ruído grave que sobe e desce de intensidade, com entrada e saída suaves. */
-    private float[] wind() {
-        int n = (int) (DURATION * RATE);
-        float[] out = new float[n];
-        float y = 0f;
-        for (int i = 0; i < n; i++) {
-            float tt = i / (float) RATE;
-            y += ((rnd.nextFloat() * 2f - 1f) - y) * 0.03f;   // ruído passa-baixa
-            float env = (0.55f + 0.45f * MathUtils.sin(tt * 2f * MathUtils.PI / 3.5f))
-                    * Math.min(1f, tt / 0.8f) * Math.min(1f, (DURATION - tt) / 0.8f);
-            out[i] = y * 2.2f * env;
-        }
-        return out;
-    }
+    // ---------- impacto gerado em código ----------
 
     /** Impacto: um baque grave que cai, com estalo de ruído no começo. */
     private float[] impact() {

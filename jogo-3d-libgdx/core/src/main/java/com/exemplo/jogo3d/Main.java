@@ -180,7 +180,13 @@ public class Main extends ApplicationAdapter {
         batch = new SpriteBatch();
         font = new BitmapFont();
         font.getData().setScale(1.1f);
+    }
 
+    private boolean carregado = false;   // o jogo carrega depois que a primeira imagem da abertura aparece
+    private int quadrosAbertura = 0;
+
+    /** Carrega o jogo (mapa, personagem, HUD...). Roda depois do primeiro quadro da abertura. */
+    private void carregarJogo() {
         Settings.load();
         Settings.apply();
         try {
@@ -261,8 +267,18 @@ public class Main extends ApplicationAdapter {
             return;
         }
         try {
-            if (intro != null && intro.running()) {   // abertura: toque pula; ao acabar, o lobby aparece do preto
-                if (Gdx.input.justTouched()) intro.skip();
+            if (!carregado) {
+                // Primeiro quadro: a abertura aparece já e a música começa; o jogo carrega no quadro seguinte
+                Musica.tocar();
+                intro.draw(batch, hudCamera.combined, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+                if (++quadrosAbertura >= 2) {
+                    carregarJogo();
+                    carregado = true;
+                }
+                return;
+            }
+            if (intro != null && intro.running()) {   // abertura: toque pula a animação; na cena final, toque segue para o lobby
+                if (Gdx.input.justTouched()) intro.toque();
                 intro.update(Math.min(Gdx.graphics.getDeltaTime(), 0.25f));   // tempo real: 5 s também em celular lento
                 if (intro.running()) intro.draw(batch, hudCamera.combined, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
                 return;
@@ -1091,6 +1107,7 @@ public class Main extends ApplicationAdapter {
     private void startMatch() {
         training = false;
         inMenu = false;
+        Musica.parar();
         respawn();
         if (enemies != null) enemies.clear();
         if (world.items != null) {   // o que foi comprado na loja entra na mochila desta partida
@@ -1155,6 +1172,7 @@ public class Main extends ApplicationAdapter {
     private void startTraining() {
         training = true;
         inMenu = false;
+        Musica.parar();
         loadWorld(true);
         respawnTraining();
     }
@@ -1195,6 +1213,7 @@ public class Main extends ApplicationAdapter {
     private void goMenu() {
         inMenu = true;
         training = false;
+        Musica.tocar();   // o lobby volta a tocar a música
         trainPanel = false;
         settingsOpen = false;
         adsOn = false;
@@ -1453,6 +1472,7 @@ public class Main extends ApplicationAdapter {
     @Override
     public void dispose() {
         if (intro != null) intro.dispose();
+        Musica.descartar();
         lobby.dispose();
         modelBatch.dispose();
         if (scope != null) scope.dispose();
