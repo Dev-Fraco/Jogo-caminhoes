@@ -65,6 +65,9 @@ final class Lobby {
         return null;
     }
 
+    /** Botão COMPRAR da linha i da loja (em referência). */
+    private static float[] compraRect(int i) { return new float[]{1080f, 330f + i * 100f, 200f, 60f}; }
+
     private static boolean in(float[] r, float x, float y) { return x >= r[0] && x <= r[0] + r[2] && y >= r[1] && y <= r[1] + r[3]; }
 
     /** Toque na tela (coordenadas com origem embaixo). */
@@ -85,6 +88,14 @@ final class Lobby {
             if (in(CLOSE, rx, ry)) panel = null;
             else if ("Recompensas".equals(panel) && Progresso.recompensaDisponivel() && in(CLAIM, rx, ry)) {
                 if (Progresso.resgataRecompensa()) toast("+" + Progresso.MOEDAS_DIARIA + " moedas");
+            } else if ("Loja".equals(panel)) {
+                for (int i = 0; i < Progresso.TIPO_LOJA.length; i++) {
+                    if (in(compraRect(i), rx, ry)) {
+                        if (Progresso.compra(i)) toast("Comprado: " + Items.NAMES[Progresso.TIPO_LOJA[i]] + " (vai para a próxima partida)");
+                        else toast("Moedas insuficientes");
+                    }
+                }
+                if (in(rect("moedas+"), rx, ry) || in(rect("diamantes+"), rx, ry)) toast("Pacotes em breve");
             } else if ("Loja".equals(panel) && (in(rect("moedas+"), rx, ry) || in(rect("diamantes+"), rx, ry))) {
                 toast("Pacotes em breve");
             } else if ("Personagem".equals(panel)) {
@@ -323,6 +334,10 @@ final class Lobby {
         fill(sh, 330, 150, 1010, 640, DARK);
         fill(sh, 1280, 160, 52, 52, GOLD);
         if ("Recompensas".equals(panel)) fill(sh, CLAIM[0], CLAIM[1], CLAIM[2], CLAIM[3], !Progresso.recompensaDisponivel() ? BROWN : GOLD);
+        if ("Loja".equals(panel)) for (int i = 0; i < Progresso.TIPO_LOJA.length; i++) {
+            float[] r = compraRect(i);
+            fill(sh, r[0], r[1], r[2], r[3], GOLD);
+        }
         if (cartoes) cardFills(sh);
         sh.end();
         sh.begin(ShapeRenderer.ShapeType.Line);
@@ -346,6 +361,13 @@ final class Lobby {
         if ("Loja".equals(panel)) {
             img(b, "moedas", 365, 500, 60, 60);
             img(b, "diamantes", 365, 580, 60, 60);
+            for (int i = 0; i < Progresso.TIPO_LOJA.length; i++) {
+                float y = 330f + i * 100f;
+                text(b, font, Items.NAMES[Progresso.TIPO_LOJA[i]], 700, y + 24, 1.6f, WHITE, false);
+                text(b, font, Progresso.PRECO_LOJA[i] + " moedas", 700, y + 50, 1.3f, MUTED, false);
+                float[] r = compraRect(i);
+                text(b, font, "COMPRAR", r[0] + r[2] / 2f, r[1] + 38, 1.5f, INK, true);
+            }
         }
         b.end();
     }
@@ -353,8 +375,17 @@ final class Lobby {
     private String[] body(String p) {
         switch (p) {
             case "Personagem": return new String[]{"Nível " + Progresso.nivel(), "Experiência " + Progresso.xp() + " / " + Progresso.xpParaNivel(Progresso.nivel()), "Visual do personagem: em breve"};
-            case "Inventário": return new String[]{"Kits, granadas e munição ficam com você nas partidas.", "Organização do inventário: em breve."};
-            case "Loja": return new String[]{"Moedas: " + Progresso.moedas(), "Diamantes: " + Progresso.diamantes(), "Pacotes e itens: em breve"};
+            case "Inventário": {
+                java.util.ArrayList<String> l = new java.util.ArrayList<>();
+                l.add("Compras para a próxima partida:");
+                for (int t = 0; t < Items.NAMES.length; t++) {
+                    int q = Progresso.estoque(t);
+                    if (q > 0) l.add(Items.NAMES[t] + "  x" + q);
+                }
+                if (l.size() == 1) l.add("Nada guardado: compre na loja.");
+                return l.toArray(new String[0]);
+            }
+            case "Loja": return new String[]{"Moedas: " + Progresso.moedas(), "Diamantes: " + Progresso.diamantes(), "Compre itens para a próxima partida."};
             case "Evento especial": return new String[]{"A SECA DE 1915", "Evento temporário: em breve."};
             case "Passe de batalha": {
                 int pct = Progresso.xp() * 100 / Progresso.xpParaNivel(Progresso.nivel());

@@ -15,6 +15,11 @@ final class Progresso {
     static int nivel = 1, xp = 0, moedas = 500, diamantes = 20;
     private static String ultimaRecompensa = "";
 
+    // Loja: os itens à venda (tipo em Items), com o preço em moedas; o que é comprado vai para o estoque
+    static final int[] TIPO_LOJA = {0, 1, 5};   // kit médico, bandagem, granada
+    static final int[] PRECO_LOJA = {150, 60, 300};
+    private static final int[] estoque = new int[Items.NAMES.length];
+
     private Progresso() {}
 
     private static void garantir() {
@@ -27,6 +32,10 @@ final class Progresso {
             moedas = p.getInteger("moedas", 500);
             diamantes = p.getInteger("diamantes", 20);
             ultimaRecompensa = p.getString("ultimaRecompensa", "");
+            String[] partes = p.getString("estoque", "").split(";");
+            for (int i = 0; i < partes.length && i < estoque.length; i++) {
+                try { estoque[i] = Math.max(0, Integer.parseInt(partes[i].trim())); } catch (NumberFormatException e) { estoque[i] = 0; }
+            }
         } catch (RuntimeException e) {
             // sem preferências: começa do zero nesta sessão
         }
@@ -40,6 +49,9 @@ final class Progresso {
             p.putInteger("moedas", moedas);
             p.putInteger("diamantes", diamantes);
             p.putString("ultimaRecompensa", ultimaRecompensa);
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < estoque.length; i++) sb.append(i > 0 ? ";" : "").append(estoque[i]);
+            p.putString("estoque", sb.toString());
             p.flush();
         } catch (RuntimeException e) {
             // sem como salvar: vale só nesta sessão
@@ -74,6 +86,30 @@ final class Progresso {
         moedas -= quant;
         salvar();
         return true;
+    }
+
+    /** Compra o item i da loja: gasta as moedas e põe no estoque. */
+    static boolean compra(int i) {
+        garantir();
+        if (i < 0 || i >= TIPO_LOJA.length || !gasta(PRECO_LOJA[i])) return false;
+        estoque[TIPO_LOJA[i]]++;
+        salvar();
+        return true;
+    }
+
+    /** Quantos de um tipo de item (Items) há no estoque. */
+    static int estoque(int tipo) {
+        garantir();
+        return estoque[tipo];
+    }
+
+    /** Tira o estoque inteiro para a mochila da partida (devolve as quantidades por tipo). */
+    static int[] retiraEstoque() {
+        garantir();
+        int[] copia = estoque.clone();
+        java.util.Arrays.fill(estoque, 0);
+        salvar();
+        return copia;
     }
 
     /** Dia de hoje (ano-mês-dia), pelo calendário do aparelho. */

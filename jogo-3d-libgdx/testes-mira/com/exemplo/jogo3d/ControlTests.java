@@ -91,6 +91,14 @@ public class ControlTests extends ApplicationAdapter {
         check("recompensa diária vale uma vez por dia", !segunda && !Progresso.recompensaDisponivel(), primeira ? "resgatada agora" : "já resgatada hoje");
         check("não gasta mais moedas do que tem", !Progresso.gasta(Progresso.moedas() + 1), "");
 
+        System.out.println("== Loja e estoque ==");
+        Progresso.ganha(1000, 0);
+        int m0 = Progresso.moedas(), e0 = Progresso.estoque(Progresso.TIPO_LOJA[1]);
+        boolean comprou = Progresso.compra(1);
+        check("comprar bandagem gasta moedas e põe no estoque", comprou && Progresso.moedas() == m0 - Progresso.PRECO_LOJA[1] && Progresso.estoque(Progresso.TIPO_LOJA[1]) == e0 + 1, "");
+        int[] tirado = Progresso.retiraEstoque();
+        check("o estoque vai para a partida e zera", tirado[Progresso.TIPO_LOJA[1]] >= 1 && Progresso.estoque(Progresso.TIPO_LOJA[1]) == 0, "");
+
         System.out.println("== Loot de inimigo morto ==");
         if (w.items != null) {
             int antes = w.items.ground.size;

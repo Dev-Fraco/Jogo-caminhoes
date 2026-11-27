@@ -1062,6 +1062,10 @@ public class Main extends ApplicationAdapter {
         inMenu = false;
         respawn();
         if (enemies != null) enemies.clear();
+        if (world.items != null) {   // o que foi comprado na loja entra na mochila desta partida
+            int[] compras = Progresso.retiraEstoque();
+            for (int i = 0; i < compras.length && i < world.items.bag.length; i++) world.items.bag[i] += compras[i];
+        }
         int choice = lobby.weaponChoice();
         if (choice >= 0 && world.weapons != null) world.weapons.giveStart(choice, character);   // arma escolhida no arsenal
     }
