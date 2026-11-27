@@ -744,7 +744,7 @@ public class World {
         fire = new Fire();
         weapons = new Weapons();
         // Cobertura espalhada ao acaso: caixas, containers e pilhas, sem bloquear o nascimento
-        if (!mira) montaCoberturaArena(mb, attrs, new java.util.Random());   // a arena de mira fica sem cobertura
+        // Sem caixas e containers na arena da sala personalizada (montaCoberturaArena fica sem uso)
     }
 
     /** Caixas e containers de cobertura da arena, depois de (x, z, meia-largura X, meia-largura Z). */

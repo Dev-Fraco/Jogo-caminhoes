@@ -62,24 +62,9 @@ public class ArenaTests extends ApplicationAdapter {
         for (int i = 0; i < 900; i++) c.update(1f / 30f, 1f, 1f, (float) Math.PI / 4f, false, true, w);   // diagonal no canto
         check("no canto, fica dentro do retângulo", c.pos.x <= World.ARENA_HW && c.pos.z <= World.ARENA_HD, String.format("x=%.2f z=%.2f", c.pos.x, c.pos.z));
 
-        System.out.println("== Cobertura aleatória: caixas e containers, sem bloquear o nascimento ==");
-        int n = w.coberturaArena.size();
-        check("entre 12 e 20 peças de cobertura", n >= 12 && n <= 20, "" + n);
-        boolean dentro = true, longe = true, espaco = true;
-        for (float[] cc : w.coberturaArena) {
-            if (Math.abs(cc[0]) > World.ARENA_HW || Math.abs(cc[1]) > World.ARENA_HD) dentro = false;
-            if (Math.sqrt(cc[0] * cc[0] + cc[1] * cc[1]) < 7f) longe = false;
-        }
-        for (int i = 0; i < n; i++) for (int j = i + 1; j < n; j++) {
-            float[] a = w.coberturaArena.get(i), b = w.coberturaArena.get(j);
-            if (Math.sqrt((a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1])) < 3f) espaco = false;
-        }
-        check("todas dentro da arena", dentro, "");
-        check("nenhuma perto do nascimento (7 m livres)", longe, "");
-        check("peças separadas (sem sobreposição)", espaco, "");
-        World semCobertura = new World(false, true);
-        semCobertura.create();
-        check("cobertura muda a cada partida (sorteio)", semCobertura.coberturaArena.size() >= 12, "");
+        System.out.println("== Arena sem caixas nem containers ==");
+        check("a arena não tem peças de cobertura", w.coberturaArena.isEmpty(), "peças " + w.coberturaArena.size());
+        check("nascimento livre: nada ocupa o centro", !w.arenaOcupado(0f, 0f, 1.2f), "");
 
         System.out.println("== Treino e battle royale não mudam ==");
         World tr = new World(true);
