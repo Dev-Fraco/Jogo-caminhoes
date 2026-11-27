@@ -23,7 +23,7 @@ public class ShotgunTests extends ShootTests {
                 && c.damageAt(WeaponConfig.Region.TORSO, 5f) == 12f, "");
         show("aos 17 m o dano cai para 25%", Math.abs(c.damageAt(WeaponConfig.Region.HEAD, 17f) - 35f * 0.25f) < 1e-3f,
                 "" + c.damageAt(WeaponConfig.Region.HEAD, 17f));
-        show("8 projéteis, 1,6 s entre disparos, carregador de 5, automática", c.pellets == 8 && c.fireInterval == 1.6f
+        show("8 projéteis, 0,8 s entre disparos, carregador de 5, automática", c.pellets == 8 && c.fireInterval == 0.8f
                 && c.magazine == 5 && c.mode == WeaponConfig.FireMode.AUTO && c.separate, "");
         show("dispersão cresce com a distância (17 m bem maior que 5 m)",
                 WeaponConfig.pelletRadius(17f) > 3f * WeaponConfig.pelletRadius(5f) && WeaponConfig.pelletRadius(5f) < 0.7f,
@@ -56,13 +56,13 @@ public class ShotgunTests extends ShootTests {
         show("cada projétil que acerta dá o seu número (12 peito, 35 cabeça, 10 membro; nunca somado)", perPellet && events.size() >= 1,
                 "acertos " + events.size() + (events.isEmpty() ? "" : ", primeiro " + events.get(0)[0]));
 
-        System.out.println("== Automático: 1,6 s entre disparos ==");
+        System.out.println("== Automático: 0,8 s entre disparos ==");
         wp.infinite = true;
         for (int f = 0; f < 30; f++) step(1f / 30f, false, false);   // 1 s parado: zera o intervalo do tiro anterior
         int s0 = sh.shotsFired;
-        for (int f = 0; f < 120; f++) step(1f / 30f, true, false);   // 4 s segurando
+        for (int f = 0; f < 60; f++) step(1f / 30f, true, false);   // 2 s segurando
         int fired = sh.shotsFired - s0;
-        show("segurando por 4 s, dispara 3 vezes (1,6 s entre tiros)", fired == 3, "tiros " + fired);
+        show("segurando por 2 s, dispara 3 vezes (0,8 s entre tiros)", fired == 3, "tiros " + fired);
 
         System.out.println("== Longe (17 m): quase nenhum chumbo acerta ==");
         wp.infinite = true;
@@ -73,7 +73,7 @@ public class ShotgunTests extends ShootTests {
         aimAt(far.hitbox.chest);
         events.clear();
         int far0 = sh.shotsFired;
-        for (int f = 0; f < 30 * 32; f++) step(1f / 30f, true, false);   // segurando por 32 s: ~20 tiros de 1,6 s
+        for (int f = 0; f < 30 * 32; f++) step(1f / 30f, true, false);   // segurando por 32 s: ~40 tiros de 0,8 s
         int shots = sh.shotsFired - far0;
         double perShot = events.size() / (double) Math.max(1, shots);
         show("aos 17 m, quase nenhum projétil acerta (menos de 1 a cada 10 tiros)", perShot < 0.1, String.format("%d acertos em %d tiros", events.size(), shots));

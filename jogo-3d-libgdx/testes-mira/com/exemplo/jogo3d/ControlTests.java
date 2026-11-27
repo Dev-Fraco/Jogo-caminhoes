@@ -186,19 +186,19 @@ public class ControlTests extends ApplicationAdapter {
         wp.trocaRapida(ch);
         check("depois da seleção manual, a troca rápida volta à pistola", wp.heldName().equals("MAGNUM 357") && wp.armed(), wp.heldName());
 
-        System.out.println("== SCAR: 5 tiros por segundo, independente do FPS ==");
+        System.out.println("== SCAR: 10 tiros por segundo, independente do FPS ==");
         for (double fps : new double[]{30, 60, 144, 240}) {
             prepararScar(wp, w, ch, pl);
-            java.util.List<Double> t = tirosContinuos(wp, 1.0 / fps, 8.0);
+            java.util.List<Double> t = tirosContinuos(wp, 1.0 / fps, 6.0);
             check("SCAR com pente cheio dispara 30 tiros (" + (int) fps + " fps)", t.size() == 30, "" + t.size());
             double pausa = 0, maior = 0;
             for (int i = 1; i < t.size(); i++) {
                 double intervalo = t.get(i) - t.get(i - 1);
-                maior = Math.max(maior, Math.abs(intervalo - 0.20));
+                maior = Math.max(maior, Math.abs(intervalo - 0.10));
             }
             if (t.size() > 1) pausa = t.get(t.size() - 1) - t.get(0);
-            check("pente vazio em ~5,8 s (" + (int) fps + " fps)", Math.abs(pausa - 5.8) <= 1.0 / fps + 1e-6, String.format("%.3f s", pausa));
-            check("intervalo de 0,20 s entre tiros (" + (int) fps + " fps)", maior <= 1.0 / fps + 1e-6, String.format("desvio máx %.4f s", maior));
+            check("pente vazio em ~2,9 s (" + (int) fps + " fps)", Math.abs(pausa - 2.9) <= 1.0 / fps + 1e-6, String.format("%.3f s", pausa));
+            check("intervalo de 0,10 s entre tiros (" + (int) fps + " fps)", maior <= 1.0 / fps + 1e-6, String.format("desvio máx %.4f s", maior));
         }
 
         System.out.println("== SCAR: soltar o botão para o disparo na hora ==");
@@ -206,7 +206,7 @@ public class ControlTests extends ApplicationAdapter {
         int tiros = 0, apos = 0;
         double dt = 1.0 / 60.0, agora = 0;
         boolean primeiro = true;
-        while (agora < 1.0) {
+        while (agora < 0.5) {
             wp.tick((float) dt);
             if (wp.tryFire(true, primeiro) == 1) tiros++;
             primeiro = false;
@@ -235,15 +235,15 @@ public class ControlTests extends ApplicationAdapter {
         check("outras armas não têm proteção", WeaponConfig.AKM.fatorArmadura(WeaponConfig.Region.HEAD, true, true) == 1f, "");
         check("AKM segue com a curva antiga (sem queda linear nem armadura)", !WeaponConfig.AKM.quedaLinear && !WeaponConfig.AKM.armadura, "");
 
-        System.out.println("== GROZA: 4,5 tiros por segundo, pente de 30, independente do FPS ==");
+        System.out.println("== GROZA: 9 tiros por segundo, pente de 30, independente do FPS ==");
         for (double fps : new double[]{30, 60, 144, 240}) {
             prepararArma(wp, w, ch, pl, 2);
-            java.util.List<Double> t = tirosContinuos(wp, 1.0 / fps, 8.0);
+            java.util.List<Double> t = tirosContinuos(wp, 1.0 / fps, 6.0);
             check("GROZA com pente cheio dispara 30 tiros (" + (int) fps + " fps)", t.size() == 30, "" + t.size());
             double maior = 0;
-            for (int i = 1; i < t.size(); i++) maior = Math.max(maior, Math.abs((t.get(i) - t.get(i - 1)) - 0.22));
+            for (int i = 1; i < t.size(); i++) maior = Math.max(maior, Math.abs((t.get(i) - t.get(i - 1)) - 0.11));
             double span = t.size() > 1 ? t.get(t.size() - 1) - t.get(0) : 0;
-            check("GROZA: intervalo de 0,22 s (" + (int) fps + " fps)", maior <= 1.0 / fps + 1e-6, String.format("desvio máx %.4f s, pente em %.3f s", maior, span));
+            check("GROZA: intervalo de 0,11 s (" + (int) fps + " fps)", maior <= 1.0 / fps + 1e-6, String.format("desvio máx %.4f s, pente em %.3f s", maior, span));
         }
     }
 

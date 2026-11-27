@@ -98,10 +98,10 @@ public class ScopeTests extends ApplicationAdapter {
         check("0,2 s depois do aperto: ainda não atira", wp.tryFire(true, false) == 0, "");
         wp.tick(0.06f);
         check("0,26 s depois do aperto: primeiro tiro", wp.tryFire(true, false) == 1, "");
-        wp.tick(1.50f);
-        check("1,50 s depois do tiro: ainda não", wp.tryFire(true, false) == 0, "");
-        wp.tick(0.06f);
-        check("1,56 s depois do tiro: segundo tiro (segurando)", wp.tryFire(true, false) == 1, "");
+        wp.tick(0.77f);
+        check("0,77 s depois do tiro: ainda não", wp.tryFire(true, false) == 0, "");
+        wp.tick(0.02f);
+        check("0,79 s depois do tiro: segundo tiro (segurando)", wp.tryFire(true, false) == 1, "");
         wp.tryFire(false, false);
         wp.tick(1f);
         check("soltou e apertou de novo: espera 0,25 s outra vez", wp.tryFire(true, false) == 0, "");
