@@ -10,6 +10,7 @@ import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.utils.AnimationController;
+import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute;
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute;
 import com.badlogic.gdx.graphics.g3d.loader.ObjLoader;
 import com.badlogic.gdx.graphics.g3d.loader.G3dModelLoader;
@@ -441,15 +442,18 @@ public class World {
     }
 
     private final float[] tintRgb = new float[3];
+    private final float[] pesosClima = new float[Clima.values().length];
 
     /** Tom por vértice: quase branco (a textura já traz a cor); só escurece as encostas. */
     private Color tintAt(float x, float z, Vector3 n) {
         float steep = 1f - n.y;
         float shade = 1f - MathUtils.clamp((steep - 0.10f) * 0.6f, 0f, 0.25f);
         Regions.tint(x, z, tintRgb);
-        // Neve e lama têm cor própria na textura: só o deserto mantém a cor da região
-        if (Clima.quadrante(x, z) != Clima.DESERTO) { tintRgb[0] = 1f; tintRgb[1] = 1f; tintRgb[2] = 1f; }
-        return new Color(shade * tintRgb[0], shade * tintRgb[1], shade * tintRgb[2], 1f);
+        // Neve e lama têm cor própria na textura: a cor da região só aparece no deserto (com a transição)
+        Clima.pesos(x, z, pesosClima);
+        float d = pesosClima[Clima.DESERTO.ordinal()];
+        float r = 1f + (tintRgb[0] - 1f) * d, g = 1f + (tintRgb[1] - 1f) * d, b = 1f + (tintRgb[2] - 1f) * d;
+        return new Color(shade * r, shade * g, shade * b, 1f);
     }
 
     /** Escolhe o lugar do açude e da cacimba: longe do início e um do outro. */
@@ -540,6 +544,12 @@ public class World {
     /** Texturas do chão de cada clima (carregadas na primeira vez). */
     private final java.util.EnumMap<Clima, Texture> climaTextures = new java.util.EnumMap<>(Clima.class);
 
+    /** Peso de um clima num ponto (0 a 1). */
+    private float pesoClima(float x, float z, Clima c) {
+        Clima.pesos(x, z, pesosClima);
+        return pesosClima[c.ordinal()];
+    }
+
     private Texture climaTexture(Clima c) {
         Texture t = climaTextures.get(c);
         if (t == null) {
@@ -551,11 +561,18 @@ public class World {
     }
 
     private VertexInfo vertex(float x, float z) {
+        return vertexCamada(x, z, 1f, 0f);
+    }
+
+    /** Vértice do terreno. 'alfa' é a transparência da camada de mistura; 'subir' desloca um pouco para cima. */
+    private VertexInfo vertexCamada(float x, float z, float alfa, float subir) {
         Vector3 n = normalAt(x, z);
+        Color c = tintAt(x, z, n);
+        c.a = alfa;
         return new VertexInfo()
-                .setPos(x, heightAt(x, z) - (Math.abs(z - roadZ(x)) < ROAD_HALF ? 0.45f : 0f), z)
+                .setPos(x, heightAt(x, z) - (Math.abs(z - roadZ(x)) < ROAD_HALF ? 0.45f : 0f) + subir, z)
                 .setNor(n.x, n.y, n.z)
-                .setCol(tintAt(x, z, n))
+                .setCol(c)
                 .setUV(x / TEXTURE_TILE, z / TEXTURE_TILE);
     }
 
@@ -707,7 +724,7 @@ public class World {
         for (int ci = 0; ci < CHUNKS; ci++) {
             for (int cj = 0; cj < CHUNKS; cj++) {
                 mb.begin();
-                // Cada pedaço fica num único quadrante, então usa a textura do clima dele
+                // Cada pedaço usa a textura do clima do centro dele; as bordas recebem as camadas de mistura abaixo
                 Clima clima = Clima.quadrante(-HALF + (ci + 0.5f) * chunk, -HALF + (cj + 0.5f) * chunk);
                 MeshPartBuilder part = mb.part("terrain", GL20.GL_TRIANGLES,
                         Usage.Position | Usage.Normal | Usage.ColorPacked | Usage.TextureCoordinates,
@@ -729,8 +746,39 @@ public class World {
                 terrainParts.add(mi);
                 // caixa do pedaço (centro e meias-dimensões): só desenha se estiver na frente da câmera
                 float[] mm = minMaxAlturas(-HALF + ci * chunk, -HALF + cj * chunk, -HALF + (ci + 1) * chunk, -HALF + (cj + 1) * chunk);
-                terrainBox.put(mi, new float[]{-HALF + ci * chunk + chunk / 2f, (mm[0] + mm[1]) / 2f, -HALF + cj * chunk + chunk / 2f,
-                        chunk / 2f + 1f, (mm[1] - mm[0]) / 2f + 4f, chunk / 2f + 1f});
+                float[] caixa = {-HALF + ci * chunk + chunk / 2f, (mm[0] + mm[1]) / 2f, -HALF + cj * chunk + chunk / 2f,
+                        chunk / 2f + 1f, (mm[1] - mm[0]) / 2f + 4f, chunk / 2f + 1f};
+                terrainBox.put(mi, caixa);
+                // Transição: a textura de cada clima vizinho entra por cima, com transparência nas bordas
+                for (Clima outro : Clima.values()) {
+                    if (outro == clima) continue;
+                    mb.begin();
+                    MeshPartBuilder mix = mb.part("mistura", GL20.GL_TRIANGLES,
+                            Usage.Position | Usage.Normal | Usage.ColorPacked | Usage.TextureCoordinates,
+                            new Material(TextureAttribute.createDiffuse(climaTexture(outro)),
+                                    new BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)));
+                    boolean algum = false;
+                    for (int i = 0; i < GRID; i++) {
+                        for (int j = 0; j < GRID; j++) {
+                            float x0 = -HALF + ci * chunk + i * step, x1 = x0 + step;
+                            float z0 = -HALF + cj * chunk + j * step, z1 = z0 + step;
+                            if (hasWell && cellTouchesCircle(x0, z0, x1, z1, wellX, wellZ, Landmarks.WELL_R)) continue;
+                            float a0 = pesoClima(x0, z0, outro), a1 = pesoClima(x1, z0, outro);
+                            float a2 = pesoClima(x1, z1, outro), a3 = pesoClima(x0, z1, outro);
+                            if (Math.max(Math.max(a0, a1), Math.max(a2, a3)) < 0.004f) continue;
+                            mix.rect(vertexCamada(x0, z0, a0, 0.02f), vertexCamada(x1, z0, a1, 0.02f),
+                                    vertexCamada(x1, z1, a2, 0.02f), vertexCamada(x0, z1, a3, 0.02f));
+                            algum = true;
+                        }
+                    }
+                    Model mm2 = mb.end();
+                    if (!algum) { mm2.dispose(); continue; }
+                    terrainModels.add(mm2);
+                    ModelInstance mi2 = new ModelInstance(mm2);
+                    instances.add(mi2);
+                    terrainParts.add(mi2);
+                    terrainBox.put(mi2, caixa);
+                }
             }
         }
 
