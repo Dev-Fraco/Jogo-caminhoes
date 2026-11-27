@@ -1145,7 +1145,7 @@ public class Main extends ApplicationAdapter {
     /** EQUIPAR: a arma escolhida vai para a mão, com o carregador cheio. */
     private void equipArsenal() {
         int t = arsenal.sel;
-        if (world.weapons != null) world.weapons.giveStart(t, character);
+        if (world.weapons != null) world.weapons.equipDoArsenal(t, world, character, player);   // não apaga as outras armas
         if (enemies != null) for (int k = 0; k < enemies.list.size; k++) enemies.list.get(k).dummyDamage = 0f;
         survival.say(Weapons.NAMES[t]);
         trainPanel = false;

@@ -510,6 +510,21 @@ final class Weapons {
         return COLETA_ESCOLHA;
     }
 
+    /**
+     * Arma escolhida no arsenal do treino: não limpa o inventário. Se já está levada, só a saca; se há slot livre,
+     * entra como uma coleta; com os dois fuzis cheios, abre a escolha de qual substituir (COLETA_ESCOLHA).
+     */
+    void equipDoArsenal(int type, World w, Character ch, Player player) {
+        for (int s = 0; s < slot.length; s++) {
+            if (slot[s] == type) {
+                equipSlot(s, ch);
+                return;
+            }
+        }
+        Pickup g = new Pickup(type, new ModelInstance(models[type]), player.pos.x, player.pos.y, player.pos.z);
+        coletar(g, w, ch, player);   // o modelo não está no chão: a coleta só não tenta tirá-lo de lá
+    }
+
     /** Coleta simples: true se a arma entrou no inventário agora. */
     boolean pickUp(Pickup g, World w, Character ch, Player player) {
         return coletar(g, w, ch, player) == COLETA_OK;
