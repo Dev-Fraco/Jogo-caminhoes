@@ -41,6 +41,9 @@ public class WallTests extends ApplicationAdapter {
         String avisoArena = arenaW.placeWall(0f, 0f, 0f);
         check("na arena a parede é posta (sem aviso de muro não carregado)", avisoArena == null && arenaW.walls.size == 1, "aviso " + avisoArena);
 
+        arenaW.limpaParedes();
+        check("começo de round tira as paredes do round anterior", arenaW.walls.size == 0, "muros " + arenaW.walls.size);
+
         System.out.println("\nRESULTADO: " + pass + " ok, " + fail + " falhas");
         System.exit(fail == 0 ? 0 : 1);
     }

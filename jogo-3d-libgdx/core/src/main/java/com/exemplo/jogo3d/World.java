@@ -1281,6 +1281,11 @@ public class World {
                     ok ? 0.4f : 1f, ok ? 1f : 0.25f, ok ? 0.4f : 0.25f, 1f));
     }
 
+    /** Tira todas as paredes de proteção do mundo (começo de round na arena). */
+    void limpaParedes() {
+        while (walls.size > 0) removeWall(walls.first());
+    }
+
     /** Tira um muro: o modelo e a colisão. */
     void removeWall(StoneWall w) {
         instances.removeValue(w.mi, true);

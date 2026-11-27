@@ -1352,6 +1352,7 @@ public class Main extends ApplicationAdapter {
 
     /** Começa um round: jogador de volta ao nascimento, arma comprada, colete e capacete, bonecos de cada lado. */
     private void respawnArena() {
+        if (world != null) world.limpaParedes();   // cada round começa sem as paredes do anterior
         survival.reset();
         if (grenades != null) grenades.clearAll();
         int tipo = economia != null ? economia.armaEquipada(SalaUi.EU) : -1;
