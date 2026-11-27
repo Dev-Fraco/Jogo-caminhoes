@@ -245,7 +245,7 @@ final class Lobby {
         // Ícones, textos e avisos
         b.setProjectionMatrix(proj);
         b.begin();
-        img(b, "logo", 6, 0, 330, 134);
+        img(b, "logo", 6, 0, 134, 134);   // símbolo SEM LIMITES (quadrado)
         img(b, "personagem", 344, 20, 70, 64);
         text(b, font, "JOGADOR", 428, 46, 1.9f, WHITE, false);
         text(b, font, "Nv. " + Progresso.nivel(), 428, 72, 1.4f, GOLD, false);
