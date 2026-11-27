@@ -34,6 +34,20 @@ final class TargetDetection {
         update(dt, cam, dir, enemies, w, radius, range, false);
     }
 
+    /**
+     * Pontuação do alvo (menor = melhor) usada na escolha. ang/radius: quão perto do centro da mira.
+     * Termo de distância (só com DistPriority ligada): coef × 0,25 × clamp(dist, min, max) / alcance.
+     * Com os padrões (prioridade ligada, coef 1, min 0, max 1000) é a fórmula de sempre.
+     */
+    static float pontuacao(float ang, float radius, float dist, float range) {
+        float termo = 0f;
+        if (AimTuning.distPriority) {
+            float d = MathUtils.clamp(dist, AimTuning.distPrioMin, AimTuning.distPrioMax);
+            termo = AimTuning.distPrioCoef * 0.25f * d / Math.max(1f, range);
+        }
+        return ang / radius + termo;
+    }
+
     /** Com o tiro apertado (firing), o alvo fica travado mesmo com a mira subindo bem para fora do cone: a força de volta segue atuando. */
     void update(float dt, Vector3 cam, Vector3 dir, Enemies enemies, World w, float radius, float range, boolean firing) {
         // Alvo morto ou longe demais da mira: larga na hora (não acompanha mortos)
@@ -64,7 +78,7 @@ final class TargetDetection {
             e.hitbox.update(enemies.frame());
             float ang = angleTo(cam, dir, e.hitbox);
             if (ang > radius) continue;
-            float score = ang / radius + 0.25f * dist / range;
+            float score = pontuacao(ang, radius, dist, range);
             // guarda os 3 melhores
             for (int k = 0; k < 3; k++) {
                 if (score < candScore[k]) {
@@ -81,7 +95,7 @@ final class TargetDetection {
         if (target != null) {
             float ang = angleTo(cam, dir, target.hitbox);
             currentOk = ang < radius * 1.35f && visible(cam, target, w);
-            targetScore = ang / radius + 0.25f * cam.dst(target.pos) / range;
+            targetScore = pontuacao(ang, radius, cam.dst(target.pos), range);
             if (!currentOk) drop();
         }
         for (int k = 0; k < 3; k++) {

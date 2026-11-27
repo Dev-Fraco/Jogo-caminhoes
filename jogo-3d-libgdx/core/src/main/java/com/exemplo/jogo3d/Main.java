@@ -242,6 +242,7 @@ public class Main extends ApplicationAdapter {
                 windSound = null;
             }
             AimSettings.load();
+            AimTuning.load();
             fx = new CombatFx();
             damage = new DamageSystem(fx);
             loadWorld(false);   // battle royale: o avião, o mapa e o jogo começam aqui
@@ -476,6 +477,7 @@ public class Main extends ApplicationAdapter {
             targets.update(dt, camera.position, aimDir, enemies, world,
                     AimSettings.fovDeg() * cat.radiusScale, cfg.range, fireHeld);
             // Fuzil de precisão (luneta): nenhuma assistência; a mira é só do dedo
+            assist.alcance = cfg.range;   // queda da assistência por distância usa o alcance da arma
             if (cfg.scope) assist.update(dt, camera.position, aimDir, camYaw, camPitch, null, cat, false, false, false);
             else assist.update(dt, camera.position, aimDir, camYaw, camPitch, targets.target, cat, fireHeld, firePressed, adsOn);
             yaw += assist.dYaw;

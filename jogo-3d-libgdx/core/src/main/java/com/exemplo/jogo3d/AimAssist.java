@@ -21,7 +21,19 @@ final class AimAssist {
     boolean active;            // para o indicador discreto na mira
     float strengthNow;         // 0..1 (intensidade visual do indicador)
 
+    /** Alcance da arma em uso (m): a queda por distância vai de 0 a este valor. Atualizado pelo Main a cada quadro. */
+    float alcance = 70f;
+
     private final Vector3 v = new Vector3();
+
+    /**
+     * Força da atração depois dos parâmetros da mira: SnapRange (taxa, 0 a 1) e DistFalloff (queda com a distância,
+     * 0 a 1: no alcance máximo a força vale (1 - falloff)). Com os padrões (snap 1, falloff 0) é a força de sempre.
+     */
+    static float forca(float base, float dist, float range, float snap, float falloff) {
+        float fracDist = MathUtils.clamp(dist / Math.max(1f, range), 0f, 1f);
+        return base * snap * (1f - falloff * fracDist);
+    }
     private float lastPitch;   // inclinação ao fim do último quadro (para saber o movimento do dedo)
     private boolean havePitch;
 
@@ -67,15 +79,16 @@ final class AimAssist {
         boolean inHead = -pitch <= elev(cam, target.hitbox.headTop) + 0.03f;
         // A resistência vale com o alvo travado, mesmo fora do FOV: a sensibilidade alta não escapa dela.
         // Só a atração (gruda e puxa) depende de o alvo estar no FOV.
+        float fat = forca(1f, dist, alcance, AimTuning.snapRange, AimTuning.distFalloff);
         if (firePress && inFov) {
-            // Ao apertar o tiro, com o boneco no FOV: a mira gruda na barriga na hora
-            dYaw += errYaw;
-            dPitch += -errBelly;
+            // Ao apertar o tiro, com o boneco no FOV: a mira gruda na barriga na hora (taxa e queda aplicadas)
+            dYaw += errYaw * fat;
+            dPitch += -errBelly * fat;
         }
         if (!firePress) {
             // Segurando o tiro: a mira desce sozinha para a barriga (força abdominal), quando o dedo para ou sobe pouco
-            dPitch += -errBelly * Math.min(1f, 10f * dt) * AimSettings.abdAssist;
-            if (inFov) dYaw += errYaw * Math.min(1f, 8f * dt) * AimSettings.horizAssist;
+            dPitch += -errBelly * Math.min(1f, 10f * dt) * AimSettings.abdAssist * fat;
+            if (inFov) dYaw += errYaw * Math.min(1f, 8f * dt) * AimSettings.horizAssist * fat;
         }
         // Resistência vertical: TODO movimento do dedo para cima, com o tiro apertado, volta na fração configurada
         // (90%: subir 100% vira 90% para baixo). Fração do movimento já escalado pela sensibilidade: a sensibilidade
