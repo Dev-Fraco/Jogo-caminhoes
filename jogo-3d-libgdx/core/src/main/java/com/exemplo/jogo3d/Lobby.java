@@ -356,7 +356,11 @@ final class Lobby {
             case "Inventário": return new String[]{"Kits, granadas e munição ficam com você nas partidas.", "Organização do inventário: em breve."};
             case "Loja": return new String[]{"Moedas: " + Progresso.moedas(), "Diamantes: " + Progresso.diamantes(), "Pacotes e itens: em breve"};
             case "Evento especial": return new String[]{"A SECA DE 1915", "Evento temporário: em breve."};
-            case "Passe de batalha": return new String[]{"Progresso do passe: 60%", "Recompensas de cada nível: em breve."};
+            case "Passe de batalha": {
+                int pct = Progresso.xp() * 100 / Progresso.xpParaNivel(Progresso.nivel());
+                return new String[]{"Nível do passe: " + Progresso.nivel(), "Progresso do nível: " + pct + "%",
+                        "Cada nível subido dá " + Progresso.MOEDAS_NIVEL + " moedas (já creditadas)."};
+            }
             case "Recompensas": return new String[]{"Recompensa diária: " + Progresso.MOEDAS_DIARIA + " moedas", !Progresso.recompensaDisponivel() ? "Você já resgatou a recompensa de hoje." : "Toque em RESGATAR."};
             case "Eventos": return new String[]{"Nenhum evento novo no momento."};
             case "Amigos": return new String[]{"Lista de amigos: em breve."};

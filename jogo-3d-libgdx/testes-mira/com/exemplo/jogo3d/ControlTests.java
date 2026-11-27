@@ -87,7 +87,8 @@ public class ControlTests extends ApplicationAdapter {
         Progresso.ganha(Progresso.xpParaNivel(nv0) - xp0, 0);
         check("juntar o XP do nível sobe 1 nível", Progresso.nivel() == nv0 + 1 && Progresso.xp() == 0, "nível " + Progresso.nivel());
         boolean primeira = Progresso.resgataRecompensa(), segunda = Progresso.resgataRecompensa();
-        check("recompensa diária vale uma vez por dia", primeira && !segunda && !Progresso.recompensaDisponivel(), "");
+        // as preferências persistem entre execuções: a recompensa pode já ter sido resgatada hoje
+        check("recompensa diária vale uma vez por dia", !segunda && !Progresso.recompensaDisponivel(), primeira ? "resgatada agora" : "já resgatada hoje");
         check("não gasta mais moedas do que tem", !Progresso.gasta(Progresso.moedas() + 1), "");
 
         System.out.println("== Loot de inimigo morto ==");
