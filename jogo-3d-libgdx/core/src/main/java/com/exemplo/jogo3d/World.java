@@ -373,6 +373,7 @@ public class World {
         float steep = 1f - n.y;
         float shade = 1f - MathUtils.clamp((steep - 0.10f) * 0.6f, 0f, 0.25f);
         Regions.tint(x, z, tintRgb);
+        Clima.mistura(x, z, tintRgb);   // clima do quadrante (inverno, mangue ou deserto)
         return new Color(shade * tintRgb[0], shade * tintRgb[1], shade * tintRgb[2], 1f);
     }
 
