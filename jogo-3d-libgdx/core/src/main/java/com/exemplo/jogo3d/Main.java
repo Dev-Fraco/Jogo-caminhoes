@@ -439,7 +439,7 @@ public class Main extends ApplicationAdapter {
         // AWM: segurar o tiro abre a luneta sem disparar (só a AWM; os outros fuzis seguem como estavam)
         boolean awmAim = combat && cfg != null && cfg.scope && fireHeld;
         // Câmera pelo toque (com o atrito da assistência do quadro anterior)
-        aimCtl.update(dt, Gdx.graphics.getHeight(), adsOn || awmAim, combat ? cat : null, combat ? assist.friction : 1f);
+        aimCtl.update(dt, Gdx.graphics.getHeight(), adsOn || awmAim, combat ? cat : null, combat ? assist.friction : 1f, fireHeld);
         yaw += aimCtl.yawDelta;
         pitch += aimCtl.pitchDelta;
         aimDir.set(camera.direction).nor();

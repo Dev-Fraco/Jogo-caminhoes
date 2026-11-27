@@ -36,6 +36,31 @@ public class AimUiTests {
         AimSettings.setSlider(16, 200);
         check("resistência nunca passa de 95% (fica controlável)", AimSettings.upResist <= 0.951f, "" + AimSettings.upResist);
 
+        System.out.println("== Sensi X e Y: só valem com o botão de atirar pressionado ==");
+        AimSettings.reset();
+        AimController semTiro = new AimController();
+        semTiro.addDrag(100f, 50f);
+        semTiro.update(1f / 30f, 1080f, false, null, 1f, false);
+        float yaw0 = semTiro.yawDelta, pit0 = semTiro.pitchDelta;
+        AimSettings.set(17, 2f);      // sensi X 200%
+        AimSettings.set(18, 0.5f);    // sensi Y 50%
+        AimController fora = new AimController();
+        fora.addDrag(100f, 50f);
+        fora.update(1f / 30f, 1080f, false, null, 1f, false);
+        check("sem atirar, sensi X/Y não mudam a câmera",
+                Math.abs(fora.yawDelta - yaw0) < 1e-7f && Math.abs(fora.pitchDelta - pit0) < 1e-7f, "");
+        AimController tiro = new AimController();
+        tiro.addDrag(100f, 50f);
+        tiro.update(1f / 30f, 1080f, false, null, 1f, true);
+        check("atirando, sensi X 200% dobra o giro horizontal",
+                Math.abs(tiro.yawDelta - 2f * yaw0) < 1e-6f, String.format("%.5f vs %.5f", tiro.yawDelta, 2f * yaw0));
+        check("atirando, sensi Y 50% mete metade na vertical",
+                Math.abs(tiro.pitchDelta - 0.5f * pit0) < 1e-6f, String.format("%.5f vs %.5f", tiro.pitchDelta, 0.5f * pit0));
+        check("sensi X/Y aparecem como barras de 0 a 200", AimSettings.toSlider(17) == 200 && AimSettings.toSlider(18) == 50,
+                AimSettings.toSlider(17) + " / " + AimSettings.toSlider(18));
+        AimSettings.reset();
+        check("RESTAURAR PADRÃO devolve sensi X/Y para 100", AimSettings.toSlider(17) == 100 && AimSettings.toSlider(18) == 100, "");
+
         System.out.println("== Arrastar a barra muda o parâmetro do jogo ==");
         AimSettings.reset();
         AimSettingsUi ui = new AimSettingsUi();

@@ -23,10 +23,11 @@ final class AimSettingsUi {
     boolean open = false;
 
     // Ordem das linhas em cada coluna (índices de AimSettings)
-    static final int[] LEFT = {0, 1, 2, 3, 4, 5, 6, 16};
+    static final int[] LEFT = {0, 1, 2, 3, 4, 5, 6, 16, 17, 18};
     static final int[] RIGHT = {7, 9, 10, 11, 12, 13, 14, 15, 8};
     static final String[] LEFT_LABEL = {"Sensibilidade geral", "Mira 2x", "Mira 4x", "Assistência de mira",
-            "Força abdominal", "Assistência horizontal", "FOV do Aim Assist", "Resistência vertical"};
+            "Força abdominal", "Assistência horizontal", "FOV do Aim Assist", "Resistência vertical",
+            "Sensi X (ao atirar)", "Sensi Y (ao atirar)"};
     static final String[] RIGHT_LABEL = {"AKM", "GROZA", "M16A4", "M416", "SCAR-L", "AWM", "M1014", "MAGNUM 357", "AUG"};
 
     private static final float[] YELLOW = {1f, 0.8f, 0.08f, 1f};
@@ -63,7 +64,7 @@ final class AimSettingsUi {
         tabH = panH * 0.105f;
         float rowsTop = panTop - m * 0.5f - tabH - panH * 0.035f;
         float rowsH = rowsTop - panY - panH * 0.04f;
-        rowH = rowsH / 9f;
+        rowH = rowsH / 10f;   // a coluna da esquerda tem 10 linhas
         for (int r = 0; r < LEFT.length; r++) placeRow(LEFT[r], 0, r, rowsTop);
         for (int r = 0; r < RIGHT.length; r++) placeRow(RIGHT[r], 1, r, rowsTop);
         set(backArrow, m, H - hh * 0.82f, hh * 0.56f, hh * 0.56f);

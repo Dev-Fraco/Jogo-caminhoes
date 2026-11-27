@@ -33,12 +33,18 @@ final class AimSettings {
      * 90% = subir 10 cm de dedo sobe 1 cm. Não depende da sensibilidade (é fração do movimento já escalado).
      */
     static float upResist = 0.90f;
+    /**
+     * Sensibilidade X (horizontal) e Y (vertical) só com o botão de atirar pressionado. 100% = sem mudança.
+     * Fora do tiro, o arrasto segue a sensibilidade geral normal.
+     */
+    static float fireX = 1f;
+    static float fireY = 1f;
 
     /** Itens da tela: índice = posição em NAMES (ordem interna, usada também para salvar). */
     static final String[] NAMES = {"Sensibilidade geral", "Mira 2x", "Mira 4x", "Assistência de mira",
             "Força abdominal (atração à barriga)", "Assistência horizontal", "FOV do Aim Assist",
             "Abertura AKM", "Abertura AUG", "Abertura GROZA", "Abertura M16A4", "Abertura M416", "Abertura SCAR-L", "Abertura AWM", "Abertura M1014", "Abertura MAGNUM 357",
-            "Resistência vertical (subida)"};
+            "Resistência vertical (subida)", "Sensi X (ao atirar)", "Sensi Y (ao atirar)"};
 
     // Tipos de barra: multiplicador (0..2), fração (0..1), resistência (0..0,95) e liga/desliga
     static final int K_MULT = 0, K_FRAC = 1, K_RESIST = 2, K_TOGGLE = 3;
@@ -70,6 +76,8 @@ final class AimSettings {
             case 5: return horizAssist;
             case 6: return fovPct;
             case 16: return upResist;
+            case 17: return fireX;
+            case 18: return fireY;
             default: return openPct[i - 7];
         }
     }
@@ -106,6 +114,8 @@ final class AimSettings {
             case 5: horizAssist = clampFrac(v); break;
             case 6: fovPct = clampFrac(v); break;
             case 16: upResist = MathUtils.clamp(v, 0f, RESIST_MAX); break;
+            case 17: fireX = clampMult(v); break;
+            case 18: fireY = clampMult(v); break;
             default: openPct[i - 7] = clampMult(v); break;
         }
     }
@@ -143,7 +153,7 @@ final class AimSettings {
 
     static void reset() {
         general = 1f; scope2x = 0.6f; scope4x = 0.35f; assistOn = true;
-        abdAssist = 0.10f; horizAssist = 0.1f; fovPct = 0.4f; upResist = 0.90f;
+        abdAssist = 0.10f; horizAssist = 0.1f; fovPct = 0.4f; upResist = 0.90f; fireX = 1f; fireY = 1f;
         java.util.Arrays.fill(openPct, 1f);
     }
 }

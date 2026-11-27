@@ -22,6 +22,11 @@ final class AimController {
     }
 
     void update(float dt, float screenH, boolean ads, WeaponConfig.Category cat, float friction) {
+        update(dt, screenH, ads, cat, friction, false);
+    }
+
+    /** @param firing botão de atirar pressionado: aí valem a sensibilidade X e Y (horizontal e vertical). */
+    void update(float dt, float screenH, boolean ads, WeaponConfig.Category cat, float friction, boolean firing) {
         float s = AimSettings.smoothing;
         float frac = s <= 0.001f ? 1f : 1f - (float) Math.pow(s, Math.max(dt, 1e-4f) * 30f);
         float ox = pendX * frac, oy = pendY * frac;
@@ -31,8 +36,9 @@ final class AimController {
         if (Math.abs(pendY) < 0.01f) pendY = 0f;
         float k = BASE / Math.max(1f, screenH) * AimSettings.general * (ads ? AimSettings.adsMul() : 1f) * friction;
         if (cat != null) k *= AimSettings.category[cat.ordinal()];
-        yawDelta = -ox * k * AimSettings.horizontal;     // dedo para a direita: câmera gira para a direita
-        pitchDelta = oy * k * AimSettings.vertical;      // dedo para cima: mira sobe (pitch menor)
+        float sx = firing ? AimSettings.fireX : 1f, sy = firing ? AimSettings.fireY : 1f;
+        yawDelta = -ox * k * AimSettings.horizontal * sx;     // dedo para a direita: câmera gira para a direita
+        pitchDelta = oy * k * AimSettings.vertical * sy;      // dedo para cima: mira sobe (pitch menor)
     }
 
     void clear() {
