@@ -11,7 +11,7 @@ import com.badlogic.gdx.math.Vector3;
 
 /**
  * Morador da cidade: segue um roteiro de passos em laço (andar até um ponto, fazer uma ação por
- * alguns segundos, virar para alguém). Pode andar a cavalo. Cada um tem roupa e cabelo de cores próprias.
+ * alguns segundos, virar para alguém). Cada um tem roupa e cabelo de cores próprias.
  */
 final class Npc {
     enum Kind { GO, DO, FACE }
@@ -38,7 +38,6 @@ final class Npc {
     }
 
     private static final float WALK_CLIP_SPEED = 1.8f;   // o clipe Walk anda ~1,8 m/s
-    private static final float RIDER_Y = 1.43f;          // cavaleiro sentado no lombo (altura dos pés)
 
     final ModelInstance inst;
     private final AnimationController anim;
@@ -49,9 +48,6 @@ final class Npc {
     private int idx;
     private float timer;
     private String clipNow = "";
-    private ModelInstance horse;
-    private AnimationController horseAnim;
-    private String horseClip = "";
 
     Npc(Model model, float x, float z, Color shirt, Color pants, Color hair) {
         inst = new ModelInstance(model);
@@ -78,16 +74,6 @@ final class Npc {
         return this;
     }
 
-    /** Monta num cavalo (o cavalo segue o roteiro e o morador vai sentado segurando os arreios). */
-    Npc ride(Model horseModel) {
-        horse = new ModelInstance(horseModel);
-        horseAnim = new AnimationController(horse);
-        speed = 1.8f;
-        return this;
-    }
-
-    ModelInstance horseInstance() { return horse; }
-
     void update(float dt, World w) {
         if (steps != null && steps.length > 0) {
             Step s = steps[idx];
@@ -103,11 +89,11 @@ final class Npc {
                     float stepLen = Math.min(d, speed * dt);
                     pos.x += dx / d * stepLen;
                     pos.z += dz / d * stepLen;
-                    if (horse == null) setClip("Walk", speed / WALK_CLIP_SPEED);
+                    setClip("Walk", speed / WALK_CLIP_SPEED);
                     break;
                 }
                 case DO:
-                    if (horse == null) setClip(s.clip, 1f);
+                    setClip(s.clip, 1f);
                     timer += dt;
                     if (timer >= s.time) next();
                     break;
@@ -118,19 +104,7 @@ final class Npc {
             }
         }
         float y = w.groundAt(pos.x, pos.z);
-        if (horse != null) {
-            boolean moving = steps != null && steps[idx].kind == Kind.GO;
-            if (!(moving ? "Walk" : "Idle").equals(horseClip)) {
-                horseClip = moving ? "Walk" : "Idle";
-                horseAnim.animate(horseClip, -1, 1f, null, 0.25f);
-            }
-            horse.transform.setToTranslation(pos.x, y, pos.z).rotate(Vector3.Y, facing * MathUtils.radiansToDegrees);
-            horseAnim.update(dt);
-            inst.transform.set(horse.transform).translate(0f, RIDER_Y, 0f);
-            setClip("SentadoArreios", 1f);
-        } else {
-            inst.transform.setToTranslation(pos.x, y, pos.z).rotate(Vector3.Y, facing * MathUtils.radiansToDegrees);
-        }
+        inst.transform.setToTranslation(pos.x, y, pos.z).rotate(Vector3.Y, facing * MathUtils.radiansToDegrees);
         anim.update(dt);
     }
 

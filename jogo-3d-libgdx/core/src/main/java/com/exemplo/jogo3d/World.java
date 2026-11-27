@@ -123,8 +123,6 @@ public class World {
         House(Matrix4 t) { this.t = t; this.inv = new Matrix4(t).inv(); }
     }
     final Array<House> houses = new Array<>();
-    /** Carroças dos cercados (cada uma pode ser presa a um cavalo). */
-    final Array<Cart> carts = new Array<>();
     /** Cercados de arame farpado em volta das casas (com porteira). */
     final FenceSystem fences = new FenceSystem();
     private final Array<float[]> enclosureCenters = new Array<>();
@@ -133,26 +131,14 @@ public class World {
 
     private final Array<Model> terrainModels = new Array<>();
     private Model casaModel;   // casa de taipa (modelo real importado)
-    private Model troughModel; // cocho de madeira (1,84 m)
-    private Model postModel;   // morão de madeira, para amarrar o animal
     private Model cartModel;   // carroça de madeira (2,2 x 2,8 m)
-    private Model horseModel;  // cavalo (estático, 1,72 m de altura)
-    private Model donkeyModel; // donkey (1,86 m de comprimento)
-    private Model ropeModel;   // corda do donkey até o morão (criada na hora)
-    private ModelInstance donkeyInstance;
-    private AnimationController donkeyAnim;
     // Enfeites das casas, árvores secas e fogo
     final Array<HouseDecor> decors = new Array<>();
-    private Model stoveModel, hammockModel, benchModel, doorModel, treeModel, pole, floorModel;
+    private Model stoveModel, benchModel, doorModel, treeModel, pole, floorModel;
     private Fire fire;
     /** Pedaços do terreno e a estrada: estes são sempre desenhados (a origem deles não serve para o corte por distância). */
     private final Array<ModelInstance> terrainParts = new Array<>();
     boolean isTerrainPart(ModelInstance mi) { return terrainParts.contains(mi, true); }
-    /** Montarias do mundo: o donkey do estábulo e os cavalos (cada um pode ser montado). */
-    final Array<Riding.Mount> mounts = new Array<>();
-    private ModelInstance ropeInstance;
-    private final Vector3 donkeyStart = new Vector3();
-    private float donkeyStartFacingDeg = 0f;
     private Texture dirtTexture;
     // Açude seco e cacimba (escolhidos em create, antes do terreno)
     boolean hasDam = false, hasWell = false;
@@ -733,10 +719,7 @@ public class World {
         }
         fences.create();
         loadWallModel();
-        troughModel = ModelIO.load("models/cocho.g3dj");
         stoveModel = ModelIO.load("models/fogao.g3dj");
-        hammockModel = HouseDecor.buildHammock();
-        loaded.add(hammockModel);
         floorModel = HouseDecor.buildFloor();
         loaded.add(floorModel);
         benchModel = ModelIO.load("models/banco.g3dj");
@@ -749,10 +732,7 @@ public class World {
                 ModelIO.load("models/cactus0.g3dj"),
                 ModelIO.load("models/cactus1.g3dj"),
                 ModelIO.load("models/cactus2.g3dj")};
-        postModel = buildPostModel();
         cartModel = ModelIO.load("models/carroca.g3dj");
-        horseModel = ModelIO.load("models/horse.g3dj");
-        donkeyModel = ModelIO.load("models/donkey.g3dj");
         // Casas ao lado da estrada, nos dois lados, sempre longe uma da outra; a porta fica voltada para a estrada
         final float[][] houseSpots = {
                 {-30f, 1f}, {30f, -1f}, {-90f, -1f}, {-150f, 1f}, {150f, -1f},
@@ -767,7 +747,7 @@ public class World {
             pocoModel = ModelIO.load("models/poco/poco.g3dj");
             loaded.add(pocoModel);
         }
-        town = new Town(this, casaModel, benchModel, treeModel, pocoModel, horseModel);
+        town = new Town(this, casaModel, benchModel, treeModel, pocoModel);
         town.build();
         // Avião do battle royale: voa sobre o mapa com turbulência, turbinas girando e rastros de vento
         airplane = new Airplane();
@@ -939,15 +919,6 @@ public class World {
             if (d < bestD) { bestD = d; best = decors.get(i); }
         }
         return best;
-    }
-
-    /** Rede ao alcance do jogador (para mostrar DEITAR), ou null. */
-    HouseDecor nearHammockFree(Vector3 p) {
-        for (int i = 0; i < decors.size; i++) {
-            HouseDecor d = decors.get(i);
-            if (d.lie == HouseDecor.Lie.FREE && d.nearHammock(p)) return d;
-        }
-        return null;
     }
 
     /**
@@ -1513,10 +1484,9 @@ public class World {
         houses.add(new House(t));
 
         // Enfeites: fogão (com fogo e fumaça), rede, banco e porta
-        HouseDecor dec = new HouseDecor(t, yaw, stoveModel, hammockModel, benchModel, doorModel);
+        HouseDecor dec = new HouseDecor(t, yaw, stoveModel, benchModel, doorModel);
         decors.add(dec);
         instances.add(dec.stove);
-        instances.add(dec.hammock);
         instances.add(dec.bench);
         instances.add(dec.door);
         fire.addSource(dec.flameSource(), dec.smokeSource());
@@ -1532,117 +1502,13 @@ public class World {
 
         // (sem cercado: as casas ficam abertas para o battle royale)
 
-        // Primeiro cercado: estábulo, com morão e cocho do lado esquerdo (dentro do cercado)
-        if (houses.size == 1) addStable(bestX, y, bestZ, yaw);
-
-        // Carroça em cada cercado, ao lado da casa (dentro do cercado, frente = +z)
+        // Carroça decorativa ao lado da casa (parada, sem reboque): colisão só na caixa
         Matrix4 enc = new Matrix4().setToTranslation(bestX, y, bestZ).rotate(Vector3.Y, yaw);
         Vector3 c = new Vector3(6f, 0f, -3f).mul(enc);
         ModelInstance cart = new ModelInstance(cartModel);
+        cart.transform.setToTranslation(c.x, heightAt(c.x, c.z), c.z).rotate(Vector3.Y, yaw).scale(1.3f, 1.3f, 1.3f);
         instances.add(cart);
-        Obstacle cobs = new Obstacle(c.x, c.z, 1.9f, heightAt(c.x, c.z), 2.2f);
-        obstacles.add(cobs);
-        Cart cc = new Cart(cart, cobs);
-        cc.setRest(this, c.x, c.z, yaw * MathUtils.degreesToRadians);
-        carts.add(cc);
-
-        // Cavalo em só algumas casas (3ª, 6ª e 8ª), parado dentro do cercado
-        if (houses.size == 3 || houses.size == 6 || houses.size == 8) {
-            Vector3 h = new Vector3(-5f, 0f, 3f).mul(enc);
-            ModelInstance horse = new ModelInstance(horseModel);
-            horse.transform.setToTranslation(h.x, heightAt(h.x, h.z), h.z).rotate(Vector3.Y, yaw);
-            instances.add(horse);
-            AnimationController horseAnim = new AnimationController(horse);
-            horseAnim.animate("Idle", -1, 1f, null, 0.2f);
-            mounts.add(new Riding.Mount(horse, horseAnim, null, new Vector3(h.x, 0f, h.z), yaw,
-                    2.33f, 0.0f, 1.0f, 1.8f, 9f, true, -1.31f, 2.13f));
-        }
-    }
-
-    /**
-     * Estábulo do primeiro cercado (coordenadas locais do cercado, frente = +z):
-     * morão à esquerda, cocho na frente dele e o donkey amarrado pelo pescoço ao morão, com a cabeça sobre o cocho.
-     */
-    private void addStable(float ex, float ey, float ez, float yaw) {
-        Matrix4 enc = new Matrix4().setToTranslation(ex, ey, ez).rotate(Vector3.Y, yaw);
-        Vector3 p = new Vector3(-7.2f, 0f, -3.2f).mul(enc);
-        ModelInstance post = new ModelInstance(postModel);
-        post.transform.setToTranslation(p.x, heightAt(p.x, p.z), p.z).rotate(Vector3.Y, yaw);
-        instances.add(post);
-        obstacles.add(new Obstacle(p.x, p.z, 0.2f, heightAt(p.x, p.z), 1.6f));
-
-        Vector3 t = new Vector3(-5.5f, 0f, -5f).mul(enc);
-        ModelInstance trough = new ModelInstance(troughModel);
-        trough.transform.setToTranslation(t.x, heightAt(t.x, t.z), t.z).rotate(Vector3.Y, yaw);
-        instances.add(trough);
-        obstacles.add(new Obstacle(t.x, t.z, 0.9f, heightAt(t.x, t.z), 0.9f));
-
-        // Donkey: o modelo tem a cabeça em +z e o centro em z = 0,33; gira 180° para olhar o cocho
-        // Focinho sobre o centro do cocho: na pose de comer o focinho fica 0,77 m à frente da origem do modelo
-        Vector3 d = new Vector3(-5.5f, 0f, -3.84f).mul(enc);
-        ModelInstance donkey = new ModelInstance(donkeyModel);
-        donkey.transform.setToTranslation(d.x, heightAt(d.x, d.z), d.z).rotate(Vector3.Y, yaw + 180f);
-        instances.add(donkey);
-        donkeyInstance = donkey;
-        donkeyAnim = new AnimationController(donkey);
-        donkeyAnim.animate("Eat", -1, 1f, null, 0.2f);
-        donkeyStart.set(d);
-        donkeyStartFacingDeg = yaw + 180f;
-        mounts.add(new Riding.Mount(donkey, donkeyAnim, ropeInstance, new Vector3(d.x, 0f, d.z), yaw + 180f,
-                1.83f, 0.15f, 1.13f, 1.4f, 2.6f, false, -0.9f, 1.89f));
-
-        // Corda: do topo do morão até o pescoço do donkey, com um pouco de folga
-        Vector3 top = new Vector3(p.x, heightAt(p.x, p.z) + 1.45f, p.z);
-        Vector3 head = new Vector3(0f, 1.875f, 1.08f).mul(donkey.transform);   // ponto do cabresto na cabeça (1,5x)
-        ropeModel = buildRope(top, head);
-        ModelInstance rope = new ModelInstance(ropeModel);
-        instances.add(rope);
-        ropeInstance = rope;
-    }
-
-    /** Corda com folga: polilinha caindo um pouco no meio, feita de pequenos prismas. */
-    private static Model buildRope(Vector3 a, Vector3 b) {
-        ModelBuilder mb = new ModelBuilder();
-        mb.begin();
-        MeshPartBuilder pb = mb.part("corda", GL20.GL_TRIANGLES, Usage.Position | Usage.Normal,
-                new Material(ColorAttribute.createDiffuse(0.62f, 0.5f, 0.3f, 1f)));
-        int n = 10;
-        float len = a.dst(b);
-        float sag = Math.max(0.15f, 0.12f * len);
-        Vector3 prev = null;
-        for (int i = 0; i <= n; i++) {
-            float t = i / (float) n;
-            Vector3 q = new Vector3(a).lerp(b, t);
-            q.y -= sag * 4f * t * (1f - t);
-            if (prev != null) {
-                Vector3 dir = new Vector3(q).sub(prev);
-                float l = dir.len();
-                Vector3 mid = new Vector3(prev).add(q).scl(0.5f);
-                Quaternion rot = new Quaternion().setFromCross(Vector3.Z, dir.nor());
-                Matrix4 m = new Matrix4().set(mid, rot).scale(0.025f, 0.025f, l);
-                pb.box(m);
-            }
-            prev = q;
-        }
-        return mb.end();
-    }
-
-    // Acesso ao donkey para o sistema de montaria (Riding)
-    ModelInstance getDonkey() { return donkeyInstance; }
-    AnimationController getDonkeyAnim() { return donkeyAnim; }
-    ModelInstance getRope() { return ropeInstance; }
-    Vector3 getDonkeyStart() { return donkeyStart; }
-    float getDonkeyStartFacingDeg() { return donkeyStartFacingDeg; }
-
-    /** Morão: poste de madeira de 1,6 m, com um pequeno topo. */
-    private static Model buildPostModel() {
-        ModelBuilder b = new ModelBuilder();
-        b.begin();
-        MeshPartBuilder pb = b.part("morao", GL20.GL_TRIANGLES, Usage.Position | Usage.Normal,
-                new Material(ColorAttribute.createDiffuse(0.33f, 0.21f, 0.11f, 1f)));
-        pb.box(0f, 0.8f, 0f, 0.16f, 1.6f, 0.16f);
-        pb.box(0f, 1.62f, 0f, 0.22f, 0.06f, 0.22f);
-        return b.end();
+        obstacles.add(new Obstacle(c.x, c.z, 1.9f, heightAt(c.x, c.z), 2.2f));
     }
 
     /** Diferença de altura dentro da área do cercado (20 m x 16 m): quanto menor, mais plano. */
@@ -1665,39 +1531,9 @@ public class World {
                 + Math.abs(heightAt(x, z + e) - heightAt(x, z - e)) / (2f * e);
     }
 
-    /** Empurra o jogador (círculo) para fora de qualquer obstáculo que ele esteja tocando. */
-    /** Empurra o ponto (plano XZ) para fora de um segmento, à distância mínima 'min'. */
-    private static void pushOutSegment(Vector3 p, float ax, float az, float bx, float bz, float min) {
-        float sx = bx - ax, sz = bz - az;
-        float len2 = sx * sx + sz * sz;
-        if (len2 < 1e-9f) return;
-        float t = Math.max(0f, Math.min(1f, ((p.x - ax) * sx + (p.z - az) * sz) / len2));
-        float qx = ax + sx * t, qz = az + sz * t;
-        float dx = p.x - qx, dz = p.z - qz;
-        float d2 = dx * dx + dz * dz;
-        if (d2 >= min * min) return;
-        float d = (float) Math.sqrt(d2);
-        if (d < 1e-5f) { dx = -sz; dz = sx; d = (float) Math.sqrt(len2); }
-        p.x = qx + dx / d * min;
-        p.z = qz + dz / d * min;
-    }
-
     public void resolveCollisions(Vector3 p, float playerRadius) {
-        resolveCollisionsExcept(p, playerRadius, null);
-    }
-
-    /** Como resolveCollisions, mas ignora a cápsula de uma montaria (usado pelo próprio animal). */
-    void resolveCollisionsExcept(Vector3 p, float playerRadius, Riding.Mount skip) {
         fences.resolveCollisions(p, playerRadius);   // arame farpado dos cercados
         for (int i = 0; i < decors.size; i++) decors.get(i).resolveDoor(p, playerRadius);   // portas fechadas
-        // Corpo dos animais (cavalos e donkey): cápsula ao longo do corpo, que acompanha o animal
-        for (int i = 0; i < mounts.size; i++) {
-            Riding.Mount mt = mounts.get(i);
-            if (mt == skip) continue;
-            Vector3 a = new Vector3(0f, 0f, mt.zMin).mul(mt.inst.transform);
-            Vector3 b = new Vector3(0f, 0f, mt.zMax).mul(mt.inst.transform);
-            pushOutSegment(p, a.x, a.z, b.x, b.z, playerRadius + 0.32f);
-        }
         // Paredes das casas: entra pela abertura da porta, não pelas paredes
         for (int h = 0; h < houses.size; h++) {
             House house = houses.get(h);
@@ -1752,18 +1588,12 @@ public class World {
         java.util.List<Model> all = new java.util.ArrayList<>();
         for (int i = 0; i < terrainModels.size; i++) all.add(terrainModels.get(i));
         all.add(casaModel);
-        all.add(troughModel);
-        all.add(postModel);
         all.add(cartModel);
-        all.add(horseModel);
-        all.add(donkeyModel);
-        all.add(ropeModel);
         all.add(damModel);
         all.add(guardModel);
         all.add(signModel);
         all.add(wellModel);
         all.add(stoveModel);
-        all.add(hammockModel);
         all.add(benchModel);
         all.add(treeModel);
         all.add(pole);

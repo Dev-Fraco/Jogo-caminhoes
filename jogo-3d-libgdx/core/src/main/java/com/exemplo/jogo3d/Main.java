@@ -65,15 +65,7 @@ public class Main extends ApplicationAdapter {
     private final String[] setIds = new String[12];
     private final float[][] setRects = new float[12][4];
     private int setN = 0;             // botão AGACHAR (agachado enquanto parado)
-    private Riding mountTarget = null;            // montaria ao alcance (mostra o botão MONTAR)
     private HouseDecor doorTarget = null;         // porta ao alcance (mostra o botão da porta)
-    private HouseDecor hammockTarget = null;      // rede ao alcance (mostra DEITAR)
-    private Cart cartTarget = null;               // carroça solta ao alcance (mostra PRENDER)
-    private Riding cartHorseTarget = null;        // cavalo que vai prender essa carroça
-    private Riding cartOptionsHorse = null;       // cavalo com carroça presa ao alcance (mostra as duas opções)
-    private Cart hitchCart = null;                // carroça sendo presa agora
-    private Riding hitchHorse = null;
-    private float hitchT = 0f;                    // tempo da animação de prender (s)
     private Weapons.Pickup weaponTarget = null;   // arma no chão ao alcance (mostra PEGAR)
     private Items.Pickup itemTarget = null;       // item no chão ao alcance (mostra PEGAR)
     private Parachute chute;                      // paraquedas (abre a 100 m do chão)
@@ -150,9 +142,7 @@ public class Main extends ApplicationAdapter {
     private boolean inPlane = false, skydiving = false, landing = false;
     private final Vector3 fallVel = new Vector3();
     private static final float TERMINAL = 22f;    // velocidade máxima de queda (m/s)
-    private HouseDecor lyingIn = null;            // casa onde o personagem está deitado na rede
     private float camDist = CAMERA_DISTANCE;      // distância da câmera, suavizada
-    private final Array<Riding> ridings = new Array<>();
     private final Hud hud = new Hud();
     private OrthographicCamera hudCamera;
     private ShapeRenderer shapes;
@@ -224,12 +214,6 @@ public class Main extends ApplicationAdapter {
             loadWorld(false);   // battle royale: o avião, o mapa e o jogo começam aqui
         } catch (Throwable t) {
             errorText = "ERRO NOS MORADORES:\n" + describe(t);
-        }
-
-        try {
-            for (int i = 0; i < world.mounts.size; i++) ridings.add(new Riding(world, world.mounts.get(i)));
-        } catch (Throwable t) {
-            errorText = "ERRO NA MONTARIA:\n" + describe(t);
         }
 
         player.spawn(0f, 0f, world.heightAt(0f, 0f));
@@ -333,23 +317,6 @@ public class Main extends ApplicationAdapter {
 
         // Durante a abertura da porteira, o jogo controla o personagem
         boolean busy = world.fences.isBusy();
-        boolean ridingActive = false;
-        for (int i = 0; i < ridings.size; i++) {
-            Riding r = ridings.get(i);
-            r.update(dt, inX, inY, yaw, runPointer >= 0, jumpPressed, player, character);
-            if (r.isMounted() || r.isBusy()) ridingActive = true;
-        }
-        // Prender a carroça: a animação toca e, no fim, a carroça fica presa ao cavalo
-        if (hitchT > 0f) {
-            hitchT -= dt;
-            busy = true;
-            if (hitchT <= 0f) {
-                hitchHorse.attachCart(hitchCart);
-                hitchHorse = null;
-                hitchCart = null;
-                character.endOnce();
-            }
-        }
         // Morto: fica caído até tocar na tela
         if (survival != null && survival.dead) {
             busy = true;
@@ -410,41 +377,23 @@ public class Main extends ApplicationAdapter {
             if (chute.phase == Parachute.Phase.COLLAPSING) chute.updateCollapse(dt);
             if (chute.active()) chute.place();
         }
-        boolean lying = lyingIn != null;
-        if (!busy && !ridingActive && !lying) player.update(dt, inX, inY, yaw, jumpPressed, runToggle, world);
-        if (lying) {
-            // Deitado: fica na rede, balançando, até levantar
-            player.pos.set(lyingIn.lieSpot());
-            player.facing = lyingIn.lieFacing();
-            player.speed = 0f;
-            player.grounded = true;
-            character.setSwing(lyingIn.swing);
-            if (lyingIn.lie == HouseDecor.Lie.LYING_IN && character.onceFinished()) lyingIn.lie = HouseDecor.Lie.LYING;
-            if (lyingIn.lie == HouseDecor.Lie.GETTING_UP && character.onceFinished()) {
-                character.endOnce();
-                character.setSwing(0f);
-                lyingIn.lie = HouseDecor.Lie.FREE;
-                lyingIn = null;
-            }
-        } else {
-            character.setSwing(0f);
-        }
+        if (!busy) player.update(dt, inX, inY, yaw, jumpPressed, runToggle, world);
         // Itens em uso: cura e beber se abaixam e cancelam ao andar
         if (survival != null) {
-            boolean moved = player.speed > 0.7f || jumpPressed || !player.grounded || ridingActive || skydiving || parachuting;
-            survival.restBonus = camp.warmth(player.pos) + (lyingIn != null && lyingIn.lie == HouseDecor.Lie.LYING ? 3f : 0f);
+            boolean moved = player.speed > 0.7f || jumpPressed || !player.grounded || skydiving || parachuting;
+            survival.restBonus = camp.warmth(player.pos);
             int done = survival.update(dt, moved);
             if (done >= 0 && world.items != null) world.items.consume(done);
             player.speedMul = survival.speedMul();
         }
         boolean kneelUse = survival != null && survival.usingStill();
-        if (!ridingActive) character.setCrouch((crouchOn && player.speed < 0.25f) || kneelUse ? 1f : 0f);
+        character.setCrouch((crouchOn && player.speed < 0.25f) || kneelUse ? 1f : 0f);
         character.setReach(world.fences.reach());
         if (!inPlane) character.update(player, dt);
         // ---------- Combate ----------
         boolean dead = survival != null && survival.dead;
         combat = world.weapons != null && world.weapons.armed() && !inPlane && !skydiving && !parachuting && !landing
-                && !ridingActive && !lying && !dead && !ui;
+                && !dead && !ui;
         if (!combat) adsOn = false;
         if (combat) {
             player.facing = yaw;   // armado: o corpo acompanha a mira
@@ -536,7 +485,7 @@ public class Main extends ApplicationAdapter {
                     aiming = false;
                     grenades.clearAim();
                 } else {
-                    if (player.grounded && !ridingActive) player.facing = yaw;
+                    if (player.grounded) player.facing = yaw;
                     gFrom.set(player.pos).add(MathUtils.sin(player.facing) * 0.35f, 1.75f, MathUtils.cos(player.facing) * 0.35f);
                     Grenades.throwVelocity(camera, gVel);
                     grenades.aim(world, gFrom, gVel);
@@ -574,53 +523,17 @@ public class Main extends ApplicationAdapter {
             windSound.setPitch(windSoundId, 0.9f + 0.3f * windVol);
         }
 
-        prompt = (busy || ui || ridingActive || lying) ? null : world.fences.nearPrompt(player.pos);
-        doorTarget = (busy || ui || ridingActive || lying || prompt != null) ? null : world.nearDoor(player.pos);
-        hammockTarget = (busy || ui || ridingActive || lying || prompt != null || doorTarget != null) ? null : world.nearHammockFree(player.pos);
-        mountTarget = null;
-        if (prompt == null && doorTarget == null && hammockTarget == null && !busy && !ui && !ridingActive && !lying) {
-            for (int i = 0; i < ridings.size && mountTarget == null; i++) {
-                if (ridings.get(i).canMount(player.pos)) mountTarget = ridings.get(i);
-            }
-        }
+        prompt = (busy || ui) ? null : world.fences.nearPrompt(player.pos);
+        doorTarget = (busy || ui || prompt != null) ? null : world.nearDoor(player.pos);
 
-        // Carroça: prender uma carroça solta no cavalo, ou (com carroça presa) tirar ou sentar nela
-        cartTarget = null;
-        cartHorseTarget = null;
-        cartOptionsHorse = null;
-        if (prompt == null && doorTarget == null && hammockTarget == null && !busy && !ui && !ridingActive && !lying && hitchT <= 0f) {
-            for (int i = 0; i < ridings.size && cartOptionsHorse == null; i++) {
-                Riding r = ridings.get(i);
-                if (r.hasCart() && r.isNear(player.pos, 3.2f)) cartOptionsHorse = r;
-            }
-            if (cartOptionsHorse == null) {
-                for (int c = 0; c < world.carts.size && cartTarget == null; c++) {
-                    Cart ct = world.carts.get(c);
-                    if (ct.attached || Math.hypot(ct.pos.x - player.pos.x, ct.pos.z - player.pos.z) > 3.5) continue;
-                    for (int i = 0; i < ridings.size && cartTarget == null; i++) {
-                        Riding r = ridings.get(i);
-                        if (!r.hasCart() && !r.isMounted() && !r.isBusy() && r.distTo(ct.pos) < 6f) {
-                            cartTarget = ct;
-                            cartHorseTarget = r;
-                        }
-                    }
-                }
-            }
-            if (cartOptionsHorse != null || cartTarget != null) mountTarget = null;
-        }
-
-        // Arma no chão ao alcance
+        // Arma e item no chão ao alcance
         weaponTarget = null;
-        if (world.weapons != null && prompt == null && doorTarget == null && hammockTarget == null && cartTarget == null
-                && cartOptionsHorse == null && !busy && !ui && !ridingActive && !lying) {
+        if (world.weapons != null && prompt == null && doorTarget == null && !busy && !ui) {
             weaponTarget = world.weapons.nearest(player.pos);
-            if (weaponTarget != null) mountTarget = null;
         }
         itemTarget = null;
-        if (world.items != null && weaponTarget == null && prompt == null && doorTarget == null && hammockTarget == null
-                && cartTarget == null && cartOptionsHorse == null && !busy && !ui && !ridingActive && !lying) {
+        if (world.items != null && weaponTarget == null && prompt == null && doorTarget == null && !busy && !ui) {
             itemTarget = world.items.nearest(player.pos);
-            if (itemTarget != null) mountTarget = null;
         }
 
         // Direção da câmera (usada também para a câmera ficar atrás do jogador)
@@ -942,7 +855,7 @@ public class Main extends ApplicationAdapter {
             }
             case "deitar":
                 if (prone == 1) standUp();
-                else if (prone == 0 && player.grounded && !inPlane && !skydiving && !parachuting && !landing && lyingIn == null) {
+                else if (prone == 0 && player.grounded && !inPlane && !skydiving && !parachuting && !landing) {
                     prone = 1;
                     crouchOn = false;
                     runToggle = false;
@@ -992,32 +905,6 @@ public class Main extends ApplicationAdapter {
                     prompt = null;
                 } else if (doorTarget != null) {
                     doorTarget.toggleDoor();
-                } else if (hammockTarget != null) {
-                    // Deitar: vai para a rede e a animação de deitar toca uma vez
-                    lyingIn = hammockTarget;
-                    lyingIn.lie = HouseDecor.Lie.LYING_IN;
-                    lyingIn.lieT = 0f;
-                    character.playOnce("DeitarRede");
-                    hammockTarget = null;
-                } else if (lyingIn != null && lyingIn.lie == HouseDecor.Lie.LYING) {
-                    // Levantar: animação de levantar e volta ao normal
-                    lyingIn.lie = HouseDecor.Lie.GETTING_UP;
-                    character.playOnce("GetUp");
-                } else if (cartOptionsHorse != null) {
-                    // Metade esquerda da caixa: tirar a carroça; metade direita: sentar nela
-                    if (x < W / 2f) cartOptionsHorse.detachCart();
-                    else cartOptionsHorse.sitCart(player);
-                    cartOptionsHorse = null;
-                } else if (cartTarget != null) {
-                    hitchCart = cartTarget;
-                    hitchHorse = cartHorseTarget;
-                    hitchT = 2.5f;
-                    character.playOnce("IdleKneel");
-                    cartTarget = null;
-                    cartHorseTarget = null;
-                } else if (mountTarget != null) {
-                    mountTarget.startMount(player);
-                    mountTarget = null;
                 }
                 return;
             case "":
@@ -1050,12 +937,10 @@ public class Main extends ApplicationAdapter {
         hud.jumpDown = jumpPointer >= 0;
         hud.joyX = joyX;
         hud.joyY = joyY;
-        boolean canGetUp = lyingIn != null && lyingIn.lie == HouseDecor.Lie.LYING;
         boolean dead = survival != null && survival.dead;
         trainBoxNear = training && !inPlane && !dead
                 && Math.hypot(player.pos.x - World.TRAIN_BOX_X, player.pos.z - World.TRAIN_BOX_Z) < 2.6;
-        hud.show("abrir", !dead && (trainBoxNear || inPlane || prompt != null || mountTarget != null || doorTarget != null
-                || hammockTarget != null || canGetUp || cartTarget != null || cartOptionsHorse != null));
+        hud.show("abrir", !dead && (trainBoxNear || inPlane || prompt != null || doorTarget != null));
         hud.show("coletar", !dead && itemTarget != null);
         hud.show("trocar", !dead && world.weapons != null && world.weapons.hasOtherWeapon());
         hud.show("parede", !dead && !inPlane && !skydiving && !parachuting && !landing);
@@ -1072,12 +957,7 @@ public class Main extends ApplicationAdapter {
         if (inPlane) hud.promptText = "SALTAR DO AVIÃO";
         else if (trainBoxNear) hud.promptText = "EQUIPAMENTOS";
         else if (prompt != null) hud.promptText = prompt.label();
-        else if (cartOptionsHorse != null) hud.promptText = "TIRAR CARROÇA  |  SENTAR NA CARROÇA";
-        else if (cartTarget != null) hud.promptText = "PRENDER CARROÇA";
-        else if (mountTarget != null) hud.promptText = "MONTAR";
         else if (doorTarget != null) hud.promptText = doorTarget.doorOpen() ? "FECHAR PORTA" : "ABRIR PORTA";
-        else if (hammockTarget != null) hud.promptText = "DEITAR NA REDE";
-        else if (canGetUp) hud.promptText = "LEVANTAR";
         if (mapUi != null) mapUi.drawMap(batch, shapes, hud, player.facing);   // mapa por baixo da moldura
         hud.draw(batch, shapes, font);
         if (mapUi != null) mapUi.drawCompass(batch, shapes, font, hud, yaw);

@@ -27,7 +27,7 @@ final class Town {
     static final float X = World.TOWN_X;
 
     private final World w;
-    private final Model casa, bench, tree, poco, horseModel;
+    private final Model casa, bench, tree, poco;
     private final Array<Model> built = new Array<>();
     private final Array<Npc> npcs = new Array<>();
     private final Random rnd = new Random(1915L);
@@ -50,13 +50,12 @@ final class Town {
     private static final Color SOIL = new Color(0.33f, 0.22f, 0.13f, 1f);
     private static final Color PLANT = new Color(0.55f, 0.55f, 0.25f, 1f);
 
-    Town(World w, Model casa, Model bench, Model tree, Model poco, Model horseModel) {
+    Town(World w, Model casa, Model bench, Model tree, Model poco) {
         this.w = w;
         this.casa = casa;
         this.bench = bench;
         this.tree = tree;
         this.poco = poco;
-        this.horseModel = horseModel;
     }
 
     private static float rz(float x) { return World.roadZ(x); }
@@ -305,12 +304,7 @@ final class Town {
         add(new Npc(person, 70f, rz(70f) - 5.2f, white, brown, black).script(sidewalk(-5.2f, true)));
         add(new Npc(person, 130f, rz(130f) + 5.2f, beige, grey, darkBrown).script(sidewalk(5.2f, false)));
 
-        // 2) Um a cavalo, indo e voltando pela estrada da cidade
-        Npc rider = new Npc(person, 62f, rz(62f) - 1.6f, red, denim, black).ride(horseModel);
-        rider.script(roadLoop());
-        add(rider);
-
-        // 3) Dois buscando água no poço da praça (vão, ajoelham para puxar o balde e voltam para casa)
+        // 2) Dois buscando água no poço da praça (vão, ajoelham para puxar o balde e voltam para casa)
         float hx1 = X - 15f, hz1 = sqZ - 3f;   // porta da casa a oeste da praça
         add(new Npc(person, hx1, hz1, blue, brown, darkBrown).script(
                 Npc.Step.go(X - 6f, sqZ - 1f), Npc.Step.go(X - 1.9f, sqZ), Npc.Step.face(X, sqZ),
@@ -347,7 +341,6 @@ final class Town {
     private void add(Npc n) {
         npcs.add(n);
         w.instances.add(n.inst);
-        if (n.horseInstance() != null) w.instances.add(n.horseInstance());
     }
 
     /** Calçada ao longo da rua (segue a curva da estrada), ida e volta, parando nas pontas. */
@@ -358,16 +351,6 @@ final class Town {
         s.add(Npc.Step.act("Idle", 5f));
         for (float x = b; dir > 0 ? x >= a : x <= a; x -= dir * 10f) s.add(Npc.Step.go(x, rz(x) + off));
         s.add(Npc.Step.act("IdleLook", 3.5f));
-        return s.toArray(Npc.Step.class);
-    }
-
-    /** Estrada da cidade a cavalo: vai por uma faixa e volta pela outra. */
-    private Npc.Step[] roadLoop() {
-        Array<Npc.Step> s = new Array<>();
-        for (float x = 62f; x <= 138f; x += 8f) s.add(Npc.Step.go(x, rz(x) - 1.6f));
-        s.add(Npc.Step.act("Idle", 3f));
-        for (float x = 138f; x >= 62f; x -= 8f) s.add(Npc.Step.go(x, rz(x) + 1.6f));
-        s.add(Npc.Step.act("Idle", 3f));
         return s.toArray(Npc.Step.class);
     }
 

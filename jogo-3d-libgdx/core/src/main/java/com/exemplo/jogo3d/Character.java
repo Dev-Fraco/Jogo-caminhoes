@@ -19,7 +19,6 @@ import com.badlogic.gdx.utils.JsonReader;
  * Poses por código, em cima da animação normal (e desfeitas a cada quadro, para não acumular):
  * - braço esticado (abrir a porteira);
  * - agachado (preparar o pulo para montar);
- * - sentado (montado no donkey).
  */
 public class Character {
 
@@ -40,8 +39,7 @@ public class Character {
     // Poses por código (graus): sinal negativo em X = para a frente
     private float reach = 0f;     // 0..1: braço direito esticado
     private float crouch = 0f;    // 0..1: agachado
-    private boolean sitting = false;
-    // Animação única (deitar, levantar) e balanço da rede
+    // Animação única (deitar, levantar)
     private String onceClip = null;
     private float onceT = 0f, onceDur = 1f;
     private boolean onceDone = false;
@@ -61,8 +59,6 @@ public class Character {
         armed = a;
         if (onceClip == null) applyClip();
     }   // animação única que repete (ex.: queda livre)
-    private float swing = 0f;      // radianos: balanço em torno do quadril (rede)
-    private float swingPivotY = 1.15f;   // altura das ancoragens da rede, em relação aos pés deitados
 
     private final Quaternion tmpQ = new Quaternion();
     private final java.util.Map<String, Node> nodes = new java.util.HashMap<>();
@@ -145,7 +141,7 @@ public class Character {
      */
     private void footsteps(Player p) {
         com.badlogic.gdx.graphics.g3d.utils.AnimationController.AnimationDesc cur = anim.current;
-        boolean stepping = onceClip == null && !sitting && p.grounded
+        boolean stepping = onceClip == null && p.grounded
                 && (current == State.WALK || current == State.RUN) && cur != null && cur.animation != null
                 && cur.animation.duration > 0f;
         if (!stepping) {
@@ -215,24 +211,13 @@ public class Character {
         return out.set(0f, 0f, 0f).mul(n.globalTransform).mul(instance.transform);
     }
 
-    /** Balanço da rede (radianos), em torno do quadril. */
-    public void setSwing(float rad) {
-        swing = rad;
-    }
-
     /**
      * Atualiza pose e animação a partir do estado do Player.
-     * Se o personagem estiver montado (sitting), o Player não é usado para a pose de andar.
      */
     public void update(Player p, float dt) {
         smoothArm(dt);
         instance.transform.setToTranslation(p.pos.x, p.pos.y, p.pos.z)
                 .rotate(Vector3.Y, p.facing * MathUtils.radiansToDegrees);
-        if (swing != 0f) {
-            // balança em torno de um eixo na altura do quadril (da rede), no sentido do corpo
-            instance.transform.translate(0f, swingPivotY, 0f).rotate(Vector3.Z, swing * MathUtils.radiansToDegrees)
-                    .translate(0f, -swingPivotY, 0f);
-        }
         if (tiltPitch != 0f || tiltRoll != 0f) {
             // pendurado no paraquedas: balança em torno do centro do velame
             instance.transform.translate(0f, tiltPivot, 0f).rotate(Vector3.X, -tiltPitch).rotate(Vector3.Z, tiltRoll)
@@ -300,7 +285,7 @@ public class Character {
 
     /** Parado por IDLE_WAIT segundos: toca uma animação de espera; ao acabar, sorteia outra (sem repetir a anterior). */
     private void updateVariants(float dt, Player p) {
-        boolean still = !armed && !sitting && p.grounded && current == State.IDLE && p.speed < 0.25f
+        boolean still = !armed && p.grounded && current == State.IDLE && p.speed < 0.25f
                 && crouch <= 0.001f && reach <= 0.001f;
         if (!still) {
             stillTime = 0f;
@@ -343,8 +328,8 @@ public class Character {
         if (armReload > 0.001f) localRot("RightUpperArm", ARM_RELOAD_AXIS, armReload * ARM_RELOAD_DEG);
         if (armLower > 0.001f) localRot("RightUpperArm", ARM_LOWER_AXIS, armLower * ARM_LOWER_DEG);
         if (lean > 0.001f) localRot("Spine1", Vector3.X, lean * 16f);   // corpo inclina para trás ao levar tiro
-        if (crouch > 0.001f || sitting) {
-            float c = sitting ? 1f : crouch;
+        if (crouch > 0.001f) {
+            float c = crouch;
             addX("Hips", -25f * c);
             addX("Spine", 10f * c);
             addX("LeftUpperLeg", -62f * c);
@@ -352,7 +337,6 @@ public class Character {
             addX("LeftLowerLeg", 70f * c);
             addX("RightLowerLeg", 70f * c);
         }
-        if (sitting) addX("Hips", -8f);
         for (java.util.Map.Entry<String, Quaternion> e : extra.entrySet()) {
             Node node = nodes.get(e.getKey());
             if (node == null) continue;
@@ -432,11 +416,6 @@ public class Character {
     /** 0 = em pé, 1 = agachado (para o pulo de montaria). */
     public void setCrouch(float c) {
         crouch = MathUtils.clamp(c, 0f, 1f);
-    }
-
-    /** Sentado sobre o donkey. */
-    public void setSitting(boolean s) {
-        sitting = s;
     }
 
     private void applyClip() {
