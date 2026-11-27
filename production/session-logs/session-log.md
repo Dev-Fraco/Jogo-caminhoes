@@ -5515,3 +5515,112 @@ eeea9d2 Registro da sessão gerado pelo estúdio (hook de fim de sessão)
 fca208d Claude Code Game Studios instalado como ferramenta (inativo na raiz do projeto)
 ---
 
+## Session End: 20261127_164416
+### Commits
+a5682b6 docs: registro da sessão (hook de fim de sessão)
+db2ec97 feat: sala personalizada com 15 rounds, loja de armas, espectador e placar
+19b4944 docs: registro da sessão (hook de fim de sessão)
+f85080d feat: caixas e containers aleatórios na ARENA LIVRE
+032eedd docs: registro da sessão (hook de fim de sessão)
+1c9e2c9 feat: SALA PERSONALIZADA (4x4 com amigos) com regras, telas e ARENA LIVRE (local)
+f5ce2db docs: registro da sessão (hook de fim de sessão)
+6baa603 docs: registro da sessão (hook de fim de sessão)
+8f8d69d docs: registro da sessão (hook de fim de sessão)
+f3dcbfe feat: tela Perfil do jogador no layout da arte enviada
+3829b8e docs: registro da sessão (hook de fim de sessão)
+a0ce495 feat: tela Perfil do jogador em tela cheia com o menu lateral (conteúdo vazio)
+fe5059b docs: registro da sessão (hook de fim de sessão)
+7c45746 feat: toque no perfil abre a tela Perfil do jogador (vazia por enquanto)
+40dca0d docs: registro da sessão (hook de fim de sessão)
+5deaad1 fix: clipe que o modelo não tem não derruba o jogo (erro ao usar emote no lobby)
+964b619 docs: registro da sessão (hook de fim de sessão)
+d04a367 docs: registro da sessão (hook de fim de sessão)
+e014ed3 docs: registro da sessão (hook de fim de sessão)
+a00f06e docs: registro da sessão (hook de fim de sessão)
+977c415 feat: símbolo do SEM LIMITES menor e painel do jogador encostado nele
+46cbf12 docs: registro da sessão (hook de fim de sessão)
+9ffff24 feat: símbolo SEM LIMITES no lugar do logo do lobby
+5613ea7 docs: registro da sessão (hook de fim de sessão)
+252ce77 feat: ícone do Reboladinha no espaço Desafio (sem nome)
+e43eaab docs: registro da sessão (hook de fim de sessão)
+3da6455 feat: ícones dos emotes na roda e rótulos com o nome do arquivo
+a7becd1 docs: registro da sessão (hook de fim de sessão)
+26772d3 docs: registro da sessão (hook de fim de sessão)
+05ba8a4 docs: registro da sessão (hook de fim de sessão)
+9bb31dd docs: registro da sessão (hook de fim de sessão)
+dc7a24b docs: registro da sessão (hook de fim de sessão)
+a072863 docs: registro da sessão (hook de fim de sessão)
+b61fe55 feat: roda de emotes no lobby (8 espaços, execução no modelo 3D)
+d0b7bb0 docs: registro da sessão (hook de fim de sessão)
+131fd38 docs: registro da sessão (hook de fim de sessão)
+b402009 docs: registro da sessão (hook de fim de sessão)
+eff0fed feat: lobby com o cenário e o personagem 3D em pé no centro
+a948db5 docs: registro da sessão (hook de fim de sessão)
+70dc770 feat: nome e ícone do app (SEM LIMITES)
+ae999fb docs: registro da sessão (hook de fim de sessão)
+6b74478 fix: andar relativo à câmera e abertura com a imagem inteira
+195dcc0 docs: registro da sessão (hook de fim de sessão)
+640d0fc docs: registro da sessão (hook de fim de sessão)
+79d9aa7 feat: agachar com a animação Crouching (retargetada do Mixamo)
+4abde59 docs: registro da sessão (hook de fim de sessão)
+6d84c14 docs: registro da sessão (hook de fim de sessão)
+f23f932 feat: sensi X e Y ao atirar (horizontal e vertical)
+7e8272d docs: registro da sessão (hook de fim de sessão)
+74edf25 fix: abertura aparece na tela (sem preto) e analógico anda sem girar
+af96a2b docs: registro da sessão (hook de fim de sessão)
+64932a8 docs: registro da sessão (hook de fim de sessão)
+2e32b8b docs: registro da sessão (hook de fim de sessão)
+baca80c feat: abertura aparece já no primeiro quadro, com música em loop
+0fe0326 docs: registro da sessão (hook de fim de sessão)
+39956ed fix: pegar outra arma não apaga a que já está equipada (arsenal do treino)
+a862b5a docs: registro da sessão (hook de fim de sessão)
+28ec72d fix: girar a câmera pelo botão de tiro não cancela a corrida
+cf9658d docs: registro da sessão (hook de fim de sessão)
+9cd2e14 feat: rotação estilo Free Fire: câmera livre parado e andando; correndo o corpo segue a câmera
+b0dd1a4 docs: registro da sessão (hook de fim de sessão)
+40756db feat: M1014 com agrupamento mais apertado e intervalo de 0,355 s
+64fd3eb docs: registro da sessão (hook de fim de sessão)
+da4a7b0 fix: volta a cadência de disparo das armas ao valor anterior
+26798d9 docs: registro da sessão (hook de fim de sessão)
+86b0979 docs: registro da sessão (hook de fim de sessão)
+48e3bb3 fix: mira desce para a barriga e a subida com o tiro apertado é 90% devolvida
+3f8e629 docs: registro da sessão (hook de fim de sessão)
+1f1a9b7 docs: registro da sessão (hook de fim de sessão)
+269b194 docs: registro da sessão (hook de fim de sessão)
+854d06f feat: AWM com regra própria (segurar abre a luneta, toque dispara) e transparência do HUD
+e5f2367 docs: registro da sessão (hook de fim de sessão)
+f218a0e feat: inventário com slots fixos e escolha ao pegar fuzil (HUD mantido)
+db444a2 docs: registro da sessão (hook de fim de sessão)
+1052cd0 feat: tela MIRA E SENSIBILIDADE com barras deslizantes (0 a 200)
+b74757a docs: registro da sessão (hook de fim de sessão)
+7485a83 feat: limite de 7 paredes de proteção; a oitava faz sumir a primeira
+ca1fcba docs: registro da sessão (hook de fim de sessão)
+fe32679 feat: aim assist na barriga e subida de capa pesada em qualquer sensibilidade
+8e16234 docs: registro da sessão (hook de fim de sessão)
+d1ed229 docs: registro da sessão (hook de fim de sessão)
+bb1542d chore: dobra o intervalo entre tiros de cada arma (exceto AWM)
+18b2937 docs: registro da sessão (hook de fim de sessão)
+e5c7680 docs: registro da sessão (hook de fim de sessão)
+f6efc1b docs: registro da sessão (hook de fim de sessão)
+4914bb5 feat: GROZA com dano 61/122/46, queda linear e proteção de capacete e colete
+fb3ea69 docs: registro da sessão (hook de fim de sessão)
+baf0b07 fix: cadência da SCAR-L em 10 tiros/s, independente do FPS
+2a94eed docs: registro da sessão (hook de fim de sessão)
+645d3fa feat: botão de troca rápida no HUD (alterna arma na mão e a última usada)
+4c2382f docs: registro da sessão (hook de fim de sessão)
+fe5ab79 feat: HUD de armas no layout de battle royale (1 em cima, 3 embaixo, sem repetir)
+bcf29ae docs: registro da sessão (hook de fim de sessão)
+2e080ca docs: registro da sessão (hook de fim de sessão)
+c8044bb docs: registro da sessão (hook de fim de sessão)
+14b48c5 feat: HUD de armas no layout da arte (arma na mão grande, três caixas e punho)
+1c9256a docs: registro da sessão (hook de fim de sessão)
+b78bd16 docs: registro da sessão (hook de fim de sessão)
+f78ea15 docs: registro da sessão (hook de fim de sessão)
+e3830b5 docs: registro da sessão (hook de fim de sessão)
+11078da fix: partes de malha vazias em casas e roçado causavam "No buffer allocated!"
+1919448 Atualiza o registro da sessão (hook de fim de sessão do estúdio)
+eeea9d2 Registro da sessão gerado pelo estúdio (hook de fim de sessão)
+25d0d00 Ativa o Claude Code Game Studios na raiz do repositório (agentes, skills e hooks)
+fca208d Claude Code Game Studios instalado como ferramenta (inativo na raiz do projeto)
+---
+
