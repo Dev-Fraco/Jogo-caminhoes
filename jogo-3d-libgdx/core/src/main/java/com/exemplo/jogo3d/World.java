@@ -1224,6 +1224,9 @@ public class World {
         return null;
     }
 
+    /** Arena (sala personalizada): o jogador põe paredes sem limite. Os bots continuam com o limite deles. */
+    boolean paredesInfinitas = false;
+
     /** Dono dos muros do jogador. */
     static final Object JOGADOR = new Object();
     /** Limite de paredes do jogador: ao colocar a oitava, some a primeira dele. */
@@ -1236,7 +1239,7 @@ public class World {
 
     /** Põe um muro para 'dono' (jogador ou inimigo). Ao passar do limite do dono, sai o mais antigo dele. */
     void placeWallSpot(WallSpot s, Object dono) {
-        int cap = dono == JOGADOR ? MAX_WALLS : BOT_MAX_WALLS;
+        int cap = dono == JOGADOR ? (paredesInfinitas ? Integer.MAX_VALUE : MAX_WALLS) : BOT_MAX_WALLS;
         while (murosDe(dono) >= cap) {
             for (int i = 0; i < walls.size; i++) if (walls.get(i).dono == dono) { removeWall(walls.get(i)); break; }
         }

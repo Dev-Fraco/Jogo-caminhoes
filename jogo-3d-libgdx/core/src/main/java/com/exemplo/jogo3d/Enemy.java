@@ -277,6 +277,14 @@ final class Enemy {
             canSee = false;
             eye.set(pos).add(0f, 1.6f, 0f);
             if (haveTarget) canSee = see(w, tgt);
+            // Arena (sala personalizada): o jogador, quando visível, é o alvo preferido do time vermelho
+            if (!canSee && w.arena && playerAlive && podeMirarJogador(equipe)
+                    && Math.hypot(player.x - pos.x, player.z - pos.z) < SIGHT && see(w, player)) {
+                canSee = true;
+                targetEnemy = null;
+                targetPlayer = true;
+                tgt.set(player);
+            }
             if (!canSee) {
                 float prev = -1f;
                 for (int round = 0; round < 3 && !canSee; round++) {

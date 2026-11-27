@@ -1335,6 +1335,8 @@ public class Main extends ApplicationAdapter {
             arenaEquipes.put(nome, e);
         }
         arenaUi = new ArenaUi(economia, rodadas, world.weapons, SalaUi.EU);
+        if (world.weapons != null) world.weapons.municaoInfinita = true;   // reserva infinita, pente de 30
+        world.paredesInfinitas = true;                                     // paredes sem limite para o jogador
         if (sons != null) sons.dispose();
         sons = Sons.carregar();
         emblema.carregar();
@@ -1370,10 +1372,21 @@ public class Main extends ApplicationAdapter {
         landing = false;
         inPlane = false;
         yaw = 0f;
-        player.spawn(0f, 0f, world.heightAt(0f, 0f));
-        player.facing = 0f;
+        float[][] pAzul = null, pVerm = null;
+        if (arenaSala != null) {
+            // Cada time nasce numa linha, um do lado do outro com 1 m de espaço; o jogador é o primeiro do azul
+            float[][] azul = linhaDoTime(Math.max(1, arenaSala.ocupados(Sala.A)), -1);
+            float[][] verm = linhaDoTime(Math.max(1, arenaSala.ocupados(Sala.B)), 1);
+            player.spawn(azul[0][0], azul[0][1], world.heightAt(azul[0][0], azul[0][1]));
+            player.facing = azul[0][2];
+            pAzul = java.util.Arrays.copyOfRange(azul, 1, azul.length);
+            pVerm = verm;
+        } else {
+            player.spawn(0f, 0f, world.heightAt(0f, 0f));
+            player.facing = 0f;
+        }
         if (enemies != null && arenaSala != null) {
-            enemies.spawnArenaTimes(world, nomesAliados(), nomesInimigos(), 1f);
+            enemies.spawnArenaTimes(world, nomesAliados(), nomesInimigos(), 1f, pAzul, pVerm);
         }
         if (damage != null) damage.atirador = SalaUi.EU;   // o que o jogador acertar é creditado a ele
         espectando = false;
@@ -1584,6 +1597,7 @@ public class Main extends ApplicationAdapter {
             font.setColor(1f, 1f, 1f, 1f);
             batch.end();
         }
+        drawNomesArena(W, H);
         if (rodadas.fase == Rodadas.Fase.FIM_ROUND || rodadas.fase == Rodadas.Fase.FIM_PARTIDA) {
             fimUi.draw(batch, shapes, font, hudCamera.combined, W, H, linhasRound(), rodadas.tempo,
                     rodadas.fase == Rodadas.Fase.FIM_PARTIDA);
@@ -1663,6 +1677,56 @@ public class Main extends ApplicationAdapter {
         java.util.List<String> lista = new java.util.ArrayList<>();
         if (arenaSala != null) for (String nome : arenaSala.nomes[Sala.A]) if (nome != null && !nome.equals(SalaUi.EU)) lista.add(nome);
         return lista.toArray(new String[0]);
+    }
+
+    /** Posições de um time numa linha, 1 m entre um e outro, cada um de frente para o outro time: {x, z, facing}. */
+    private float[][] linhaDoTime(int n, int lado) {
+        float[][] p = new float[n][3];
+        float x0 = lado * (world.halfX - 5f);
+        float facing = lado < 0 ? MathUtils.PI / 2f : -MathUtils.PI / 2f;   // azul olha para +x, vermelho para -x
+        for (int i = 0; i < n; i++) {
+            float z = (i - (n - 1) / 2f);
+            float x = x0;
+            for (int t = 0; t < 6 && world.arenaOcupado(x, z, 1.2f); t++) x -= lado;
+            p[i][0] = x;
+            p[i][1] = z;
+            p[i][2] = facing;
+        }
+        return p;
+    }
+
+    /**
+     * Nome de cada personagem da arena sobre a cabeça, na cor do time (azul = seu time, vermelho = oponentes),
+     * com a sigla do time embaixo em letra pequena. O próprio jogador não tem nome.
+     */
+    private void drawNomesArena(int W, int H) {
+        if (enemies == null || camera == null) return;
+        hudCamera.setToOrtho(false, W, H);
+        hudCamera.update();
+        batch.setProjectionMatrix(hudCamera.combined);
+        batch.begin();
+        float k = Math.max(0.9f, Math.min(W, H) / 600f);
+        for (int i = 0; i < enemies.list.size; i++) {
+            Enemy e = enemies.list.get(i);
+            if (!e.alive() || e.equipe < 0 || e.nome == null || e.nome.isEmpty()) continue;
+            float dist = camera.position.dst(e.pos);
+            if (dist > 60f) continue;
+            Vector3 p = camera.project(new Vector3(e.pos.x, e.pos.y + 2.25f, e.pos.z));
+            if (p.z <= 0f || p.z >= 1f) continue;
+            float[] c = e.equipe == 0 ? ArenaUi.AZUL : ArenaUi.VERMELHO;
+            float escala = Math.min(1.2f, 14f / Math.max(4f, dist)) * k;
+            font.getData().setScale(escala);
+            font.setColor(c[0], c[1], c[2], 1f);
+            layout.setText(font, e.nome);
+            font.draw(batch, e.nome, p.x - layout.width / 2f, p.y);
+            String sigla = e.equipe == 0 ? "AZUL" : "VERMELHA";
+            font.getData().setScale(escala * 0.55f);
+            layout.setText(font, sigla);
+            font.draw(batch, sigla, p.x - layout.width / 2f, p.y - 14f * k * escala);
+        }
+        font.getData().setScale(1f);
+        font.setColor(1f, 1f, 1f, 1f);
+        batch.end();
     }
 
     /** Abates de cada jogador no round, do maior para o menor (aliados azuis e inimigos vermelhos da sala). */

@@ -51,6 +51,16 @@ final class Weapons {
     // Munição de cada arma (fica com a arma ao trocar)
     private final int[] mag = new int[FILES.length], reserve = new int[FILES.length];
     boolean infinite = false;    // munição infinita (modo treinamento)
+    /** Arena (sala personalizada): reserva infinita, pente de 30 e recarga automática quando o pente zera. */
+    boolean municaoInfinita = false;
+    static final int PENTE_ARENA = 30;
+
+    /** Tamanho do pente do tipo (30 na arena, mesmo com a arma de pente maior). */
+    int pente(int type) {
+        if (type < 0) return 0;
+        int m = WeaponConfig.BY_TYPE[type].magazine;
+        return municaoInfinita ? Math.min(m, PENTE_ARENA) : m;
+    }
     private float armT = -1f;    // tempo desde que o botão foi apertado (-1 = solto); atraso do primeiro tiro
     float reloadT = 0f;          // > 0: recarregando (s restantes)
     private boolean spent = false;     // luneta: já atirou (tem de sair da mira para recarregar o tambor)
@@ -224,8 +234,8 @@ final class Weapons {
     int activeSlotIndex() { return activeSlot; }
     int heldType() { return heldType; }
     int heldMag() { return magOf(heldType); }
-    int heldReserve() { return reserveOf(heldType); }
-    int heldMagazine() { return heldType >= 0 ? WeaponConfig.BY_TYPE[heldType].magazine : 1; }
+    int heldReserve() { return municaoInfinita ? 999 : reserveOf(heldType); }
+    int heldMagazine() { return heldType >= 0 ? pente(heldType) : 1; }
 
     /** Começa com uma arma na mão (modo treinamento). */
     void giveStart(int type, Character ch) {
@@ -262,7 +272,7 @@ final class Weapons {
 
     int ammo() { return heldType >= 0 ? mag[heldType] : 0; }
 
-    int reserveAmmo() { return heldType >= 0 ? reserve[heldType] : 0; }
+    int reserveAmmo() { return heldType >= 0 ? (municaoInfinita ? 999 : reserve[heldType]) : 0; }
 
     boolean reloading() { return reloadT > 0f; }
 
@@ -284,7 +294,7 @@ final class Weapons {
     /** Começa a recarregar (se der). */
     boolean startReload() {
         WeaponConfig c = config();
-        if (c == null || reloadT > 0f || mag[heldType] >= c.magazine || reserve[heldType] <= 0) return false;
+        if (c == null || reloadT > 0f || mag[heldType] >= pente(heldType) || (!municaoInfinita && reserve[heldType] <= 0)) return false;
         reloadT = c.reloadTime;
         burstLeft = 0;
         events |= EV_RELOAD;
@@ -297,17 +307,19 @@ final class Weapons {
         if (cc != null && cc.cadenciaExata) cooldown = Math.max(-cc.fireInterval, cooldown - dt);   // deixa o excedente
         else cooldown = Math.max(0f, cooldown - dt);
         if (armT >= 0f) armT += dt;
+        if (municaoInfinita && heldType >= 0 && mag[heldType] > PENTE_ARENA) mag[heldType] = PENTE_ARENA;
         if (reloadT > 0f) {
             reloadT -= dt;
             if (reloadT <= 0f && heldType >= 0) {
                 reloadT = 0f;
-                int need = WeaponConfig.BY_TYPE[heldType].magazine - mag[heldType];
-                int take = Math.min(need, reserve[heldType]);
+                int need = pente(heldType) - mag[heldType];
+                int take = municaoInfinita ? need : Math.min(need, reserve[heldType]);
                 mag[heldType] += take;
-                reserve[heldType] -= take;
+                if (!municaoInfinita) reserve[heldType] -= take;
                 events |= EV_RELOAD_DONE;
             }
         }
+        if (municaoInfinita && heldType >= 0 && mag[heldType] <= 0 && reloadT <= 0f) startReload();   // pente zerou: recarrega sozinha
         if (burstT > 0f) burstT -= dt;
         if (awmPress) awmHoldT += dt;
         if (emptyT > 0f) emptyT -= dt;

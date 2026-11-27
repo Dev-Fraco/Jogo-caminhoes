@@ -76,26 +76,38 @@ final class Enemies {
      * Arena (sala personalizada): inimigos com IA (atiram e morrem) e aliados parados (bonecos que não morrem), todos
      * espalhados fora do nascimento e da cobertura. O 'quantidade' de cada lado vem da sala.
      */
-    void spawnArenaTimes(World w, String[] aliados, String[] inimigos, float precisao) {
+    /**
+     * Cria os bots da arena. pAzul/pVerm (opcionais) são os pontos de nascimento de cada time: {x, z, facing}
+     * por bot, na ordem dos nomes; sem eles, nascem em lugar aleatório.
+     */
+    void spawnArenaTimes(World w, String[] aliados, String[] inimigos, float precisao, float[][] pAzul, float[][] pVerm) {
         Model gunModel = guns != null && guns.length > 0 ? guns[0] : null;
         list.clear();
         abates.limpa();
         int total = aliados.length + inimigos.length;
         for (int i = 0; i < total; i++) {
             float x = 0f, z = 0f;
-            for (int t = 0; t < 80; t++) {
-                x = (rnd.nextFloat() * 2f - 1f) * (World.ARENA_HW - 6f);
-                z = (rnd.nextFloat() * 2f - 1f) * (World.ARENA_HD - 6f);
-                if (!w.arenaOcupado(x, z, 1.5f) && Math.sqrt(x * x + z * z) > 14f) break;
-            }
             boolean azul = i < aliados.length;
+            float[][] pts = azul ? pAzul : pVerm;
+            int k = azul ? i : i - aliados.length;
+            boolean ponto = pts != null && k < pts.length;
+            if (ponto) {
+                x = pts[k][0];
+                z = pts[k][1];
+            } else {
+                for (int t = 0; t < 80; t++) {
+                    x = (rnd.nextFloat() * 2f - 1f) * (World.ARENA_HW - 6f);
+                    z = (rnd.nextFloat() * 2f - 1f) * (World.ARENA_HD - 6f);
+                    if (!w.arenaOcupado(x, z, 1.5f) && Math.sqrt(x * x + z * z) > 14f) break;
+                }
+            }
             Enemy e = new Enemy(body, gunModel, x, z, rnd.nextFloat());
             e.nome = azul ? aliados[i] : inimigos[i - aliados.length];
             e.equipe = azul ? 0 : 1;
             e.precisao = precisao;
             e.weapon = WeaponConfig.BY_TYPE[0];          // todos começam armados (AKM); não há itens na arena
             e.pos.y = w.groundAt(x, z);
-            e.facing = rnd.nextFloat() * MathUtils.PI2;
+            e.facing = ponto ? pts[k][2] : rnd.nextFloat() * MathUtils.PI2;
             list.add(e);
         }
     }
@@ -267,7 +279,8 @@ final class Enemies {
         }
         float d = e.pos.dst(player);
         float p = 0.62f - d * 0.009f - playerMove * 0.05f - (stance == 1 ? 0.08f : stance == 2 ? 0.18f : 0f);
-        p = MathUtils.clamp(p, 0.06f, 0.6f);
+        if (w.arena) p *= 1.2f;   // sala personalizada: os bots acertam mais o jogador
+        p = MathUtils.clamp(p, 0.06f, 0.75f);
         Vector3 to = new Vector3(player).add(0f, stance == 2 ? 0.3f : stance == 1 ? 0.9f : 1.2f, 0f);
         boolean hitPlayer = MathUtils.random() < p;
         if (!hitPlayer) to.add(MathUtils.random(-1.2f, 1.2f), MathUtils.random(-0.6f, 1.2f), MathUtils.random(-1.2f, 1.2f));
