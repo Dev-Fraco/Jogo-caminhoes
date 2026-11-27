@@ -131,15 +131,31 @@ final class ShootingSystem {
         damage.beginShot();
         int shownImpacts = 0;
         boolean sounded = false;
+        // Espingarda com projétil próprio (M1014): os chumbos caem numa área que cresce com a distância do alvo
+        // da mira (mirando, cai menos; andando, cai mais)
+        float pelletD = 1f, pelletR = 0f;
+        if (c.separate) {
+            hitDetect.shoot(in.cam, in.aim, muzzle, c.range, enemies, world, res);
+            pelletD = Math.max(1.5f, res.enemy != null || res.hitWorld ? res.distance : c.range);
+            float move = 1f + MathUtils.clamp(in.speed / Player.RUN_SPEED, 0f, 1f) * 0.5f;
+            pelletR = WeaponConfig.pelletRadius(pelletD) * (in.ads ? 0.6f : 1f) * move;
+        }
         for (int p = 0; p < c.pellets; p++) {
-            float r = (float) Math.tan(Math.toRadians(spread * (float) Math.sqrt(MathUtils.random()))), a = MathUtils.random(MathUtils.PI2);
-            shotDir.set(in.aim).mulAdd(side1, MathUtils.cos(a) * r).mulAdd(side2, MathUtils.sin(a) * r).nor();
+            if (c.separate) {
+                float rr = pelletR * (float) Math.sqrt(MathUtils.random()), a = MathUtils.random(MathUtils.PI2);
+                float tn = rr / pelletD;
+                shotDir.set(in.aim).mulAdd(side1, MathUtils.cos(a) * tn).mulAdd(side2, MathUtils.sin(a) * tn).nor();
+            } else {
+                float r = (float) Math.tan(Math.toRadians(spread * (float) Math.sqrt(MathUtils.random()))), a = MathUtils.random(MathUtils.PI2);
+                shotDir.set(in.aim).mulAdd(side1, MathUtils.cos(a) * r).mulAdd(side2, MathUtils.sin(a) * r).nor();
+            }
             hitDetect.shoot(in.cam, shotDir, muzzle, c.range, enemies, world, res);
             if (res.obstacle != null) {   // muro: a bala tira vida dele (e mostra o número azul)
                 world.damageObstacle(res.obstacle, c.damage);
                 fx.wallHit(res.point, c.damage);
             }
-            damage.register(c, res);
+            if (c.separate) damage.applyPellet(c, res, in.playerPos);
+            else damage.register(c, res);
             if (p == 0 || c.pellets <= 3 || p % 3 == 0) fx.tracer(muzzle, res.point);
             if (res.hitWorld && shownImpacts < 4) {   // poucos efeitos por disparo (espingarda)
                 shownImpacts++;
@@ -150,7 +166,7 @@ final class ShootingSystem {
                 }
             }
         }
-        damage.endShot(in.playerPos);
+        damage.endShot(in.playerPos);   // (no M1014 o dano já foi aplicado projétil a projétil)
         flash.fire(muzzle, weapons.barrel, c);
         audio.fire(c.category, c.pellets > 1);
 

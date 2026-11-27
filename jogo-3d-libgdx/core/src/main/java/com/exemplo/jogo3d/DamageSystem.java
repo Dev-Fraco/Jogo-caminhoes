@@ -54,6 +54,17 @@ final class DamageSystem {
         }
     }
 
+    /** Um projétil que acertou (M1014): dano e indicador próprios, sem somar com os outros do disparo. */
+    void applyPellet(WeaponConfig cfg, HitDetection.Result r, Vector3 shooter) {
+        if (r.enemy == null || r.region == null || !r.enemy.alive()) return;
+        float dmg = Math.max(1, Math.round(cfg.damageAt(r.region, r.distance)));
+        boolean head = r.region == WeaponConfig.Region.HEAD;
+        boolean killed = r.enemy.damage(dmg, shooter);
+        if (head) headshots++;
+        if (killed) kills++;
+        if (listener != null) listener.onHit(r.enemy, r.point, dmg, head, killed, r.bone);
+    }
+
     /** Aplica o dano somado de cada inimigo atingido neste disparo. */
     void endShot(Vector3 shooter) {
         for (int k = 0; k < n; k++) {

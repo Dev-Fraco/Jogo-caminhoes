@@ -114,6 +114,11 @@ final class WeaponConfig {
 
     /** Dano de um acerto: base × região × queda com a distância. */
     float damageAt(Region r, float dist) {
+        if (separate) {   // espingarda: cabeça 35, peito 12 e membros 10 até 5 m; depois cai até 25%
+            float base = r == Region.HEAD ? 35f : r == Region.TORSO ? 12f : 10f;
+            float k = MathUtils.clamp((dist - 5f) / 12f, 0f, 1f);
+            return base * (1f - 0.75f * k);
+        }
         // AWM: dano fixo, sem queda com a distância (cabeça 900, resto do corpo 120)
         if (scope) return r == Region.HEAD ? 900f : 120f;
         float fall = 1f;
@@ -132,6 +137,17 @@ final class WeaponConfig {
     boolean scope = false;
 
     WeaponConfig asScope() { scope = true; return this; }
+
+    /**
+     * Cada projétil tem dano e indicador próprios (espingarda M1014). Dano: 12 no peito e 35 na cabeça
+     * até 5 m; depois cai até 25% aos 17 m.
+     */
+    boolean separate = false;
+
+    WeaponConfig asSeparate() { separate = true; return this; }
+
+    /** Raio (m) onde caem os chumbos a d metros do atirador: fecha de perto, abre bem com a distância. */
+    static float pelletRadius(float d) { float e = Math.max(0f, d - 5f); return 0.2f + 0.0125f * d * d + 0.05f * e * e; }
 
     // ---------- Tabela das armas ----------
     // Os parâmetros, em ordem:  nome, categoria, modo, tiros/rajada, intervalo da rajada, dano, ×cabeça, ×braço, ×perna,
@@ -168,5 +184,9 @@ final class WeaponConfig {
             0.45f, 15, 999, 2.5f, 90f, 30f, 0.6f, 3.0f, 3.0f, 0.5f, 0.2f, 1, 0.06f, 1f, 0.5f);
 
     /** Configuração das armas do jogo, na ordem de Weapons.NAMES. */
-    static final WeaponConfig[] BY_TYPE = {AKM, AUG, GROZA, M16A4, M416, SCARL, AWM};
+    // Espingarda M1014: 8 projéteis por disparo, 0,8 s entre tiros (segurando, automático), carregador de 5
+    static final WeaponConfig M1014 = new WeaponConfig("M1014", Category.ESPINGARDA, FireMode.AUTO, 1, 0f, 12f, 2.92f, 0.8f, 0.8f,
+            0.8f, 5, 30, 2.4f, 40f, 5f, 0.25f, 0f, 0f, 0f, 0f, 8, 0.13f, 1.7f, 0.6f).asSeparate();
+
+    static final WeaponConfig[] BY_TYPE = {AKM, AUG, GROZA, M16A4, M416, SCARL, AWM, M1014};
 }

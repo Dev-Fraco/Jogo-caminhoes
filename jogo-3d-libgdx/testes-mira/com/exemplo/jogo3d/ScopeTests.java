@@ -38,7 +38,7 @@ public class ScopeTests extends ApplicationAdapter {
     }
 
     void run() {
-        int awm = Weapons.NAMES.length - 1;
+        int awm = java.util.Arrays.asList(Weapons.NAMES).indexOf("AWM");
         WeaponConfig cfg = WeaponConfig.BY_TYPE[awm];
         check("AWM é a última arma e tem luneta", Weapons.NAMES[awm].equals("AWM") && cfg.scope, "");
         check("só o AWM tem luneta", !WeaponConfig.AKM.scope && !WeaponConfig.PRECISAO.scope, "");
