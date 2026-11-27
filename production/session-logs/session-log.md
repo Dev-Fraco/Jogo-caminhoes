@@ -674,3 +674,30 @@ production/session-logs/.session-end.hash
 production/session-logs/session-log.md
 ---
 
+## Session End: 20261127_120545
+### Commits
+18b2937 docs: registro da sessão (hook de fim de sessão)
+e5c7680 docs: registro da sessão (hook de fim de sessão)
+f6efc1b docs: registro da sessão (hook de fim de sessão)
+4914bb5 feat: GROZA com dano 61/122/46, queda linear e proteção de capacete e colete
+fb3ea69 docs: registro da sessão (hook de fim de sessão)
+baf0b07 fix: cadência da SCAR-L em 10 tiros/s, independente do FPS
+2a94eed docs: registro da sessão (hook de fim de sessão)
+645d3fa feat: botão de troca rápida no HUD (alterna arma na mão e a última usada)
+4c2382f docs: registro da sessão (hook de fim de sessão)
+fe5ab79 feat: HUD de armas no layout de battle royale (1 em cima, 3 embaixo, sem repetir)
+bcf29ae docs: registro da sessão (hook de fim de sessão)
+2e080ca docs: registro da sessão (hook de fim de sessão)
+c8044bb docs: registro da sessão (hook de fim de sessão)
+14b48c5 feat: HUD de armas no layout da arte (arma na mão grande, três caixas e punho)
+1c9256a docs: registro da sessão (hook de fim de sessão)
+b78bd16 docs: registro da sessão (hook de fim de sessão)
+f78ea15 docs: registro da sessão (hook de fim de sessão)
+e3830b5 docs: registro da sessão (hook de fim de sessão)
+11078da fix: partes de malha vazias em casas e roçado causavam "No buffer allocated!"
+1919448 Atualiza o registro da sessão (hook de fim de sessão do estúdio)
+eeea9d2 Registro da sessão gerado pelo estúdio (hook de fim de sessão)
+25d0d00 Ativa o Claude Code Game Studios na raiz do repositório (agentes, skills e hooks)
+fca208d Claude Code Game Studios instalado como ferramenta (inativo na raiz do projeto)
+---
+
