@@ -855,10 +855,10 @@ public class Main extends ApplicationAdapter {
                 return;
             case "atirar":
                 if (firePointer < 0) {
+                    // o dedo aqui também gira a câmera: não desliga a corrida (o corpo segue a câmera correndo)
                     firePointer = i;
                     fireLastX = x;
                     fireLastY = rawY;
-                    runToggle = false;
                 }
                 return;
             case "atirar2":   // só atira: o dedo aqui não gira a câmera nem a mira

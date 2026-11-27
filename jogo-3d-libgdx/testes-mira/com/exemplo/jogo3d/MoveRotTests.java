@@ -83,9 +83,9 @@ public class MoveRotTests extends ApplicationAdapter {
         p3.spawn(0f, 0f, 0f);
         p3.facing = 0f;
         float alvo = 1.2f;
-        simular(p3, w, 0f, 0f, true, 0f, alvo, 0.5f);
+        simular(p3, w, 0f, 0f, true, 0f, alvo, 0.1f);
         check("correndo, o corpo começa a virar (não instantâneo)", p3.facing > 0.05f && p3.facing < alvo - 0.1f,
-                String.format("corpo %.3f rad aos 0,5 s", p3.facing));
+                String.format("corpo %.3f rad aos 0,1 s", p3.facing));
         simular(p3, w, 0f, 0f, true, alvo, alvo, 2f);
         check("correndo, o corpo termina virado para a câmera", Math.abs(MathUtils.atan2(MathUtils.sin(p3.facing - alvo), MathUtils.cos(p3.facing - alvo))) < 0.05f,
                 String.format("corpo %.3f rad, câmera %.3f rad", p3.facing, alvo));
@@ -97,6 +97,17 @@ public class MoveRotTests extends ApplicationAdapter {
                 Math.abs(MathUtils.atan2(MathUtils.sin(dir - alvo), MathUtils.cos(dir - alvo))) < 0.1f,
                 String.format("andou para %.3f rad (câmera %.3f)", dir, alvo));
 
+        System.out.println("== 4. Correndo com a câmera girando continuamente (como o dedo arrastando) ==");
+        Player p4 = new Player();
+        p4.spawn(0f, 0f, 0f);
+        p4.facing = 0f;
+        float camAtual = 0f, erroMax = 0f;
+        for (int i = 0; i < 90; i++) {   // 3 s girando a câmera a 2 rad/s, sem joystick
+            camAtual += 2f / 30f;
+            p4.update(1f / 30f, 0f, 0f, camAtual, false, true, w);
+            if (i > 15) erroMax = Math.max(erroMax, Math.abs(MathUtils.atan2(MathUtils.sin(p4.facing - camAtual), MathUtils.cos(p4.facing - camAtual))));
+        }
+        check("correndo com a câmera girando, o corpo acompanha (erro < 0,3 rad)", erroMax < 0.3f, String.format("erro máx %.3f rad", erroMax));
         System.out.println("\nRESULTADO: " + pass + " ok, " + fail + " falhas");
         System.exit(fail == 0 ? 0 : 1);
     }

@@ -20,7 +20,7 @@ public class Player {
     public static final float RUN_SPEED = 5.5f;      // velocidade de corrida (joystick no máximo)
     public static final float ACCEL = 12f;           // aceleração (m/s²): começa e para suave
     public static final float TURN_SPEED = 10f;      // quão rápido o personagem vira
-    static final float RUN_TURN = 9f;                 // correndo: o corpo acompanha a câmera (suave)
+    static final float RUN_TURN = 12f;                 // correndo: o corpo acompanha a câmera (suave)
     public static final float GRAVITY = 18f;
     public static final float JUMP_VELOCITY = 6.5f;
     public static final float GROUND_TOLERANCE = 0.3f; // degrau que ainda conta como chão
