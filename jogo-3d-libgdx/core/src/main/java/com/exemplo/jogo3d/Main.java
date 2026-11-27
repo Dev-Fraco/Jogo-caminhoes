@@ -1446,10 +1446,14 @@ public class Main extends ApplicationAdapter {
         }
         // Botões de baixo
         float rowB = py + pad;
-        float bw2 = (pw - 2 * pad - 2 * gap) / 3f;
-        settingsRect(setN++, px + pad, rowB, bw2, bh, "editHud");
-        settingsRect(setN++, px + pad + bw2 + gap, rowB, bw2, bh, "mira");
-        settingsRect(setN++, px + pad + 2 * (bw2 + gap), rowB, bw2, bh, "fechar");
+        // Dentro da partida (treino ou battle royale) há um botão a mais: voltar ao lobby
+        int nb = inMenu ? 3 : 4;
+        float bw2 = (pw - 2 * pad - (nb - 1) * gap) / nb;
+        int bi = 0;
+        settingsRect(setN++, px + pad + bi++ * (bw2 + gap), rowB, bw2, bh, "editHud");
+        settingsRect(setN++, px + pad + bi++ * (bw2 + gap), rowB, bw2, bh, "mira");
+        if (!inMenu) settingsRect(setN++, px + pad + bi++ * (bw2 + gap), rowB, bw2, bh, "lobby");
+        settingsRect(setN++, px + pad + bi * (bw2 + gap), rowB, bw2, bh, "fechar");
 
         // Botões (selecionado em dourado)
         shapes.begin(ShapeRenderer.ShapeType.Filled);
@@ -1479,6 +1483,7 @@ public class Main extends ApplicationAdapter {
             else if (id.equals("editHud")) label = "Editar HUD";
             else if (id.equals("fechar")) label = "Fechar";
             else if (id.equals("mira")) label = "Mira e sensibilidade";
+            else if (id.equals("lobby")) label = "Voltar ao lobby";
             else label = Settings.QUALITY_NAMES[Integer.parseInt(id.substring(1))];
             layout.setText(font, label);
             float[] r = setRects[i];
@@ -1513,6 +1518,8 @@ public class Main extends ApplicationAdapter {
                 settingsOpen = false;
             } else if (id.equals("mira")) {
                 aimUi.open = true;
+            } else if (id.equals("lobby")) {
+                goMenu();   // abandona a partida (ou o treino) e volta ao lobby
             }
             return;
         }
