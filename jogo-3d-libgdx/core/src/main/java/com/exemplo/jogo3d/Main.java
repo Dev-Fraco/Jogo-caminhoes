@@ -80,6 +80,7 @@ public class Main extends ApplicationAdapter {
     private boolean parachuting = false;
     // Menu principal: o jogo abre aqui; morrer ou sair da partida volta para cá
     private boolean inMenu = true;
+    private Intro intro;                          // abertura (só ao iniciar o jogo)
     private final float[][] menuRects = new float[MENU_ITEMS.length][4];
     private static final String[] MENU_ITEMS = {"BATTLE ROYALE", "TREINAMENTO", "CONFIGURAÇÕES"};
     private boolean training = false;   // modo treinamento (galpão com dois bonecos) em vez do battle royale
@@ -181,6 +182,7 @@ public class Main extends ApplicationAdapter {
         camera.far = 400f;
 
         hudCamera = new OrthographicCamera(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        intro = new Intro();
         shapes = new ShapeRenderer();
         batch = new SpriteBatch();
         font = new BitmapFont();
@@ -272,7 +274,14 @@ public class Main extends ApplicationAdapter {
             return;
         }
         try {
+            if (intro != null && intro.running()) {   // abertura: toque pula; ao acabar, o lobby aparece do preto
+                if (Gdx.input.justTouched()) intro.skip();
+                intro.update(Math.min(Gdx.graphics.getDeltaTime(), 0.05f));
+                if (intro.running()) intro.draw(batch, hudCamera.combined, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+                return;
+            }
             renderGame();
+            if (intro != null) intro.drawFadeIn(batch, hudCamera.combined, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         } catch (Throwable t) {
             errorText = "ERRO AO RODAR:\n" + describe(t);
             showError();
@@ -1568,6 +1577,7 @@ public class Main extends ApplicationAdapter {
 
     @Override
     public void dispose() {
+        if (intro != null) intro.dispose();
         modelBatch.dispose();
         if (scope != null) scope.dispose();
         if (sight != null) sight.dispose();
