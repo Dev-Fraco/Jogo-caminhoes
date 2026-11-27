@@ -35,6 +35,12 @@ public class WallTests extends ApplicationAdapter {
             t.printStackTrace();
             fail++;
         }
+        System.out.println("== Arena: o jogador consegue pôr parede ==");
+        World arenaW = new World(false, true);
+        arenaW.create();
+        String avisoArena = arenaW.placeWall(0f, 0f, 0f);
+        check("na arena a parede é posta (sem aviso de muro não carregado)", avisoArena == null && arenaW.walls.size == 1, "aviso " + avisoArena);
+
         System.out.println("\nRESULTADO: " + pass + " ok, " + fail + " falhas");
         System.exit(fail == 0 ? 0 : 1);
     }

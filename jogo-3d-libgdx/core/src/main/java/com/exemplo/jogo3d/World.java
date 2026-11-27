@@ -720,6 +720,7 @@ public class World {
     /** Galpão, chão, caixa de equipamentos e limite. Sem terreno, cidade, casas nem avião. */
     /** Arena livre: chão de terra plano, muro contínuo ao redor e céu aberto (sem teto, sem construções). */
     private void buildArena() {
+        loadWallModel();   // o jogador e os bots põem paredes de proteção na arena
         ModelBuilder mb = new ModelBuilder();
         long attrs = Usage.Position | Usage.Normal | Usage.TextureCoordinates;
         dirtTexture = new Texture(Gdx.files.internal("textures/ground_basecolor.jpg"));

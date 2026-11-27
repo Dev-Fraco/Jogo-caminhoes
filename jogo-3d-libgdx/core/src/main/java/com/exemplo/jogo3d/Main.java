@@ -1714,7 +1714,7 @@ public class Main extends ApplicationAdapter {
             Vector3 p = camera.project(new Vector3(e.pos.x, e.pos.y + 2.25f, e.pos.z));
             if (p.z <= 0f || p.z >= 1f) continue;
             float[] c = e.equipe == 0 ? ArenaUi.AZUL : ArenaUi.VERMELHO;
-            float escala = Math.min(1.2f, 14f / Math.max(4f, dist)) * k;
+            float escala = MathUtils.clamp(17f / Math.max(4f, dist), 0.8f, 2f) * k;   // legível mesmo ao longe
             font.getData().setScale(escala);
             font.setColor(c[0], c[1], c[2], 1f);
             layout.setText(font, e.nome);
