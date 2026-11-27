@@ -634,6 +634,53 @@ public class World {
         // Sistemas que o jogo usa sempre (fogo e armas); a arena não tem prateleira nem itens espalhados
         fire = new Fire();
         weapons = new Weapons();
+        // Cobertura espalhada ao acaso: caixas, containers e pilhas, sem bloquear o nascimento
+        montaCoberturaArena(mb, attrs, new java.util.Random());
+    }
+
+    /** Caixas e containers de cobertura da arena, depois de (x, z, meia-largura X, meia-largura Z). */
+    final java.util.List<float[]> coberturaArena = new java.util.ArrayList<>();
+
+    private void montaCoberturaArena(ModelBuilder mb, long attrs, java.util.Random sorteio) {
+        Color madeira = new Color(0.45f, 0.30f, 0.18f, 1f), oliva = new Color(0.33f, 0.37f, 0.22f, 1f),
+                ferrugem = new Color(0.55f, 0.22f, 0.14f, 1f), azul = new Color(0.20f, 0.30f, 0.45f, 1f),
+                metal = new Color(0.45f, 0.46f, 0.48f, 1f);
+        Color[] cores = {madeira, oliva, ferrugem, azul, metal};
+        int alvo = 12 + sorteio.nextInt(9);                      // 12 a 20 peças
+        for (int tentativa = 0; tentativa < 400 && coberturaArena.size() < alvo; tentativa++) {
+            float tipo = sorteio.nextFloat();
+            boolean container = tipo < 0.25f;
+            boolean pilha = !container && tipo < 0.40f;
+            float w = container ? 6f : 1.6f, d = container ? 2.4f : 1.6f;
+            float h = container ? 2.6f : pilha ? 2.8f : 1.4f;
+            boolean girado = sorteio.nextBoolean();
+            if (girado) { float t = w; w = d; d = t; }
+            float x = (sorteio.nextFloat() * 2f - 1f) * (ARENA_HW - 4f - w / 2f);
+            float z = (sorteio.nextFloat() * 2f - 1f) * (ARENA_HD - 4f - d / 2f);
+            if (Math.sqrt(x * x + z * z) < 7f + Math.max(w, d) / 2f) continue;     // nascimento livre
+            boolean livre = true;
+            for (float[] c : coberturaArena) {
+                float dx = c[0] - x, dz = c[1] - z;
+                if (Math.sqrt(dx * dx + dz * dz) < c[2] + c[3] + Math.max(w, d) / 2f + 3f) { livre = false; break; }
+            }
+            if (!livre) continue;
+            Color c = container ? (sorteio.nextBoolean() ? ferrugem : azul) : cores[sorteio.nextInt(cores.length)];
+            addTrainVisual(mb, attrs, w, h, d, x, h / 2f, z, c);
+            boxes.add(new Box(new Matrix4().setToTranslation(x, 0f, z), w / 2f, d / 2f, h));
+            coberturaArena.add(new float[]{x, z, Math.max(w, d) / 2f, 0f});
+            if (pilha) {   // segunda caixa em cima, sem colisão extra (a base já cobre a altura)
+                addTrainVisual(mb, attrs, w * 0.8f, 1.4f, d * 0.8f, x, h + 0.7f, z, madeira);
+            }
+        }
+    }
+
+    /** Há cobertura da arena dentro de 'raio' do ponto (x, z)? */
+    boolean arenaOcupado(float x, float z, float raio) {
+        for (float[] c : coberturaArena) {
+            float dx = c[0] - x, dz = c[1] - z;
+            if (Math.sqrt(dx * dx + dz * dz) < c[2] + raio) return true;
+        }
+        return false;
     }
 
     private void buildTraining() {

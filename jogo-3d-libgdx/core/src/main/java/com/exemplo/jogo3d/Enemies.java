@@ -58,8 +58,12 @@ final class Enemies {
     void spawnArena(World w, int quantidade) {
         list.clear();
         for (int i = 0; i < quantidade; i++) {
-            float x = (rnd.nextFloat() * 2f - 1f) * (World.ARENA_HW - 8f);
-            float z = (rnd.nextFloat() * 2f - 1f) * (World.ARENA_HD - 8f);
+            float x = 0f, z = 0f;
+            for (int t = 0; t < 60; t++) {   // fora da cobertura e do nascimento
+                x = (rnd.nextFloat() * 2f - 1f) * (World.ARENA_HW - 8f);
+                z = (rnd.nextFloat() * 2f - 1f) * (World.ARENA_HD - 8f);
+                if (!w.arenaOcupado(x, z, 1.5f) && Math.sqrt(x * x + z * z) > 7f) break;
+            }
             Enemy e = new Enemy(dummyModel != null ? dummyModel : body, null, x, z, 0.3f);
             e.dummy = true;
             e.pos.y = w.groundAt(x, z);
