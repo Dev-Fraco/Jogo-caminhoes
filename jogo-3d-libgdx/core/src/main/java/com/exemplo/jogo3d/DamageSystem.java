@@ -34,7 +34,7 @@ final class DamageSystem {
     /** Um raio que acertou: guarda (ainda não aplica). */
     void register(WeaponConfig cfg, HitDetection.Result r) {
         if (r.enemy == null || r.region == null) return;
-        float dmg = cfg.damageAt(r.region, r.distance);
+        float dmg = cfg.damageAt(r.region, r.distance) * cfg.fatorArmadura(r.region, r.enemy.capacete, r.enemy.colete);
         int k = 0;
         while (k < n && who[k] != r.enemy) k++;
         if (k == n) {

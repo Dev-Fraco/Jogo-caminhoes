@@ -122,6 +122,11 @@ final class WeaponConfig {
         }
         // AWM: dano fixo, sem queda com a distância (cabeça 900, resto do corpo 120)
         if (scope) return r == Region.HEAD ? 900f : 120f;
+        if (quedaLinear) {
+            // Queda linear: dano cheio até falloffStart e cai até falloffMin × no alcance máximo (região × base)
+            float k = MathUtils.clamp((dist - falloffStart) / Math.max(1f, range - falloffStart), 0f, 1f);
+            return damage * multiplier(r) * (1f + (falloffMin - 1f) * k);
+        }
         float fall = 1f;
         if (r == Region.HEAD || r == Region.TORSO) {
             // Cabeça e peito: mais dano de perto (+20% até 10 m) e bem menos de longe (cai até 60% do mínimo)
@@ -152,6 +157,27 @@ final class WeaponConfig {
     WeaponConfig asSeparate() { separate = true; return this; }
 
     WeaponConfig asFlat(float head, float body) { flat = true; flatHead = head; flatBody = body; return this; }
+
+    /** Queda linear com a distância (GROZA): sem o bônus de perto das armas comuns, o dano-base vale até falloffStart. */
+    boolean quedaLinear = false;
+
+    WeaponConfig comQuedaLinear() { quedaLinear = true; return this; }
+
+    /**
+     * Proteção de capacete e colete do alvo: capacete reduz o dano na cabeça, colete reduz o dano no tronco.
+     * Só armas com armadura (GROZA) aplicam; as demais recebem dano cheio.
+     */
+    boolean armadura = false;
+
+    WeaponConfig comArmadura() { armadura = true; return this; }
+
+    /** Fator do dano pela proteção do alvo (1 = sem proteção). */
+    float fatorArmadura(Region r, boolean capacete, boolean colete) {
+        if (!armadura) return 1f;
+        if (r == Region.HEAD && capacete) return 0.5f;
+        if (r == Region.TORSO && colete) return 0.7f;
+        return 1f;
+    }
 
     /** Tempo entre apertar o botão e o primeiro tiro (s). */
     float firstShotDelay = 0f;
@@ -194,8 +220,11 @@ final class WeaponConfig {
             0.100f, 30, 120, 1.4f, 140f, 40f, 0.65f, 3.2f, 0.9f, 0.85f, 0.35f, 1, 0.075f, 1.1f, 0.55f);
     static final WeaponConfig AUG = new WeaponConfig("AUG", Category.FUZIL, FireMode.AUTO, 1, 0f, 26f, 2.0f, 0.75f, 0.75f,
             0.085f, 30, 120, 1.6f, 150f, 50f, 0.70f, 2.6f, 0.6f, 0.55f, 0.25f, 1, 0.055f, 1.0f, 0.50f);
-    static final WeaponConfig GROZA = new WeaponConfig("GROZA", Category.FUZIL, FireMode.AUTO, 1, 0f, 29f, 2.0f, 0.75f, 0.75f,
-            0.080f, 30, 120, 1.7f, 120f, 35f, 0.60f, 3.0f, 0.8f, 0.75f, 0.35f, 1, 0.070f, 1.1f, 0.55f);
+    // Alto dano, alcance longo e boa estabilidade: corpo 61, cabeça 122 (2×), membros 46 (0,754×); ~9 tiros/s.
+    // Queda linear com a distância (35 m cheio, 60% no alcance) e proteção de capacete/colete.
+    static final WeaponConfig GROZA = new WeaponConfig("GROZA", Category.FUZIL, FireMode.AUTO, 1, 0f, 61f, 2.0f, 0.7541f, 0.7541f,
+            0.110f, 30, 120, 1.7f, 120f, 35f, 0.60f, 3.0f, 0.8f, 0.75f, 0.35f, 1, 0.070f, 1.1f, 0.55f)
+            .comQuedaLinear().comArmadura().comCadenciaExata();
     static final WeaponConfig M16A4 = new WeaponConfig("M16A4", Category.FUZIL, FireMode.BURST, 3, 0.065f, 31f, 2.1f, 0.75f, 0.75f,
             0.260f, 30, 120, 1.2f, 160f, 60f, 0.75f, 2.4f, 0.5f, 0.55f, 0.18f, 1, 0.065f, 1.0f, 0.55f);
     static final WeaponConfig M416 = new WeaponConfig("M416", Category.FUZIL, FireMode.AUTO, 1, 0f, 27f, 2.0f, 0.75f, 0.75f,

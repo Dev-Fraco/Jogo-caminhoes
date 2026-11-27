@@ -205,6 +205,45 @@ public class ControlTests extends ApplicationAdapter {
             if (wp.tryFire(false, false) == 1) apos++;
         }
         check("atirou enquanto segurava e parou ao soltar", tiros >= 4 && apos == 0, "tiros=" + tiros + " depois de soltar=" + apos);
+
+        System.out.println("== GROZA: dano por região, queda com a distância e proteção ==");
+        WeaponConfig groza = WeaponConfig.GROZA;
+        float corpo20 = groza.damageAt(WeaponConfig.Region.TORSO, 20f);
+        check("GROZA: corpo 61 até 35 m", Math.abs(corpo20 - 61f) < 0.01f, "" + corpo20);
+        float cab20 = groza.damageAt(WeaponConfig.Region.HEAD, 20f);
+        check("GROZA: cabeça 122 (2×)", Math.abs(cab20 - 122f) < 0.01f, "" + cab20);
+        float braco20 = groza.damageAt(WeaponConfig.Region.ARM, 20f);
+        check("GROZA: membros 46", Math.abs(braco20 - 46f) < 0.1f, "" + braco20);
+        float longe = groza.damageAt(WeaponConfig.Region.TORSO, 120f);
+        check("GROZA: cai até 60% no alcance máximo", Math.abs(longe - 36.6f) < 0.05f, "" + longe);
+        check("GROZA: a queda é contínua (50 m > 80 m)", groza.damageAt(WeaponConfig.Region.TORSO, 50f) > groza.damageAt(WeaponConfig.Region.TORSO, 80f), "");
+        check("GROZA: capacete reduz a cabeça à metade", groza.fatorArmadura(WeaponConfig.Region.HEAD, true, false) == 0.5f, "");
+        check("GROZA: colete reduz o tronco em 30%", groza.fatorArmadura(WeaponConfig.Region.TORSO, false, true) == 0.7f, "");
+        check("GROZA: membros sem proteção", groza.fatorArmadura(WeaponConfig.Region.ARM, true, true) == 1f, "");
+        check("outras armas não têm proteção", WeaponConfig.AKM.fatorArmadura(WeaponConfig.Region.HEAD, true, true) == 1f, "");
+        check("AKM segue com a curva antiga (sem queda linear nem armadura)", !WeaponConfig.AKM.quedaLinear && !WeaponConfig.AKM.armadura, "");
+
+        System.out.println("== GROZA: 9 tiros por segundo, pente de 30, independente do FPS ==");
+        for (double fps : new double[]{30, 60, 144, 240}) {
+            prepararArma(wp, w, ch, pl, 2);
+            java.util.List<Double> t = tirosContinuos(wp, 1.0 / fps, 6.0);
+            check("GROZA com pente cheio dispara 30 tiros (" + (int) fps + " fps)", t.size() == 30, "" + t.size());
+            double maior = 0;
+            for (int i = 1; i < t.size(); i++) maior = Math.max(maior, Math.abs((t.get(i) - t.get(i - 1)) - 0.11));
+            double span = t.size() > 1 ? t.get(t.size() - 1) - t.get(0) : 0;
+            check("GROZA: intervalo de 0,11 s (" + (int) fps + " fps)", maior <= 1.0 / fps + 1e-6, String.format("desvio máx %.4f s, pente em %.3f s", maior, span));
+        }
+    }
+
+    /** Arma (tipo) na mão, com o pente cheio e a animação de sacar terminada. */
+    static void prepararArma(Weapons wp, World w, Character ch, Player pl, int tipo) {
+        wp.unequip(ch);
+        wp.pickUp(new Weapons.Pickup(tipo, new ModelInstance(wp.models()[tipo]), 0, 0, 0), w, ch, pl);
+        if (wp.magOf(tipo) < WeaponConfig.BY_TYPE[tipo].magazine) {
+            wp.startReload();
+            wp.tick(2f);
+        }
+        for (int i = 0; i < 100; i++) wp.tick(0.02f);
     }
 
     /** SCAR na mão, com o pente cheio e a animação de sacar terminada. */

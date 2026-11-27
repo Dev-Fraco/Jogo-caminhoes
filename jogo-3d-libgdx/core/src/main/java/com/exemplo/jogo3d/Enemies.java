@@ -43,6 +43,8 @@ final class Enemies {
         for (float x : new float[]{-3.5f, 3.5f}) {
             Enemy e = new Enemy(dummyModel != null ? dummyModel : body, null, x, World.TRAIN_DUMMY_Z, 0.3f);
             e.dummy = true;
+            e.capacete = rnd.nextFloat() < 0.35f;   // proteção sorteada (mesmo gerador fixo do jogo)
+            e.colete = rnd.nextFloat() < 0.35f;
             e.pos.y = w.groundAt(x, World.TRAIN_DUMMY_Z);
             e.facing = MathUtils.atan2(World.TRAIN_PLAYER_X - x, World.TRAIN_PLAYER_Z - World.TRAIN_DUMMY_Z);
             list.add(e);

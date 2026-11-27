@@ -164,6 +164,7 @@ final class Enemy {
     final Vector3 muzzle = new Vector3();
     boolean visibleToCam;   // dentro da distância de desenho (para não animar longe)
     boolean dummy;          // boneco de treino: parado, não atira e não morre
+    boolean capacete, colete;   // proteção: capacete reduz o dano na cabeça, colete no tronco (armas com armadura)
     float dummyDamage;      // dano total levado (mostrado no treino)
 
     Enemy(Model body, Model gunModel, float x, float z, float seed) {
