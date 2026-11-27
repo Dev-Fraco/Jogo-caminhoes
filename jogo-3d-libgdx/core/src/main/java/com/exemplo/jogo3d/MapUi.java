@@ -35,6 +35,7 @@ final class MapUi {
         world = new Pixmap(MAP_PX, MAP_PX, Pixmap.Format.RGBA8888);
         float cell = World.SIZE / MAP_PX;
         Vector3 l = new Vector3();
+        float[] pesosMapa = new float[Clima.values().length];
         for (int j = 0; j < MAP_PX; j++) {
             for (int i = 0; i < MAP_PX; i++) {
                 float x = -World.HALF + (i + 0.5f) * cell, z = -World.HALF + (j + 0.5f) * cell;
@@ -53,6 +54,13 @@ final class MapUi {
                 if (dz < 3.2f) { r = 0.86f; g = 0.77f; b = 0.60f; }
                 else if (dz < 4f) { r = 0.6f; g = 0.5f; b = 0.36f; }
                 if (World.inTown(x, z)) { r = (r + 0.74f) / 2f; g = (g + 0.68f) / 2f; b = (b + 0.58f) / 2f; }
+                // Clima: a cor do chão no mapa acompanha a textura do clima (com a transição)
+                Clima.pesos(x, z, pesosMapa);
+                float wd = pesosMapa[Clima.DESERTO.ordinal()];
+                float wi = pesosMapa[Clima.INVERNO.ordinal()], wm = pesosMapa[Clima.MANGUE.ordinal()];
+                r = r * wd + 0.69f * wi + 0.34f * wm;
+                g = g * wd + 0.69f * wi + 0.29f * wm;
+                b = b * wd + 0.69f * wi + 0.13f * wm;
                 for (int k = 0; k < w.houses.size; k++) {
                     l.set(x, 0f, z).mul(w.houses.get(k).inv);
                     if (Math.abs(l.x) < 4.2f && Math.abs(l.z) < 3.2f) { r = 0.66f; g = 0.30f; b = 0.18f; shade = 1f; }
