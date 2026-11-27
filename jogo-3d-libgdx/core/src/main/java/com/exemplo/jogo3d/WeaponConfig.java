@@ -217,20 +217,20 @@ final class WeaponConfig {
     //   intervalo, pente, reserva, recarga, alcance, queda a partir de, queda mínima, dispersão quadril, dispersão mira,
     //   coice vertical, coice lateral, chumbos, recuo visual (m), clarão, tempo de sacar
     static final WeaponConfig AKM = new WeaponConfig("AKM", Category.FUZIL, FireMode.AUTO, 1, 0f, 30f, 2.0f, 0.75f, 0.75f,
-            0.100f, 30, 120, 1.4f, 140f, 40f, 0.65f, 3.2f, 0.9f, 0.85f, 0.35f, 1, 0.075f, 1.1f, 0.55f);
+            0.200f, 30, 120, 1.4f, 140f, 40f, 0.65f, 3.2f, 0.9f, 0.85f, 0.35f, 1, 0.075f, 1.1f, 0.55f);
     static final WeaponConfig AUG = new WeaponConfig("AUG", Category.FUZIL, FireMode.AUTO, 1, 0f, 26f, 2.0f, 0.75f, 0.75f,
-            0.085f, 30, 120, 1.6f, 150f, 50f, 0.70f, 2.6f, 0.6f, 0.55f, 0.25f, 1, 0.055f, 1.0f, 0.50f);
+            0.170f, 30, 120, 1.6f, 150f, 50f, 0.70f, 2.6f, 0.6f, 0.55f, 0.25f, 1, 0.055f, 1.0f, 0.50f);
     // Alto dano, alcance longo e boa estabilidade: corpo 61, cabeça 122 (2×), membros 46 (0,754×); ~9 tiros/s.
     // Queda linear com a distância (35 m cheio, 60% no alcance) e proteção de capacete/colete.
     static final WeaponConfig GROZA = new WeaponConfig("GROZA", Category.FUZIL, FireMode.AUTO, 1, 0f, 61f, 2.0f, 0.7541f, 0.7541f,
-            0.110f, 30, 120, 1.7f, 120f, 35f, 0.60f, 3.0f, 0.8f, 0.75f, 0.35f, 1, 0.070f, 1.1f, 0.55f)
+            0.220f, 30, 120, 1.7f, 120f, 35f, 0.60f, 3.0f, 0.8f, 0.75f, 0.35f, 1, 0.070f, 1.1f, 0.55f)
             .comQuedaLinear().comArmadura().comCadenciaExata();
-    static final WeaponConfig M16A4 = new WeaponConfig("M16A4", Category.FUZIL, FireMode.BURST, 3, 0.065f, 31f, 2.1f, 0.75f, 0.75f,
-            0.260f, 30, 120, 1.2f, 160f, 60f, 0.75f, 2.4f, 0.5f, 0.55f, 0.18f, 1, 0.065f, 1.0f, 0.55f);
+    static final WeaponConfig M16A4 = new WeaponConfig("M16A4", Category.FUZIL, FireMode.BURST, 3, 0.130f, 31f, 2.1f, 0.75f, 0.75f,
+            0.520f, 30, 120, 1.2f, 160f, 60f, 0.75f, 2.4f, 0.5f, 0.55f, 0.18f, 1, 0.065f, 1.0f, 0.55f);
     static final WeaponConfig M416 = new WeaponConfig("M416", Category.FUZIL, FireMode.AUTO, 1, 0f, 27f, 2.0f, 0.75f, 0.75f,
-            0.090f, 30, 120, 1.1f, 150f, 50f, 0.70f, 2.5f, 0.6f, 0.55f, 0.22f, 1, 0.055f, 1.0f, 0.50f);
+            0.180f, 30, 120, 1.1f, 150f, 50f, 0.70f, 2.5f, 0.6f, 0.55f, 0.22f, 1, 0.055f, 1.0f, 0.50f);
     static final WeaponConfig SCARL = new WeaponConfig("SCAR-L", Category.FUZIL, FireMode.AUTO, 1, 0f, 28f, 2.0f, 0.75f, 0.75f,
-            0.100f, 30, 120, 1.3f, 150f, 50f, 0.70f, 2.6f, 0.6f, 0.62f, 0.25f, 1, 0.060f, 1.0f, 0.50f).comCadenciaExata();
+            0.200f, 30, 120, 1.3f, 150f, 50f, 0.70f, 2.6f, 0.6f, 0.62f, 0.25f, 1, 0.060f, 1.0f, 0.50f).comCadenciaExata();
     // Fuzil de precisão AWM: luneta (zoom real), sem assistência de mira, um tiro por mira e recarga de 0,5 s
     static final WeaponConfig AWM = new WeaponConfig("AWM", Category.PRECISAO, FireMode.SEMI, 1, 0f, 85f, 2.4f, 0.8f, 0.8f,
             1.200f, 5, 20, 0.5f, 300f, 150f, 0.85f, 6.0f, 0.05f, 3.20f, 0.20f, 1, 0.140f, 1.4f, 0.70f).asScope();
@@ -252,11 +252,11 @@ final class WeaponConfig {
     /** Configuração das armas do jogo, na ordem de Weapons.NAMES. */
     // Espingarda M1014: 8 projéteis por disparo, 0,8 s entre tiros (segurando, automático), carregador de 5
     static final WeaponConfig M1014 = new WeaponConfig("M1014", Category.ESPINGARDA, FireMode.AUTO, 1, 0f, 12f, 2.92f, 0.8f, 0.8f,
-            0.8f, 5, 30, 2.4f, 40f, 5f, 0.25f, 0f, 0f, 0f, 0f, 8, 0.13f, 1.7f, 0.6f).asSeparate();
+            1.6f, 5, 30, 2.4f, 40f, 5f, 0.25f, 0f, 0f, 0f, 0f, 8, 0.13f, 1.7f, 0.6f).asSeparate();
 
     // Revólver Magnum .357 (pistola do arsenal): 210 na cabeça e 50 no corpo, de qualquer distância
     static final WeaponConfig MAGNUM357 = new WeaponConfig("MAGNUM 357", Category.REVOLVER, FireMode.AUTO, 1, 0f, 50f, 4.2f, 1f, 1f,
-            0.777f, 6, 30, 2.0f, 70f, 20f, 0.6f, 2.4f, 0.7f, 2.20f, 0.30f, 1, 0.110f, 1.3f, 0.45f).asFlat(210f, 50f).withFirstShotDelay(0.25f);
+            1.554f, 6, 30, 2.0f, 70f, 20f, 0.6f, 2.4f, 0.7f, 2.20f, 0.30f, 1, 0.110f, 1.3f, 0.45f).asFlat(210f, 50f).withFirstShotDelay(0.25f);
 
     static final WeaponConfig[] BY_TYPE = {AKM, AUG, GROZA, M16A4, M416, SCARL, AWM, M1014, MAGNUM357};
 }

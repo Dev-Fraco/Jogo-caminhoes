@@ -218,7 +218,7 @@ public class ShootTests extends ApplicationAdapter {
         aimAt(e1.hitbox.chest);
         int shots = 0;
         float t0 = 0f;
-        for (int f = 0; f < 120 && wp.ammo() > 0; f++) {
+        for (int f = 0; f < 300 && wp.ammo() > 0; f++) {
             int b = sh.shotsFired;
             step(1f / 30f, true, f == 0);
             shots += sh.shotsFired - b;
@@ -227,7 +227,7 @@ public class ShootTests extends ApplicationAdapter {
             e1.state = Enemy.State.PATROL;
         }
         check("30 tiros esvaziam o pente", wp.ammo() == 0 && shots == 30, shots + " tiros em " + String.format("%.2f s", t0));
-        check("cadência respeitada (0,1 s entre tiros, não um por quadro)", t0 > 2.7f && t0 < 3.4f, String.format("%.2f s para 30 tiros", t0));
+        check("cadência respeitada (0,2 s entre tiros, não um por quadro)", t0 > 5.5f && t0 < 7.2f, String.format("%.2f s para 30 tiros", t0));
         for (int i = 0; i < 6; i++) step(1f / 30f, false, false);   // passa o intervalo do último tiro
         int before = sh.shotsFired, flashes = sh.flash.shots, played0 = sh.audio.played;
         step(1f / 30f, true, true);

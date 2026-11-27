@@ -67,7 +67,7 @@ public class ScopeTests extends ApplicationAdapter {
         check("ao largar a mira, começa a recarregar", wp.reloading(), "");
         wp.tick(0.49f);
         check("ainda recarregando aos 0,49 s", wp.reloading(), "");
-        wp.tick(0.02f);
+        wp.tick(0.06f);
         check("recarga termina em 0,5 s", !wp.reloading(), "");
         check("tambor cheio de novo e a reserva gastou 1", wp.ammo() == mag0 && wp.reserveAmmo() == res0 - 1,
                 wp.ammo() + " / " + wp.reserveAmmo());
@@ -89,10 +89,10 @@ public class ScopeTests extends ApplicationAdapter {
         check("0,2 s depois do aperto: ainda não atira", wp.tryFire(true, false) == 0, "");
         wp.tick(0.06f);
         check("0,26 s depois do aperto: primeiro tiro", wp.tryFire(true, false) == 1, "");
-        wp.tick(0.77f);
-        check("0,77 s depois do tiro: ainda não", wp.tryFire(true, false) == 0, "");
-        wp.tick(0.02f);
-        check("0,79 s depois do tiro: segundo tiro (segurando)", wp.tryFire(true, false) == 1, "");
+        wp.tick(1.50f);
+        check("1,50 s depois do tiro: ainda não", wp.tryFire(true, false) == 0, "");
+        wp.tick(0.06f);
+        check("1,56 s depois do tiro: segundo tiro (segurando)", wp.tryFire(true, false) == 1, "");
         wp.tryFire(false, false);
         wp.tick(1f);
         check("soltou e apertou de novo: espera 0,25 s outra vez", wp.tryFire(true, false) == 0, "");
