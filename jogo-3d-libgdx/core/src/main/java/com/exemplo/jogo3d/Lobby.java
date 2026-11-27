@@ -43,6 +43,7 @@ final class Lobby {
     private static final float[] CLOSE = {1280f, 160f, 52f, 52f}, CLAIM = {1100f, 600f, 240f, 60f};
 
     private final Map<String, Texture> tex = new HashMap<>();
+    private Texture cenario;                // arte de fundo do lobby
     private final Arsenal arsenal = new Arsenal();
     private boolean arsenalOpen = false;
     private int weaponChoice = -1;          // arma escolhida no arsenal: entra na próxima partida
@@ -136,6 +137,17 @@ final class Lobby {
         oy = (H - RH * s) / 2f;
     }
 
+    /** Cenário do lobby (arte inteira): preenche a tela sem distorcer, cortando só o excesso. */
+    void drawCenario(SpriteBatch b, int W, int H) {
+        if (cenario == null) {
+            cenario = new Texture(Gdx.files.internal("hud2/lobby/cenario.jpg"));
+            cenario.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        }
+        float k = Math.max(W / (float) cenario.getWidth(), H / (float) cenario.getHeight());
+        float w = cenario.getWidth() * k, h = cenario.getHeight() * k;
+        b.draw(cenario, (W - w) / 2f, (H - h) / 2f, w, h);
+    }
+
     private Texture icon(String name) {
         Texture t = tex.get(name);
         if (t == null) {
@@ -150,9 +162,7 @@ final class Lobby {
 
     /** Desenha o lobby inteiro (e o arsenal ou painel, se abertos) em tela cheia. */
     void draw(SpriteBatch batch, ShapeRenderer shapes, BitmapFont font, Weapons weapons, Matrix4 proj, int W, int H, float dt) {
-        scale(W, H);
-        Gdx.gl.glClearColor(0f, 0f, 0f, 1f);
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
+        scale(W, H);   // o cenário e o personagem 3D são desenhados antes (Main), sem limpar a tela aqui
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         if (toastT > 0f) toastT -= dt;
@@ -415,5 +425,7 @@ final class Lobby {
     void dispose() {
         for (Texture t : tex.values()) t.dispose();
         tex.clear();
+        if (cenario != null) cenario.dispose();
+        cenario = null;
     }
 }

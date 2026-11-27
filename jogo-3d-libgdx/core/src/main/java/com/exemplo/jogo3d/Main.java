@@ -1072,12 +1072,57 @@ public class Main extends ApplicationAdapter {
 
     /** Menu principal: o lobby (fundo preto, ícones e painéis). */
     private void drawMenu(int W, int H) {
+        float dt = Math.min(Gdx.graphics.getDeltaTime(), 0.05f);
         hudCamera.setToOrtho(false, W, H);
         hudCamera.update();
+        // 1) cenário (2D, sem profundidade)
+        Gdx.gl.glClearColor(0f, 0f, 0f, 1f);
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
+        Gdx.gl.glDisable(GL20.GL_DEPTH_TEST);
         batch.setProjectionMatrix(hudCamera.combined);
-        lobby.draw(batch, shapes, font, world != null ? world.weapons : null, hudCamera.combined, W, H,
-                Math.min(Gdx.graphics.getDeltaTime(), 0.05f));
+        batch.begin();
+        lobby.drawCenario(batch, W, H);
+        batch.end();
+        // 2) personagem 3D em pé no centro, em primeiro plano
+        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST);
+        Gdx.gl.glClear(GL20.GL_DEPTH_BUFFER_BIT);
+        drawLobbyCharacter(W, H, dt);
+        Gdx.gl.glDisable(GL20.GL_DEPTH_TEST);
+        // 3) menus, botões e ícones (por cima)
+        batch.setProjectionMatrix(hudCamera.combined);
+        lobby.draw(batch, shapes, font, world != null ? world.weapons : null, hudCamera.combined, W, H, dt);
         if (settingsOpen) drawSettings(W, H);
+    }
+
+    private PerspectiveCamera lobbyCam;
+    private final Player lobbyPlayer = new Player();
+
+    /**
+     * Personagem do jogador, em pé e parado no centro do lobby, com a animação de espera (idle). Usa o mesmo modelo do
+     * jogo: se o jogador trocar de personagem, muda aqui também.
+     */
+    private void drawLobbyCharacter(int W, int H, float dt) {
+        if (character == null || character.instance() == null) return;
+        if (lobbyCam == null) {
+            lobbyCam = new PerspectiveCamera(30f, W, H);
+            lobbyCam.near = 0.1f;
+            lobbyCam.far = 50f;
+            lobbyPlayer.spawn(0f, 0f, 0f);
+        }
+        lobbyCam.viewportWidth = W;
+        lobbyCam.viewportHeight = H;
+        lobbyCam.position.set(0f, 1.05f, 4.4f);
+        lobbyCam.lookAt(0f, 0.92f, 0f);
+        lobbyCam.update();
+        character.trocarModelo();                 // o personagem escolhido no lobby
+        character.setCrouch(0f);                  // em pé (sem o agachar de uma partida anterior)
+        character.setAgachado(false);
+        lobbyPlayer.facing = 0f;                  // de frente para a câmera (o modelo olha para +z)
+        lobbyPlayer.speed = 0f;
+        character.update(lobbyPlayer, dt);        // parado: toca a animação de espera
+        modelBatch.begin(lobbyCam);
+        modelBatch.render(character.instance(), environment);
+        modelBatch.end();
     }
 
     private void menuPress(float x, float yb) {
