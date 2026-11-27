@@ -1155,6 +1155,7 @@ public class Main extends ApplicationAdapter {
             world.dispose();
         }
         if (mapUi != null) mapUi.dispose();
+        if (character != null) character.trocarModelo();   // a personagem principal escolhida no lobby
         world = new World(training);
         try {
             world.create();

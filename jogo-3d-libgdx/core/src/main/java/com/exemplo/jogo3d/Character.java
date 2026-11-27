@@ -87,18 +87,38 @@ public class Character {
     private int lastVariant = -1;
     private boolean jumpStanding = false;   // pulou sem se mover: usa o pulo parado
 
+    /** Modelos já carregados (cada personagem entra na memória uma vez só). */
+    private static final java.util.Map<String, Model> MODELOS = new java.util.HashMap<>();
+    private static final String[] NOS = {"RightUpperArm", "RightForeArm", "Hips", "Spine", "Spine1", "LeftUpperLeg", "RightUpperLeg", "LeftLowerLeg", "RightLowerLeg"};
+    private String modelPath = null;
+
     public void create() {
-        model = ModelIO.load("models/jake/jake.g3dj");
+        trocarModelo();
+        loadSounds();
+    }
+
+    /** Põe na cena a personagem escolhida (troca sem reiniciar o jogo; vale ao começar a próxima partida). */
+    void trocarModelo() {
+        String caminho = Personagens.caminho();
+        if (caminho.equals(modelPath)) return;
+        Model novo = MODELOS.get(caminho);
+        if (novo == null) {
+            novo = ModelIO.load(caminho);
+            MODELOS.put(caminho, novo);
+        }
+        if (instance != null) instances.removeValue(instance, true);
+        model = novo;
+        modelPath = caminho;
         instance = new ModelInstance(model);
         anim = new AnimationController(instance);
         instances.add(instance);
-        for (String n : new String[]{"RightUpperArm", "RightForeArm", "Hips", "Spine", "Spine1", "LeftUpperLeg", "RightUpperLeg", "LeftLowerLeg", "RightLowerLeg"}) {
+        nodes.clear();
+        for (String n : NOS) {
             Node node = instance.getNode(n);
             if (node != null) nodes.put(n, node);
         }
         anim.animate("Idle", -1, 1f, null, 0.15f);
         anim.current.speed = 0f;
-        loadSounds();
     }
 
     private static void loadSounds() {
@@ -431,6 +451,9 @@ public class Character {
     }
 
     public void dispose() {
-        model.dispose();
+        for (Model m : MODELOS.values()) m.dispose();
+        MODELOS.clear();
+        model = null;
+        modelPath = null;
     }
 }

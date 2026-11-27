@@ -92,6 +92,13 @@ final class Lobby {
                 toast("+100 moedas");
             } else if ("Loja".equals(panel) && (in(rect("moedas+"), rx, ry) || in(rect("diamantes+"), rx, ry))) {
                 toast("Pacotes em breve");
+            } else if ("Personagem".equals(panel)) {
+                for (int i = 0; i < Personagens.NOMES.length; i++) {
+                    if (in(usarRect(i), rx, ry) && Personagens.atual() != i) {
+                        Personagens.escolher(i);
+                        toast(Personagens.NOMES[i] + " é a personagem principal (entra na próxima partida)");
+                    }
+                }
             }
             return Act.NONE;
         }
@@ -277,7 +284,43 @@ final class Lobby {
         sh.end();
     }
 
+    // Cards do painel de personagens: uma coluna por personagem, com a miniatura e o botão USAR
+    private static final float CARD_Y = 260f, CARD_W = 460f, CARD_H = 470f;
+    private static float cardX(int i) { return 365f + i * 480f; }
+    private static float[] usarRect(int i) { return new float[]{cardX(i) + 60f, CARD_Y + 420f, CARD_W - 120f, 56f}; }
+
+    /** Texto centralizado num ponto (x do centro, em referência). */
+    private void ctext(SpriteBatch b, BitmapFont f, String t, float cx, float ry, float sc, float[] c) {
+        f.getData().setScale(s * sc);
+        layout.setText(f, t);
+        float w = layout.width / s;
+        text(b, f, t, cx - w / 2f, ry, sc, c, false);
+    }
+
+    private void cardFills(ShapeRenderer sh) {
+        for (int i = 0; i < Personagens.NOMES.length; i++) {
+            float x = cardX(i);
+            if (i == Personagens.atual()) fill(sh, x - 3, CARD_Y - 3, CARD_W + 6, CARD_H + 6, GOLD);
+            fill(sh, x, CARD_Y, CARD_W, CARD_H, DARK);
+            float[] u = usarRect(i);
+            boolean emUso = i == Personagens.atual();
+            fill(sh, u[0], u[1], u[2], u[3], emUso ? BROWN : GOLD);
+        }
+    }
+
+    private void cardTexts(SpriteBatch b, BitmapFont font) {
+        for (int i = 0; i < Personagens.NOMES.length; i++) {
+            float x = cardX(i);
+            img(b, Personagens.MINIATURAS[i], x + 30, CARD_Y + 20, CARD_W - 60, 330);
+            ctext(b, font, Personagens.NOMES[i].toUpperCase(), x + CARD_W / 2f, CARD_Y + 390, 2.0f, GOLD);
+            float[] u = usarRect(i);
+            boolean emUso = i == Personagens.atual();
+            ctext(b, font, emUso ? "EM USO" : "USAR", u[0] + u[2] / 2f, u[1] + 38, 1.9f, emUso ? MUTED : INK);
+        }
+    }
+
     private void drawPanel(SpriteBatch b, ShapeRenderer sh, BitmapFont font, Matrix4 proj) {
+        boolean cartoes = "Personagem".equals(panel);
         sh.setProjectionMatrix(proj);
         sh.begin(ShapeRenderer.ShapeType.Filled);
         sh.setColor(0f, 0f, 0f, 0.72f);
@@ -285,6 +328,7 @@ final class Lobby {
         fill(sh, 330, 150, 1010, 640, DARK);
         fill(sh, 1280, 160, 52, 52, GOLD);
         if ("Recompensas".equals(panel)) fill(sh, CLAIM[0], CLAIM[1], CLAIM[2], CLAIM[3], claimed ? BROWN : GOLD);
+        if (cartoes) cardFills(sh);
         sh.end();
         sh.begin(ShapeRenderer.ShapeType.Line);
         edge(sh, 330, 150, 1010, 640, GOLD);
@@ -293,9 +337,14 @@ final class Lobby {
         b.begin();
         img(b, "fechar", CLOSE[0] + 8, CLOSE[1] + 8, CLOSE[2] - 16, CLOSE[3] - 16);
         text(b, font, panel.toUpperCase(), 365, 214, 2.6f, GOLD, false);
-        String[] lines = body(panel);
-        float y = 270;
-        for (String l : lines) { text(b, font, l, 365, y, 1.7f, WHITE, false); y += 48; }
+        if (cartoes) {
+            text(b, font, "Nível " + level + "   ·   XP " + xp + " / " + xpMax, 365, 246, 1.5f, MUTED, false);
+            cardTexts(b, font);
+        } else {
+            String[] lines = body(panel);
+            float y = 270;
+            for (String l : lines) { text(b, font, l, 365, y, 1.7f, WHITE, false); y += 48; }
+        }
         if ("Recompensas".equals(panel)) {
             text(b, font, claimed ? "RESGATADA" : "RESGATAR", CLAIM[0] + CLAIM[2] / 2f, CLAIM[1] + 40, 1.9f, INK, true);
         }
