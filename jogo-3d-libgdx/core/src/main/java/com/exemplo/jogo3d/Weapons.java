@@ -87,7 +87,7 @@ final class Weapons {
     void renderIcons(com.badlogic.gdx.graphics.g3d.ModelBatch batch, com.badlogic.gdx.graphics.g3d.Environment env) {
         for (int i = 0; i < FILES.length; i++) {
             if (iconFbo[i] == null)
-                iconFbo[i] = new com.badlogic.gdx.graphics.glutils.FrameBuffer(com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888, 256, 128, true);
+                iconFbo[i] = new com.badlogic.gdx.graphics.glutils.FrameBuffer(com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888, 512, 256, true);   // ícones em alta resolução
             icons[i] = Items.renderIcon(batch, env, models[i], iconFbo[i], 90f);
         }
     }
@@ -123,9 +123,7 @@ final class Weapons {
 
     /** Toque no punho: guarda a arma na mão ou, guardada, saca de novo. */
     void toggleHold(Character ch) {
-        if (heldType < 0) return;
-        if (!holstered) holster(ch);
-        else equipNew(heldType, ch);
+        // Guardar e sacar foram removidos: a arma fica sempre na mão
     }
 
     /** Configuração da arma na mão (null se desarmado). */
@@ -359,30 +357,23 @@ final class Weapons {
             equipNew(slot[other], ch);
             return;
         }
-        if (heldType < 0) return;
-        if (!holstered) holster(ch);
-        else equipNew(heldType, ch);
     }
 
     /** Guarda a arma: some da mão (a animação de guardar fica por conta da pose do braço). */
     void holster(Character ch) {
-        if (heldType < 0 || holstered) return;
-        holstered = true;
-        if (held != null) ch.instances.removeValue(held, true);
-        reloadT = 0f;
-        burstLeft = 0;
-        ch.setArmed(false);
+        // Guardar removido: a arma nunca sai da mão
     }
 
     boolean holstered() { return holstered; }
 
     boolean hasWeapon() { return slot[0] >= 0 || slot[1] >= 0; }
 
-    /** Texto do botão: trocar (há outra arma), guardar ou sacar. */
+    /** Há outra arma levada para trocar? */
+    boolean hasOtherWeapon() { return slot[activeSlot == 0 ? 1 : 0] >= 0; }
+
+    /** Texto do botão de troca (guardar e sacar foram removidos). */
     String swapLabel() {
-        if (holstered) return "SACAR";
-        int other = activeSlot == 0 ? 1 : 0;
-        return slot[other] >= 0 ? "TROCAR" : "GUARDAR";
+        return "TROCAR";
     }
 
     private static float smooth(float x) {

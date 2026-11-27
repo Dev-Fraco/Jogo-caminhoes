@@ -10,7 +10,7 @@ import com.badlogic.gdx.math.Vector3;
 
 import java.lang.reflect.Proxy;
 
-/** Controles mobile: disparo sem acidente, dois slots de arma com troca, e guardar/sacar. */
+/** Controles mobile: disparo sem acidente, dois slots de arma com troca (guardar e sacar foram removidos). */
 public class ControlTests extends ApplicationAdapter {
     static int pass = 0, fail = 0;
 
@@ -61,7 +61,7 @@ public class ControlTests extends ApplicationAdapter {
         Vector3 at = new Vector3();
         System.out.println("== Dois slots e troca ==");
         check("pegar a primeira arma", wp.pickUp(new Weapons.Pickup(0, new ModelInstance(wp.models()[0]), 0, 0, 0), w, ch, pl), "");
-        check("com uma arma, o botão diz GUARDAR", wp.swapLabel().equals("GUARDAR"), wp.swapLabel());
+        check("com uma arma, o botão diz TROCAR (guardar foi removido)", wp.swapLabel().equals("TROCAR") && !wp.hasOtherWeapon(), wp.swapLabel());
         check("pegar a segunda arma (outro tipo)", wp.pickUp(new Weapons.Pickup(2, new ModelInstance(wp.models()[2]), 0, 0, 0), w, ch, pl), "");
         check("com duas armas, a da mão é a nova", wp.heldName().equals("GROZA"), wp.heldName());
         check("com duas armas, o botão diz TROCAR", wp.swapLabel().equals("TROCAR"), wp.swapLabel());
@@ -72,14 +72,13 @@ public class ControlTests extends ApplicationAdapter {
         wp.swap(ch);
         check("trocar de volta: GROZA na mão", wp.heldName().equals("GROZA"), wp.heldName());
 
-        System.out.println("== Guardar e sacar com uma arma só ==");
+        System.out.println("== Sem guardar: a arma fica sempre na mão ==");
         wp.unequip(ch);
         wp.pickUp(new Weapons.Pickup(1, new ModelInstance(wp.models()[1]), 0, 0, 0), w, ch, pl);
         wp.swap(ch);
-        check("guardar: a arma some da mão", wp.holstered() && !wp.armed(), "");
-        check("guardada: o botão diz SACAR", wp.swapLabel().equals("SACAR"), wp.swapLabel());
-        wp.swap(ch);
-        check("sacar de novo: a arma volta à mão", !wp.holstered() && wp.armed(), "");
+        check("trocar com uma arma só não guarda: a arma continua na mão", !wp.holstered() && wp.armed(), "");
+        wp.toggleHold(ch);
+        check("tocar no punho não guarda a arma", !wp.holstered() && wp.armed(), "");
     }
 
     public static void main(String[] args) {

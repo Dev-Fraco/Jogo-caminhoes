@@ -130,6 +130,7 @@ public class Main extends ApplicationAdapter {
     private float fireLastX, fireLastY;
     private boolean firePressed = false;          // acabou de apertar (armas sem automático)
     private final TouchFire touchFire = new TouchFire();
+    private int fire2Pointer = -1;               // botão de atirar fixo (não mexe na câmera)
     private final Camp camp = new Camp();
     private Scope scope;                          // luneta do fuzil de precisão
     private Scope sight;                          // mira red dot: a moldura da luneta, sem zoom (todas as armas, ao mirar)
@@ -315,7 +316,7 @@ public class Main extends ApplicationAdapter {
         if (!ui && Gdx.input.isKeyJustPressed(Input.Keys.Q)) adsOn = !adsOn;
         if (!ui && Gdx.input.isKeyJustPressed(Input.Keys.R) && world.weapons != null) world.weapons.startReload();
         if (!ui && Gdx.input.isKeyJustPressed(Input.Keys.F)) firePressed = true;
-        touchFire.update(dt, firePointer >= 0, ui);   // toque só conta depois de 45 ms (sem disparo acidental)
+        touchFire.update(dt, firePointer >= 0 || fire2Pointer >= 0, ui);   // toque só conta depois de 45 ms (sem disparo acidental)
         if (touchFire.pressedThisFrame) firePressed = true;
         boolean fireHeld = !ui && (touchFire.heldNow || Gdx.input.isKeyPressed(Input.Keys.F));
         // Correr: o botão faz correr sozinho; mexer no analógico desliga a corrida e devolve o controle
@@ -721,6 +722,7 @@ public class Main extends ApplicationAdapter {
                 if (i == runPointer) runPointer = -1;
                 if (i == jumpPointer) jumpPointer = -1;
                 if (i == firePointer) firePointer = -1;
+                if (i == fire2Pointer) fire2Pointer = -1;
                 if (i == wallPointer) releaseWall();
                 if (i == grenPointer) {
                     grenPointer = -1;
@@ -900,6 +902,12 @@ public class Main extends ApplicationAdapter {
                     runToggle = false;
                 }
                 return;
+            case "atirar2":   // só atira: o dedo aqui não gira a câmera nem a mira
+                if (fire2Pointer < 0) {
+                    fire2Pointer = i;
+                    runToggle = false;
+                }
+                return;
             case "mira":
                 adsOn = !adsOn && combat;
                 return;
@@ -1033,14 +1041,15 @@ public class Main extends ApplicationAdapter {
         hud.show("abrir", !dead && (trainBoxNear || inPlane || prompt != null || mountTarget != null || doorTarget != null
                 || hammockTarget != null || canGetUp || cartTarget != null || cartOptionsHorse != null));
         hud.show("coletar", !dead && itemTarget != null);
-        hud.show("trocar", !dead && world.weapons != null && world.weapons.hasWeapon());
+        hud.show("trocar", !dead && world.weapons != null && world.weapons.hasOtherWeapon());
         hud.show("parede", !dead && !inPlane && !skydiving && !parachuting && !landing);
         hud.swapText = world.weapons != null ? world.weapons.swapLabel() : "TROCAR";
-        hud.show("arma", combat);
+        hud.show("arma", true);   // painel de armas sempre visível
         hud.show("mira", combat);
         hud.show("atirar", combat);
         hud.adsOn = adsOn;
-        hud.fireDown = firePointer >= 0;
+        hud.fireDown = firePointer >= 0 || fire2Pointer >= 0;
+        hud.show("atirar2", combat);
         hud.show("pegar_arma", !dead && weaponTarget != null);
         hud.show("usar_kit", !dead && world.items != null && survival != null && survival.health < 75f && survival.using < 0
                 && (world.items.bag[Survival.MEDKIT] > 0 || world.items.bag[Survival.BANDAGEM] > 0));

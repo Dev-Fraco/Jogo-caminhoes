@@ -272,7 +272,7 @@ final class CombatFx implements DamageSystem.Listener {
         shapes.end();
         // Painel de armas (fundos e bordas em código; textos e ícones no batch)
         WeaponConfig cfg = weapons != null ? weapons.config() : null;
-        boolean showPanel = cfg != null && armedView;
+        boolean showPanel = weapons != null;   // painel sempre visível (com ou sem arma na mão)
         float[] pr = showPanel ? hud.rect(hud.get("arma")) : null;
         if (showPanel) WeaponPanel.drawShapes(shapes, pr[0], pr[1], pr[2], pr[3], weapons, !weapons.holstered());
 
