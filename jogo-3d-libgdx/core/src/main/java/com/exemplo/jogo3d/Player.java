@@ -56,8 +56,11 @@ public class Player {
         // 1) Direção desejada, relativa ao CORPO: girar a câmera não muda o caminho de quem anda.
         //    Correndo, o corpo vira suavemente para onde a câmera aponta e corre para frente (como no Free Fire).
         if (runHeld) facing = lerpAngle(facing, camYaw, 1f - (float) Math.exp(-RUN_TURN * dt));
-        float fx = MathUtils.sin(facing), fz = MathUtils.cos(facing);   // frente do corpo
-        float rx = -fz, rz = fx;                                        // direita do corpo
+        // Andando: o analógico é relativo à CÂMERA (frente = para onde a câmera olha), e o corpo vira para onde anda.
+        // Correndo: o corpo já segue a câmera, então é o mesmo.
+        float ref = runHeld ? facing : camYaw;
+        float fx = MathUtils.sin(ref), fz = MathUtils.cos(ref);   // frente de referência
+        float rx = -fz, rz = fx;                                  // direita de referência
         float dx = fx * inY + rx * inX;
         float dz = fz * inY + rz * inX;
         float inMag = Math.min(1f, (float) Math.sqrt(inX * inX + inY * inY));
@@ -91,9 +94,11 @@ public class Player {
                 world.resolveCollisions(pos, RADIUS);
             }
 
-            // Andando, o corpo NÃO vira para a direção do analógico: a direção já é relativa ao corpo,
-            // então virar para ela faria o corpo girar sem parar (ao andar de lado ou na diagonal).
-            // O corpo só gira correndo (segue a câmera) ou mirando/atirando.
+            // Andando: o corpo vira para a direção do mundo em que anda (não para o analógico, que girava sem parar).
+            if (!runHeld && inMag > 0.02f) {
+                float targetYaw = (float) Math.atan2(dx, dz);
+                facing = lerpAngle(facing, targetYaw, 1f - (float) Math.exp(-TURN_SPEED * dt));
+            }
         }
 
         // Limita ao terreno

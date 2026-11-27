@@ -65,18 +65,19 @@ public class MoveRotTests extends ApplicationAdapter {
         check("parado, girar a câmera não gira o corpo", Math.abs(p1.facing - 0.3f) < 1e-4f, String.format("corpo %.3f rad", p1.facing));
         check("parado, girar a câmera não move o personagem", Math.abs(p1.pos.x - x0) < 1e-4f && Math.abs(p1.pos.z - z0) < 1e-4f, "");
 
-        System.out.println("== 2. Andando: a câmera gira livre; o corpo e a direção de andar não mudam ==");
+        System.out.println("== 2. Andando: o analógico é relativo à câmera; o corpo vira para onde anda ==");
         Player p2 = new Player();
         p2.spawn(0f, 0f, 0f);
-        p2.facing = 0f;   // corpo olha para +z
-        // anda para a frente (joystick para cima) enquanto a câmera gira de 0 a 1,5 rad
+        p2.facing = 0f;
         float x2 = p2.pos.x, z2 = p2.pos.z;
-        simular(p2, w, 0f, 1f, false, 0f, 1.5f, 2f);
+        simular(p2, w, 0f, 1f, false, 1.2f, 1.2f, 2f);   // câmera parada apontando para 1,2 rad; analógico para a frente
         float dxAnda = p2.pos.x - x2, dzAnda = p2.pos.z - z2;
-        check("andando, girar a câmera não gira o corpo", Math.abs(p2.facing) < 0.05f, String.format("corpo %.3f rad", p2.facing));
-        check("andando, a direção de andar continua a do corpo (não segue a câmera)",
-                Math.abs(dxAnda) < 0.05f * Math.abs(dzAnda) + 1e-3f && dzAnda > 0.5f,
-                String.format("deslocamento x=%.3f z=%.3f", dxAnda, dzAnda));
+        float dirAnda = MathUtils.atan2(dxAnda, dzAnda);
+        check("andando, o personagem anda para onde a câmera olha (não para onde o corpo está)",
+                Math.abs(MathUtils.atan2(MathUtils.sin(dirAnda - 1.2f), MathUtils.cos(dirAnda - 1.2f))) < 0.1f,
+                String.format("andou para %.3f rad (câmera 1.200)", dirAnda));
+        check("andando, o corpo vira para a direção de andar", Math.abs(MathUtils.atan2(MathUtils.sin(p2.facing - 1.2f), MathUtils.cos(p2.facing - 1.2f))) < 0.1f,
+                String.format("corpo %.3f rad", p2.facing));
 
         System.out.println("== 3. Correndo: o corpo gira suave até a câmera e corre para onde ela aponta ==");
         Player p3 = new Player();
@@ -117,13 +118,17 @@ public class MoveRotTests extends ApplicationAdapter {
         simular(p5, w, 1f, 0f, false, 0f, 0f, 2f);
         float dist5 = (float) Math.sqrt((p5.pos.x - x5) * (p5.pos.x - x5) + (p5.pos.z - z5) * (p5.pos.z - z5));
         check("andando de lado, o personagem anda", dist5 > 2f, String.format("andou %.2f m", dist5));
-        check("andando de lado, o corpo não fica girando", Math.abs(p5.facing - f5) < 0.05f, String.format("corpo %.3f rad (era %.3f)", p5.facing, f5));
+        float corpo5a = p5.facing;
+        simular(p5, w, 1f, 0f, false, 0f, 0f, 1f);
+        check("andando de lado, o corpo não fica girando", Math.abs(p5.facing - corpo5a) < 0.05f, String.format("corpo %.3f rad (antes %.3f)", p5.facing, corpo5a));
         System.out.println("== 6. Analógico na diagonal, sem correr: anda e não gira ==");
         Player p6 = new Player();
         p6.spawn(0f, 0f, 0f);
         p6.facing = 0f;
         simular(p6, w, 0.7f, -0.7f, false, 0f, 0f, 2f);
-        check("diagonal, o corpo não gira sem parar", Math.abs(p6.facing) < 0.05f, String.format("corpo %.3f rad", p6.facing));
+        float corpo6a = p6.facing;
+        simular(p6, w, 0.7f, -0.7f, false, 0f, 0f, 1f);
+        check("diagonal, o corpo não gira sem parar", Math.abs(p6.facing - corpo6a) < 0.05f, String.format("corpo %.3f rad (antes %.3f)", p6.facing, corpo6a));
         System.out.println("\nRESULTADO: " + pass + " ok, " + fail + " falhas");
         System.exit(fail == 0 ? 0 : 1);
     }

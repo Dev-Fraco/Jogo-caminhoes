@@ -99,10 +99,9 @@ final class Intro {
 
     /** Desenha a cena da abertura (a tela inteira). */
     void draw(SpriteBatch batch, Matrix4 proj, int W, int H) {
-        float base = Math.max(W / iw, H / ih);
-        float e = ease(MathUtils.clamp(t / 1.5f, 0f, 1f));
-        float z = 1.3f - 0.3f * e + 0.03f * MathUtils.clamp((t - 1.5f) / 3.5f, 0f, 1f);   // aproximação, depois deriva
-        float w = iw * base * z, h = ih * base * z;
+        // Imagem inteira, sem cortar e sem zoom: cabe na tela mantendo a proporção (barras pretas se sobrar)
+        float base = Math.min(W / iw, H / ih);
+        float w = iw * base, h = ih * base;
         float sx = shake * 0.02f * H * MathUtils.sin(t * 61f), sy = shake * 0.02f * H * MathUtils.cos(t * 47f);
         float px = MathUtils.sin(t * 0.6f) * 0.012f * W, py = MathUtils.cos(t * 0.45f) * 0.01f * H;
         float x = W / 2f - w / 2f + px + sx, y = H / 2f - h / 2f + py + sy;
