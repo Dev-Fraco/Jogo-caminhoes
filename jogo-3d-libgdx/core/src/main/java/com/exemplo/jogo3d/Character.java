@@ -441,6 +441,11 @@ public class Character {
         if (!temClipeAgachar() && want) crouch = 1f;
     }
 
+    /** O modelo deste personagem tem o clipe (ex.: um emote)? */
+    public boolean temClipe(String nome) {
+        return model != null && model.getAnimation(nome) != null;
+    }
+
     private boolean temClipeAgachar() {
         return model != null && model.getAnimation("Agachar") != null && model.getAnimation("LevantarAgachado") != null;
     }

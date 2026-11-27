@@ -1091,10 +1091,13 @@ public class Main extends ApplicationAdapter {
         // 3) menus, botões e ícones (por cima)
         batch.setProjectionMatrix(hudCamera.combined);
         lobby.draw(batch, shapes, font, world != null ? world.weapons : null, hudCamera.combined, W, H, dt);
+        batch.setProjectionMatrix(hudCamera.combined);
+        emotes.draw(batch, W, H);                 // roda de emotes por cima do lobby
         if (settingsOpen) drawSettings(W, H);
     }
 
     private PerspectiveCamera lobbyCam;
+    private final Emotes emotes = new Emotes();   // roda de emotes (só no lobby)
     private final Player lobbyPlayer = new Player();
 
     /**
@@ -1117,6 +1120,7 @@ public class Main extends ApplicationAdapter {
         character.trocarModelo();                 // o personagem escolhido no lobby
         character.setCrouch(0f);                  // em pé (sem o agachar de uma partida anterior)
         character.setAgachado(false);
+        emotes.update(character, dt);             // emote em execução (2 vezes) ou volta ao Idle
         lobbyPlayer.facing = 0f;                  // de frente para a câmera (o modelo olha para +z)
         lobbyPlayer.speed = 0f;
         character.update(lobbyPlayer, dt);        // parado: toca a animação de espera
@@ -1126,10 +1130,28 @@ public class Main extends ApplicationAdapter {
     }
 
     private void menuPress(float x, float yb) {
+        int W = Gdx.graphics.getWidth(), H = Gdx.graphics.getHeight();
+        if (emotes.aberta()) {                    // roda aberta: espaço executa o emote; fora ou centro fecha
+            int espaco = emotes.espacoEm(x, yb, W, H);
+            emotes.fechar();
+            if (espaco >= 0) emotes.executar(espaco, character);
+            return;
+        }
+        if (!lobby.arsenalOpen() && tocouPersonagem(x, yb, W, H)) {
+            emotes.abrir();                       // toque no personagem abre a roda
+            return;
+        }
         Lobby.Act act = lobby.press(x, yb, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         if (act == Lobby.Act.BATTLE) startMatch();
         else if (act == Lobby.Act.TRAINING) startTraining();
         else if (act == Lobby.Act.SETTINGS) settingsOpen = true;
+    }
+
+    /** O toque caiu sobre o personagem do lobby? (área aproximada do corpo, na tela) */
+    private boolean tocouPersonagem(float x, float yb, int W, int H) {
+        if (lobbyCam == null) return false;
+        Vector3 p = lobbyCam.project(new Vector3(0f, 0.9f, 0f));
+        return Math.abs(x - p.x) < W * 0.12f && Math.abs(yb - p.y) < H * 0.42f;
     }
 
     /** Jogar: partida nova (avião e alvo de volta ao começo). */
@@ -1533,6 +1555,7 @@ public class Main extends ApplicationAdapter {
     @Override
     public void dispose() {
         if (intro != null) intro.dispose();
+        emotes.dispose();
         Musica.descartar();
         lobby.dispose();
         modelBatch.dispose();

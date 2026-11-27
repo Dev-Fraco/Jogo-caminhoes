@@ -4,7 +4,8 @@ import json, sys
 import numpy as np
 
 SRC_MIX, SRC_JAKE, OUT_JSON = sys.argv[1], sys.argv[2], sys.argv[3]
-F_IN, F_OUT = int(sys.argv[4]), int(sys.argv[5])          # quadros do clipe Mixamo usados (a 60 fps)
+F_IN, F_OUT = int(sys.argv[4]), int(sys.argv[5])          # quadros do clipe Mixamo usados
+STEP = int(sys.argv[6]) if len(sys.argv) > 6 else 1      # amostra a cada STEP quadros
 
 def quat_to_mat_xyzw(x, y, z, w):
     n = np.sqrt(x*x + y*y + z*z + w*w); x, y, z, w = x/n, y/n, z/n, w/n
@@ -111,8 +112,8 @@ for j in jake_bones:
     keys = []
     mapped = j in Wm_rest
     p = nodes[j]['parent']
-    for i, fr in enumerate(range(F_IN, F_OUT + 1)):
-        t_ms = int(round(i * 1000.0 / 60.0))
+    for i, fr in enumerate(range(F_IN, F_OUT + 1, STEP)):
+        t_ms = int(round(i * STEP * 1000.0 / mx.get('fps', 60)))
         if mapped:
             W = delta(j, fr) @ Jw_rest[j]
             L = np.linalg.inv(world_jake(p, fr)) @ W
