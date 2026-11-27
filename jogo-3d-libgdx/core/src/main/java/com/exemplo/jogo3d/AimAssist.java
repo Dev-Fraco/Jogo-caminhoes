@@ -52,6 +52,7 @@ final class AimAssist {
     private float aquisicaoT;                  // tempo restante da aquisição (s)
     private float arrastoT;                    // tempo restante do arrasto deliberado (s)
     private boolean pullVertical;              // correção vertical ligada (histerese da zona)
+    private float paradoT = 10f;               // tempo desde o último movimento do dedo (s)
 
     /** Esquece o movimento anterior (ao trocar de alvo ou de mira à força). */
     void reset() {
@@ -123,6 +124,10 @@ final class AimAssist {
         float userDelta = havePitch ? MathUtils.clamp(pitch - lastPitch, -0.3f, 0.3f) : 0f;
         havePitch = true;
         arrastoT = Math.max(0f, arrastoT - dtRaw);
+        // Movimento do dedo tem prioridade: enquanto ele se move, a atração ao abdômen fica suspensa;
+        // depois de parar, a força volta em rampa (paradoT conta o tempo parado)
+        boolean movendo = Math.abs(userDelta) > RUIDO_DEDO;
+        paradoT = movendo ? 0f : Math.min(10f, paradoT + dtRaw);
         // Arrasto deliberado: movimento do dedo acima do limiar, que escala com a sensibilidade (mesmo dedo, mais ângulo)
         if (Math.abs(userDelta) > ARRASTO_RAD * Math.max(0.25f, AimSettings.general)) arrastoT = ARRASTO_SEG;
         if (!AimSettings.assistOn || target == null || !target.alive() || !firing || dtRaw <= 0f) {
@@ -175,7 +180,7 @@ final class AimAssist {
         float limite;   // teto da correção deste quadro (rad): aquisição ou acompanhamento
 
         if (firePress && inFov) aquisicaoT = AimTuning.aquisicaoSeg;   // apertou o tiro: começa a aquisição
-        boolean aquisicao = aquisicaoT > 0f && inFov && !arrastando;   // o arrasto deliberado suspende a aquisição
+        boolean aquisicao = aquisicaoT > 0f && inFov && !arrastando && !movendo;   // o dedo em movimento tem prioridade
         aquisicaoT = Math.max(0f, aquisicaoT - dt);
 
         if (aquisicao) {
@@ -202,11 +207,14 @@ final class AimAssist {
                 }
             }
             // Vertical: só fora da zona de tolerância (com histerese) e sem disputar o arrasto do dedo
-            // Só PARA CIMA, e só quando a mira está abaixo da zona da barriga (errBelly > 0): acima dela (até a cabeça)
-            // o dedo controla livre. Dentro do cone, fora do arrasto deliberado, e com a zona + histerese.
-            pullVertical = inTrava && errBelly > 0f && zonaAtiva(pullVertical, errBellyGrau, AimTuning.zonaVertical, AimTuning.histerese) && !arrastando;
+            // Atração ao ABDÔMEN (ponto principal): nos dois sentidos, com zona + histerese, dentro do cone,
+            // fora do arrasto e sem movimento do dedo. Volta em rampa depois de parar, sem puxão brusco.
+            pullVertical = inTrava && !arrastando && !movendo
+                    && zonaAtiva(pullVertical, errBellyGrau, AimTuning.zonaVertical, AimTuning.histerese);
             if (pullVertical) {
-                tp += -errBelly * Math.min(1f, 10f * dt) * AimSettings.abdAssist * fat;
+                float t = MathUtils.clamp((paradoT - AimTuning.retornoEsperaSeg) / AimTuning.retornoRampaSeg, 0f, 1f);
+                float rampa = t * t * (3f - 2f * t);   // suavização (smoothstep)
+                tp += -errBelly * Math.min(1f, 10f * dt) * AimSettings.abdAssist * fat * rampa;
             }
             // Horizontal: assistência suave para os lados (não disputa o arrasto vertical)
             if (inFov) ty += errYaw * Math.min(1f, 8f * dt) * AimSettings.horizAssist * fat;

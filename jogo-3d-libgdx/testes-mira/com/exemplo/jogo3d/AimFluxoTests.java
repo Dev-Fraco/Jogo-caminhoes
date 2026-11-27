@@ -196,6 +196,17 @@ public class AimFluxoTests extends ApplicationAdapter {
         }
         check("acompanhamento de alvo rápido respeita maxDegPerSec em todas as armas", limiteContinuo, det2.toString());
 
+        // Abdômen continua o ponto principal: depois de subir e parar, a mira volta suave ao abdômen
+        float[] ret = retornoAbdomen(0.10f, 15, 180);   // sobe 1,5° e para por 3 s
+        check("depois de parar de subir, a mira volta ao abdômen (≤0,4°)", ret[0] <= 0.4f,
+                String.format("erro final %.2f°, erro logo após parar %.2f°", ret[0], ret[2]));
+        check("retorno ao abdômen sem puxão brusco (≤0,2°/quadro)", ret[1] <= 0.2f,
+                String.format("maior correção no retorno %.3f°/quadro", ret[1]));
+        // Movimento do dedo tem prioridade: sem resistência, a atração não puxa contra um dedo que sobe devagar
+        float contra = movimentoTemPrioridade();
+        check("enquanto o dedo se move, a atração ao abdômen não puxa contra ele", Math.abs(contra) < 0.01f,
+                String.format("correção contra o dedo %.4f°", contra));
+
         check("subida com o dedo: a mira nunca reverte o movimento do dedo (sem tremedeira)", sub[2] == 0f,
                 String.format("quadros em que a mira não sobe com o dedo: %.0f; dedo %.2f°, assistência %.2f°", sub[2], sub[0], sub[1]));
         check("subida com o dedo: a resistência fica reduzida (≤15% do arrasto)", Math.abs(sub[1]) <= 0.15f * Math.abs(sub[0]) + 1e-3f,
@@ -212,6 +223,68 @@ public class AimFluxoTests extends ApplicationAdapter {
             float x = -4f + 6f * t;
             return new Vector3(x, w.groundAt(x, 15f), 15f);
         }, FPS_PADRAO, 2.0f, cat, 1f, true);
+    }
+
+    /**
+     * A mira começa no abdômen, sobe com o dedo por 'frames' quadros (passoGrau por quadro) e depois para por
+     * 'depois' quadros. Devolve {erro final em °, maior correção no retorno em °/quadro, erro logo após parar em °}.
+     */
+    private float[] retornoAbdomen(float passoGrau, int frames, int depois) {
+        Enemy e = inimigo(0f, 0f, 25f);
+        cam.set(0f, 1.7f, 0f);
+        aimAt(new Vector3(e.hitbox.belly));
+        AimAssist aa = new AimAssist();
+        float dt = 1f / FPS_PADRAO, maxRet = 0f, logoApos = 0f;
+        for (int i = 0; i < frames + depois; i++) {
+            e.pos.set(0f, w.groundAt(0f, 25f), 25f);
+            e.pose(0f);
+            e.hitbox.update(++frame);
+            float passo = i < frames ? (float) -Math.toRadians(passoGrau) : 0f;   // dedo para cima = pitch diminui
+            pitch += passo;
+            Vector3 d = dir();
+            float camYaw = MathUtils.atan2(d.x, d.z), camPitch = -(float) Math.asin(MathUtils.clamp(d.y, -1f, 1f));
+            aa.update(dt, cam, d, camYaw, camPitch, e, WeaponConfig.Category.FUZIL, true, i == 0, false);
+            yaw += aa.dYaw;
+            pitch += aa.dPitch;
+            if (i >= frames) maxRet = Math.max(maxRet, (float) Math.toDegrees(Math.abs(aa.dPitch)));
+            if (i == frames) logoApos = Math.abs(erroBarrigaSigned(e));
+        }
+        return new float[]{Math.abs(erroBarrigaSigned(e)), maxRet, logoApos};
+    }
+
+    /** Erro vertical com sinal, em °: positivo = o abdômen está acima da mira. */
+    private float erroBarrigaSigned(Enemy e) {
+        Vector3 b = e.hitbox.belly;
+        float dx = b.x - cam.x, dy = b.y - cam.y, dz = b.z - cam.z;
+        return (float) Math.toDegrees(MathUtils.atan2(dy, (float) Math.sqrt(dx * dx + dz * dz)) + pitch);
+    }
+
+    /** Mira 2° acima do abdômen, sem resistência, o dedo sobe devagar: quanto a atração puxa contra ele (°). */
+    private float movimentoTemPrioridade() {
+        float salvo = AimSettings.upResist;
+        AimSettings.upResist = 0f;
+        Enemy e = inimigo(0f, 0f, 25f);
+        cam.set(0f, 1.7f, 0f);
+        aimAt(new Vector3(e.hitbox.belly));
+        pitch -= (float) Math.toRadians(2f);
+        AimAssist aa = new AimAssist();
+        float dt = 1f / FPS_PADRAO, soma = 0f;
+        for (int i = 0; i < 60; i++) {
+            e.pos.set(0f, w.groundAt(0f, 25f), 25f);
+            e.pose(0f);
+            e.hitbox.update(++frame);
+            float passo = (float) -Math.toRadians(0.05f);   // devagar, abaixo do limiar de arrasto
+            pitch += passo;
+            Vector3 d = dir();
+            float camYaw = MathUtils.atan2(d.x, d.z), camPitch = -(float) Math.asin(MathUtils.clamp(d.y, -1f, 1f));
+            aa.update(dt, cam, d, camYaw, camPitch, e, WeaponConfig.Category.FUZIL, true, i == 0, false);
+            yaw += aa.dYaw;
+            pitch += aa.dPitch;
+            if (i > 0) soma += aa.dPitch;   // o 1º quadro é o aperto do tiro (sem referência do dedo): a aquisição gruda aí
+            
+        }
+        AimSettings.upResist = salvo;
+        return (float) Math.toDegrees(soma);
     }
 
     // ---------- cenários de revisão ----------

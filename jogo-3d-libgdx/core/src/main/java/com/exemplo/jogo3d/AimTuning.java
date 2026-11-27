@@ -49,6 +49,10 @@ final class AimTuning {
     static float histerese = 0.3f;
     /** Resistência vertical durante o arrasto manual deliberado (fração da resistência normal). Experimental. */
     static float resistenciaArrasto = 0.15f;
+    /** Tempo parado do dedo até a assistência voltar a puxar para o abdômen (s). Experimental. */
+    static float retornoEsperaSeg = 0.15f;
+    /** Duração da rampa que devolve a força da atração ao abdômen depois de parar (s). Experimental. */
+    static float retornoRampaSeg = 0.6f;
     /** Ganho do tracking sobre o erro (1/s): quão rápido a mira fecha o atraso de um alvo em movimento. Experimental. */
     static float trackingGain = 6f;
 
@@ -70,6 +74,8 @@ final class AimTuning {
         zonaVertical = 0.4f;
         histerese = 0.3f;
         resistenciaArrasto = 0.15f;
+        retornoEsperaSeg = 0.15f;
+        retornoRampaSeg = 0.6f;
         trackingGain = 6f;
     }
 
@@ -90,6 +96,8 @@ final class AimTuning {
         zonaVertical = Math.max(0f, zonaVertical);
         histerese = Math.max(0f, histerese);
         resistenciaArrasto = clamp(resistenciaArrasto, 0f, 1f);
+        retornoEsperaSeg = Math.max(0f, retornoEsperaSeg);
+        retornoRampaSeg = Math.max(0.05f, retornoRampaSeg);
         trackingGain = Math.max(0f, trackingGain);
     }
 
@@ -112,6 +120,8 @@ final class AimTuning {
             zonaVertical = p.getFloat("zonaVertical", zonaVertical);
             histerese = p.getFloat("histerese", histerese);
             resistenciaArrasto = p.getFloat("resistenciaArrasto", resistenciaArrasto);
+            retornoEsperaSeg = p.getFloat("retornoEsperaSeg", retornoEsperaSeg);
+            retornoRampaSeg = p.getFloat("retornoRampaSeg", retornoRampaSeg);
             trackingGain = p.getFloat("trackingGain", trackingGain);
             validar();
         } catch (Throwable t) {
@@ -138,6 +148,8 @@ final class AimTuning {
             p.putFloat("zonaVertical", zonaVertical);
             p.putFloat("histerese", histerese);
             p.putFloat("resistenciaArrasto", resistenciaArrasto);
+            p.putFloat("retornoEsperaSeg", retornoEsperaSeg);
+            p.putFloat("retornoRampaSeg", retornoRampaSeg);
             p.putFloat("trackingGain", trackingGain);
             p.flush();
         } catch (Throwable t) {
