@@ -23,7 +23,7 @@ public class Hud {
         final float hf;          // altura padrão, fração da altura da tela
         final float aspectNoTex; // largura/altura quando não há textura (botão desenhado em código)
         float fx, fy;           // centro, fração de W e de H (origem embaixo à esquerda)
-        float scale = 1f;       // escala escolhida pelo jogador
+        float scale = PADRAO_ESCALA;   // escala escolhida pelo jogador
         float alpha = 1f;       // transparência escolhida pelo jogador (0,2 a 1)
         Texture tex;
 
@@ -44,6 +44,8 @@ public class Hud {
             "slot_energia", "joystick", "correr", "coletar", "pegar_arma", "usar_kit", "pular", "agachar", "deitar",
             "arma", "vivos", "abates", "mira", "atirar", "trocar", "abrir", "parede", "atirar2", "troca_rapida"};
     static final float MIN_SCALE = 0.4f, MAX_SCALE = 2.2f;
+    /** Tamanho padrão dos botões (antes 1,0): mais fáceis de achar e tocar. Quem ajustou o layout mantém o seu. */
+    static final float PADRAO_ESCALA = 1.25f;
     static final String PREFS = "hud_layout_v2";
     // Tela de referência da arte do HUD (posições padrão saem dela)
     private static final float REF_W = 1672f, REF_H = 941f;
@@ -157,7 +159,7 @@ public class Hud {
     /** Posições padrão: as mesmas da arte do HUD, proporcionais à tela. */
     void resetLayout(boolean onlyDefaultsOfMissing) {
         for (int i = 0; i < els.length; i++) {
-            els[i].scale = 1f;
+            els[i].scale = PADRAO_ESCALA;
             els[i].alpha = 1f;
             els[i].fx = REF_POS[i][0] / REF_W;
             els[i].fy = 1f - REF_POS[i][1] / REF_H;
