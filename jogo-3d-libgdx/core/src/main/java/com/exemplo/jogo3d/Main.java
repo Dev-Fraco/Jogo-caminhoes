@@ -77,7 +77,15 @@ public class Main extends ApplicationAdapter {
 
     private boolean training = false;   // modo treinamento (galpão com dois bonecos) em vez do battle royale
     private boolean arena = false;      // sala personalizada: ARENA LIVRE (plana, com muro, sem teto)
-    private int arenaBonecos = 0;       // jogadores da sala que viram bonecos de teste na arena
+    // Partida da sala personalizada (arena): rounds, economia, loja e espectador
+    private Rodadas rodadas;
+    private Economia economia;
+    private ArenaUi arenaUi;
+    private Sala arenaSala;
+    private final java.util.Map<String, Integer> arenaEquipes = new java.util.HashMap<>();
+    private boolean lojaFechada, espectando, finalAberto, arenaFimRegistrado;
+    private int alvoEsp = 0, inimigosVivosAntes = 0;
+    private String bannerFim = null;
     private boolean trainPanel = false; // caixa de equipamentos do treino (lista de armas)
     private boolean trainBoxNear = false;   // perto da caixa de equipamentos (mostra o botão de ação)
     private final Arsenal arsenal = new Arsenal();   // arsenal de treino (abas, grade, EQUIPAR)
@@ -302,6 +310,8 @@ public class Main extends ApplicationAdapter {
             }
             renderGame();
             if (intro != null) intro.drawFadeIn(batch, hudCamera.combined, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+            // HUD da partida da arena por último: fica por cima do HUD de armas e da loja
+            if (arena && !inMenu && rodadas != null && arenaUi != null) drawArena(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         } catch (Throwable t) {
             errorText = "ERRO AO RODAR:\n" + describe(t);
             showError();
@@ -503,6 +513,7 @@ public class Main extends ApplicationAdapter {
             overEnemy = false;
         }
         firePressed = false;
+        if (arena) arenaQuadro(dt);
         // Inimigos
         if (enemies != null) {
             int stance = prone > 0 ? 2 : (crouchOn ? 1 : 0);
@@ -603,6 +614,13 @@ public class Main extends ApplicationAdapter {
                 MathUtils.sin(pitch),
                 -forward.z * MathUtils.cos(pitch));
         // Colisão da câmera: encurta a distância se houver parede, árvore, cerca ou chão no caminho
+        if (arena && espectando && enemies != null) {   // espectador: a câmera segue o aliado escolhido
+            Enemy alvo = enemies.aliado(alvoEsp);
+            if (alvo != null) {
+                pivot.set(alvo.pos.x, alvo.pos.y + 1.6f, alvo.pos.z);
+                back.set(-MathUtils.sin(alvo.facing), 0.25f, -MathUtils.cos(alvo.facing)).nor();
+            }
+        }
         float clipped = world.cameraDistance(pivot, back, targetDist);
         camDist += (clipped - camDist) * Math.min(1f, dt * (clipped < camDist ? 14f : 4f));
         camera.position.set(pivot).mulAdd(back, camDist);
@@ -771,6 +789,7 @@ public class Main extends ApplicationAdapter {
     }
 
     private void onPress(int i, float x, float rawY, float yb, int W, int H) {
+        if (arena && onPressArena(x, yb, W, H)) return;
         if (fullMapOpen) {   // o mapa inteiro fecha com qualquer toque
             fullMapOpen = false;
             return;
@@ -822,7 +841,7 @@ public class Main extends ApplicationAdapter {
         if (survival != null && survival.dead) {
             if (survival.deadT > 3f) {
                 if (training) respawnTraining();   // no treino, morrer só reaparece no galpão
-                else if (arena) respawnArena();    // na arena, morrer só reaparece na área
+                else if (arena) { }                // na arena, morrer não reaparece: o espectador acompanha ou o round acaba
                 else goMenu();
             }
             return;
@@ -1137,13 +1156,13 @@ public class Main extends ApplicationAdapter {
     private void menuPress(float x, float yb) {
         int W = Gdx.graphics.getWidth(), H = Gdx.graphics.getHeight();
         if (salaUi.aberta()) {                    // sala personalizada por cima do lobby
-            int jogadores = salaUi.jogadoresDaSala();
             SalaUi.Acao acao = salaUi.toque(x, yb, W, H);
             if (acao == SalaUi.Acao.VOLTAR) salaUi.fechar();
             else if (acao == SalaUi.Acao.INICIAR) {
+                Sala sala = salaUi.sala();
                 salaUi.fechar();
                 salaUi.partidaComecou();
-                startArena(jogadores);
+                startArena(sala);
             }
             return;
         }
@@ -1279,24 +1298,43 @@ public class Main extends ApplicationAdapter {
         respawnTraining();
     }
 
-    /** Sala personalizada: a partida começa na ARENA LIVRE; os outros jogadores da sala viram bonecos de teste. */
-    void startArena(int jogadoresNaSala) {
+    /** Sala personalizada: a partida começa na ARENA LIVRE, com as equipes da sala (15 rounds). */
+    void startArena(Sala sala) {
         arena = true;
         training = false;
         inMenu = false;
         Musica.parar();
         loadWorld(false, true);
-        arenaBonecos = Math.max(0, jogadoresNaSala - 1);
+        arenaSala = sala;
+        arenaEquipes.clear();
+        economia = new Economia();
+        rodadas = new Rodadas();
+        for (int e = Sala.A; e <= Sala.B; e++) for (String nome : sala.nomes[e]) {
+            if (nome == null) continue;
+            economia.entrar(nome);
+            arenaEquipes.put(nome, e);
+        }
+        arenaUi = new ArenaUi(economia, rodadas, world.weapons, SalaUi.EU);
+        if (world.weapons != null) world.weapons.renderIcons(modelBatch, environment);   // silhuetas das armas para a loja
+        lojaFechada = false;
+        finalAberto = false;
+        arenaFimRegistrado = false;
+        bannerFim = null;
+        alvoEsp = 0;
         respawnArena();
     }
 
+    /** Começa um round: jogador de volta ao nascimento, arma comprada, colete e capacete, bonecos de cada lado. */
     private void respawnArena() {
         survival.reset();
         if (grenades != null) grenades.clearAll();
+        int tipo = economia != null ? economia.armaEquipada(SalaUi.EU) : -1;
         if (world.weapons != null) {
             world.weapons.unequip(character);
-            world.weapons.giveStart(0, character);   // AKM
+            world.weapons.giveStart(tipo >= 0 ? tipo : 0, character);   // a comprada, senão o AKM
         }
+        survival.armadura = economia != null
+                ? (economia.temColete(SalaUi.EU) ? 0.25f : 0f) + (economia.temCapacete(SalaUi.EU) ? 0.10f : 0f) : 0f;
         adsOn = false;
         dyingShown = false;
         aiming = false;
@@ -1310,7 +1348,129 @@ public class Main extends ApplicationAdapter {
         yaw = 0f;
         player.spawn(0f, 0f, world.heightAt(0f, 0f));
         player.facing = 0f;
-        if (enemies != null) enemies.spawnArena(world, arenaBonecos);
+        if (enemies != null && arenaSala != null) {
+            int inimigos = arenaSala.ocupados(Sala.B);
+            int aliados = Math.max(0, arenaSala.ocupados(Sala.A) - 1);
+            enemies.spawnArenaTimes(world, inimigos, aliados);
+            inimigosVivosAntes = inimigos;
+        }
+        espectando = false;
+        alvoEsp = 0;
+    }
+
+    /** Quadro da partida da arena: avança o round, decide o fim, reconhece abates e o espectador. */
+    private void arenaQuadro(float dt) {
+        if (rodadas == null || enemies == null) return;
+        Rodadas.Fase antes = rodadas.fase;
+        rodadas.tick(dt);
+        if (rodadas.fase == Rodadas.Fase.PREPARO && antes != Rodadas.Fase.PREPARO) {
+            lojaFechada = false;
+            bannerFim = null;
+            economia.novoRound();
+            respawnArena();
+        }
+        enemies.ativo = rodadas.combate();
+        if (rodadas.combate()) {
+            int vivos = enemies.vivosInimigos();
+            if (vivos < inimigosVivosAntes) {   // abates: creditados ao jogador (aproximação local)
+                for (int k = vivos; k < inimigosVivosAntes; k++) economia.registraEliminacao(SalaUi.EU);
+                inimigosVivosAntes = vivos;
+            }
+            boolean timeVivo = !survival.dead || enemies.aliadosVivos() > 0;
+            if (vivos == 0) rodadas.encerraRound(0);
+            else if (!timeVivo) rodadas.encerraRound(1);
+        }
+        if (antes != Rodadas.Fase.FIM_ROUND && antes != Rodadas.Fase.FIM_PARTIDA
+                && (rodadas.fase == Rodadas.Fase.FIM_ROUND || rodadas.fase == Rodadas.Fase.FIM_PARTIDA)) {
+            arenaFimDoRound();
+        }
+        espectando = rodadas.combate() && survival.dead && enemies.aliadosVivos() > 0;
+        if (espectando) alvoEsp = Math.min(alvoEsp, Math.max(0, enemies.aliadosVivos() - 1));
+    }
+
+    /** Fim do round: paga as recompensas, mostra o resultado e, se acabou, abre o placar final. */
+    private void arenaFimDoRound() {
+        int vencedor = rodadas.ultimoVencedorRound;
+        economia.recompensarRound(vencedor, arenaEquipes);
+        String quem = vencedor == 0 ? "EQUIPE AZUL VENCE O ROUND" : vencedor == 1 ? "EQUIPE VERMELHA VENCE O ROUND" : "ROUND SEM VENCEDOR";
+        bannerFim = quem;
+        if (rodadas.partidaAcabou()) finalAberto = true;
+        arenaFimRegistrado = true;
+    }
+
+    /** Toques da partida da arena (loja, espectador, resultado). Devolve true se consumiu o toque. */
+    private boolean onPressArena(float x, float yb, int W, int H) {
+        if (rodadas == null || arenaUi == null) return false;
+        boolean loja = rodadas.compraLiberada() && !lojaFechada && !finalAberto;
+        int[] r = arenaUi.toque(x, yb, W, H, loja, espectando, finalAberto);
+        ArenaUi.Acao a = ArenaUi.Acao.values()[r[0]];
+        int i = r[1];
+        switch (a) {
+            case COMPRAR: {
+                Economia.Erro e = economia.comprar(SalaUi.EU, i, rodadas);
+                Economia.Item it = Economia.CATALOGO[i];
+                if (e == Economia.Erro.NENHUM) {
+                    arenaUi.mensagem = "Comprado: " + it.nome;
+                    if (it.tipoArma >= 0) economia.equipar(SalaUi.EU, it.tipoArma);
+                    if (it.nome.equals("MUNIÇÃO") && world.weapons != null) world.weapons.addReserve(world.weapons.heldType(), 30);
+                } else {
+                    arenaUi.mensagem = e == Economia.Erro.SEM_CREDITO ? "Créditos insuficientes" : "Compra indisponível agora";
+                }
+                return true;
+            }
+            case EQUIPAR: {
+                Economia.Erro e = economia.equipar(SalaUi.EU, Economia.CATALOGO[i].tipoArma);
+                arenaUi.mensagem = e == Economia.Erro.NENHUM ? "Equipada: " + Economia.CATALOGO[i].nome : "Compre a arma antes de equipar";
+                return true;
+            }
+            case SELECIONAR:
+                return true;
+            case PRONTO:
+                lojaFechada = true;
+                return true;
+            case ESPECTADOR_ANTERIOR:
+            case ESPECTADOR_PROXIMO: {
+                int n = enemies.aliadosVivos();
+                boolean[] vivos = new boolean[n];
+                java.util.Arrays.fill(vivos, true);
+                int passo = a == ArenaUi.Acao.ESPECTADOR_PROXIMO ? 1 : -1;
+                int nxt = Espectador.proximo(vivos, alvoEsp, passo);
+                if (nxt >= 0) alvoEsp = nxt;
+                return true;
+            }
+            case VOLTAR_LOBBY:
+                goMenu();
+                return true;
+            default:
+                return loja || espectando || finalAberto;   // a loja aberta ou o resultado seguram os toques
+        }
+    }
+
+    /** Desenha a HUD da arena (placar, round, tempo, loja, espectador) e o resultado final. */
+    private void drawArena(int W, int H) {
+        hudCamera.setToOrtho(false, W, H);
+        hudCamera.update();
+        batch.setProjectionMatrix(hudCamera.combined);
+        boolean loja = rodadas.compraLiberada() && !lojaFechada && !finalAberto;
+        String nomeAlvo = "";
+        if (espectando && enemies != null) {
+            int n = enemies.aliadosVivos();
+            String[] nomes = nomesAliados();
+            if (n > 0 && alvoEsp < nomes.length) nomeAlvo = nomes[alvoEsp];
+        }
+        String estado = rodadas.combate() ? String.format("%d:%02d", (int) rodadas.tempo / 60, (int) rodadas.tempo % 60)
+                : rodadas.compraLiberada() ? "compra: " + (int) Math.ceil(rodadas.tempo) + "s" : "";
+        arenaUi.draw(batch, shapes, font, hudCamera.combined, W, H, rodadas.pontos[0], rodadas.pontos[1], loja, espectando,
+                nomeAlvo, estado, rodadas.fase == Rodadas.Fase.FIM_ROUND ? bannerFim : null);
+        if (finalAberto) arenaUi.desenhaFinal(batch, shapes, font, hudCamera.combined, W, H,
+                rodadas.pontos[0], rodadas.pontos[1], rodadas.vencedorPartida);
+    }
+
+    /** Nomes dos aliados vivos (na mesma ordem de Enemies.aliado): jogadores da sala da equipe azul, sem o jogador. */
+    private String[] nomesAliados() {
+        java.util.List<String> lista = new java.util.ArrayList<>();
+        if (arenaSala != null) for (String nome : arenaSala.nomes[Sala.A]) if (nome != null && !nome.equals(SalaUi.EU)) lista.add(nome);
+        return lista.toArray(new String[0]);
     }
 
     /** Volta do treinamento ao menu principal, com o battle royale carregado de novo. */
@@ -1349,6 +1509,12 @@ public class Main extends ApplicationAdapter {
     private void goMenu() {
         if (arena) {   // sai da arena: volta a carregar o battle royale
             arena = false;
+            rodadas = null;
+            economia = null;
+            arenaUi = null;
+            arenaSala = null;
+            finalAberto = false;
+            espectando = false;
             loadWorld(false, false);
         }
         inMenu = true;
@@ -1614,6 +1780,7 @@ public class Main extends ApplicationAdapter {
         if (intro != null) intro.dispose();
         emotes.dispose();
         salaUi.dispose();
+        if (arenaUi != null) arenaUi.dispose();
         Musica.descartar();
         lobby.dispose();
         modelBatch.dispose();

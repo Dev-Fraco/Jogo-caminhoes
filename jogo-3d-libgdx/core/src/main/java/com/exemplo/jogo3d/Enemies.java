@@ -72,6 +72,58 @@ final class Enemies {
         }
     }
 
+    /**
+     * Arena (sala personalizada): inimigos com IA (atiram e morrem) e aliados parados (bonecos que não morrem), todos
+     * espalhados fora do nascimento e da cobertura. O 'quantidade' de cada lado vem da sala.
+     */
+    void spawnArenaTimes(World w, int inimigos, int aliados) {
+        Model gunModel = guns != null && guns.length > 0 ? guns[0] : null;
+        list.clear();
+        for (int i = 0; i < inimigos + aliados; i++) {
+            float x = 0f, z = 0f;
+            for (int t = 0; t < 80; t++) {
+                x = (rnd.nextFloat() * 2f - 1f) * (World.ARENA_HW - 6f);
+                z = (rnd.nextFloat() * 2f - 1f) * (World.ARENA_HD - 6f);
+                if (!w.arenaOcupado(x, z, 1.5f) && Math.sqrt(x * x + z * z) > 14f) break;
+            }
+            boolean aliado = i >= inimigos;
+            Enemy e = new Enemy(aliado && dummyModel != null ? dummyModel : body, aliado ? null : gunModel, x, z, rnd.nextFloat());
+            e.dummy = aliado;
+            e.pos.y = w.groundAt(x, z);
+            e.facing = rnd.nextFloat() * MathUtils.PI2;
+            list.add(e);
+        }
+    }
+
+    /** Inimigos (não aliados) que ainda estão vivos na arena. */
+    int vivosInimigos() {
+        int n = 0;
+        for (int i = 0; i < list.size; i++) {
+            Enemy e = list.get(i);
+            if (!e.dummy && e.alive()) n++;
+        }
+        return n;
+    }
+
+    /** Aliados da arena (bonecos que não morrem neste modo): sempre vivos. */
+    int aliadosVivos() {
+        int n = 0;
+        for (int i = 0; i < list.size; i++) if (list.get(i).dummy) n++;
+        return n;
+    }
+
+    /** Aliado de índice i (na ordem da lista) ou null. */
+    Enemy aliado(int i) {
+        int k = 0;
+        for (int j = 0; j < list.size; j++) {
+            Enemy e = list.get(j);
+            if (!e.dummy) continue;
+            if (k == i) return e;
+            k++;
+        }
+        return null;
+    }
+
     /** Partida nova do battle royale: nenhum boneco no mundo. */
     void clear() { list.clear(); }
 
@@ -92,8 +144,11 @@ final class Enemies {
      */
     private final java.util.Random lootRnd = new java.util.Random();
 
+    boolean ativo = true;   // falso na preparação da sala personalizada: os inimigos ficam parados
+
     void update(float dt, World w, Vector3 playerPos, Survival sv, float playerMove, int stance, Camera cam, float drawDist) {
         frame++;
+        if (!ativo) return;
         shots.clear();
         boolean alive = sv == null || !sv.dead;
         float far = Math.max(drawDist, 150f);

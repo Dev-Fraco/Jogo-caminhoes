@@ -137,6 +137,9 @@ final class Weapons {
     com.badlogic.gdx.graphics.g2d.TextureRegion iconOf(int type) { return type >= 0 ? icons[type] : null; }
     int magOf(int type) { return type >= 0 ? mag[type] : 0; }
     int reserveOf(int type) { return type >= 0 ? reserve[type] : 0; }
+
+    /** Soma munição de reserva a uma arma (munição comprada na loja da sala personalizada). */
+    void addReserve(int type, int n) { if (type >= 0 && type < reserve.length) reserve[type] += Math.max(0, n); }
     int slotType(int s) { return slot[s]; }
 
     // ---- Inventário: slots fixos (1 e 2 = fuzis / grande porte; 3 = pistola) ----

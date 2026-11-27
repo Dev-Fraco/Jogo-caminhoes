@@ -128,8 +128,12 @@ final class Survival {
     /** Velocidade extra com a energia acima de 60%. */
     float speedMul() { return boost > 60f ? 1.08f : 1f; }
 
+    /** Redução do dano (0 a 1): colete e capacete da loja da sala personalizada. */
+    float armadura = 0f;
+
     void damage(float amount, boolean flash) {
         if (dead) return;
+        amount *= (1f - armadura);
         if (flash) shake = Math.min(0.12f, shake + 0.02f + amount * 0.002f);   // tremor da câmera (tiro)
         health -= amount;
         if (flash) hurt = Math.min(0.8f, hurt + 0.3f + amount / 100f);
