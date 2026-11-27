@@ -1237,8 +1237,8 @@ public class Main extends ApplicationAdapter {
     /** Caixa com as seis armas: desenho, nome e USAR (leva a arma para a mão, com carregador cheio). */
     private void drawTraining(int W, int H) {
         float[] b = trainButton(W, H);
-        shapes.begin(ShapeRenderer.ShapeType.Filled);
         if (!trainPanel) {
+            shapes.begin(ShapeRenderer.ShapeType.Filled);
             shapes.setColor(0.42f, 0.26f, 0.13f, 0.92f);
             shapes.rect(b[0], b[1], b[2], b[3]);
             shapes.end();
