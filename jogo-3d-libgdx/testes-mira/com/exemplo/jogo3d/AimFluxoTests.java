@@ -129,7 +129,76 @@ public class AimFluxoTests extends ApplicationAdapter {
                 minFreio(cenarioParado(WeaponConfig.Category.PRECISAO, 2.5f)) >= AimTuning.frictionFloor - 1e-4f,
                 String.format("%.3f, piso %.2f", minFreio(cenarioParado(WeaponConfig.Category.PRECISAO, 2.5f)), AimTuning.frictionFloor));
 
+        System.out.println("== Revisão: mudança de direção, borda do cone, todas as armas, controle manual ==");
+        // Mudança de direção: anda 1,5 s para a direita e depois volta para a esquerda
+        float erroVira = erroAposVirar(WeaponConfig.Category.FUZIL, 1f);
+        float erroViraSem = erroAposVirar(WeaponConfig.Category.FUZIL, 0f);
+        check("mudança de direção: tracking mantém o erro baixo depois de virar", erroVira < 1.5f,
+                String.format("com tracking %.2f°, sem %.2f°", erroVira, erroViraSem));
+        check("mudança de direção: com tracking o erro é menor que sem", erroVira < erroViraSem,
+                String.format("com %.2f°, sem %.2f°", erroVira, erroViraSem));
+
+        // Limite maxDegPerSec em todas as armas, com o alvo perto da borda do cone (90% do cone)
+        boolean todasRespeitam = true;
+        StringBuilder detalhe = new StringBuilder();
+        for (WeaponConfig.Category cat : WeaponConfig.Category.values()) {
+            float cone = AimSettings.fovDeg() * cat.radiusScale;
+            Medida[] borda = cenarioBorda(cat, 0.9f * cone);
+            float maior = maxPasso(borda);
+            float limite = cat.maxDegPerSec / FPS_PADRAO;
+            boolean ok = maior <= limite * 1.002f + 1e-4f;
+            todasRespeitam &= ok;
+            detalhe.append(String.format("%s %.3f/%.3f; ", cat.name(), maior, limite));
+        }
+        check("maxDegPerSec respeitado em todas as armas, alvo na borda do cone", todasRespeitam, detalhe.toString());
+
+        // Controle manual: o freio no centro do alvo (pior caso) e a sensibilidade que sobra
+        boolean pisoRespeitado = true;
+        for (WeaponConfig.Category cat : WeaponConfig.Category.values()) {
+            Medida[] centro = cenarioParado(cat, 2.5f);
+            float min = minFreio(centro);
+            pisoRespeitado &= min >= AimTuning.frictionFloor - 1e-4f;
+            System.out.println(String.format("  INFO   freio no centro, %s: sensibilidade mínima %.3f (piso %.2f)",
+                    cat.name(), min, AimTuning.frictionFloor));
+        }
+        check("controle manual: sensibilidade nunca abaixo do piso em nenhuma arma", pisoRespeitado, "");
+
+        // Início do tiro: erro inicial e tempos (explica 0,45 s de deslizamento × convergência até 0,5°)
+        Medida[] inicio = cenarioParado(WeaponConfig.Category.FUZIL, 2.5f);
+        System.out.println(String.format("  INFO   início do tiro (fuzil): erro no 1º quadro %.2f°; até 0,5° em %.2f s; até 0,05° em %.2f s; deslizamento = %.2f s",
+                inicio[0].erroGrau, tempoAteErro(inicio, 0.5f, FPS_PADRAO), tempoAteErro(inicio, 0.05f, FPS_PADRAO), AimTuning.glideSeg));
+
         System.out.println("\nRESULTADO: " + pass + " ok, " + fail + " falhas");
+    }
+
+    // ---------- cenários de revisão ----------
+
+    /** Alvo a 25 m que anda para a direita por 1,5 s e depois volta para a esquerda; erro médio depois de virar. */
+    private float erroAposVirar(WeaponConfig.Category cat, float trackingScale) {
+        Enemy e = inimigo(0f, 0f, 20f);
+        miraInicial = new Vector3(0f, 1.5f, 20f);
+        cam.set(0f, 1.7f, 0f);
+        Medida[] m = simula(e, t -> {
+            float x = t <= 1.5f ? 2.5f * t : 2.5f * 1.5f - 2.5f * (t - 1.5f);
+            return new Vector3(x, w.groundAt(x, 20f), 20f);
+        }, FPS_PADRAO, 3.5f, cat, trackingScale, true);
+        miraInicial = null;
+        float soma = 0f;
+        int n = 0;
+        for (int i = (int) (3.0f * FPS_PADRAO); i < m.length; i++) { soma += m[i].erroGrau; n++; }
+        return soma / Math.max(1, n);
+    }
+
+    /** Alvo parado com a mira no centro e o alvo deslocado para a borda do cone (grau dado). */
+    private Medida[] cenarioBorda(WeaponConfig.Category cat, float grauFora) {
+        float d = 25f;
+        float lado = d * (float) Math.tan(Math.toRadians(grauFora));
+        Enemy e = inimigo(lado, 0f, d);
+        miraInicial = new Vector3(0f, 1.5f, d);
+        cam.set(0f, 1.7f, 0f);
+        Medida[] m = simula(e, t -> new Vector3(lado, w.groundAt(lado, d), d), FPS_PADRAO, 2.0f, cat, 1f, true);
+        miraInicial = null;
+        return m;
     }
 
     // ---------- cenários ----------
