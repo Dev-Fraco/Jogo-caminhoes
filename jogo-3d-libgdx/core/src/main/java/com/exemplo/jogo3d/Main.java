@@ -88,6 +88,11 @@ public class Main extends ApplicationAdapter {
     /** Feed de abates da arena: linhas recentes e tempo que cada uma fica na tela. */
     private final java.util.ArrayList<String> feed = new java.util.ArrayList<>();
     private final java.util.ArrayList<Float> feedT = new java.util.ArrayList<>();
+    private final AbateEmblema emblema = new AbateEmblema();
+    private final FimRoundUi fimUi = new FimRoundUi();
+    private Sons sons;
+    /** Abates de cada jogador no round atual (inclui bots), para a tabela do fim de round. */
+    private final java.util.LinkedHashMap<String, Integer> abatesRound = new java.util.LinkedHashMap<>();
     private String bannerFim = null;
     // Arena de mira (portal do treinamento): o treinamento fica guardado enquanto o jogador treina na arena
     private boolean mira = false, portalPerto = false;
@@ -507,7 +512,7 @@ public class Main extends ApplicationAdapter {
             shootIn.cam.set(camera.position);
             shootIn.aim.set(aimDir);
             shootIn.playerPos.set(player.pos);
-            shooting.update(dt, shootIn, combat && cfg != null);
+            shooting.update(dt, shootIn, combat && cfg != null && (!arena || (rodadas != null && rodadas.combate())));   // sem tiro fora do combate
             // Mira dinâmica: corre abre, parar fecha, cada tiro dá um coice (com a abertura da arma)
             if (fx != null) fx.crossUpdate(dt, Math.min(1f, player.speed / Player.RUN_SPEED),
                     shooting.firedThisFrame, AimSettings.openPct(world.weapons != null ? world.weapons.heldType() : -1));
@@ -1330,6 +1335,10 @@ public class Main extends ApplicationAdapter {
             arenaEquipes.put(nome, e);
         }
         arenaUi = new ArenaUi(economia, rodadas, world.weapons, SalaUi.EU);
+        if (sons != null) sons.dispose();
+        sons = Sons.carregar();
+        emblema.carregar();
+        abatesRound.clear();
         if (world.weapons != null) world.weapons.renderIcons(modelBatch, environment);   // silhuetas das armas para a loja
         lojaFechada = false;
         finalAberto = false;
@@ -1438,11 +1447,14 @@ public class Main extends ApplicationAdapter {
     /** Quadro da partida da arena: avança o round, decide o fim, reconhece abates e o espectador. */
     private void arenaQuadro(float dt) {
         if (rodadas == null || enemies == null) return;
+        emblema.update(dt);
+        fimUi.update(dt);
         Rodadas.Fase antes = rodadas.fase;
         rodadas.tick(dt);
         if (rodadas.fase == Rodadas.Fase.PREPARO && antes != Rodadas.Fase.PREPARO) {
             lojaFechada = false;
             bannerFim = null;
+            abatesRound.clear();
             economia.novoRound();
             respawnArena();
         }
@@ -1463,6 +1475,9 @@ public class Main extends ApplicationAdapter {
                 if (a.atacante.equals(SalaUi.EU)) economia.registraEliminacao(SalaUi.EU);
                 feed.add(0, a.atacante + "  ELIMINOU  " + a.vitima);
                 feedT.add(0, 4f);
+                abatesRound.merge(a.atacante, 1, Integer::sum);
+                emblema.dispara(a.atacante, a.vitima);     // emblema e som começam no mesmo quadro
+                if (sons != null) sons.abate.play(0.9f);
             }
             while (feed.size() > 4) { feed.remove(4); feedT.remove(4); }
             int vivos = enemies.vivosInimigos();
@@ -1482,6 +1497,11 @@ public class Main extends ApplicationAdapter {
     private void arenaFimDoRound() {
         int vencedor = rodadas.ultimoVencedorRound;
         economia.recompensarRound(vencedor, arenaEquipes);
+        if (sons != null) {   // time azul é o do jogador: vitória do azul toca a vitória, do vermelho a derrota
+            if (vencedor == 0) sons.vitoria.play(0.8f);
+            else if (vencedor == 1) sons.derrota.play(0.8f);
+        }
+        fimUi.abre(vencedor, vencedor == 0, rodadas.round, rodadas.pontos[0], rodadas.pontos[1]);
         String quem = vencedor == 0 ? "EQUIPE AZUL VENCE O ROUND" : vencedor == 1 ? "EQUIPE VERMELHA VENCE O ROUND" : "ROUND SEM VENCEDOR";
         bannerFim = quem;
         if (rodadas.partidaAcabou()) finalAberto = true;
@@ -1564,6 +1584,15 @@ public class Main extends ApplicationAdapter {
             font.setColor(1f, 1f, 1f, 1f);
             batch.end();
         }
+        if (rodadas.fase == Rodadas.Fase.FIM_ROUND || rodadas.fase == Rodadas.Fase.FIM_PARTIDA) {
+            fimUi.draw(batch, shapes, font, hudCamera.combined, W, H, linhasRound(), rodadas.tempo,
+                    rodadas.fase == Rodadas.Fase.FIM_PARTIDA);
+        } else {
+            hudCamera.setToOrtho(false, W, H);
+            hudCamera.update();
+            batch.setProjectionMatrix(hudCamera.combined);
+            emblema.draw(batch, font, W, H);
+        }
         if (finalAberto) arenaUi.desenhaFinal(batch, shapes, font, hudCamera.combined, W, H,
                 rodadas.pontos[0], rodadas.pontos[1], rodadas.vencedorPartida);
     }
@@ -1636,6 +1665,17 @@ public class Main extends ApplicationAdapter {
         return lista.toArray(new String[0]);
     }
 
+    /** Abates de cada jogador no round, do maior para o menor (aliados azuis e inimigos vermelhos da sala). */
+    private java.util.List<FimRoundUi.Linha> linhasRound() {
+        java.util.List<FimRoundUi.Linha> l = new java.util.ArrayList<>();
+        if (arenaSala != null) for (int idx : new int[]{Sala.A, Sala.B}) {
+            int eq = idx == Sala.A ? 0 : 1;
+            for (String n : arenaSala.nomes[idx]) if (n != null) l.add(new FimRoundUi.Linha(n, abatesRound.getOrDefault(n, 0), eq));
+        }
+        l.sort((x, y) -> y.abates - x.abates);
+        return l;
+    }
+
     /** Nomes dos inimigos (equipe vermelha da sala). */
     private String[] nomesInimigos() {
         java.util.List<String> lista = new java.util.ArrayList<>();
@@ -1683,6 +1723,9 @@ public class Main extends ApplicationAdapter {
             economia = null;
             arenaUi = null;
             arenaSala = null;
+            if (sons != null) { sons.dispose(); sons = null; }
+            emblema.dispose();
+            abatesRound.clear();
             if (damage != null) damage.atirador = null;
             feed.clear();
             feedT.clear();

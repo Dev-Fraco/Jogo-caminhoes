@@ -12,6 +12,12 @@ public class RodadasTests {
         if (ok) pass++; else fail++;
     }
 
+    static float maxAbs(float[] v) {
+        float m = 0f;
+        for (float x : v) m = Math.max(m, Math.abs(x));
+        return m;
+    }
+
     static void passarRound(Rodadas r, int vencedor) {
         // preparação, combate e fim do round
         r.tick(Rodadas.PREPARO_SEG + 0.1f);
@@ -135,6 +141,20 @@ public class RodadasTests {
         Abates ab2 = new Abates();
         Object botVermelho = new Object();
         check("abate de bot creditado ao bot que atirou", ab2.registra(botVermelho, "AMIGO001", "INIMIGO001") && ab2.drenar().get(0).atacante.equals("AMIGO001"), "");
+
+        System.out.println("== Emblema e sons do abate, tela de fim de round ==");
+        float[] som = Sons.abate();
+        check("som do abate tem amostras e fica dentro de -1..1", som.length > 1000 && maxAbs(som) <= 1f, "");
+        float[] vit = Sons.melodia(new float[]{523f, 659f}, new float[]{0.2f, 0.2f});
+        check("melodia tem a duração pedida (0,4 s)", vit.length == (int) (0.4f * Sons.RATE), "");
+        AbateEmblema em = new AbateEmblema();
+        em.dispara("JOGADOR", "INIMIGO001");
+        check("emblema começa grande (1.7x) e visível", em.ativo() && Math.abs(em.escala() - 1.7f) < 0.01f && em.alpha() == 1f, "");
+        em.update(AbateEmblema.ENTRADA + 0.01f);
+        check("emblema assenta em tamanho normal", Math.abs(em.escala() - 1f) < 0.01f, "");
+        em.update(AbateEmblema.DURACAO - AbateEmblema.ENTRADA);
+        check("emblema some no fim da animação", !em.ativo(), "");
+        check("FimRoundUi.Linha guarda nome, abates e equipe", new FimRoundUi.Linha("AMIGO002", 3, 0).abates == 3, "");
 
         System.out.println("\nRESULTADO: " + pass + " ok, " + fail + " falhas");
         System.exit(fail == 0 ? 0 : 1);
