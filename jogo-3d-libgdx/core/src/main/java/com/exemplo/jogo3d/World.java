@@ -1019,8 +1019,12 @@ public class World {
         return null;
     }
 
+    /** Limite de paredes de proteção colocadas: ao colocar a oitava, some a primeira. */
+    static final int MAX_WALLS = 7;
+
     /** Põe o muro no lugar calculado por wallSpot (já sabendo que cabe). */
     void placeWallSpot(WallSpot s) {
+        while (walls.size >= MAX_WALLS) removeWall(walls.first());   // a mais antiga sai (modelo e colisão)
         float c = MathUtils.cosDeg(s.yawDeg), sn = MathUtils.sinDeg(s.yawDeg);
         StoneWall w = new StoneWall(wallModel, s.x, s.groundY, s.z, s.yawDeg);
         instances.add(w.mi);
