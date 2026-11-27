@@ -79,6 +79,23 @@ public class ScopeTests extends ApplicationAdapter {
         wp.giveStart(0, ch);
         wp.tick(2f);
         check("AKM continua no automático (sem luneta)", !WeaponConfig.BY_TYPE[0].scope && wp.tryFire(true, true) == 1, "");
+
+        System.out.println("== Magnum 357: atraso do primeiro tiro e cadência ==");
+        int mg = java.util.Arrays.asList(Weapons.NAMES).indexOf("MAGNUM 357");
+        wp.giveStart(mg, ch);
+        wp.tick(2f);
+        check("primeiro aperto não atira na hora", wp.tryFire(true, false) == 0, "");
+        wp.tick(0.05f);
+        check("0,05 s depois: ainda não atira", wp.tryFire(true, false) == 0, "");
+        wp.tick(0.06f);
+        check("0,11 s depois do aperto: primeiro tiro", wp.tryFire(true, false) == 1, "");
+        wp.tick(0.39f);
+        check("0,39 s depois do tiro: ainda não", wp.tryFire(true, false) == 0, "");
+        wp.tick(0.02f);
+        check("0,41 s depois do tiro: segundo tiro (segurando)", wp.tryFire(true, false) == 1, "");
+        wp.tryFire(false, false);
+        wp.tick(1f);
+        check("soltou e apertou de novo: espera 0,1 s outra vez", wp.tryFire(true, false) == 0, "");
     }
 
     public static void main(String[] args) {

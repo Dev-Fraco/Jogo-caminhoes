@@ -44,6 +44,7 @@ final class Weapons {
     // Munição de cada arma (fica com a arma ao trocar)
     private final int[] mag = new int[FILES.length], reserve = new int[FILES.length];
     boolean infinite = false;    // munição infinita (modo treinamento)
+    private float armT = -1f;    // tempo desde que o botão foi apertado (-1 = solto); atraso do primeiro tiro
     float reloadT = 0f;          // > 0: recarregando (s restantes)
     private boolean spent = false;     // luneta: já atirou (tem de sair da mira para recarregar o tambor)
     private boolean scopeAim = false;  // mirando na luneta agora
@@ -163,6 +164,7 @@ final class Weapons {
     /** Tempo: cadência e recarga. */
     void tick(float dt) {
         cooldown = Math.max(0f, cooldown - dt);
+        if (armT >= 0f) armT += dt;
         if (reloadT > 0f) {
             reloadT -= dt;
             if (reloadT <= 0f && heldType >= 0) {
@@ -190,6 +192,7 @@ final class Weapons {
      */
     int tryFire(boolean held, boolean pressed) {
         WeaponConfig c = config();
+        if (c != null && !(c.mode == WeaponConfig.FireMode.AUTO ? held : pressed)) armT = -1f;   // soltou: zera o atraso
         if (c == null || reloadT > 0f || equipT > 0f) return 0;
         if (c.scope && (!scopeAim || spent)) return 0;   // luneta: só mirando, e um tiro por mira
         // Continuação da rajada (não precisa do botão)
@@ -205,7 +208,11 @@ final class Weapons {
         }
         if (cooldown > 0f) return 0;
         boolean wants = c.mode == WeaponConfig.FireMode.AUTO ? held : pressed;
-        if (!wants) return 0;
+        if (!wants) { armT = -1f; return 0; }   // soltou o botão: o próximo aperto começa do zero
+        if (c.firstShotDelay > 0f) {
+            if (armT < 0f) { armT = 0f; return 0; }        // acabou de apertar: começa a contar
+            if (armT < c.firstShotDelay) return 0;         // ainda no atraso do primeiro tiro
+        }
         if (mag[heldType] <= 0) {
             cooldown = 0.3f;
             emptyT = 0.25f;

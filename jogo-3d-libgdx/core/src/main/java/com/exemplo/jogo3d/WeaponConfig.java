@@ -153,6 +153,11 @@ final class WeaponConfig {
 
     WeaponConfig asFlat(float head, float body) { flat = true; flatHead = head; flatBody = body; return this; }
 
+    /** Tempo entre apertar o botão e o primeiro tiro (s). */
+    float firstShotDelay = 0f;
+
+    WeaponConfig withFirstShotDelay(float s) { firstShotDelay = s; return this; }
+
     /** Raio (m) onde caem os chumbos a d metros do atirador: fecha de perto, abre bem com a distância. */
     static float pelletRadius(float d) { float e = Math.max(0f, d - 5f); return 0.2f + 0.0125f * d * d + 0.05f * e * e; }
 
@@ -196,8 +201,8 @@ final class WeaponConfig {
             0.8f, 5, 30, 2.4f, 40f, 5f, 0.25f, 0f, 0f, 0f, 0f, 8, 0.13f, 1.7f, 0.6f).asSeparate();
 
     // Revólver Magnum .357 (pistola do arsenal): 210 na cabeça e 50 no corpo, de qualquer distância
-    static final WeaponConfig MAGNUM357 = new WeaponConfig("MAGNUM 357", Category.REVOLVER, FireMode.SEMI, 1, 0f, 50f, 4.2f, 1f, 1f,
-            0.550f, 6, 30, 2.0f, 70f, 20f, 0.6f, 2.4f, 0.7f, 2.20f, 0.30f, 1, 0.110f, 1.3f, 0.45f).asFlat(210f, 50f);
+    static final WeaponConfig MAGNUM357 = new WeaponConfig("MAGNUM 357", Category.REVOLVER, FireMode.AUTO, 1, 0f, 50f, 4.2f, 1f, 1f,
+            0.4f, 6, 30, 2.0f, 70f, 20f, 0.6f, 2.4f, 0.7f, 2.20f, 0.30f, 1, 0.110f, 1.3f, 0.45f).asFlat(210f, 50f).withFirstShotDelay(0.1f);
 
     static final WeaponConfig[] BY_TYPE = {AKM, AUG, GROZA, M16A4, M416, SCARL, AWM, M1014, MAGNUM357};
 }
