@@ -243,7 +243,7 @@ public class World {
 
     /** Altura do terreno em (x, z): interpolação da grade (rápida, usada o jogo inteiro). */
     public float heightAt(float x, float z) {
-        if (training) return 0f;   // treino: chão reto
+        if (training || arena) return 0f;   // treino e arena: chão reto
         if (alturas == null) return computeHeight(x, z);
         float fx = MathUtils.clamp((x + HALF) / ALT_PASSO, 0f, ALT_N - 1.001f);
         float fz = MathUtils.clamp((z + HALF) / ALT_PASSO, 0f, ALT_N - 1.001f);
@@ -593,7 +593,14 @@ public class World {
 
     World() { this(false); }
 
-    World(boolean training) { this.training = training; }
+    World(boolean training) { this(training, false); }
+
+    /** @param arena ARENA LIVRE (sala personalizada): chão plano, muro ao redor, sem teto. */
+    World(boolean training, boolean arena) { this.training = training; this.arena = arena; }
+
+    // ---------- Arena livre (sala personalizada) ----------
+    static final float ARENA_HW = 30f, ARENA_HD = 20f, ARENA_H = 4f;   // 60 x 40 m (2x a área do galpão), muro de 4 m
+    final boolean arena;
 
     // ---------- Modo treinamento ----------
     static final float SHED_HW = 25f, SHED_HD = 12f, SHED_H = 8f;  // galpão fechado: 50 x 24 m, 8 m de altura
@@ -603,6 +610,32 @@ public class World {
     static final float TRAIN_LIMIT = 60f;                          // o treino acaba numa cerca invisível
 
     /** Galpão, chão, caixa de equipamentos e limite. Sem terreno, cidade, casas nem avião. */
+    /** Arena livre: chão de terra plano, muro contínuo ao redor e céu aberto (sem teto, sem construções). */
+    private void buildArena() {
+        ModelBuilder mb = new ModelBuilder();
+        long attrs = Usage.Position | Usage.Normal | Usage.TextureCoordinates;
+        dirtTexture = new Texture(Gdx.files.internal("textures/ground_basecolor.jpg"));
+        dirtTexture.setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat);
+        TextureAttribute tex = TextureAttribute.createDiffuse(dirtTexture);
+        tex.scaleU = 20f;
+        tex.scaleV = 14f;
+        Model ground = mb.createBox(2 * ARENA_HW, 0.2f, 2 * ARENA_HD, new Material(tex), attrs);
+        loaded.add(ground);
+        ModelInstance gi = new ModelInstance(ground);
+        gi.transform.setToTranslation(0f, -0.1f, 0f);
+        instances.add(gi);
+        // Muro contínuo nos quatro lados (colisão e visual)
+        Color concreto = new Color(0.55f, 0.54f, 0.52f, 1f);
+        float t = 0.6f;
+        addTrainWall(mb, attrs, 0f, ARENA_HD, 2 * ARENA_HW + t, t, false, 0f, ARENA_H, concreto);
+        addTrainWall(mb, attrs, 0f, -ARENA_HD, 2 * ARENA_HW + t, t, false, 0f, ARENA_H, concreto);
+        addTrainWall(mb, attrs, -ARENA_HW, 0f, 2 * ARENA_HD, t, true, 0f, ARENA_H, concreto);
+        addTrainWall(mb, attrs, ARENA_HW, 0f, 2 * ARENA_HD, t, true, 0f, ARENA_H, concreto);
+        // Sistemas que o jogo usa sempre (fogo e armas); a arena não tem prateleira nem itens espalhados
+        fire = new Fire();
+        weapons = new Weapons();
+    }
+
     private void buildTraining() {
         loadWallModel();   // o muro de proteção também funciona no treino
         ModelBuilder mb = new ModelBuilder();
@@ -710,6 +743,10 @@ public class World {
     public void create() {
         if (training) {
             buildTraining();
+            return;
+        }
+        if (arena) {
+            buildArena();
             return;
         }
         dirtTexture = new Texture(Gdx.files.internal("textures/ground_basecolor.jpg"));

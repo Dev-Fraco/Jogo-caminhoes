@@ -102,9 +102,14 @@ public class Player {
         }
 
         // Limita ao terreno
-        float half = (world.training ? World.TRAIN_LIMIT : World.HALF) - 2f;
-        pos.x = MathUtils.clamp(pos.x, -half, half);
-        pos.z = MathUtils.clamp(pos.z, -half, half);
+        if (world.arena) {   // arena livre: retângulo de 60 x 40 m, dentro do muro
+            pos.x = MathUtils.clamp(pos.x, -World.ARENA_HW + 1f, World.ARENA_HW - 1f);
+            pos.z = MathUtils.clamp(pos.z, -World.ARENA_HD + 1f, World.ARENA_HD - 1f);
+        } else {
+            float half = (world.training ? World.TRAIN_LIMIT : World.HALF) - 2f;
+            pos.x = MathUtils.clamp(pos.x, -half, half);
+            pos.z = MathUtils.clamp(pos.z, -half, half);
+        }
 
         // 4) Pulo com "buffer": aperta um pouco antes de tocar o chão e ainda pula
         if (jumpPressed) jumpBuffer = JUMP_BUFFER;

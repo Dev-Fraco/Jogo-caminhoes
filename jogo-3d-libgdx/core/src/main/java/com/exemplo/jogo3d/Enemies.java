@@ -51,6 +51,23 @@ final class Enemies {
         }
     }
 
+    /**
+     * Arena livre: bonecos parados espalhados pela área, no lugar dos outros jogadores da sala (teste local; o
+     * servidor vai trazer os jogadores de verdade).
+     */
+    void spawnArena(World w, int quantidade) {
+        list.clear();
+        for (int i = 0; i < quantidade; i++) {
+            float x = (rnd.nextFloat() * 2f - 1f) * (World.ARENA_HW - 8f);
+            float z = (rnd.nextFloat() * 2f - 1f) * (World.ARENA_HD - 8f);
+            Enemy e = new Enemy(dummyModel != null ? dummyModel : body, null, x, z, 0.3f);
+            e.dummy = true;
+            e.pos.y = w.groundAt(x, z);
+            e.facing = rnd.nextFloat() * MathUtils.PI2;
+            list.add(e);
+        }
+    }
+
     /** Partida nova do battle royale: nenhum boneco no mundo. */
     void clear() { list.clear(); }
 

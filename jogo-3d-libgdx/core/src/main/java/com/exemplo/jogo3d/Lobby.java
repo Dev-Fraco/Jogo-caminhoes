@@ -20,7 +20,7 @@ import java.util.Map;
  * com personagem, inventário, loja (moedas e diamantes), eventos, passe, recompensas, amigos, mensagens e chat.
  */
 final class Lobby {
-    enum Act { NONE, BATTLE, TRAINING, SETTINGS }
+    enum Act { NONE, BATTLE, TRAINING, SETTINGS, SALA }
 
     // Tela de referência (px) e a escala uniforme para a tela atual
     private static final float RW = 1672f, RH = 941f;
@@ -34,7 +34,7 @@ final class Lobby {
     private static final Object[][] HIT = {
             {"perfil", 112f, 14f, 382f, 76f}, {"moedas+", 1106f, 28f, 30f, 30f}, {"diamantes+", 1346f, 28f, 30f, 30f},
             {"amigos", 1418f, 14f, 62f, 62f}, {"mensagens", 1500f, 14f, 62f, 62f}, {"config", 1585f, 14f, 62f, 62f},
-            {"armas", 15f, 185f, 290f, 66f}, {"personagem", 15f, 280f, 290f, 66f}, {"inventario", 15f, 370f, 290f, 66f},
+            {"sala", 15f, 640f, 290f, 120f}, {"armas", 15f, 185f, 290f, 66f}, {"personagem", 15f, 280f, 290f, 66f}, {"inventario", 15f, 370f, 290f, 66f},
             {"loja", 15f, 462f, 290f, 66f}, {"configuracoes", 15f, 555f, 290f, 66f},
             {"evento", 1255f, 130f, 400f, 135f}, {"passe", 1270f, 285f, 380f, 85f}, {"recompensas", 1335f, 395f, 315f, 70f},
             {"eventos", 1335f, 480f, 315f, 72f}, {"treino", 1245f, 628f, 390f, 78f}, {"jogar", 1130f, 722f, 520f, 176f},
@@ -126,6 +126,7 @@ final class Lobby {
         float[] r;
         if ((r = rect("armas")) != null && in(r, rx, ry)) { arsenal.open(weaponChoice); arsenalOpen = true; return Act.NONE; }
         if (in(rect("jogar"), rx, ry)) return Act.BATTLE;
+        if (in(rect("sala"), rx, ry)) return Act.SALA;   // sala personalizada (4x4 com amigos)
         if (in(rect("treino"), rx, ry)) return Act.TRAINING;
         if (in(rect("config"), rx, ry) || in(rect("configuracoes"), rx, ry)) return Act.SETTINGS;
         String[][] panels = {{"perfil", "Perfil do jogador"}, {"personagem", "Personagem"}, {"inventario", "Inventário"},
@@ -230,6 +231,7 @@ final class Lobby {
         fill(sh, 1346, 28, 30, 30, GOLD);
         for (String id : new String[]{"amigos", "mensagens", "config"}) { float[] r = rect(id); box(sh, r[0], r[1], r[2], r[3], false); }
         box(sh, 15, 850, 890, 68, false);
+        box(sh, 15, 640, 290, 120, true);   // SALA PERSONALIZADA
         float[][] menu = {{15, 185}, {15, 280}, {15, 370}, {15, 462}, {15, 555}};
         for (float[] m : menu) box(sh, m[0], m[1], 290, 66, false);
         box(sh, 1255, 130, 400, 135, false);
@@ -261,6 +263,9 @@ final class Lobby {
         b.setProjectionMatrix(proj);
         b.begin();
         img(b, "logo", 6, 8, 100, 100);   // símbolo SEM LIMITES (quadrado), encostado no perfil
+        img(b, "modo_4x4", 24, 650, 100, 100);
+        text(b, font, "SALA PERSONALIZADA", 134, 690, 1.45f, GOLD, false);
+        text(b, font, "Amigos · até 8 jogadores", 134, 728, 1.15f, WHITE, false);
         img(b, "personagem", 118, 20, 70, 64);
         text(b, font, "JOGADOR", 202, 46, 1.9f, WHITE, false);
         text(b, font, "Nv. " + Progresso.nivel(), 202, 72, 1.4f, GOLD, false);

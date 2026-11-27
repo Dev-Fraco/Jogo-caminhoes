@@ -76,6 +76,8 @@ public class Main extends ApplicationAdapter {
     private final Lobby lobby = new Lobby();      // lobby (menu principal)
 
     private boolean training = false;   // modo treinamento (galpão com dois bonecos) em vez do battle royale
+    private boolean arena = false;      // sala personalizada: ARENA LIVRE (plana, com muro, sem teto)
+    private int arenaBonecos = 0;       // jogadores da sala que viram bonecos de teste na arena
     private boolean trainPanel = false; // caixa de equipamentos do treino (lista de armas)
     private boolean trainBoxNear = false;   // perto da caixa de equipamentos (mostra o botão de ação)
     private final Arsenal arsenal = new Arsenal();   // arsenal de treino (abas, grade, EQUIPAR)
@@ -820,6 +822,7 @@ public class Main extends ApplicationAdapter {
         if (survival != null && survival.dead) {
             if (survival.deadT > 3f) {
                 if (training) respawnTraining();   // no treino, morrer só reaparece no galpão
+                else if (arena) respawnArena();    // na arena, morrer só reaparece na área
                 else goMenu();
             }
             return;
@@ -1093,11 +1096,13 @@ public class Main extends ApplicationAdapter {
         lobby.draw(batch, shapes, font, world != null ? world.weapons : null, hudCamera.combined, W, H, dt);
         batch.setProjectionMatrix(hudCamera.combined);
         emotes.draw(batch, W, H);                 // roda de emotes por cima do lobby
+        if (salaUi.aberta()) salaUi.draw(batch, shapes, font, hudCamera.combined, W, H);   // sala personalizada
         if (settingsOpen) drawSettings(W, H);
     }
 
     private PerspectiveCamera lobbyCam;
     private final Emotes emotes = new Emotes();   // roda de emotes (só no lobby)
+    private final SalaUi salaUi = new SalaUi(new java.util.Random());   // sala personalizada (4x4 com amigos)
     private final Player lobbyPlayer = new Player();
 
     /**
@@ -1131,6 +1136,17 @@ public class Main extends ApplicationAdapter {
 
     private void menuPress(float x, float yb) {
         int W = Gdx.graphics.getWidth(), H = Gdx.graphics.getHeight();
+        if (salaUi.aberta()) {                    // sala personalizada por cima do lobby
+            int jogadores = salaUi.jogadoresDaSala();
+            SalaUi.Acao acao = salaUi.toque(x, yb, W, H);
+            if (acao == SalaUi.Acao.VOLTAR) salaUi.fechar();
+            else if (acao == SalaUi.Acao.INICIAR) {
+                salaUi.fechar();
+                salaUi.partidaComecou();
+                startArena(jogadores);
+            }
+            return;
+        }
         if (emotes.aberta()) {                    // roda aberta: espaço executa o emote; fora ou centro fecha
             int espaco = emotes.espacoEm(x, yb, W, H);
             emotes.fechar();
@@ -1145,6 +1161,7 @@ public class Main extends ApplicationAdapter {
         if (act == Lobby.Act.BATTLE) startMatch();
         else if (act == Lobby.Act.TRAINING) startTraining();
         else if (act == Lobby.Act.SETTINGS) settingsOpen = true;
+        else if (act == Lobby.Act.SALA) salaUi.abrir();
     }
 
     /** O toque caiu sobre o personagem do lobby? (área aproximada do corpo, na tela) */
@@ -1159,24 +1176,26 @@ public class Main extends ApplicationAdapter {
      * Carrega um mundo (battle royale ou treinamento) e tudo que depende dele. O mundo anterior sai da
      * memória antes. No treinamento o mundo só tem o galpão, a caixa e os bonecos.
      */
-    private void loadWorld(boolean training) {
+    private void loadWorld(boolean training) { loadWorld(training, false); }
+
+    private void loadWorld(boolean training, boolean arena) {
         if (world != null) {
             if (character != null) world.weapons.unequip(character);
             world.dispose();
         }
         if (mapUi != null) mapUi.dispose();
         if (character != null) character.trocarModelo();   // a personagem principal escolhida no lobby
-        world = new World(training);
+        world = new World(training, arena);
         try {
             world.create();
         } catch (Throwable t) {
             errorText = "ERRO NO MUNDO:\n" + describe(t);
         }
-        inPlane = !training && world.airplane != null;
+        inPlane = !training && !arena && world.airplane != null;
         if (world.weapons != null) world.weapons.infinite = training;   // treino: munição infinita
         grenades = world.items != null ? new Grenades(world.items) : null;
-        mapUi = training ? null : new MapUi(world);
-        places = training ? null : new Places(world);
+        mapUi = training || arena ? null : new MapUi(world);
+        places = training || arena ? null : new Places(world);
         enemies = character.model() != null
                 ? new Enemies(world, Character.modelo("models/jake/jake.g3dj"), world.weapons != null ? world.weapons.models() : null, mannequin()) : null;
         if (grenades != null) grenades.enemies = enemies;
@@ -1260,6 +1279,40 @@ public class Main extends ApplicationAdapter {
         respawnTraining();
     }
 
+    /** Sala personalizada: a partida começa na ARENA LIVRE; os outros jogadores da sala viram bonecos de teste. */
+    void startArena(int jogadoresNaSala) {
+        arena = true;
+        training = false;
+        inMenu = false;
+        Musica.parar();
+        loadWorld(false, true);
+        arenaBonecos = Math.max(0, jogadoresNaSala - 1);
+        respawnArena();
+    }
+
+    private void respawnArena() {
+        survival.reset();
+        if (grenades != null) grenades.clearAll();
+        if (world.weapons != null) {
+            world.weapons.unequip(character);
+            world.weapons.giveStart(0, character);   // AKM
+        }
+        adsOn = false;
+        dyingShown = false;
+        aiming = false;
+        prone = 0;
+        character.endOnce();
+        character.setTilt(0f, 0f, 0f);
+        skydiving = false;
+        parachuting = false;
+        landing = false;
+        inPlane = false;
+        yaw = 0f;
+        player.spawn(0f, 0f, world.heightAt(0f, 0f));
+        player.facing = 0f;
+        if (enemies != null) enemies.spawnArena(world, arenaBonecos);
+    }
+
     /** Volta do treinamento ao menu principal, com o battle royale carregado de novo. */
     private void exitTraining() {
         trainPanel = false;
@@ -1294,6 +1347,10 @@ public class Main extends ApplicationAdapter {
 
     /** Morreu (ou quer sair): volta ao menu principal. */
     private void goMenu() {
+        if (arena) {   // sai da arena: volta a carregar o battle royale
+            arena = false;
+            loadWorld(false, false);
+        }
         inMenu = true;
         training = false;
         Musica.tocar();   // o lobby volta a tocar a música
@@ -1556,6 +1613,7 @@ public class Main extends ApplicationAdapter {
     public void dispose() {
         if (intro != null) intro.dispose();
         emotes.dispose();
+        salaUi.dispose();
         Musica.descartar();
         lobby.dispose();
         modelBatch.dispose();
