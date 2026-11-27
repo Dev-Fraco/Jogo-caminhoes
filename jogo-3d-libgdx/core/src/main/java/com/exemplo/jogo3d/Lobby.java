@@ -48,6 +48,10 @@ final class Lobby {
     private boolean arsenalOpen = false;
     private int weaponChoice = -1;          // arma escolhida no arsenal: entra na próxima partida
     private String panel = null;            // painel de informação aberto (null = nenhum)
+    static final String PERFIL = "Perfil do jogador";
+    static final String[] PERFIL_ABAS = {"GERAL", "ESTATÍSTICAS", "CONQUISTAS", "INVENTÁRIO", "COLEÇÕES", "CARTÃO DE PERFIL", "CONFIGURAÇÕES"};
+    private int perfilAba = 0;              // aba selecionada no perfil (o conteúdo ainda está vazio)
+    private static final float[] PERFIL_FECHAR = {1560f, 28f, 70f, 70f};
     private String toast = null;            // aviso curto
     private float toastT;
     private final float passe = 0.6f;
@@ -82,6 +86,13 @@ final class Lobby {
                 weaponChoice = arsenal.sel;
                 arsenalOpen = false;
                 toast("Arma escolhida: " + Weapons.NAMES[weaponChoice] + " (entra na partida)");
+            }
+            return Act.NONE;
+        }
+        if (PERFIL.equals(panel)) {
+            if (in(PERFIL_FECHAR, rx, ry)) { panel = null; return Act.NONE; }
+            for (int i = 0; i < PERFIL_ABAS.length; i++) {
+                if (in(perfilAbaRect(i), rx, ry)) { perfilAba = i; return Act.NONE; }
             }
             return Act.NONE;
         }
@@ -167,7 +178,8 @@ final class Lobby {
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         if (toastT > 0f) toastT -= dt;
         drawMain(batch, shapes, font, proj);
-        if (panel != null) drawPanel(batch, shapes, font, proj);
+        if (PERFIL.equals(panel)) drawPerfil(batch, shapes, font, proj);
+        else if (panel != null) drawPanel(batch, shapes, font, proj);
         if (toastT > 0f && toast != null) drawToast(batch, shapes, font, proj);
         if (arsenalOpen) arsenal.draw(batch, shapes, font, weapons, W, H);
         Gdx.gl.glDisable(GL20.GL_BLEND);
@@ -333,6 +345,41 @@ final class Lobby {
             boolean emUso = i == Personagens.atual();
             ctext(b, font, emUso ? "EM USO" : "USAR", u[0] + u[2] / 2f, u[1] + 32, 1.2f, emUso ? MUTED : INK);
         }
+    }
+
+    /** Retângulo (ref) da aba i do menu lateral do perfil. */
+    private static float[] perfilAbaRect(int i) { return new float[]{18f, 150f + i * 104f, 330f, 88f}; }
+
+    /** Perfil do jogador em tela cheia: título, botão de fechar, menu lateral (abas) e área de conteúdo vazia. */
+    private void drawPerfil(SpriteBatch b, ShapeRenderer sh, BitmapFont font, Matrix4 proj) {
+        sh.setProjectionMatrix(proj);
+        sh.begin(ShapeRenderer.ShapeType.Filled);
+        fill(sh, 0, 0, RW, RH, new float[]{0.05f, 0.05f, 0.05f, 1f});
+        fill(sh, 0, 0, RW, 112, new float[]{0.09f, 0.08f, 0.06f, 1f});                       // cabeçalho
+        fill(sh, 18, 150, 330, 7 * 104 - 16, DARK);                                           // menu lateral
+        for (int i = 0; i < PERFIL_ABAS.length; i++) {
+            float[] r = perfilAbaRect(i);
+            fill(sh, r[0], r[1], r[2], r[3], i == perfilAba ? GOLD : DARK);
+        }
+        fill(sh, 380, 150, 1274, 760, DARK);                                                  // área de conteúdo (vazia)
+        fill(sh, PERFIL_FECHAR[0], PERFIL_FECHAR[1], PERFIL_FECHAR[2], PERFIL_FECHAR[3], GOLD);
+        sh.end();
+        sh.begin(ShapeRenderer.ShapeType.Line);
+        for (int i = 0; i < PERFIL_ABAS.length; i++) {
+            float[] r = perfilAbaRect(i);
+            edge(sh, r[0], r[1], r[2], r[3], GOLD);
+        }
+        edge(sh, 380, 150, 1274, 760, GOLD);
+        sh.end();
+        b.setProjectionMatrix(proj);
+        b.begin();
+        text(b, font, "PERFIL DO JOGADOR", 430, 70, 2.6f, GOLD, false);
+        for (int i = 0; i < PERFIL_ABAS.length; i++) {
+            float[] r = perfilAbaRect(i);
+            text(b, font, PERFIL_ABAS[i], r[0] + 28, r[1] + 46, 1.7f, i == perfilAba ? INK : WHITE, false);
+        }
+        img(b, "fechar", PERFIL_FECHAR[0] + 8, PERFIL_FECHAR[1] + 8, PERFIL_FECHAR[2] - 16, PERFIL_FECHAR[3] - 16);
+        b.end();
     }
 
     private void drawPanel(SpriteBatch b, ShapeRenderer sh, BitmapFont font, Matrix4 proj) {
