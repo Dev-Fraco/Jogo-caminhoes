@@ -811,6 +811,9 @@ public class Main extends ApplicationAdapter {
             case "trocar":
                 if (world.weapons != null) world.weapons.swap(character);
                 return;
+            case "troca_rapida":
+                if (world.weapons != null) world.weapons.trocaRapida(character);   // alterna com a última arma usada
+                return;
             case "minimapa":
                 if (mapUi != null && places != null) fullMapOpen = true;
                 return;
@@ -941,6 +944,7 @@ public class Main extends ApplicationAdapter {
         hud.show("abrir", !dead && (trainBoxNear || inPlane || prompt != null || doorTarget != null));
         hud.show("coletar", !dead && itemTarget != null);
         hud.show("trocar", !dead && world.weapons != null && world.weapons.hasOtherWeapon());
+        hud.show("troca_rapida", !dead && world.weapons != null && world.weapons.hasWeapon());
         hud.show("parede", !dead && !inPlane && !skydiving && !parachuting && !landing);
         hud.swapText = world.weapons != null ? world.weapons.swapLabel() : "TROCAR";
         hud.show("arma", true);   // painel de armas sempre visível

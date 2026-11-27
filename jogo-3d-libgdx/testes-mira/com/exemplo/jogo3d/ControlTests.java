@@ -143,6 +143,36 @@ public class ControlTests extends ApplicationAdapter {
         check("o punho não aparece duas vezes", p == -1, java.util.Arrays.toString(g));
         wp.tocarBaixo(0, ch);
         check("tocar numa arma depois de guardar a põe na mão", !wp.holstered() && wp.armed(), wp.heldName());
+
+        System.out.println("== Troca rápida: alterna a arma da mão com a última usada ==");
+        wp.unequip(ch);
+        wp.pickUp(new Weapons.Pickup(0, new ModelInstance(wp.models()[0]), 0, 0, 0), w, ch, pl);
+        int munAntes = wp.magOf(0), resAntes = wp.reserveOf(0);
+        wp.toggleHold(ch);
+        wp.ordemHud();
+        check("guardar o fuzil: o punho fica na mão e o fuzil vira a última arma", !wp.armed() && wp.ultimoItem() == 0, "ultimo=" + wp.ultimoItem());
+        wp.trocaRapida(ch);
+        check("troca rápida volta ao fuzil", wp.heldName().equals("AKM") && wp.armed(), wp.heldName());
+        wp.trocaRapida(ch);
+        check("de novo, volta aos punhos", !wp.armed() && wp.hasWeapon(), "");
+        wp.trocaRapida(ch);
+        check("alterna sem parar (fuzil de novo)", wp.heldName().equals("AKM"), wp.heldName());
+        check("a troca não mexe na munição", wp.magOf(0) == munAntes && wp.reserveOf(0) == resAntes, wp.magOf(0) + "/" + wp.reserveOf(0));
+
+        wp.pickUp(new Weapons.Pickup(8, new ModelInstance(wp.models()[8]), 0, 0, 0), w, ch, pl);
+        wp.ordemHud();
+        check("pegar a pistola na mão: a referência vira o fuzil", wp.ultimoItem() == 0, "ultimo=" + wp.ultimoItem());
+        wp.toggleHold(ch);
+        wp.ordemHud();
+        wp.trocaRapida(ch);
+        check("troca rápida leva à pistola (última arma usada)", wp.heldName().equals("MAGNUM 357") && wp.armed(), wp.heldName());
+        int[] oo = wp.ordemHud();
+        int pa = -1;
+        for (int i = 1; i <= 3; i++) if (oo[i] == 0) pa = i - 1;
+        wp.tocarBaixo(pa, ch);
+        check("tocar manualmente no fuzil: a referência vira a pistola", wp.heldName().equals("AKM") && wp.ultimoItem() == 2, "ultimo=" + wp.ultimoItem());
+        wp.trocaRapida(ch);
+        check("depois da seleção manual, a troca rápida volta à pistola", wp.heldName().equals("MAGNUM 357") && wp.armed(), wp.heldName());
     }
 
     static boolean semRepetir(int[] o) {

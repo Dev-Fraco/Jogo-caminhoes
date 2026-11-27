@@ -41,7 +41,7 @@ public class Hud {
 
     static final String[] ORDER = {"minimapa", "bussola", "status", "config", "mochila", "slot_cura", "slot_granada",
             "slot_energia", "joystick", "correr", "coletar", "pegar_arma", "usar_kit", "pular", "agachar", "deitar",
-            "arma", "vivos", "abates", "mira", "atirar", "trocar", "abrir", "parede", "atirar2"};
+            "arma", "vivos", "abates", "mira", "atirar", "trocar", "abrir", "parede", "atirar2", "troca_rapida"};
     static final float MIN_SCALE = 0.4f, MAX_SCALE = 2.2f;
     static final String PREFS = "hud_layout_v2";
     // Tela de referência da arte do HUD (posições padrão saem dela)
@@ -73,14 +73,16 @@ public class Hud {
             new El("abrir", "Ação", "hud2/abrir.png", 170f / REF_H, 0f),
             new El("parede", "Parede", "hud2/parede.png", 0.11f, 0f),
             new El("atirar2", "Atirar (fixo)", "hud2/atirar.png", 170f / REF_H, 0f),
+            new El("troca_rapida", "Troca rápida", "hud2/troca_rapida.png", 0.12f, 0f),
     };
     // Centro de cada peça na arte de referência (pixels, origem em cima)
     private static final float[][] REF_POS = {
             {163, 162}, {797, 46}, {949, 848}, {353, 53}, {93, 403}, {85, 556}, {81, 696}, {83, 840},
             {311, 736}, {291, 467}, {680, 514}, {891, 514}, {901, 685}, {1566, 462}, {1539, 643}, {1539, 831},
-            {1415, 143}, {1368, 33}, {1565, 33}, {1385, 453}, {1276, 653}, {1345, 760}, {836, 330}, {400, 330}, {1060, 540}};
+            {1415, 143}, {1368, 33}, {1565, 33}, {1385, 453}, {1276, 653}, {1345, 760}, {836, 330}, {400, 330}, {1060, 540},
+            {1240, 470}};
     private final java.util.HashSet<String> shown = new java.util.HashSet<>();   // botões que só aparecem às vezes
-    private static final String[] OPTIONAL = {"coletar", "pegar_arma", "usar_kit", "abrir", "arma", "mira", "atirar", "trocar", "parede", "atirar2"};
+    private static final String[] OPTIONAL = {"coletar", "pegar_arma", "usar_kit", "abrir", "arma", "mira", "atirar", "trocar", "parede", "atirar2", "troca_rapida"};
     String swapText = "TROCAR";   // texto do botão: TROCAR, GUARDAR ou SACAR
     private Texture knobTex;
 

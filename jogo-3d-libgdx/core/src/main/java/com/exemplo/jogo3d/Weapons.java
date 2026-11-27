@@ -154,6 +154,10 @@ final class Weapons {
      */
     int[] ordemHud() {
         int top = itemTopo();
+        // Referência da troca rápida: sempre que a mão muda (toque, punho, pegar arma), o item que estava na mão
+        // passa a ser a última seleção válida
+        if (topoVisto != -2 && top != topoVisto) ultimoItem = topoVisto;
+        topoVisto = top;
         for (int p = 0; p < baixo.length; p++) {
             int c = baixo[p];
             boolean repetido = false;
@@ -171,6 +175,28 @@ final class Weapons {
         for (int b : baixo) if (b == c) return true;
         return false;
     }
+
+    private int topoVisto = -2;     // item da mão na última vez que o painel foi montado (-2 = nunca)
+    private int ultimoItem = -1;    // última seleção válida antes da atual: alvo do botão de troca rápida
+
+    /**
+     * Troca rápida: alterna entre a arma da mão e a última usada (ex.: fuzil → punho → fuzil → punho).
+     * Não recarrega nem mexe na munição: só troca a arma na mão, como um toque na caixa dela.
+     */
+    void trocaRapida(Character ch) {
+        int[] o = ordemHud();
+        int alvo = ultimoItem;
+        if (alvo < 0 || alvo == o[0] || !itemExiste(alvo)) return;
+        for (int p = 0; p < baixo.length; p++) {
+            if (baixo[p] == alvo) {
+                tocarBaixo(p, ch);
+                return;
+            }
+        }
+    }
+
+    /** Item da última seleção válida (para o HUD e para os testes); -1 se não há. */
+    int ultimoItem() { return ultimoItem; }
 
     /** Toque numa caixa de baixo: o item sobe para a mão e o que estava na mão ocupa a caixa. */
     void tocarBaixo(int p, Character ch) {
