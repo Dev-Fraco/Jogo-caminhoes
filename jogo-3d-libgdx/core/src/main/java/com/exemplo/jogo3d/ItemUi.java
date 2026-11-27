@@ -69,7 +69,7 @@ final class ItemUi {
         float bx0 = sr[0] + sr[2] * BAR_X0, bx1 = sr[0] + sr[2] * BAR_X1;
         for (int b = 0; b < 2; b++) {
             float y0 = sr[1] + sr[3] * BAR_Y[b][0], y1 = sr[1] + sr[3] * BAR_Y[b][1];
-            float xf = bx0 + (bx1 - bx0) * MathUtils.clamp(vals[b] / 100f, 0f, 1f);
+            float xf = bx0 + (bx1 - bx0) * MathUtils.clamp(vals[b] / (b == 0 ? Survival.VIDA_MAX : 100f), 0f, 1f);
             shapes.setColor(0.10f, 0.07f, 0.05f, 1f);
             shapes.rect(bx0, y0, bx1 - bx0, y1 - y0);
             if (b == 0) {
@@ -102,7 +102,7 @@ final class ItemUi {
         float th = sr[3];
         font.getData().setScale(Math.max(1f, th / 70f));
         font.setColor(0.98f, 0.93f, 0.82f, 1f);
-        String hp = "HP " + Math.round(sv.health) + "/100", ep = "EP " + Math.round(sv.boost) + "/100";
+        String hp = "HP " + Math.round(sv.health) + "/" + (int) Survival.VIDA_MAX, ep = "EP " + Math.round(sv.boost) + "/100";
         layout.setText(font, hp);
         float tx = sr[0] + sr[2] * TEXT_X;
         font.draw(batch, hp, tx, sr[1] + sr[3] * 0.684f + layout.height / 2f);

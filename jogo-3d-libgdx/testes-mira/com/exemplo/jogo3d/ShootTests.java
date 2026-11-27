@@ -301,9 +301,11 @@ public class ShootTests extends ApplicationAdapter {
         events.clear();
         shootOnce(e1.hitbox.headCenter);
         check("headshot a 15 m: 70 de dano, marcado como cabeça", events.size() == 1 && events.get(0)[0] == 70f && events.get(0)[1] == 1f, events.isEmpty() ? "" : events.get(0)[0] + " dano");
-        // Inimigo novo com 30 de vida: um headshot a 15 m (70) mata e mostra a morte
+        // Inimigo novo com 60 de vida (30% de 200, o limite de "ferido" — abaixo dele ele foge para a cobertura):
+        // um headshot a 15 m (70) mata e mostra a morte. Tira o anterior (mesma posição) para o tiro não acertá-lo.
+        en.list.removeValue(e1, true);
         e1 = spawnEnemy(ax, az + 15f, MathUtils.PI, "Idle");
-        e1.health = 30f;
+        e1.health = 60f;
         for (int i = 0; i < 12; i++) step(1f / 30f, false, false);
         events.clear();
         float hpBefore = e1.health;

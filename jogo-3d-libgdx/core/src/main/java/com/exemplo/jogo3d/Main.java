@@ -1057,7 +1057,7 @@ public class Main extends ApplicationAdapter {
         hud.fireDown = firePointer >= 0 || fire2Pointer >= 0;
         hud.show("atirar2", combat);
         hud.show("pegar_arma", !dead && weaponTarget != null);
-        hud.show("usar_kit", !dead && world.items != null && survival != null && survival.health < 75f && survival.using < 0
+        hud.show("usar_kit", !dead && world.items != null && survival != null && survival.health < 0.75f * Survival.VIDA_MAX && survival.using < 0
                 && (world.items.bag[Survival.MEDKIT] > 0 || world.items.bag[Survival.BANDAGEM] > 0));
         if (inPlane) hud.promptText = "SALTAR DO AVIÃO";
         else if (trainBoxNear) hud.promptText = "EQUIPAMENTOS";

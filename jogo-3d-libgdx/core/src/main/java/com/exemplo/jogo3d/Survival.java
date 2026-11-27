@@ -14,8 +14,10 @@ import com.badlogic.gdx.math.MathUtils;
  */
 final class Survival {
     static final int MEDKIT = 0, BANDAGEM = 1, ANALGESICO = 2, INJECAO = 3, ENERGETICO = 4;
+    /** Vida máxima do jogador (igual à dos bots, Enemy.MAX_HEALTH). */
+    static final float VIDA_MAX = 200f;
 
-    float health = 100f, boost = 0f;
+    float health = VIDA_MAX, boost = 0f;
     int using = -1;           // item em uso, -1 = nada
     float useT, useDur;
     boolean dead = false;
@@ -57,8 +59,8 @@ final class Survival {
             if (!dead) say("JÁ ESTÁ USANDO OUTRO ITEM");
             return false;
         }
-        if (type == BANDAGEM && health >= 75f) { say("BANDAGEM SÓ CURA ATÉ 75%"); return false; }
-        if (type == MEDKIT && health >= 100f) { say("VIDA JÁ ESTÁ CHEIA"); return false; }
+        if (type == BANDAGEM && health >= 0.75f * VIDA_MAX) { say("BANDAGEM SÓ CURA ATÉ 75%"); return false; }
+        if (type == MEDKIT && health >= VIDA_MAX) { say("VIDA JÁ ESTÁ CHEIA"); return false; }
         if (isBoost(type) && boost >= 100f) { say("ENERGIA JÁ ESTÁ CHEIA"); return false; }
         return using != type;
     }
@@ -94,9 +96,9 @@ final class Survival {
         }
         if (boost > 0f) {
             boost = Math.max(0f, boost - dt * 100f / 200f);  // ~3 min e meio de energia cheia
-            health = Math.min(100f, health + dt * (boost > 60f ? 1.0f : 0.5f));
+            health = Math.min(VIDA_MAX, health + dt * (boost > 60f ? 1.0f : 0.5f));
         }
-        if (restBonus > 0f) health = Math.min(100f, health + dt * restBonus);
+        if (restBonus > 0f) health = Math.min(VIDA_MAX, health + dt * restBonus);
 
         int done = -1;
         if (using >= 0) {
@@ -116,8 +118,8 @@ final class Survival {
 
     private void apply(int type) {
         switch (type) {
-            case MEDKIT: health = 100f; break;
-            case BANDAGEM: health = Math.max(health, Math.min(75f, health + 15f)); break;
+            case MEDKIT: health = VIDA_MAX; break;
+            case BANDAGEM: health = Math.max(health, Math.min(0.75f * VIDA_MAX, health + 15f)); break;
             case ANALGESICO: boost = Math.min(100f, boost + 60f); break;
             case INJECAO: boost = 100f; break;
             case ENERGETICO: boost = Math.min(100f, boost + 40f); break;
@@ -152,7 +154,7 @@ final class Survival {
 
     /** Volta ao avião depois de morrer: tudo cheio de novo. */
     void reset() {
-        health = 100f;
+        health = VIDA_MAX;
         boost = 0f;
         using = -1;
         dead = false;

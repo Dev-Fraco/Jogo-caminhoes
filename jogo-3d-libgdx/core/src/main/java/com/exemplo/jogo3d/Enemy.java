@@ -21,7 +21,7 @@ import com.badlogic.gdx.math.Vector3;
 final class Enemy {
     enum State { RIDE, FALL, CHUTE, PATROL, COMBAT, DEAD }   // RIDE/FALL/CHUTE: no avião, caindo, no paraquedas
 
-    static final float MAX_HEALTH = 100f;
+    static final float MAX_HEALTH = Survival.VIDA_MAX;   // mesma vida do jogador
     private static final float WALK = 1.3f, RUN = 4.2f, SIGHT = 60f;
     private static final float RUN_CLIP_SPEED = 5.5f, WALK_CLIP_SPEED = 1.8f;
 
