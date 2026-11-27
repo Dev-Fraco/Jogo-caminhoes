@@ -62,8 +62,8 @@ final class Scope {
         if (t > 0.999f && wanted) t = 1f;
     }
 
-    /** Escala da moldura: o anel ocupa 92% da altura da tela. */
-    private static float scale(int h) { return 0.92f * h / (2f * RING_R); }
+    /** Escala da moldura: o anel ocupa `size` da altura da tela. */
+    private static float scale(int h, float size) { return size * h / (2f * RING_R); }
 
     private static float ease(float x) { return x * x * (3f - 2f * x); }
 
@@ -87,12 +87,10 @@ final class Scope {
         fbo.end();
     }
 
-    /** Desenha a lente (zoom dentro do círculo), a moldura e o retículo por cima da tela normal. */
+    /** Luneta com zoom (AWM): a lente mostra o mundo com zoom, a moldura e o retículo ficam por cima. */
     void draw(SpriteBatch batch, Matrix4 proj, int w, int h) {
-        float k = scale(h), a = t, e = ease(t);
+        float k = scale(h, 0.92f), e = ease(t);
         float cx = w * 0.5f, cy = h * 0.5f;
-
-        // Lente: leque de triângulos com a imagem do FBO (o círculo é o recorte)
         float r = LENS_R * k * e;
         float[] v = new float[(SEG + 1) * 2];
         short[] tri = new short[SEG * 3];
@@ -113,13 +111,23 @@ final class Scope {
         poly.begin();
         lens.draw(poly);
         poly.end();
+        drawFrame(batch, proj, w, h, 0.92f);
+    }
 
-        // Moldura, retículo e ponto vermelho
+    /** Mira sem zoom (red dot): mesma moldura e retículo da luneta, a visão normal aparece por dentro. */
+    void drawSight(SpriteBatch batch, Matrix4 proj, int w, int h) {
+        drawFrame(batch, proj, w, h, 0.5f);
+    }
+
+    /** Moldura da luneta e retículo, no centro da tela, com o anel ocupando `size` da altura. */
+    private void drawFrame(SpriteBatch batch, Matrix4 proj, int w, int h, float size) {
+        float k = scale(h, size), a = t;
+        float cx = w * 0.5f, cy = h * 0.5f;
         batch.setProjectionMatrix(proj);
         batch.begin();
         batch.setColor(1f, 1f, 1f, a);
         batch.draw(frame, cx - CX * k, cy - (IMG_H - CY) * k, IMG_W * k, IMG_H * k);
-        float lw = 2.2f * k, len = 380f * k * e, gap = 16f * k;
+        float lw = 2.2f * k, len = 380f * k, gap = 16f * k;
         batch.setColor(0f, 0f, 0f, 0.9f * a);
         batch.draw(pixel, cx - len, cy - lw * 0.5f, len - gap, lw);
         batch.draw(pixel, cx + gap, cy - lw * 0.5f, len - gap, lw);

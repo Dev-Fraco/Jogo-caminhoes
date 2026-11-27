@@ -132,7 +132,7 @@ public class Main extends ApplicationAdapter {
     private final TouchFire touchFire = new TouchFire();
     private final Camp camp = new Camp();
     private Scope scope;                          // luneta do fuzil de precisão
-    private RedDot redDot;                        // mira red dot (todas as armas, ao mirar)
+    private Scope sight;                          // mira red dot: a moldura da luneta, sem zoom (todas as armas, ao mirar)
     private Model mannequin;                      // boneco de treino (carregado só quando precisa)
 
     private Model mannequin() {
@@ -168,7 +168,7 @@ public class Main extends ApplicationAdapter {
         shaderConfig.defaultCullFace = 0;
         modelBatch = new ModelBatch(new DefaultShaderProvider(shaderConfig));
         scope = new Scope();
-        redDot = new RedDot();
+        sight = new Scope();
 
         environment = new Environment();
         // Luz de sol forte e quente do sertão, com pouca luz de ambiente (sombras escuras)
@@ -631,8 +631,8 @@ public class Main extends ApplicationAdapter {
         boolean scoped = combat && adsOn && cfg != null && cfg.scope;
         if (scope != null) scope.update(dt, scoped);
         // Mira red dot: todas as armas, ao mirar (menos o AWM, que tem a luneta); some o retículo normal
-        if (redDot != null) redDot.update(dt, combat && adsOn && cfg != null && !cfg.scope);
-        if (fx != null) fx.hideCross = (scope != null && scope.t > 0.5f) || (redDot != null && redDot.t > 0.5f);
+        if (sight != null) sight.update(dt, combat && adsOn && cfg != null && !cfg.scope);
+        if (fx != null) fx.hideCross = (scope != null && scope.t > 0.5f) || (sight != null && sight.t > 0.5f);
         float fovT = combat && adsOn && !scoped ? (cfg != null && cfg.category == WeaponConfig.Category.PRECISAO ? 30f : 50f) : 67f;
         camera.fieldOfView += (fovT - camera.fieldOfView) * Math.min(1f, dt * 12f);
         Vector3 back = new Vector3(
@@ -700,7 +700,7 @@ public class Main extends ApplicationAdapter {
         }
         }
         if (lensPass) scope.draw(batch, hudCamera.combined, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        if (redDot != null && redDot.visible()) redDot.draw(batch, hudCamera.combined, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        if (sight != null && sight.visible()) sight.drawSight(batch, hudCamera.combined, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
 
         drawHud();
     }
@@ -1609,7 +1609,7 @@ public class Main extends ApplicationAdapter {
     public void dispose() {
         modelBatch.dispose();
         if (scope != null) scope.dispose();
-        if (redDot != null) redDot.dispose();
+        if (sight != null) sight.dispose();
         if (mannequin != null) mannequin.dispose();
         world.dispose();
         if (chute != null) chute.dispose();
