@@ -223,6 +223,11 @@ final class AimAssist {
                     tp += -errBelly * fecha;
                 }
             }
+            // 2a. ATRAÇÃO AO ABDÔMEN ENQUANTO O DEDO SOBE: puxa proporcional à distância acima do abdômen
+            // (força abdominal). O limite de 95% abaixo garante que a subida nunca é invertida.
+            if (inTrava && subindo && altoAcimaGrau > 0f) {
+                tp += -errBelly * Math.min(1f, 10f * dt) * AimSettings.abdAssist * fat;
+            }
             // 2. ATRAÇÃO AO ABDÔMEN com o dedo parado: volta em rampa, com velocidade limitada
             pullVertical = inTrava && !movendo && zonaAtiva(pullVertical, errBellyGrau, AimTuning.zonaVertical, AimTuning.histerese);
             if (pullVertical) {

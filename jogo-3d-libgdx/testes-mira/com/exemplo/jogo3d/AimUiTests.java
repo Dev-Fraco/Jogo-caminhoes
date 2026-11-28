@@ -14,7 +14,7 @@ public class AimUiTests {
         AimSettings.reset();
         check("sensibilidade padrão 100% vira 100", AimSettings.toSlider(0) == 100, "" + AimSettings.toSlider(0));
         check("mira 2x 60% vira 60", AimSettings.toSlider(1) == 60, "" + AimSettings.toSlider(1));
-        check("força abdominal 10% vira 20", AimSettings.toSlider(4) == 20, "" + AimSettings.toSlider(4));
+        check("força abdominal padrão 55% vira 110", AimSettings.toSlider(4) == 110, "" + AimSettings.toSlider(4));
         check("assistência horizontal 10% vira 20", AimSettings.toSlider(5) == 20, "" + AimSettings.toSlider(5));
         check("FOV 40% vira 80", AimSettings.toSlider(6) == 80, "" + AimSettings.toSlider(6));
         check("resistência vertical 90% vira 180", AimSettings.toSlider(16) == 180, "" + AimSettings.toSlider(16));

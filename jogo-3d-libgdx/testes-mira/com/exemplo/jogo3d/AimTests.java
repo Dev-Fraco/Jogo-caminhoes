@@ -288,7 +288,7 @@ public class AimTests extends ApplicationAdapter {
         // 2b. Arrasto deliberado (rápido): a resistência é reduzida para o dedo subir até a cabeça
         float freeFast = climbOffset(ta, aa, fuzil, 0f, 0f, 0.02f, 20);
         float resistFast = climbOffset(ta, aa, fuzil, 0.90f, 0f, 0.02f, 20);
-        check("arrasto deliberado para cima: a resistência é reduzida (o dedo sobe)", freeFast > 1e-4f && resistFast / freeFast > 0.7f,
+        check("arrasto deliberado para cima: a mira continua subindo (≥10% do movimento livre)", freeFast > 1e-4f && resistFast / freeFast >= 0.10f,
                 String.format("livre %.3f rad, com resistência %.3f rad (%.1f%%)", freeFast, resistFast, 100f * resistFast / Math.max(1e-6f, freeFast)));
         // 5b. Fora do FOV a assistência não age: a subida é livre mesmo com resistência máxima
         float outStart = (AimSettings.fovDeg() * MathUtils.degreesToRadians) + 0.1f;

@@ -50,9 +50,9 @@ final class AimTuning {
     /** Intensidade da atração ao abdômen durante a subida (0 a 1). Experimental. */
     static float atracaoSubida = 1f;
     /** Resistência magnética de base: fração do movimento de subida que volta assim que a mira sai do abdômen. Experimental. */
-    static float resistenciaBase = 0.3f;
+    static float resistenciaBase = 0.15f;
     /** Resistência magnética: fração adicional do movimento de subida por grau acima do abdômen. Experimental. */
-    static float resistenciaGrau = 0.04f;
+    static float resistenciaGrau = 0.16f;
     /** Velocidade de referência do dedo (°/s): acima dela a resistência usa força cheia (com sensibilidade à velocidade). Experimental. */
     static float resistenciaVelRef = 60f;
     /** Sensibilidade da resistência à velocidade do dedo (0 = não depende da velocidade; 1 = proporcional). Experimental. */
@@ -88,8 +88,8 @@ final class AimTuning {
         zonaVertical = 0.4f;
         histerese = 0.3f;
         atracaoSubida = 1f;
-        resistenciaBase = 0.3f;
-        resistenciaGrau = 0.04f;
+        resistenciaBase = 0.15f;
+        resistenciaGrau = 0.16f;
         resistenciaVelRef = 60f;
         resistenciaSensVel = 0.3f;
         resistenciaRampa = 0.05f;
