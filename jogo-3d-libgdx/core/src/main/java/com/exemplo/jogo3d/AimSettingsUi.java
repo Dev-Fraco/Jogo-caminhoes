@@ -23,10 +23,9 @@ final class AimSettingsUi {
     boolean open = false;
 
     // Ordem das linhas em cada coluna (índices de AimSettings)
-    static final int[] LEFT = {0, 1, 2, 3, 4, 5, 6, 16, 17, 18};
-    static final int[] RIGHT = {7, 9, 10, 11, 12, 13, 14, 15, 8};
-    static final String[] LEFT_LABEL = {"Sensibilidade geral", "Mira 2x", "Mira 4x", "Assistência de mira",
-            "Força abdominal", "Assistência horizontal", "FOV do Aim Assist", "Resistência vertical",
+    static final int[] LEFT = {0, 1, 2, 12, 13};
+    static final int[] RIGHT = {3, 5, 6, 7, 8, 9, 10, 11, 4};
+    static final String[] LEFT_LABEL = {"Sensibilidade geral", "Mira 2x", "Mira 4x",
             "Sensi X (ao atirar)", "Sensi Y (ao atirar)"};
     static final String[] RIGHT_LABEL = {"AKM", "GROZA", "M16A4", "M416", "SCAR-L", "AWM", "M1014", "MAGNUM 357", "AUG"};
 
@@ -115,14 +114,12 @@ final class AimSettingsUi {
                 float h = t[3];
                 shapes.setColor(TRACK[0], TRACK[1], TRACK[2], 1f);
                 shapes.rect(t[0], t[2] - h / 2f, t[1] - t[0], h);
-                if (idx == 3) continue;   // liga/desliga: desenhado no batch
                 float frac = AimSettings.toSlider(idx) / 200f;
                 float kx = t[0] + (t[1] - t[0]) * frac;
                 shapes.setColor(YELLOW[0], YELLOW[1], YELLOW[2], 1f);
                 shapes.rect(t[0], t[2] - h / 2f, kx - t[0], h);
             }
             for (int idx : lista) {
-                if (idx == 3) continue;
                 float[] t = track[idx];
                 float kx = t[0] + (t[1] - t[0]) * (AimSettings.toSlider(idx) / 200f);
                 float r = rowH * 0.25f;
@@ -130,17 +127,6 @@ final class AimSettingsUi {
                 shapes.circle(kx, t[2], r, 24);
                 shapes.setColor(0.07f, 0.07f, 0.075f, 1f);
                 shapes.circle(kx, t[2], r * 0.42f, 18);
-            }
-            if (c == 0) {
-                // Liga/desliga da assistência
-                float[] t = track[3];
-                float sw = (t[1] - t[0]) * 0.34f, sh = rowH * 0.46f;
-                boolean on = AimSettings.assistOn;
-                shapes.setColor(on ? YELLOW[0] : 0.25f, on ? YELLOW[1] : 0.25f, on ? YELLOW[2] : 0.27f, 1f);
-                shapes.rect(t[0], t[2] - sh / 2f, sw, sh);
-                shapes.setColor(0.97f, 0.97f, 0.97f, 1f);
-                float kxs = on ? t[0] + sw - sh * 0.5f : t[0] + sh * 0.5f;
-                shapes.circle(kxs, t[2], sh * 0.4f, 18);
             }
         }
         // Botões
@@ -187,7 +173,7 @@ final class AimSettingsUi {
                 float[] t = track[idx];
                 tamanho(rowH * 0.40f);
                 drawTexto(batch, nomes[r], panX[c] + panW * 0.035f, t[2], rowH * 0.40f, 0.96f, 0.96f, 0.96f);
-                String v = idx == 3 ? (AimSettings.assistOn ? "LIGADA" : "DESLIGADA") : String.valueOf(AimSettings.toSlider(idx));
+                String v = String.valueOf(AimSettings.toSlider(idx));
                 tamanho(rowH * 0.44f);
                 glyph.setText(texto, v);
                 float vx = panX[c] + panW * 0.965f - glyph.width;
@@ -213,11 +199,6 @@ final class AimSettingsUi {
                 float[] t = track[idx];
                 float r = rowH * 0.5f;
                 if (x < t[0] - r || x > t[1] + r || y < t[2] - r || y > t[2] + r) continue;
-                if (idx == 3) {
-                    AimSettings.assistOn = !AimSettings.assistOn;
-                    AimSettings.save();
-                    return true;
-                }
                 drag = idx;
                 setFromX(idx, x);
                 return true;

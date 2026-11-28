@@ -28,7 +28,6 @@ import com.badlogic.gdx.utils.Array;
  * Retorno visual e sonoro do combate, no estilo do sertão de 1915 (couro, latão, sangue seco;
  * nada de neon):
  * - mira de quatro traços cor de osso que abre com a dispersão e fica avermelhada sobre um inimigo;
- * - dois colchetes cor de latão quando a assistência está agindo (discreto);
  * - marcador em X ao acertar; na cabeça o X fica vermelho e maior, com "tlim" de metal;
  * - número do dano subindo do ponto atingido (dourado com "!" na cabeça);
  * - "CANGACEIRO ABATIDO" com a badalada do sino da capela;
@@ -255,7 +254,7 @@ final class CombatFx implements DamageSystem.Listener {
      * @param overEnemy  a mira está em cima de um inimigo
      */
     void drawHud(SpriteBatch batch, ShapeRenderer shapes, BitmapFont font, Camera cam, Hud hud, Weapons weapons,
-                 AimAssist assist, float spreadPx, boolean overEnemy, int alive, int kills, TextureRegion gunIcon, boolean armedView,
+                 float spreadPx, boolean overEnemy, int alive, int kills, TextureRegion gunIcon, boolean armedView,
                  Enemies enemies) {
         int W = Gdx.graphics.getWidth(), H = Gdx.graphics.getHeight();
         float cx = W / 2f, cy = H / 2f, u = H / 400f;

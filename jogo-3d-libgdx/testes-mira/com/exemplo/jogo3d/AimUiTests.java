@@ -1,6 +1,5 @@
 package com.exemplo.jogo3d;
 
-import com.badlogic.gdx.math.Vector3;
 
 /** Tela MIRA E SENSIBILIDADE: conversão dos valores para 0–200, toque, arrasto, liga/desliga, restaurar e voltar. */
 public class AimUiTests {
@@ -16,30 +15,19 @@ public class AimUiTests {
         AimSettings.reset();
         check("sensibilidade padrão 100% vira 100", AimSettings.toSlider(0) == 100, "" + AimSettings.toSlider(0));
         check("mira 2x 60% vira 60", AimSettings.toSlider(1) == 60, "" + AimSettings.toSlider(1));
-        check("força abdominal padrão 90% vira 180", AimSettings.toSlider(4) == 180, "" + AimSettings.toSlider(4));
-        check("assistência horizontal 10% vira 20", AimSettings.toSlider(5) == 20, "" + AimSettings.toSlider(5));
-        check("FOV 40% vira 80", AimSettings.toSlider(6) == 80, "" + AimSettings.toSlider(6));
-        check("resistência vertical padrão 95% vira 190", AimSettings.toSlider(16) == 190, "" + AimSettings.toSlider(16));
-        check("abertura AKM 100% vira 100", AimSettings.toSlider(7) == 100, "" + AimSettings.toSlider(7));
-
-        System.out.println("== FOV redondo: mesmo raio na horizontal, na vertical e nas diagonais ==");
-        Vector3 frente = new Vector3(0f, 0f, 1f);
-        float h = (float) Math.toDegrees(Math.atan(0.5)), vDeg = (float) Math.toDegrees(Math.atan(0.5));
-        Vector3 alvoH = new Vector3((float) Math.tan(Math.toRadians(8)), 0f, 1f);
-        Vector3 alvoV = new Vector3(0f, (float) Math.tan(Math.toRadians(8)), 1f);
-        float aH = AimAssist.anguloRedondo(alvoH, frente), aV = AimAssist.anguloRedondo(alvoV, frente);
-        check("alvo a 8° na horizontal e na vertical têm o mesmo raio", Math.abs(aH - aV) < 1e-3f && Math.abs(aH - 8f) < 1e-3f,
-                String.format("%.4f / %.4f", aH, aV));
-        Vector3 alvoD = new Vector3((float) Math.tan(Math.toRadians(5.66)), (float) Math.tan(Math.toRadians(5.66)), 1f);
-        float aD = AimAssist.anguloRedondo(alvoD, frente);
-        check("alvo na diagonal de 8° de raio também tem raio 8° (círculo, não quadrado)", Math.abs(aD - 8f) < 0.05f,
-                String.format("%.4f", aD));
-        check("atrás da câmera fica fora", AimAssist.anguloRedondo(new Vector3(0f, 0f, -1f), frente) > 90f, "");
+        check("mira 4x 35% vira 35", AimSettings.toSlider(2) == 35, "" + AimSettings.toSlider(2));
+        check("abertura AKM 100% vira 100", AimSettings.toSlider(AimSettings.ABERTURA_0) == 100, "" + AimSettings.toSlider(AimSettings.ABERTURA_0));
+        check("a tela não tem mais itens de assistência de mira", AimSettings.NAMES.length == 14, "" + AimSettings.NAMES.length);
+        boolean semAssist = true;
+        for (String n : AimSettings.NAMES) {
+            String b = n.toLowerCase();
+            if (b.contains("assist") || b.contains("abdominal") || b.contains("fov") || b.contains("resist")) semAssist = false;
+        }
+        check("nenhum item fala de assistência, abdômen, FOV ou resistência", semAssist, "");
 
         System.out.println("== Escala inteira: toda barra vai de 0 a 200 ==");
         boolean todas = true;
         for (int i = 0; i < AimSettings.NAMES.length; i++) {
-            if (AimSettings.kind(i) == AimSettings.K_TOGGLE) continue;
             int lo = AimSettings.toSlider(i);
             AimSettings.setSlider(i, 0);
             int zero = AimSettings.toSlider(i);
@@ -49,8 +37,6 @@ public class AimUiTests {
             AimSettings.set(i, lo / 100f);
         }
         check("cada barra vai de 0 até o máximo", todas, "");
-        AimSettings.setSlider(16, 200);
-        check("resistência nunca passa de 95% (fica controlável)", AimSettings.upResist <= 0.951f, "" + AimSettings.upResist);
 
         System.out.println("== Sensi X e Y: só valem com o botão de atirar pressionado ==");
         AimSettings.reset();
@@ -58,8 +44,8 @@ public class AimUiTests {
         semTiro.addDrag(100f, 50f);
         semTiro.update(1f / 30f, 1080f, false, null, 1f, false);
         float yaw0 = semTiro.yawDelta, pit0 = semTiro.pitchDelta;
-        AimSettings.set(17, 2f);      // sensi X 200%
-        AimSettings.set(18, 0.5f);    // sensi Y 50%
+        AimSettings.set(AimSettings.SENSI_X, 2f);      // sensi X 200%
+        AimSettings.set(AimSettings.SENSI_Y, 0.5f);    // sensi Y 50%
         AimController fora = new AimController();
         fora.addDrag(100f, 50f);
         fora.update(1f / 30f, 1080f, false, null, 1f, false);
@@ -72,10 +58,10 @@ public class AimUiTests {
                 Math.abs(tiro.yawDelta - 2f * yaw0) < 1e-6f, String.format("%.5f vs %.5f", tiro.yawDelta, 2f * yaw0));
         check("atirando, sensi Y 50% mete metade na vertical",
                 Math.abs(tiro.pitchDelta - 0.5f * pit0) < 1e-6f, String.format("%.5f vs %.5f", tiro.pitchDelta, 0.5f * pit0));
-        check("sensi X/Y aparecem como barras de 0 a 200", AimSettings.toSlider(17) == 200 && AimSettings.toSlider(18) == 50,
-                AimSettings.toSlider(17) + " / " + AimSettings.toSlider(18));
+        check("sensi X/Y aparecem como barras de 0 a 200", AimSettings.toSlider(AimSettings.SENSI_X) == 200 && AimSettings.toSlider(AimSettings.SENSI_Y) == 50,
+                AimSettings.toSlider(AimSettings.SENSI_X) + " / " + AimSettings.toSlider(AimSettings.SENSI_Y));
         AimSettings.reset();
-        check("RESTAURAR PADRÃO devolve sensi X/Y para 100", AimSettings.toSlider(17) == 100 && AimSettings.toSlider(18) == 100, "");
+        check("RESTAURAR PADRÃO devolve sensi X/Y para 100", AimSettings.toSlider(AimSettings.SENSI_X) == 100 && AimSettings.toSlider(AimSettings.SENSI_Y) == 100, "");
 
         System.out.println("== Arrastar a barra muda o parâmetro do jogo ==");
         AimSettings.reset();
@@ -95,13 +81,7 @@ public class AimUiTests {
         ui.drag(t[0], t[2]);
         check("depois de soltar o arrasto não continua", AimSettings.toSlider(0) == 200, "" + AimSettings.toSlider(0));
 
-        System.out.println("== Liga/desliga, restaurar e voltar ==");
-        float[] tg = ui.trackOf(3);
-        ui.press(tg[0] + 5f, tg[2]);
-        check("tocar no liga/desliga desliga a assistência", !AimSettings.assistOn, "");
-        ui.press(tg[0] + 5f, tg[2]);
-        check("tocar de novo liga", AimSettings.assistOn, "");
-        float[] rs = {ui.trackOf(0)[0], 0, 0, 0};
+        System.out.println("== Restaurar e voltar ==");
         ui.press(1280 * 0.08f, 720 * 0.03f + 5f);   // botão RESTAURAR PADRÃO (canto inferior esquerdo)
         check("RESTAURAR PADRÃO volta a sensibilidade para 100", AimSettings.toSlider(0) == 100, "" + AimSettings.toSlider(0));
         ui.press(1280 * 0.92f, 720 * 0.03f + 5f);   // botão VOLTAR (canto inferior direito)

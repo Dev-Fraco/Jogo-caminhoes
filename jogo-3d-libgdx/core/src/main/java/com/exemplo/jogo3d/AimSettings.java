@@ -7,13 +7,12 @@ import com.badlogic.gdx.math.MathUtils;
 /**
  * Ajustes de mira e sensibilidade (tela "Mira e sensibilidade").
  *
- * Os valores ficam em unidades do jogo (multiplicadores e frações). A tela mostra cada um numa barra de
- * 0 a 200: sensibilidades e aberturas valem s/100 (100 = 1,0 = padrão); assistências e o FOV valem s/200
- * (fração); a resistência vertical vai até 95% (s = 190). Assim os valores atuais são preservados ao
- * migrar a tela: 100% de sensibilidade vira 100, 10% de força abdominal vira 20, 90% de resistência vira 180.
+ * O jogo NÃO tem assistência de mira: a mira é só do dedo. Aqui ficam apenas as sensibilidades e as
+ * aberturas por arma. A tela mostra cada item numa barra de 0 a 200, e o valor vale s/100
+ * (100 = 1,0 = padrão).
  */
 final class AimSettings {
-    static final String PREFS = "aim_settings_v10";  // v10: atração 90%, resistência 95%; sensibilidades migram do v9
+    static final String PREFS = "aim_settings_v11";   // v11: sem assistência de mira
 
     static float general = 1.0f;          // sensibilidade geral
     static float scope2x = 0.6f;          // mira 2x (luneta): multiplica a sensibilidade ao mirar
@@ -22,17 +21,8 @@ final class AimSettings {
     static float vertical = 0.85f;        // fixo: subir/descer
     static float smoothing = 0.35f;       // fixo: suavização
     static final float[] category = {1f, 1f, 1f, 1f, 1f, 0.8f};   // fixo: por categoria de arma (ordem do enum)
-    static boolean assistOn = true;
-    static float abdAssist = 0.90f;       // 0..1: força com que a mira vai até a BARRIGA ao atirar (90%: puxa também ao subir)
-    static float horizAssist = 0.1f;      // 0..1: força da correção para os lados ao atirar (baixa: sem puxão lateral)
-    static float fovPct = 0.4f;           // 0..1: raio do FOV do aim assist (2° a 15°)
     /** Abertura da mira por arma (ordem de Weapons.BY_TYPE): 1 = 100% da abertura padrão. */
     static final float[] openPct = {1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f};
-    /**
-     * Resistência vertical ao atirar: fração do movimento do dedo para cima, acima da barriga, que é devolvida.
-     * 90% = subir 10 cm de dedo sobe 1 cm. Não depende da sensibilidade (é fração do movimento já escalado).
-     */
-    static float upResist = 0.95f;   // máximo real: o limite fixo de 95% (AimAssist.LIMITE_CONTRA) não deixa passar disso
     /**
      * Sensibilidade X (horizontal) e Y (vertical) só com o botão de atirar pressionado. 100% = sem mudança.
      * Fora do tiro, o arrasto segue a sensibilidade geral normal.
@@ -41,27 +31,17 @@ final class AimSettings {
     static float fireY = 1f;
 
     /** Itens da tela: índice = posição em NAMES (ordem interna, usada também para salvar). */
-    static final String[] NAMES = {"Sensibilidade geral", "Mira 2x", "Mira 4x", "Assistência de mira",
-            "Força abdominal (atração à barriga)", "Assistência horizontal", "FOV do Aim Assist",
+    static final String[] NAMES = {"Sensibilidade geral", "Mira 2x", "Mira 4x",
             "Abertura AKM", "Abertura AUG", "Abertura GROZA", "Abertura M16A4", "Abertura M416", "Abertura SCAR-L", "Abertura AWM", "Abertura M1014", "Abertura MAGNUM 357",
-            "Resistência vertical (subida)", "Sensi X (ao atirar)", "Sensi Y (ao atirar)"};
+            "Sensi X (ao atirar)", "Sensi Y (ao atirar)"};
 
-    // Tipos de barra: multiplicador (0..2), fração (0..1), resistência (0..0,95) e liga/desliga
-    static final int K_MULT = 0, K_FRAC = 1, K_RESIST = 2, K_TOGGLE = 3;
-    static final float RESIST_MAX = 0.95f;
-
-    static int kind(int i) {
-        if (i == 3) return K_TOGGLE;
-        if (i == 4 || i == 5 || i == 6) return K_FRAC;
-        if (i == 16) return K_RESIST;
-        return K_MULT;   // sensibilidades e aberturas
-    }
+    /** Índice da primeira abertura de arma em NAMES. */
+    static final int ABERTURA_0 = 3;
+    /** Índices de fireX e fireY em NAMES. */
+    static final int SENSI_X = 12, SENSI_Y = 13;
 
     /** Abertura da mira da arma (ordem de BY_TYPE); fora da lista, o padrão. */
     static float openPct(int type) { return type >= 0 && type < openPct.length ? openPct[type] : 1f; }
-
-    /** Raio do FOV do aim assist em graus: 2° (0%) a 15° (100%). */
-    static float fovDeg() { return 2f + 13f * fovPct; }
 
     /** Multiplicador da sensibilidade ao mirar (por enquanto, o da mira 2x). */
     static float adsMul() { return scope2x; }
@@ -71,36 +51,17 @@ final class AimSettings {
             case 0: return general;
             case 1: return scope2x;
             case 2: return scope4x;
-            case 3: return assistOn ? 1f : 0f;
-            case 4: return abdAssist;
-            case 5: return horizAssist;
-            case 6: return fovPct;
-            case 16: return upResist;
-            case 17: return fireX;
-            case 18: return fireY;
-            default: return openPct[i - 7];
+            case SENSI_X: return fireX;
+            case SENSI_Y: return fireY;
+            default: return openPct[i - ABERTURA_0];
         }
     }
 
     /** Valor de um item na escala da tela (0..200). */
-    static int toSlider(int i) {
-        switch (kind(i)) {
-            case K_MULT: return Math.round(get(i) * 100f);
-            case K_TOGGLE: return assistOn ? 200 : 0;
-            default: return Math.round(get(i) * 200f);
-        }
-    }
+    static int toSlider(int i) { return Math.round(get(i) * 100f); }
 
-    /** Converte uma posição da barra (0..200) para o valor do jogo, dentro dos limites de cada item. */
-    static float fromSlider(int i, int s) {
-        s = MathUtils.clamp(s, 0, 200);
-        switch (kind(i)) {
-            case K_MULT: return s / 100f;
-            case K_TOGGLE: return s >= 100 ? 1f : 0f;
-            case K_RESIST: return Math.min(s / 200f, RESIST_MAX);
-            default: return s / 200f;
-        }
-    }
+    /** Converte uma posição da barra (0..200) para o valor do jogo. */
+    static float fromSlider(int i, int s) { return MathUtils.clamp(s, 0, 200) / 100f; }
 
     static void setSlider(int i, int s) { set(i, fromSlider(i, s)); }
 
@@ -109,35 +70,41 @@ final class AimSettings {
             case 0: general = clampMult(v); break;
             case 1: scope2x = clampMult(v); break;
             case 2: scope4x = clampMult(v); break;
-            case 3: assistOn = v > 0.5f; break;
-            case 4: abdAssist = clampFrac(v); break;
-            case 5: horizAssist = clampFrac(v); break;
-            case 6: fovPct = clampFrac(v); break;
-            case 16: upResist = MathUtils.clamp(v, 0f, RESIST_MAX); break;
-            case 17: fireX = clampMult(v); break;
-            case 18: fireY = clampMult(v); break;
-            default: openPct[i - 7] = clampMult(v); break;
+            case SENSI_X: fireX = clampMult(v); break;
+            case SENSI_Y: fireY = clampMult(v); break;
+            default: openPct[i - ABERTURA_0] = clampMult(v); break;
         }
     }
 
     private static float clampMult(float v) { return MathUtils.clamp(v, 0f, 2f); }
 
-    private static float clampFrac(float v) { return MathUtils.clamp(v, 0f, 1f); }
+    static String text(int i) { return String.valueOf(toSlider(i)); }
 
-    static String text(int i) {
-        if (i == 3) return assistOn ? "LIGADA" : "DESLIGADA";
-        return String.valueOf(toSlider(i));
+    /**
+     * Índice que este item tinha nas versões com assistência de mira (v9 e v10), para aproveitar o que o
+     * jogador já havia ajustado. -1 quando o item não existia lá.
+     */
+    private static int indiceAntigo(int i) {
+        if (i == 0 || i == 1 || i == 2) return i;            // sensibilidade geral, mira 2x, mira 4x
+        if (i == SENSI_X) return 17;
+        if (i == SENSI_Y) return 18;
+        return i - ABERTURA_0 + 7;                            // aberturas: eram 7..15
     }
 
     static void load() {
         try {
             Preferences p = Gdx.app.getPreferences(PREFS);
-            // Migração: na primeira vez com v10, as sensibilidades e aberturas salvas no v9 são mantidas.
-            // Atração, FOV, assistência horizontal e resistência vertical usam os padrões novos.
-            Preferences antigo = Gdx.app.getPreferences("aim_settings_v9");
+            Preferences v10 = Gdx.app.getPreferences("aim_settings_v10");
+            Preferences v9 = Gdx.app.getPreferences("aim_settings_v9");
             for (int i = 0; i < NAMES.length; i++) {
                 float v = p.getFloat("v" + i, Float.NaN);
-                if (Float.isNaN(v) && !(i == 4 || i == 5 || i == 6 || i == 16)) v = antigo.getFloat("v" + i, Float.NaN);
+                if (Float.isNaN(v)) {
+                    int ant = indiceAntigo(i);
+                    if (ant >= 0) {
+                        v = v10.getFloat("v" + ant, Float.NaN);
+                        if (Float.isNaN(v)) v = v9.getFloat("v" + ant, Float.NaN);
+                    }
+                }
                 if (!Float.isNaN(v)) set(i, v);
             }
         } catch (Throwable t) {
@@ -156,8 +123,7 @@ final class AimSettings {
     }
 
     static void reset() {
-        general = 1f; scope2x = 0.6f; scope4x = 0.35f; assistOn = true;
-        abdAssist = 0.90f; horizAssist = 0.1f; fovPct = 0.4f; upResist = 0.95f; fireX = 1f; fireY = 1f;
+        general = 1f; scope2x = 0.6f; scope4x = 0.35f; fireX = 1f; fireY = 1f;
         java.util.Arrays.fill(openPct, 1f);
     }
 }

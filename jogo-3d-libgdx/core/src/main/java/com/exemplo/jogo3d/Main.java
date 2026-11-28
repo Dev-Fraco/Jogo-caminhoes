@@ -122,10 +122,8 @@ public class Main extends ApplicationAdapter {
     private long windSoundId = -1;
     private float windVol = 0f;
     private int prone = 0;                        // deitado no chão: 0 não, 1 deitando/deitado, 2 levantando
-    // Combate: inimigos, mira, assistência, tiro e dano
+    // Combate: inimigos, mira, tiro e dano
     private Enemies enemies;
-    private final TargetDetection targets = new TargetDetection();
-    private final AimAssist assist = new AimAssist();
     private final AimController aimCtl = new AimController();
     private ShootingSystem shooting;               // disparo: modos, dispersão, efeitos e dano
     private final Vector3 whizP = new Vector3();
@@ -242,7 +240,6 @@ public class Main extends ApplicationAdapter {
                 windSound = null;
             }
             AimSettings.load();
-            AimTuning.load();
             fx = new CombatFx();
             damage = new DamageSystem(fx);
             loadWorld(false);   // battle royale: o avião, o mapa e o jogo começam aqui
@@ -467,25 +464,11 @@ public class Main extends ApplicationAdapter {
         WeaponConfig.Category cat = cfg != null ? cfg.category : WeaponConfig.Category.FUZIL;
         // AWM: segurar o tiro abre a luneta sem disparar (só a AWM; os outros fuzis seguem como estavam)
         boolean awmAim = combat && cfg != null && cfg.scope && fireHeld;
-        // Câmera pelo toque (com o atrito da assistência do quadro anterior)
-        aimCtl.update(dt, Gdx.graphics.getHeight(), adsOn || awmAim, combat ? cat : null, combat ? assist.friction : 1f, fireHeld);
+        // Câmera pelo toque. A mira é só do dedo: não há assistência de mira no jogo.
+        aimCtl.update(dt, Gdx.graphics.getHeight(), adsOn || awmAim, combat ? cat : null, 1f, fireHeld);
         yaw += aimCtl.yawDelta;
         pitch += aimCtl.pitchDelta;
         aimDir.set(camera.direction).nor();
-        if (combat && enemies != null && cfg != null) {
-            float camYaw = MathUtils.atan2(aimDir.x, aimDir.z), camPitch = -(float) Math.asin(MathUtils.clamp(aimDir.y, -1f, 1f));
-            targets.update(dt, camera.position, aimDir, enemies, world,
-                    AimSettings.fovDeg() * cat.radiusScale, cfg.range, fireHeld);
-            // Fuzil de precisão (luneta): nenhuma assistência; a mira é só do dedo
-            assist.alcance = cfg.range;   // queda da assistência por distância usa o alcance da arma
-            if (cfg.scope) assist.update(dt, camera.position, aimDir, camYaw, camPitch, null, cat, false, false, false);
-            else assist.update(dt, camera.position, aimDir, camYaw, camPitch, targets.target, cat, fireHeld, firePressed, adsOn);
-            yaw += assist.dYaw;
-            pitch += assist.dPitch;
-        } else {
-            targets.drop();
-            assist.update(dt, camera.position, aimDir, yaw, pitch, null, cat, false, false, false);
-        }
         // Arma na mão (o cano acompanha a mira) e o sistema de disparo: modos, cadência, recuo, dispersão,
         // clarão, som, impacto e dano. O coice e a volta da mira vêm dele.
         if (world.weapons != null) {
@@ -1078,7 +1061,7 @@ public class Main extends ApplicationAdapter {
             float spreadPx = (float) (Math.tan(Math.toRadians(spreadDeg)) / Math.tan(Math.toRadians(camera.fieldOfView / 2f)) * h / 2f);
             int alive = (enemies != null ? enemies.alive() : 0) + (dead ? 0 : 1);
             int kills = (damage != null ? damage.kills : 0) + (grenades != null ? grenades.kills : 0);
-            fx.drawHud(batch, shapes, font, camera, hud, world.weapons, assist, spreadPx, overEnemy, alive, kills,
+            fx.drawHud(batch, shapes, font, camera, hud, world.weapons, spreadPx, overEnemy, alive, kills,
                     world.weapons != null ? world.weapons.icon() : null, combat, enemies);
         }
         if (world.items != null && survival != null && !hud.editing)

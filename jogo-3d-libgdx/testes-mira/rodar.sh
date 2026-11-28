@@ -15,7 +15,6 @@ OUT=$(mktemp -d)
 javac -encoding UTF-8 -d "$OUT" -cp "$CP" ../core/src/main/java/com/exemplo/jogo3d/*.java com/exemplo/jogo3d/*.java
 cd ../assets
 java -Xmx3g -cp "$OUT:$CP" com.exemplo.jogo3d.ModelIOTests
-java -cp "$OUT:$CP" com.exemplo.jogo3d.AimTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.ShootTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.TargetBotTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.AnimTests
@@ -40,6 +39,3 @@ java -cp "$OUT:$CP" com.exemplo.jogo3d.ArenaTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.RodadasTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.BotMiraTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.AimUiTests
-java -cp "$OUT:$CP" com.exemplo.jogo3d.AimTuningTests
-java -cp "$OUT:$CP" com.exemplo.jogo3d.AimFluxoTests
-java -cp "$OUT:$CP" com.exemplo.jogo3d.AimMagneticoTests
