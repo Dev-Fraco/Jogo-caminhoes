@@ -6,17 +6,20 @@ import com.badlogic.gdx.math.Vector3;
 /**
  * Assistência de mira. Cada quadro calcula UMA correção (dYaw, dPitch) que o Main soma à câmera.
  *
- * Etapas, em ordem de prioridade:
- * 1. AQUISIÇÃO: ao apertar o tiro com o alvo no cone, a mira é puxada rápido para o alvo durante
- *    AimTuning.aquisicaoSeg. Tem velocidade e intensidade próprias (não usa o limite do acompanhamento).
- * 2. ACOMPANHAMENTO: depois da aquisição, a mira segue o alvo. Tracking soma a velocidade angular do alvo;
- *    a correção vertical para a barriga só age FORA da zona de tolerância (com histerese), e nunca enquanto o
- *    jogador arrasta a mira de propósito. Assim o dedo controla a subida até a cabeça sem disputa.
- * 3. RESISTÊNCIA VERTICAL: o movimento do dedo para cima volta na fração configurada (upResist), mas quase
- *    não age durante um arrasto deliberado (resistenciaArrasto).
- * 4. FREIO: perto do centro do alvo a sensibilidade manual diminui, nunca abaixo de frictionFloor.
+ * 1. AQUISIÇÃO: ao apertar o tiro com o alvo no cone, a mira é puxada rápido ao abdômen (aquisicaoSeg,
+ *    aquisicaoVel, aquisicaoForca). Suspensa enquanto o dedo se move: o controle manual tem prioridade.
+ * 2. ATRAÇÃO AO ABDÔMEN, o ponto principal: com o dedo parado, a mira volta ao abdômen em rampa, com
+ *    velocidade limitada (retornoVel), depois de uma pausa (retornoEsperaSeg) e uma rampa (retornoRampaSeg).
+ * 3. RESISTÊNCIA MAGNÉTICA: enquanto o dedo sobe, a atração continua agindo como uma força contrária. Ela cresce
+ *    com a altura acima do abdômen (resistenciaGrau × atracaoSubida), depende da velocidade do dedo
+ *    (resistenciaSensVel), é limitada pelo ajuste de resistência vertical (AimSettings.upResist) e é suavizada
+ *    (amortecimento, resistenciaRampa). Ela só diminui a subida: a correção nunca passa de 95% do movimento do
+ *    dedo, então a mira nunca é puxada para baixo enquanto o jogador sobe.
+ * 4. TRACKING horizontal: segue o deslocamento lateral do alvo (não é removido).
+ * 5. FREIO: perto do centro do alvo, a sensibilidade manual diminui, nunca abaixo de frictionFloor.
  *
- * A sensibilidade do jogador não muda; a assistência só soma correções.
+ * A sensibilidade do jogador não muda; a assistência só soma correções. Todos os valores vêm de AimTuning
+ * (experimentais) e AimSettings (ajustes do jogador).
  */
 final class AimAssist {
     /** dt máximo usado nos cálculos: depois de um travamento, a correção não dá um salto grande. */
@@ -25,12 +28,12 @@ final class AimAssist {
     static final float TRACKING_MOV_RAD = 0.03f;
     /** Movimento do dedo menor que isto (rad/quadro, ≈0,01°) é ruído numérico, não dedo. */
     static final float RUIDO_DEDO = 2e-4f;
-    /** Movimento do dedo por quadro (rad) que conta como arrasto deliberado (≈0,11°/quadro ≈ 6,6°/s; ~0,5 px/quadro com a sensibilidade padrão). */
-    static final float ARRASTO_RAD = 2e-3f;
-    /** Mantém o alvo travado até 1,5× o cone (mesma margem da escolha de alvo): o acompanhamento não cai no meio de uma curva. */
+    /** Mantém o alvo travado até 1,5× o cone (mesma margem da escolha de alvo). */
     static final float MARGEM_TRAVA = 1.5f;
-    /** O arrasto continua valendo por este tempo depois do último movimento do dedo (s). */
-    static final float ARRASTO_SEG = 0.20f;
+    /** Fração máxima do movimento do dedo que a assistência pode desfazer: sempre sobra movimento para subir. */
+    static final float LIMITE_CONTRA = 0.95f;
+    /** Suavização da leitura da velocidade do dedo (1/s): reduz o ruído do toque, mantém a resposta. */
+    static final float VEL_SUAVIZA = 20f;
     static final float DEG = (float) (Math.PI / 180.0);
 
     float dYaw, dPitch;        // correção deste quadro (radianos) para somar à câmera
@@ -50,9 +53,11 @@ final class AimAssist {
     private float lastTYaw, lastElev;          // ângulos do alvo no quadro anterior
     private float omegaYaw, omegaPitch;        // velocidade angular suavizada do alvo (rad/s)
     private float aquisicaoT;                  // tempo restante da aquisição (s)
-    private float arrastoT;                    // tempo restante do arrasto deliberado (s)
-    private boolean pullVertical;              // correção vertical ligada (histerese da zona)
     private float paradoT = 10f;               // tempo desde o último movimento do dedo (s)
+    private boolean moveuDesdeAperto;          // o dedo já se moveu desde o aperto do tiro (a aquisição não reengata)
+    private boolean pullVertical;              // atração ao abdômen ligada (histerese da zona)
+    private float velDedo;                     // velocidade suavizada do dedo subindo/descendo (rad/s)
+    private float corrAlvo, corrOut;           // resistência magnética: alvo e saída já suavizada (rad)
 
     /** Esquece o movimento anterior (ao trocar de alvo ou de mira à força). */
     void reset() {
@@ -60,8 +65,12 @@ final class AimAssist {
         haveLast = false;
         lastTarget = null;
         aquisicaoT = 0f;
-        arrastoT = 0f;
+        paradoT = 10f;
         pullVertical = false;
+        velDedo = 0f;
+        corrAlvo = 0f;
+        corrOut = 0f;
+        moveuDesdeAperto = false;
     }
 
     /**
@@ -94,9 +103,16 @@ final class AimAssist {
         return estavaAtiva ? a > zona : a > zona + hist;
     }
 
-    /** Resistência vertical efetiva: reduzida durante o arrasto deliberado. */
-    static float resistenciaEfetiva(float base, boolean arrastando, float fator) {
-        return arrastando ? base * fator : base;
+    /**
+     * Resistência magnética: fração do movimento de subida que volta, dada a altura acima do abdômen (graus), a
+     * velocidade do dedo (°/s) e os parâmetros. Nunca passa de 'limite' (ajuste de resistência vertical).
+     */
+    static float fracaoResistencia(float altoAcimaGrau, float velDedoGrauS, float base, float grau, float atracao,
+                                   float velRef, float sensVel, float limite) {
+        float fDist = MathUtils.clamp((base + altoAcimaGrau * grau) * atracao, 0f, 1f);
+        float velFac = MathUtils.clamp(velDedoGrauS / Math.max(1f, velRef), 0f, 1f);
+        float fVel = 1f - sensVel + sensVel * velFac;
+        return MathUtils.clamp(fDist * fVel, 0f, limite);
     }
 
     /** Multiplicador do freio: 1 longe do alvo; cai conforme a proximidade × friction da categoria; nunca abaixo do piso. */
@@ -123,23 +139,23 @@ final class AimAssist {
         // Movimento do dedo neste quadro (inclinação que mudou desde o último quadro, sem a nossa correção)
         float userDelta = havePitch ? MathUtils.clamp(pitch - lastPitch, -0.3f, 0.3f) : 0f;
         havePitch = true;
-        arrastoT = Math.max(0f, arrastoT - dtRaw);
-        // Movimento do dedo tem prioridade: enquanto ele se move, a atração ao abdômen fica suspensa;
-        // depois de parar, a força volta em rampa (paradoT conta o tempo parado)
         boolean movendo = Math.abs(userDelta) > RUIDO_DEDO;
         paradoT = movendo ? 0f : Math.min(10f, paradoT + dtRaw);
-        // Arrasto deliberado: movimento do dedo acima do limiar, que escala com a sensibilidade (mesmo dedo, mais ângulo)
-        if (Math.abs(userDelta) > ARRASTO_RAD * Math.max(0.25f, AimSettings.general)) arrastoT = ARRASTO_SEG;
         if (!AimSettings.assistOn || target == null || !target.alive() || !firing || dtRaw <= 0f) {
             lastPitch = pitch;
             haveLast = false;
             lastTarget = null;
             aquisicaoT = 0f;
             pullVertical = false;
+            velDedo = 0f;
+            corrAlvo = 0f;
+            corrOut = 0f;
             return;
         }
         float dt = Math.min(dtRaw, DT_MAX);
-        boolean arrastando = arrastoT > 0f;
+        float subindoRad = -userDelta;                 // > 0: o dedo sobe (o pitch diminui)
+        boolean subindo = subindoRad > RUIDO_DEDO;
+        velDedo += (Math.abs(subindoRad) / dt - velDedo) * (1f - (float) Math.exp(-VEL_SUAVIZA * dt));
 
         // FOV: cone em volta da direção da mira, medido até o peito
         float fov = AimSettings.fovDeg() * cat.radiusScale * (ads ? 0.8f : 1f);
@@ -150,13 +166,13 @@ final class AimAssist {
         float ang = (float) Math.toDegrees(Math.acos(MathUtils.clamp(v.dot(dir) / dist, -1f, 1f)));
         float tYaw = MathUtils.atan2(v.x, v.z);
         float errYaw = wrap(tYaw - yaw);
-        // Ponto de atração: a BARRIGA (nunca o peito nem a cabeça). > 0: a barriga está acima da mira
+        // Ponto de atração: o ABDÔMEN (nunca o peito nem a cabeça). errBelly > 0: o abdômen está acima da mira
         float elevBelly = elev(cam, target.hitbox.belly);
         float errBelly = elevBelly - (-pitch);
         float errBellyGrau = errBelly / DEG;
-        // Faixa da cabeça: a mira entre o peito e o topo da cabeça também conta
+        float altoAcimaGrau = -errBellyGrau;           // > 0: a mira está acima do abdômen
         boolean inFov = ang <= fov;
-        boolean inTrava = ang <= fov * MARGEM_TRAVA;   // acompanhamento e correção vertical: com margem, como a escolha de alvo
+        boolean inTrava = ang <= fov * MARGEM_TRAVA;   // acompanhamento e atração: com margem, como a escolha de alvo
         boolean inHead = -pitch <= elev(cam, target.hitbox.headTop) + 0.03f;
 
         // Velocidade angular do alvo (para o tracking), suavizada para não oscilar
@@ -179,12 +195,15 @@ final class AimAssist {
         float ty = 0f, tp = 0f;
         float limite;   // teto da correção deste quadro (rad): aquisição ou acompanhamento
 
+        if (firePress) moveuDesdeAperto = false;
+        if (movendo) moveuDesdeAperto = true;
         if (firePress && inFov) aquisicaoT = AimTuning.aquisicaoSeg;   // apertou o tiro: começa a aquisição
-        boolean aquisicao = aquisicaoT > 0f && inFov && !arrastando && !movendo;   // o dedo em movimento tem prioridade
+        // A aquisição vale só no aperto: depois que o dedo se mexe, o controle é dele (não reengata ao parar)
+        boolean aquisicao = aquisicaoT > 0f && inFov && !movendo && !moveuDesdeAperto;
         aquisicaoT = Math.max(0f, aquisicaoT - dt);
 
         if (aquisicao) {
-            // 1. AQUISIÇÃO: puxa rápido para o alvo, com velocidade e intensidade próprias
+            // 1. AQUISIÇÃO: puxa rápido para o abdômen, com velocidade e intensidade próprias
             float intensidade = AimTuning.aquisicaoForca * fat;
             float vel = AimTuning.aquisicaoVel * cat.assist;
             ty = passoAquisicao(errYaw, intensidade, vel, dt);
@@ -192,31 +211,28 @@ final class AimAssist {
             limite = (float) Math.toRadians(vel) * dt;
             pullVertical = true;   // ao fim da aquisição, a zona já começa ligada
         } else {
-            // 2. ACOMPANHAMENTO
             limite = passoMaximo(cat.maxDegPerSec, dt);
-            if (inTrava) {   // acompanhamento com o alvo travado (a faixa da cabeça sozinha não conta)
-                if (!arrastando) {
-                    // Tracking: acompanha o deslocamento do alvo enquanto a mira está perto dele
-                    ty += trackingScale * cat.tracking * omegaYaw * dt;
+            // 4. TRACKING: o horizontal segue o alvo sempre; o vertical só com o dedo parado
+            if (inTrava) {
+                ty += trackingScale * cat.tracking * omegaYaw * dt;
+                float mov = MathUtils.clamp((float) Math.hypot(omegaYaw, omegaPitch) / TRACKING_MOV_RAD, 0f, 1f);
+                float fecha = trackingScale * cat.tracking * Math.min(1f, AimTuning.trackingGain * dt) * mov;
+                ty += errYaw * fecha;
+                if (!movendo) {
                     tp += -trackingScale * cat.tracking * omegaPitch * dt;
-                    // Fecha o atraso que sobra quando o alvo se move; só com o alvo em movimento
-                    float mov = MathUtils.clamp((float) Math.hypot(omegaYaw, omegaPitch) / TRACKING_MOV_RAD, 0f, 1f);
-                    float fecha = trackingScale * cat.tracking * Math.min(1f, AimTuning.trackingGain * dt) * mov;
-                    ty += errYaw * fecha;
                     tp += -errBelly * fecha;
                 }
             }
-            // Vertical: só fora da zona de tolerância (com histerese) e sem disputar o arrasto do dedo
-            // Atração ao ABDÔMEN (ponto principal): nos dois sentidos, com zona + histerese, dentro do cone,
-            // fora do arrasto e sem movimento do dedo. Volta em rampa depois de parar, sem puxão brusco.
-            pullVertical = inTrava && !arrastando && !movendo
-                    && zonaAtiva(pullVertical, errBellyGrau, AimTuning.zonaVertical, AimTuning.histerese);
+            // 2. ATRAÇÃO AO ABDÔMEN com o dedo parado: volta em rampa, com velocidade limitada
+            pullVertical = inTrava && !movendo && zonaAtiva(pullVertical, errBellyGrau, AimTuning.zonaVertical, AimTuning.histerese);
             if (pullVertical) {
                 float t = MathUtils.clamp((paradoT - AimTuning.retornoEsperaSeg) / AimTuning.retornoRampaSeg, 0f, 1f);
                 float rampa = t * t * (3f - 2f * t);   // suavização (smoothstep)
-                tp += -errBelly * Math.min(1f, 10f * dt) * AimSettings.abdAssist * fat * rampa;
+                float retorno = -errBelly * Math.min(1f, 10f * dt) * AimSettings.abdAssist * fat * rampa;
+                float lim = (float) Math.toRadians(AimTuning.retornoVel) * dt;
+                tp += MathUtils.clamp(retorno, -lim, lim);
             }
-            // Horizontal: assistência suave para os lados (não disputa o arrasto vertical)
+            // Horizontal: assistência suave para os lados
             if (inFov) ty += errYaw * Math.min(1f, 8f * dt) * AimSettings.horizAssist * fat;
         }
 
@@ -230,13 +246,25 @@ final class AimAssist {
         dYaw += ty;
         dPitch += tp;
 
-        // 3. RESISTÊNCIA VERTICAL: o movimento do dedo para cima volta na fração configurada; reduzida no arrasto
-        if (userDelta < -RUIDO_DEDO) {
-            float resist = resistenciaEfetiva(AimSettings.upResist, arrastando, AimTuning.resistenciaArrasto);
-            dPitch += -userDelta * resist;
+        // 3. RESISTÊNCIA MAGNÉTICA: enquanto o dedo sobe acima do abdômen, a atração resiste à subida
+        float alvo = 0f;
+        if (inTrava && subindo && altoAcimaGrau > 0f) {
+            float f = fracaoResistencia(altoAcimaGrau, velDedo / DEG, AimTuning.resistenciaBase, AimTuning.resistenciaGrau,
+                    AimTuning.atracaoSubida,
+                    AimTuning.resistenciaVelRef, AimTuning.resistenciaSensVel, AimSettings.upResist);
+            alvo = f * subindoRad;
+        }
+        corrAlvo += (alvo - corrAlvo) * (1f - (float) Math.exp(-AimTuning.amortecimento * dt));
+        float rampaMax = (float) Math.toRadians(AimTuning.resistenciaRampa);   // variação máxima por quadro
+        corrOut += MathUtils.clamp(corrAlvo - corrOut, -rampaMax, rampaMax);
+        dPitch += corrOut;
+
+        // Garantia: enquanto o dedo sobe, a assistência nunca inverte o movimento (sempre sobra subida)
+        if (subindo) {
+            dPitch = MathUtils.clamp(dPitch, -LIMITE_CONTRA * subindoRad, AimSettings.upResist * subindoRad);
         }
 
-        // 4. FREIO: perto do centro do alvo, a sensibilidade manual diminui (piso garante movimento livre)
+        // 5. FREIO: perto do centro do alvo, a sensibilidade manual diminui (piso garante movimento livre)
         float proximidade = inFov ? 1f - ang / Math.max(1e-3f, fov) : 0f;
         friction = freio(cat.friction, proximidade, AimTuning.frictionFloor);
 

@@ -47,8 +47,22 @@ final class AimTuning {
     static float zonaVertical = 0.4f;
     /** Histerese da zona vertical (°): liga a correção só acima de zona + histerese. Experimental. */
     static float histerese = 0.3f;
-    /** Resistência vertical durante o arrasto manual deliberado (fração da resistência normal). Experimental. */
-    static float resistenciaArrasto = 0.15f;
+    /** Intensidade da atração ao abdômen durante a subida (0 a 1). Experimental. */
+    static float atracaoSubida = 1f;
+    /** Resistência magnética de base: fração do movimento de subida que volta assim que a mira sai do abdômen. Experimental. */
+    static float resistenciaBase = 0.3f;
+    /** Resistência magnética: fração adicional do movimento de subida por grau acima do abdômen. Experimental. */
+    static float resistenciaGrau = 0.04f;
+    /** Velocidade de referência do dedo (°/s): acima dela a resistência usa força cheia (com sensibilidade à velocidade). Experimental. */
+    static float resistenciaVelRef = 60f;
+    /** Sensibilidade da resistência à velocidade do dedo (0 = não depende da velocidade; 1 = proporcional). Experimental. */
+    static float resistenciaSensVel = 0.3f;
+    /** Variação máxima da correção por quadro (°/quadro): evita mudanças bruscas. Experimental. */
+    static float resistenciaRampa = 0.05f;
+    /** Amortecimento da correção (1/s): suaviza a leitura do toque e a correção. Experimental. */
+    static float amortecimento = 12f;
+    /** Velocidade máxima da volta ao abdômen quando o dedo para (°/s). Experimental. */
+    static float retornoVel = 90f;
     /** Tempo parado do dedo até a assistência voltar a puxar para o abdômen (s). Experimental. */
     static float retornoEsperaSeg = 0.15f;
     /** Duração da rampa que devolve a força da atração ao abdômen depois de parar (s). Experimental. */
@@ -73,7 +87,14 @@ final class AimTuning {
         aquisicaoForca = 1f;
         zonaVertical = 0.4f;
         histerese = 0.3f;
-        resistenciaArrasto = 0.15f;
+        atracaoSubida = 1f;
+        resistenciaBase = 0.3f;
+        resistenciaGrau = 0.04f;
+        resistenciaVelRef = 60f;
+        resistenciaSensVel = 0.3f;
+        resistenciaRampa = 0.05f;
+        amortecimento = 12f;
+        retornoVel = 90f;
         retornoEsperaSeg = 0.15f;
         retornoRampaSeg = 0.6f;
         trackingGain = 6f;
@@ -95,7 +116,14 @@ final class AimTuning {
         aquisicaoForca = clamp(aquisicaoForca, 0f, 1f);
         zonaVertical = Math.max(0f, zonaVertical);
         histerese = Math.max(0f, histerese);
-        resistenciaArrasto = clamp(resistenciaArrasto, 0f, 1f);
+        atracaoSubida = clamp(atracaoSubida, 0f, 1f);
+        resistenciaBase = clamp(resistenciaBase, 0f, 1f);
+        resistenciaGrau = Math.max(0f, resistenciaGrau);
+        resistenciaVelRef = Math.max(1f, resistenciaVelRef);
+        resistenciaSensVel = clamp(resistenciaSensVel, 0f, 1f);
+        resistenciaRampa = Math.max(0.001f, resistenciaRampa);
+        amortecimento = Math.max(0.1f, amortecimento);
+        retornoVel = Math.max(1f, retornoVel);
         retornoEsperaSeg = Math.max(0f, retornoEsperaSeg);
         retornoRampaSeg = Math.max(0.05f, retornoRampaSeg);
         trackingGain = Math.max(0f, trackingGain);
@@ -119,7 +147,14 @@ final class AimTuning {
             aquisicaoForca = p.getFloat("aquisicaoForca", aquisicaoForca);
             zonaVertical = p.getFloat("zonaVertical", zonaVertical);
             histerese = p.getFloat("histerese", histerese);
-            resistenciaArrasto = p.getFloat("resistenciaArrasto", resistenciaArrasto);
+            atracaoSubida = p.getFloat("atracaoSubida", atracaoSubida);
+            resistenciaBase = p.getFloat("resistenciaBase", resistenciaBase);
+            resistenciaGrau = p.getFloat("resistenciaGrau", resistenciaGrau);
+            resistenciaVelRef = p.getFloat("resistenciaVelRef", resistenciaVelRef);
+            resistenciaSensVel = p.getFloat("resistenciaSensVel", resistenciaSensVel);
+            resistenciaRampa = p.getFloat("resistenciaRampa", resistenciaRampa);
+            amortecimento = p.getFloat("amortecimento", amortecimento);
+            retornoVel = p.getFloat("retornoVel", retornoVel);
             retornoEsperaSeg = p.getFloat("retornoEsperaSeg", retornoEsperaSeg);
             retornoRampaSeg = p.getFloat("retornoRampaSeg", retornoRampaSeg);
             trackingGain = p.getFloat("trackingGain", trackingGain);
@@ -147,7 +182,14 @@ final class AimTuning {
             p.putFloat("aquisicaoForca", aquisicaoForca);
             p.putFloat("zonaVertical", zonaVertical);
             p.putFloat("histerese", histerese);
-            p.putFloat("resistenciaArrasto", resistenciaArrasto);
+            p.putFloat("atracaoSubida", atracaoSubida);
+            p.putFloat("resistenciaBase", resistenciaBase);
+            p.putFloat("resistenciaGrau", resistenciaGrau);
+            p.putFloat("resistenciaVelRef", resistenciaVelRef);
+            p.putFloat("resistenciaSensVel", resistenciaSensVel);
+            p.putFloat("resistenciaRampa", resistenciaRampa);
+            p.putFloat("amortecimento", amortecimento);
+            p.putFloat("retornoVel", retornoVel);
             p.putFloat("retornoEsperaSeg", retornoEsperaSeg);
             p.putFloat("retornoRampaSeg", retornoRampaSeg);
             p.putFloat("trackingGain", trackingGain);
