@@ -39,3 +39,4 @@ java -cp "$OUT:$CP" com.exemplo.jogo3d.ArenaTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.RodadasTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.BotMiraTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.AimUiTests
+java -cp "$OUT:$CP" com.exemplo.jogo3d.AimAssistTests

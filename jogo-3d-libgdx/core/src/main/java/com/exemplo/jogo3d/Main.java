@@ -125,6 +125,10 @@ public class Main extends ApplicationAdapter {
     // Combate: inimigos, mira, tiro e dano
     private Enemies enemies;
     private final AimController aimCtl = new AimController();
+    /** Assistência magnética de mira (único sistema de assistência do jogo). */
+    private final AimAssist aimAssist = new AimAssist();
+    private final java.util.List<AimAssist.Candidato> candidatosMira = new java.util.ArrayList<>();
+    private final Vector3 tmpVisao = new Vector3(), tmpPivo = new Vector3();
     private ShootingSystem shooting;               // disparo: modos, dispersão, efeitos e dano
     private final Vector3 whizP = new Vector3();
     private float gustT = 3f;
@@ -166,6 +170,29 @@ public class Main extends ApplicationAdapter {
     private boolean inPlane = false, skydiving = false, landing = false;
     private final Vector3 fallVel = new Vector3();
     private static final float TERMINAL = 22f;    // velocidade máxima de queda (m/s)
+    /** Lista de alvos para o aperto do tiro: inimigos vivos, com o abdômen na posição atual do esqueleto. */
+    private void montarCandidatos() {
+        candidatosMira.clear();
+        for (int i = 0; i < enemies.list.size; i++) {
+            final Enemy e = enemies.list.get(i);
+            candidatosMira.add(new AimAssist.Candidato() {
+                @Override public boolean vivo() { return e.alive(); }
+                @Override public Vector3 abdomen() {
+                    e.hitbox.update(enemies.frame());
+                    return e.hitbox.belly;
+                }
+            });
+        }
+    }
+
+    /** Linha de visão até um ponto (paredes e obstáculos do mundo). */
+    private boolean linhaLivre(Vector3 origem, Vector3 destino) {
+        float dist = tmpVisao.set(destino).sub(origem).len();
+        if (dist < 1e-4f) return true;
+        tmpVisao.set(destino).sub(origem).scl(1f / dist);
+        return world.raycast(origem, tmpVisao, dist) >= dist - 0.05f;
+    }
+
     private float camDist = CAMERA_DISTANCE;      // distância da câmera, suavizada
     private final Hud hud = new Hud();
     private OrthographicCamera hudCamera;
@@ -464,11 +491,29 @@ public class Main extends ApplicationAdapter {
         WeaponConfig.Category cat = cfg != null ? cfg.category : WeaponConfig.Category.FUZIL;
         // AWM: segurar o tiro abre a luneta sem disparar (só a AWM; os outros fuzis seguem como estavam)
         boolean awmAim = combat && cfg != null && cfg.scope && fireHeld;
-        // Câmera pelo toque. A mira é só do dedo: não há assistência de mira no jogo.
+        // Câmera pelo toque: a entrada manual deste quadro (já com a sensibilidade) entra na assistência, que
+        // faz a correção magnética em UMA etapa. Depois disso a direção do tiro é a orientação final.
+        float yaw0 = yaw, pitch0 = pitch;
         aimCtl.update(dt, Gdx.graphics.getHeight(), adsOn || awmAim, combat ? cat : null, 1f, fireHeld);
-        yaw += aimCtl.yawDelta;
-        pitch += aimCtl.pitchDelta;
-        aimDir.set(camera.direction).nor();
+        // Luneta (AWM): sem assistência, a mira é só do dedo
+        boolean assistido = combat && enemies != null && cfg != null && !cfg.scope;
+        if (assistido) {
+            if (firePressed) montarCandidatos();
+            final float shF = adsOn ? 0.45f : 0.62f, hyF = prone > 0 ? 0.55f : crouchOn ? 1.15f : 1.55f;
+            AimAssist.Pivo pivoF = (yq, out) -> out.set(player.pos.x - (float) Math.cos(yq) * shF, player.pos.y + hyF,
+                    player.pos.z + (float) Math.sin(yq) * shF);
+            AimAssist.Saida s = aimAssist.update(dt, yaw0, pitch0, aimCtl.yawDelta, aimCtl.pitchDelta, fireHeld,
+                    firePressed, candidatosMira, this::linhaLivre, pivoF,
+                    AimTuning.fovBaseGrau * cat.radiusScale * (adsOn ? 0.8f : 1f), cfg.range, camera.position);
+            yaw = s.yaw;
+            pitch = s.pitch;
+        } else {
+            aimAssist.reset();
+            yaw = yaw0 + aimCtl.yawDelta;
+            pitch = pitch0 + aimCtl.pitchDelta;
+        }
+        if (assistido) AimAssist.dirDe(yaw, pitch, aimDir);   // no combate, a direção do tiro é a da assistência
+        else aimDir.set(camera.direction).nor();              // fora do combate, como antes
         // Arma na mão (o cano acompanha a mira) e o sistema de disparo: modos, cadência, recuo, dispersão,
         // clarão, som, impacto e dano. O coice e a volta da mira vêm dele.
         if (world.weapons != null) {
@@ -494,7 +539,14 @@ public class Main extends ApplicationAdapter {
             shootIn.prone = prone > 0;
             shootIn.grounded = player.grounded;
             shootIn.speed = player.speed;
-            shootIn.cam.set(camera.position);
+            if (combat && cfg != null) {
+                // Origem do tiro na pose final deste quadro: pivô + recuo da câmera (mesma reta da mira)
+                float shF = adsOn ? 0.45f : 0.62f, hyF = prone > 0 ? 0.55f : crouchOn ? 1.15f : 1.55f;
+                shootIn.cam.set(player.pos.x - (float) Math.cos(yaw) * shF, player.pos.y + hyF, player.pos.z + (float) Math.sin(yaw) * shF)
+                        .mulAdd(aimDir, -camDist);
+            } else {
+                shootIn.cam.set(camera.position);
+            }
             shootIn.aim.set(aimDir);
             shootIn.playerPos.set(player.pos);
             shooting.update(dt, shootIn, combat && cfg != null && (!arena || (rodadas != null && rodadas.combate())));   // sem tiro fora do combate
