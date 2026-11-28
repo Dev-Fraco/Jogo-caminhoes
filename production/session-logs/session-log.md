@@ -20206,3 +20206,142 @@ production/session-logs/.session-end.hash
 production/session-logs/session-log.md
 ---
 
+## Session End: 20261128_023136
+### Commits
+44fce5b docs: registro da sessão (hook de fim de sessão)
+3035655 docs: registro da sessão (hook de fim de sessão)
+6d59113 docs: registro da sessão (hook de fim de sessão)
+ce804de docs: registro da sessão (hook de fim de sessão)
+08b4ffc docs: registro da sessão (hook de fim de sessão)
+c1542ab docs: registro da sessão (hook de fim de sessão)
+25d1baf feat: mira com atração forte ao abdômen, resistência quase total e FOV redondo
+8771b14 docs: registro da sessão (hook de fim de sessão)
+606bdb2 docs: registro da sessão (hook de fim de sessão)
+38aa220 docs: registro da sessão (hook de fim de sessão)
+60499b8 docs: registro da sessão (hook de fim de sessão)
+62f2f78 docs: registro da sessão (hook de fim de sessão)
+f63b804 feat: mira puxa para o abdômen enquanto sobe; novos padrões de resistência
+adad1cb docs: registro da sessão (hook de fim de sessão)
+c1566a9 docs: registro da sessão (hook de fim de sessão)
+e70dd62 docs: registro da sessão (hook de fim de sessão)
+1603035 docs: registro da sessão (hook de fim de sessão)
+32e6011 fix: jogo gira para os dois lados da horizontal (sensorLandscape)
+7be1c25 docs: registro da sessão (hook de fim de sessão)
+afbf582 feat: resistência magnética ao subir e atração ao abdômen durante a partida
+235b150 docs: registro da sessão (hook de fim de sessão)
+a459e63 docs: registro da sessão (hook de fim de sessão)
+61dea5a fix: abdômen continua o ponto principal; o dedo tem prioridade e o retorno é suave
+70be51e docs: registro da sessão (hook de fim de sessão)
+f4fc0c1 fix: aquisição rápida no tiro e subida da mira sem tremedeira
+07210f1 docs: registro da sessão (hook de fim de sessão)
+d4b6dc4 docs: registro da sessão (hook de fim de sessão)
+0f04b11 docs: registro da sessão (hook de fim de sessão)
+ba4fb88 docs: registro da sessão (hook de fim de sessão)
+967aeb6 docs: registro da sessão (hook de fim de sessão)
+b1c1a27 docs: registro da sessão (hook de fim de sessão)
+4bd8bd0 docs: registro da sessão (hook de fim de sessão)
+3fe8dfd docs: registro da sessão (hook de fim de sessão)
+51255c3 docs: registro da sessão (hook de fim de sessão)
+1d19634 docs: registro da sessão (hook de fim de sessão)
+bf81aee docs: registro da sessão (hook de fim de sessão)
+721f97e docs: registro da sessão (hook de fim de sessão)
+c2f3279 docs: registro da sessão (hook de fim de sessão)
+fa662b0 docs: registro da sessão (hook de fim de sessão)
+1c75b28 test: revisão da mira, mudança de direção, borda do cone e controle manual
+0871bb9 docs: registro da sessão (hook de fim de sessão)
+c764614 docs: registro da sessão (hook de fim de sessão)
+dacf823 feat: mira com limite de velocidade, tracking, freio e centro na seleção
+133e27b docs: registro da sessão (hook de fim de sessão)
+7f1f560 docs: registro da sessão (hook de fim de sessão)
+37678cb feat: fase B da mira, parâmetros ligados ao jogo
+bbf2194 docs: registro da sessão (hook de fim de sessão)
+c7b7623 docs: registro da sessão (hook de fim de sessão)
+6c842a5 docs: registro da sessão (hook de fim de sessão)
+5a85b47 feat: fase A da mira, configuração com os parâmetros da Garena
+75f1f7b docs: registro da sessão (hook de fim de sessão)
+b3d1cae docs: registro da sessão (hook de fim de sessão)
+c5b43f1 docs: registro da sessão (hook de fim de sessão)
+d094c67 docs: registro da sessão (hook de fim de sessão)
+d959cfb docs: registro da sessão (hook de fim de sessão)
+56fd543 docs: registro da sessão (hook de fim de sessão)
+aedaf23 docs: registro da sessão (hook de fim de sessão)
+4db2c38 docs: registro da sessão (hook de fim de sessão)
+b1806c8 docs: registro da sessão (hook de fim de sessão)
+86264a0 docs: registro da sessão (hook de fim de sessão)
+4c3a0fa docs: registro da sessão (hook de fim de sessão)
+3d3cf7c docs: registro da sessão (hook de fim de sessão)
+24017ca docs: registro da sessão (hook de fim de sessão)
+7385f08 feat: mira com quatro tracinhos e ponto vermelho no centro
+---
+
+## Session End: 20261128_023807
+### Commits
+44fce5b docs: registro da sessão (hook de fim de sessão)
+3035655 docs: registro da sessão (hook de fim de sessão)
+6d59113 docs: registro da sessão (hook de fim de sessão)
+ce804de docs: registro da sessão (hook de fim de sessão)
+08b4ffc docs: registro da sessão (hook de fim de sessão)
+c1542ab docs: registro da sessão (hook de fim de sessão)
+25d1baf feat: mira com atração forte ao abdômen, resistência quase total e FOV redondo
+8771b14 docs: registro da sessão (hook de fim de sessão)
+606bdb2 docs: registro da sessão (hook de fim de sessão)
+38aa220 docs: registro da sessão (hook de fim de sessão)
+60499b8 docs: registro da sessão (hook de fim de sessão)
+62f2f78 docs: registro da sessão (hook de fim de sessão)
+f63b804 feat: mira puxa para o abdômen enquanto sobe; novos padrões de resistência
+adad1cb docs: registro da sessão (hook de fim de sessão)
+c1566a9 docs: registro da sessão (hook de fim de sessão)
+e70dd62 docs: registro da sessão (hook de fim de sessão)
+1603035 docs: registro da sessão (hook de fim de sessão)
+32e6011 fix: jogo gira para os dois lados da horizontal (sensorLandscape)
+7be1c25 docs: registro da sessão (hook de fim de sessão)
+afbf582 feat: resistência magnética ao subir e atração ao abdômen durante a partida
+235b150 docs: registro da sessão (hook de fim de sessão)
+a459e63 docs: registro da sessão (hook de fim de sessão)
+61dea5a fix: abdômen continua o ponto principal; o dedo tem prioridade e o retorno é suave
+70be51e docs: registro da sessão (hook de fim de sessão)
+f4fc0c1 fix: aquisição rápida no tiro e subida da mira sem tremedeira
+07210f1 docs: registro da sessão (hook de fim de sessão)
+d4b6dc4 docs: registro da sessão (hook de fim de sessão)
+0f04b11 docs: registro da sessão (hook de fim de sessão)
+ba4fb88 docs: registro da sessão (hook de fim de sessão)
+967aeb6 docs: registro da sessão (hook de fim de sessão)
+b1c1a27 docs: registro da sessão (hook de fim de sessão)
+4bd8bd0 docs: registro da sessão (hook de fim de sessão)
+3fe8dfd docs: registro da sessão (hook de fim de sessão)
+51255c3 docs: registro da sessão (hook de fim de sessão)
+1d19634 docs: registro da sessão (hook de fim de sessão)
+bf81aee docs: registro da sessão (hook de fim de sessão)
+721f97e docs: registro da sessão (hook de fim de sessão)
+c2f3279 docs: registro da sessão (hook de fim de sessão)
+fa662b0 docs: registro da sessão (hook de fim de sessão)
+1c75b28 test: revisão da mira, mudança de direção, borda do cone e controle manual
+0871bb9 docs: registro da sessão (hook de fim de sessão)
+c764614 docs: registro da sessão (hook de fim de sessão)
+dacf823 feat: mira com limite de velocidade, tracking, freio e centro na seleção
+133e27b docs: registro da sessão (hook de fim de sessão)
+7f1f560 docs: registro da sessão (hook de fim de sessão)
+37678cb feat: fase B da mira, parâmetros ligados ao jogo
+bbf2194 docs: registro da sessão (hook de fim de sessão)
+c7b7623 docs: registro da sessão (hook de fim de sessão)
+6c842a5 docs: registro da sessão (hook de fim de sessão)
+5a85b47 feat: fase A da mira, configuração com os parâmetros da Garena
+75f1f7b docs: registro da sessão (hook de fim de sessão)
+b3d1cae docs: registro da sessão (hook de fim de sessão)
+c5b43f1 docs: registro da sessão (hook de fim de sessão)
+d094c67 docs: registro da sessão (hook de fim de sessão)
+d959cfb docs: registro da sessão (hook de fim de sessão)
+56fd543 docs: registro da sessão (hook de fim de sessão)
+aedaf23 docs: registro da sessão (hook de fim de sessão)
+4db2c38 docs: registro da sessão (hook de fim de sessão)
+b1806c8 docs: registro da sessão (hook de fim de sessão)
+86264a0 docs: registro da sessão (hook de fim de sessão)
+4c3a0fa docs: registro da sessão (hook de fim de sessão)
+3d3cf7c docs: registro da sessão (hook de fim de sessão)
+24017ca docs: registro da sessão (hook de fim de sessão)
+7385f08 feat: mira com quatro tracinhos e ponto vermelho no centro
+### Uncommitted Changes
+production/session-logs/.session-end.hash
+production/session-logs/session-log.md
+---
+
