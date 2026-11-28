@@ -14,7 +14,7 @@ final class AimTuning {
     /** Liga o travamento instantâneo ao apertar o tiro. Desligado, a mira só é assistida depois de adquirir. */
     static boolean snapHabilitado = true;
     /** Raio do FOV de assistência, em graus, antes do multiplicador da categoria da arma (padrão do projeto). */
-    static float fovBaseGrau = 7.2f;
+    static float fovBaseGrau = 15f;
     /** Diferença de ângulo (graus) abaixo da qual a distância vira critério de desempate. */
     static float desempateGrau = 0.3f;
 
