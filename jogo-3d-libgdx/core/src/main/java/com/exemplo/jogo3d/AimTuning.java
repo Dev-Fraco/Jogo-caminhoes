@@ -20,9 +20,9 @@ final class AimTuning {
 
     // ---- Atração magnética vertical (abdômen) ----
     /** Taxa mínima de atração vertical (1/s): força da atração com a mira perto do abdômen. */
-    static float atracaoVerticalBase = 2f;
+    static float atracaoVerticalBase = 4f;
     /** Ganho progressivo da atração conforme a distância angular do abdômen (1/s por grau). */
-    static float atracaoVerticalPorGrau = 1f;
+    static float atracaoVerticalPorGrau = 2f;
     /** Taxa da atração horizontal de acompanhamento (1/s). */
     static float atracaoHorizontal = 8f;
     /**

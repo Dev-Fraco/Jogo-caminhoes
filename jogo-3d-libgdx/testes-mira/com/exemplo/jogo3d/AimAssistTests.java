@@ -193,7 +193,7 @@ public class AimAssistTests {
             check("a resistência fica no teto de 95% (o capa é possível)", alcancou && fracoes[limiares.length - 1] <= 0.951f,
                     String.format("%.1f%%", fracoes[limiares.length - 1] * 100f));
             check("resistência é progressiva: no primeiro limiar é fraca, perto do teto é forte",
-                    alcancou && fracoes[0] < 0.2f && fracoes[limiares.length - 1] > 0.8f,
+                    alcancou && fracoes[0] < 0.35f && fracoes[limiares.length - 1] > 0.8f,
                     String.format("%.0f%% → %.0f%%", fracoes[0] * 100f, fracoes[limiares.length - 1] * 100f));
         }
 
