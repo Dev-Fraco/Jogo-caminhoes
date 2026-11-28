@@ -15,6 +15,9 @@ import com.badlogic.gdx.math.Vector3;
  *    (resistenciaSensVel), é limitada pelo ajuste de resistência vertical (AimSettings.upResist) e é suavizada
  *    (amortecimento, resistenciaRampa). Ela só diminui a subida: a correção nunca passa de 95% do movimento do
  *    dedo, então a mira nunca é puxada para baixo enquanto o jogador sobe.
+ * 3a. TRAVA DA CABEÇA (tiro de capa): ao chegar à altura da cabeça, a resistência recebe um reforço dentro de
+ *    uma faixa (cabecaZonaGrau, cabecaTrava), então a mira tende a parar no crítico. Um arrasto rápido
+ *    (acima de cabecaSaidaVel) zera o reforço e passa direto pela cabeça.
  * 4. TRACKING horizontal: segue o deslocamento lateral do alvo (não é removido).
  * 5. FREIO: perto do centro do alvo, a sensibilidade manual diminui, nunca abaixo de frictionFloor.
  *
@@ -115,6 +118,30 @@ final class AimAssist {
         return MathUtils.clamp(fDist * fVel, 0f, limite);
     }
 
+    /**
+     * TRAVA DA CABEÇA (tiro de capa): fração EXTRA do movimento de subida absorvida quando a mira chega à altura
+     * da cabeça, para o crítico ser fácil de parar. Vale zero fora da faixa e zero com arrasto forte, então um
+     * arrasto rápido atravessa a cabeça direto.
+     *
+     * Só age de um lado: a partir do momento em que a mira ALCANÇA a cabeça (erro ≤ 0). Abaixo dela a trava é
+     * zero, senão ela freava a própria chegada e a mira parava antes do crítico.
+     *
+     * @param errCabecaGrau distância da mira à cabeça em graus (0 = em cima; positivo = ainda abaixo dela)
+     * @param velDedoGrauS  velocidade do dedo (°/s)
+     * @param zonaGrau      meia-altura da faixa de retenção (graus); 0 desliga a trava
+     * @param trava         fração extra absorvida no centro da faixa (0 a 1)
+     * @param saidaVel      velocidade do dedo (°/s) a partir da qual a trava é ignorada por completo
+     */
+    static float fracaoCabeca(float errCabecaGrau, float velDedoGrauS, float zonaGrau, float trava, float saidaVel) {
+        if (zonaGrau <= 0f || trava <= 0f) return 0f;
+        if (errCabecaGrau > 0f) return 0f;   // ainda abaixo da cabeça: a subida é livre até chegar lá
+        float d = -errCabecaGrau / zonaGrau;
+        if (d >= 1f) return 0f;
+        float perfil = 1f - d * d;   // máxima na cabeça, zero na borda da faixa (sem degrau na entrada)
+        float saida = MathUtils.clamp(velDedoGrauS / Math.max(1f, saidaVel), 0f, 1f);
+        return MathUtils.clamp(trava, 0f, 1f) * perfil * (1f - saida);
+    }
+
     /** Multiplicador do freio: 1 longe do alvo; cai conforme a proximidade × friction da categoria; nunca abaixo do piso. */
     static float freio(float catFriction, float proximidade, float piso) {
         return MathUtils.clamp(1f - catFriction * MathUtils.clamp(proximidade, 0f, 1f), piso, 1f);
@@ -174,6 +201,8 @@ final class AimAssist {
         boolean inFov = ang <= fov;
         boolean inTrava = ang <= fov * MARGEM_TRAVA;   // acompanhamento e atração: com margem, como a escolha de alvo
         boolean inHead = -pitch <= elev(cam, target.hitbox.headTop) + 0.03f;
+        // Altura da cabeça para a trava do capa: erro em graus entre a mira e o centro da cabeça
+        float errCabecaGrau = (elev(cam, target.hitbox.headCenter) - (-pitch)) / DEG;
 
         // Velocidade angular do alvo (para o tracking), suavizada para não oscilar
         if (haveLast && lastTarget == target) {
@@ -257,10 +286,16 @@ final class AimAssist {
             float f = fracaoResistencia(altoAcimaGrau, velDedo / DEG, AimTuning.resistenciaBase, AimTuning.resistenciaGrau,
                     AimTuning.atracaoSubida,
                     AimTuning.resistenciaVelRef, AimTuning.resistenciaSensVel, AimSettings.upResist);
-            alvo = f * subindoRad;
+            // Chegando à cabeça, a trava do capa soma resistência extra: a mira para ali e o crítico é fácil de
+            // parar. Um arrasto forte zera a trava e passa direto.
+            f += fracaoCabeca(errCabecaGrau, velDedo / DEG, AimTuning.cabecaZonaGrau, AimTuning.cabecaTrava,
+                    AimTuning.cabecaSaidaVel);
+            alvo = MathUtils.clamp(f, 0f, AimSettings.upResist) * subindoRad;
         }
         corrAlvo += (alvo - corrAlvo) * (1f - (float) Math.exp(-AimTuning.amortecimento * dt));
-        float rampaMax = (float) Math.toRadians(AimTuning.resistenciaRampa);   // variação máxima por quadro
+        // Variação máxima da resistência: por SEGUNDO, não por quadro, senão a 90 FPS ela sobe três vezes mais
+        // rápido que a 30. O fator 60 preserva o ajuste antigo, que estava em graus por quadro a 60 FPS.
+        float rampaMax = (float) Math.toRadians(AimTuning.resistenciaRampa * 60f) * dt;
         corrOut += MathUtils.clamp(corrAlvo - corrOut, -rampaMax, rampaMax);
         dPitch += corrOut;
 

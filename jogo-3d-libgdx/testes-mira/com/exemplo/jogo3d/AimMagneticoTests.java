@@ -136,12 +136,48 @@ public class AimMagneticoTests extends ApplicationAdapter {
         check("todas as armas: chegam à cabeça", todasChegam, "");
 
         System.out.println("== 30, 60 e 90 FPS ==");
-        int q30 = quadroCabeca(simula(30f, fuzil, 180, (i, f, eh) -> 0.15f * 60f / f, parado, true), 30f);
-        int q60 = quadroCabeca(simula(60f, fuzil, 360, (i, f, eh) -> 0.15f * 60f / f, parado, true), 60f);
-        int q90 = quadroCabeca(simula(90f, fuzil, 540, (i, f, eh) -> 0.15f * 60f / f, parado, true), 90f);
+        // O dedo espera a aquisição acabar (0,3 s) e só então sobe: assim a medida é da subida, e não de
+        // quantos milissegundos de aquisição couberam no primeiro quadro (33 ms a 30 FPS, 11 ms a 90).
+        Dedo subirDepois = (i, f, eh) -> i < Math.round(AimTuning.aquisicaoSeg * f) ? 0f : 0.15f * 60f / f;
+        int q30 = quadroCabeca(simula(30f, fuzil, 180, subirDepois, parado, true), 30f);
+        int q60 = quadroCabeca(simula(60f, fuzil, 360, subirDepois, parado, true), 60f);
+        int q90 = quadroCabeca(simula(90f, fuzil, 540, subirDepois, parado, true), 90f);
+        // A resistência e a velocidade de subida são iguais nos três FPS (medido: 0,94 de resistência e
+        // ~0,54°/s nos três). O que varia é o instante em que o vão até a cabeça é cruzado.
+        Sim d30 = simula(30f, fuzil, 180, subirDepois, parado, true);
+        Sim d90 = simula(90f, fuzil, 540, subirDepois, parado, true);
+        check("a resistência à subida é a mesma em 30 e 90 FPS (±5%)",
+                Math.abs(intensidade(d30) - intensidade(d90)) <= 0.05f,
+                String.format("30 FPS %.3f, 90 FPS %.3f", intensidade(d30), intensidade(d90)));
+        check("a velocidade de subida é a mesma em 30 e 90 FPS (±10%)",
+                Math.abs(velSub(d30) - velSub(d90)) <= 0.1f * Math.abs(velSub(d90)),
+                String.format("30 FPS %.3f°/s, 90 FPS %.3f°/s", velSub(d30), velSub(d90)));
         check("mesmo tempo para chegar à cabeça em 30, 60 e 90 FPS (±0,1 s)",
                 q30 > 0 && q60 > 0 && q90 > 0 && Math.abs(q30 / 30f - q60 / 60f) <= 0.1f && Math.abs(q90 / 90f - q60 / 60f) <= 0.1f,
                 String.format("30: %.2f s, 60: %.2f s, 90: %.2f s", q30 / 30f, q60 / 60f, q90 / 90f));
+
+        System.out.println("== Trava da cabeça (tiro de capa) ==");
+        float zona = AimTuning.cabecaZonaGrau, trava = AimTuning.cabecaTrava, saida = AimTuning.cabecaSaidaVel;
+        check("acima da faixa a trava não age", AimAssist.fracaoCabeca(-(zona + 1f), 10f, zona, trava, saida) == 0f, "");
+        check("abaixo da cabeça a subida é livre (trava só ao alcançar)",
+                AimAssist.fracaoCabeca(2f, 10f, zona, trava, saida) == 0f, "");
+        float naCabeca = AimAssist.fracaoCabeca(0f, 10f, zona, trava, saida);
+        float esperado = trava * (1f - 10f / saida);   // no centro da faixa, descontada a saída por velocidade
+        check("na cabeça a trava é máxima", Math.abs(naCabeca - esperado) < 1e-4f,
+                String.format("%.3f, esperado %.3f", naCabeca, esperado));
+        float meio = AimAssist.fracaoCabeca(-zona * 0.5f, 10f, zona, trava, saida);
+        check("a trava entra sem degrau (meio da faixa entre zero e o máximo)", meio > 0f && meio < naCabeca,
+                String.format("%.3f", meio));
+        check("arrasto forte ignora a trava por completo",
+                AimAssist.fracaoCabeca(0f, saida + 50f, zona, trava, saida) == 0f, "");
+        check("trava desligada (zona 0) não muda nada", AimAssist.fracaoCabeca(0f, 10f, 0f, trava, saida) == 0f, "");
+        // Cenário: a subida devagar é segurada na cabeça; o arrasto rápido atravessa e termina mais alto
+        Sim lentaCapa = simula(60f, fuzil, 240, (i, f, eh) -> 0.12f * 60f / f, parado, true);
+        // Arrasto forte: um peteleco de dois quadros acima do limiar de saída, depois o dedo para
+        Sim forteCapa = simula(60f, fuzil, 240, (i, f, eh) -> i < 2 ? 5f * 60f / f : 0f, parado, true);
+        float altoLenta = maisAlto(lentaCapa), altoForte = maisAlto(forteCapa);
+        check("subida devagar é segurada na cabeça, arrasto forte atravessa", altoForte < altoLenta - 1f,
+                String.format("devagar chegou a %.2f°, forte a %.2f° (negativo = acima da cabeça)", altoLenta, altoForte));
 
         System.out.println("\nRESULTADO: " + pass + " ok, " + fail + " falhas");
     }
@@ -258,6 +294,13 @@ public class AimMagneticoTests extends ApplicationAdapter {
     private boolean alcancouCabeca(Sim s) {
         for (int i = s.quadros - 30; i < s.quadros; i++) if (Math.abs(s.errHead[i]) > 0.3f) return false;
         return true;
+    }
+
+    /** Ponto mais alto que a mira alcançou, em graus relativos à cabeça (negativo = acima dela). */
+    private float maisAlto(Sim s) {
+        float m = Float.MAX_VALUE;
+        for (int i = 0; i < s.quadros; i++) m = Math.min(m, s.errHead[i]);
+        return m;
     }
 
     private int quadroCabeca(Sim s, float fps) {

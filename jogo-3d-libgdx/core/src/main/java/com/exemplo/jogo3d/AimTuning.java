@@ -50,9 +50,15 @@ final class AimTuning {
     /** Intensidade da atração ao abdômen durante a subida (0 a 1). Experimental. */
     static float atracaoSubida = 1f;
     /** Resistência magnética de base: fração do movimento de subida que volta assim que a mira sai do abdômen. Experimental. */
-    static float resistenciaBase = 1f;
+    /** Meia-altura (graus) da faixa de retenção em volta da cabeça (trava do capa). 0 desliga a trava. */
+    static float cabecaZonaGrau = 1.2f;
+    /** Fração extra do arrasto absorvida no centro da faixa da cabeça (0 a 1). */
+    static float cabecaTrava = 0.55f;
+    /** Velocidade do dedo (°/s) a partir da qual a trava da cabeça é ignorada: o arrasto forte passa direto. */
+    static float cabecaSaidaVel = 220f;
+    static float resistenciaBase = 0.30f;
     /** Resistência magnética: fração adicional do movimento de subida por grau acima do abdômen. Experimental. */
-    static float resistenciaGrau = 0.7f;
+    static float resistenciaGrau = 0.10f;
     /** Velocidade de referência do dedo (°/s): acima dela a resistência usa força cheia (com sensibilidade à velocidade). Experimental. */
     static float resistenciaVelRef = 60f;
     /** Sensibilidade da resistência à velocidade do dedo (0 = não depende da velocidade; 1 = proporcional). Experimental. */
@@ -88,8 +94,11 @@ final class AimTuning {
         zonaVertical = 0.4f;
         histerese = 0.3f;
         atracaoSubida = 1f;
-        resistenciaBase = 1f;
-        resistenciaGrau = 0.7f;
+        cabecaZonaGrau = 1.2f;
+        cabecaTrava = 0.55f;
+        cabecaSaidaVel = 220f;
+        resistenciaBase = 0.30f;
+        resistenciaGrau = 0.10f;
         resistenciaVelRef = 60f;
         resistenciaSensVel = 0f;
         resistenciaRampa = 0.05f;
@@ -117,6 +126,9 @@ final class AimTuning {
         zonaVertical = Math.max(0f, zonaVertical);
         histerese = Math.max(0f, histerese);
         atracaoSubida = clamp(atracaoSubida, 0f, 1f);
+        cabecaZonaGrau = Math.max(0f, cabecaZonaGrau);
+        cabecaTrava = clamp(cabecaTrava, 0f, 1f);
+        cabecaSaidaVel = Math.max(1f, cabecaSaidaVel);
         resistenciaBase = clamp(resistenciaBase, 0f, 1f);
         resistenciaGrau = Math.max(0f, resistenciaGrau);
         resistenciaVelRef = Math.max(1f, resistenciaVelRef);
@@ -148,6 +160,9 @@ final class AimTuning {
             zonaVertical = p.getFloat("zonaVertical", zonaVertical);
             histerese = p.getFloat("histerese", histerese);
             atracaoSubida = p.getFloat("atracaoSubida", atracaoSubida);
+            cabecaZonaGrau = p.getFloat("cabecaZonaGrau", cabecaZonaGrau);
+            cabecaTrava = p.getFloat("cabecaTrava", cabecaTrava);
+            cabecaSaidaVel = p.getFloat("cabecaSaidaVel", cabecaSaidaVel);
             resistenciaBase = p.getFloat("resistenciaBase", resistenciaBase);
             resistenciaGrau = p.getFloat("resistenciaGrau", resistenciaGrau);
             resistenciaVelRef = p.getFloat("resistenciaVelRef", resistenciaVelRef);
@@ -183,6 +198,9 @@ final class AimTuning {
             p.putFloat("zonaVertical", zonaVertical);
             p.putFloat("histerese", histerese);
             p.putFloat("atracaoSubida", atracaoSubida);
+            p.putFloat("cabecaZonaGrau", cabecaZonaGrau);
+            p.putFloat("cabecaTrava", cabecaTrava);
+            p.putFloat("cabecaSaidaVel", cabecaSaidaVel);
             p.putFloat("resistenciaBase", resistenciaBase);
             p.putFloat("resistenciaGrau", resistenciaGrau);
             p.putFloat("resistenciaVelRef", resistenciaVelRef);
