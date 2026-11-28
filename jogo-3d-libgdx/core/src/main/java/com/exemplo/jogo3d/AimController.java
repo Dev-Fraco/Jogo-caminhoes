@@ -14,11 +14,15 @@ final class AimController {
     private float pendX, pendY;   // pixels ainda não aplicados
     float yawDelta, pitchDelta;   // resultado deste quadro (radianos)
     boolean touching;             // algum dedo controlando a câmera neste quadro
+    /** O dedo se moveu neste quadro (chegou arrasto novo). Falso quando o dedo parou e só sobra a cauda. */
+    boolean dedoMoveu;
+    private boolean novoArrasto;
 
     /** Arrasto em pixels (x para a direita, y para BAIXO, como na tela). */
     void addDrag(float dxPx, float dyPx) {
         pendX += dxPx;
         pendY += dyPx;
+        novoArrasto = true;
     }
 
     void update(float dt, float screenH, boolean ads, WeaponConfig.Category cat, float friction) {
@@ -27,6 +31,8 @@ final class AimController {
 
     /** @param firing botão de atirar pressionado: aí valem a sensibilidade X e Y (horizontal e vertical). */
     void update(float dt, float screenH, boolean ads, WeaponConfig.Category cat, float friction, boolean firing) {
+        dedoMoveu = novoArrasto;
+        novoArrasto = false;
         float s = AimSettings.smoothing;
         float frac = s <= 0.001f ? 1f : 1f - (float) Math.pow(s, Math.max(dt, 1e-4f) * 30f);
         float ox = pendX * frac, oy = pendY * frac;
@@ -44,5 +50,7 @@ final class AimController {
     void clear() {
         pendX = pendY = 0f;
         yawDelta = pitchDelta = 0f;
+        dedoMoveu = false;
+        novoArrasto = false;
     }
 }

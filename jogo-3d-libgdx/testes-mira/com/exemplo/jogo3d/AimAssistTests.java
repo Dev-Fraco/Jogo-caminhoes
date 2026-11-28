@@ -476,6 +476,20 @@ public class AimAssistTests {
                     String.format("erro ao central %.4f°", erroGrau(s.yaw, s.pitch, centro.b, PIVO_FIXO)));
         }
 
+        System.out.println("== Grupo 10: dedo parado x cauda da suavização do arrasto ==");
+        {
+            AimController ctl = new AimController();
+            ctl.addDrag(0f, -40f);   // dedo sobe 40 px neste quadro
+            ctl.update(1f / 60f, 720f, false, null, 1f, true);
+            boolean moveuAgora = ctl.dedoMoveu;
+            float capa1 = ctl.pitchDelta;
+            ctl.update(1f / 60f, 720f, false, null, 1f, true);   // dedo parado: só sobra a cauda
+            check("com arrasto novo, o quadro marca que o dedo se moveu", moveuAgora, "");
+            check("dedo parado no quadro seguinte: não marca movimento (só cauda)", !ctl.dedoMoveu, "");
+            check("a cauda ainda existe nesse quadro (é ela que a mira descarta com a atração)",
+                    Math.abs(ctl.pitchDelta) > 0f && Math.abs(ctl.pitchDelta) < Math.abs(capa1), String.format("%.5f de %.5f", ctl.pitchDelta, capa1));
+        }
+
         System.out.println("\nRESULTADO: " + pass + " ok, " + fail + " falhas");
         System.exit(fail == 0 ? 0 : 1);
     }

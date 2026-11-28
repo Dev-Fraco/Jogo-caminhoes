@@ -497,20 +497,28 @@ public class Main extends ApplicationAdapter {
         aimCtl.update(dt, Gdx.graphics.getHeight(), adsOn || awmAim, combat ? cat : null, 1f, fireHeld);
         // Luneta (AWM): sem assistência, a mira é só do dedo
         boolean assistido = combat && enemies != null && cfg != null && !cfg.scope;
+        float manYaw = aimCtl.yawDelta, manPitch = aimCtl.pitchDelta;
+        if (assistido && aimAssist.ativa() && !aimCtl.dedoMoveu) {
+            // Dedo parado com alvo travado: a cauda do arrasto (suavização) não é mais movimento do jogador.
+            // Descarta-a para a força magnética agir inteira já neste quadro, sem esperar a cauda acabar.
+            manYaw = 0f;
+            manPitch = 0f;
+            aimCtl.clear();
+        }
         if (assistido) {
             if (firePressed) montarCandidatos();
             final float shF = adsOn ? 0.45f : 0.62f, hyF = prone > 0 ? 0.55f : crouchOn ? 1.15f : 1.55f;
             AimAssist.Pivo pivoF = (yq, out) -> out.set(player.pos.x - (float) Math.cos(yq) * shF, player.pos.y + hyF,
                     player.pos.z + (float) Math.sin(yq) * shF);
-            AimAssist.Saida s = aimAssist.update(dt, yaw0, pitch0, aimCtl.yawDelta, aimCtl.pitchDelta, fireHeld,
+            AimAssist.Saida s = aimAssist.update(dt, yaw0, pitch0, manYaw, manPitch, fireHeld,
                     firePressed, candidatosMira, this::linhaLivre, pivoF,
                     AimTuning.fovBaseGrau * cat.radiusScale * (adsOn ? 0.8f : 1f), cfg.range, camera.position);
             yaw = s.yaw;
             pitch = s.pitch;
         } else {
             aimAssist.reset();
-            yaw = yaw0 + aimCtl.yawDelta;
-            pitch = pitch0 + aimCtl.pitchDelta;
+            yaw = yaw0 + manYaw;
+            pitch = pitch0 + manPitch;
         }
         if (assistido) AimAssist.dirDe(yaw, pitch, aimDir);   // no combate, a direção do tiro é a da assistência
         else aimDir.set(camera.direction).nor();              // fora do combate, como antes
