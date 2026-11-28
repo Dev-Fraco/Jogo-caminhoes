@@ -163,7 +163,7 @@ final class AimAssist {
         v.set(c).sub(cam);
         float dist = v.len();
         if (dist < 0.5f) { lastPitch = pitch; return; }
-        float ang = (float) Math.toDegrees(Math.acos(MathUtils.clamp(v.dot(dir) / dist, -1f, 1f)));
+        float ang = anguloRedondo(v, dir);
         float tYaw = MathUtils.atan2(v.x, v.z);
         float errYaw = wrap(tYaw - yaw);
         // Ponto de atração: o ABDÔMEN (nunca o peito nem a cabeça). errBelly > 0: o abdômen está acima da mira
@@ -278,6 +278,36 @@ final class AimAssist {
             strengthNow = Math.max(strengthNow, 0.5f + 0.5f * AimSettings.abdAssist);
         }
         lastPitch = pitch + dPitch;
+    }
+
+    /**
+     * Distância angular do alvo ao centro da mira, medida NA TELA: o deslocamento é projetado no plano da imagem
+     * (tangente, sem deformação de cone) e o FOV vira um círculo, com o mesmo raio na horizontal e na vertical.
+     * @param v   vetor câmera → alvo (não normalizado)
+     * @param dir direção da mira (normalizada)
+     * @return ângulo em graus entre o centro da mira e o alvo, medido como raio do círculo
+     */
+    static float anguloRedondo(Vector3 v, Vector3 dir) {
+        float depth = v.dot(dir);
+        if (depth <= 1e-4f) return 180f;   // atrás da câmera: fora de qualquer círculo
+        // Eixo horizontal da imagem: perpendicular à mira e ao eixo vertical do mundo
+        float rx = -dir.z, rz = dir.x;
+        float rLen = (float) Math.sqrt(rx * rx + rz * rz);
+        if (rLen < 1e-4f) { rx = 1f; rz = 0f; rLen = 1f; }   // mirando reto para cima/baixo
+        rx /= rLen;
+        rz /= rLen;
+        // Eixo vertical da imagem: produto vetorial do eixo horizontal com a mira
+        float uy = rz * dir.x - rx * dir.z;
+        float ux = -rz * dir.y, uz = rx * dir.y;
+        float uLen = (float) Math.sqrt(ux * ux + uy * uy + uz * uz);
+        if (uLen < 1e-4f) return 0f;
+        ux /= uLen;
+        uy /= uLen;
+        uz /= uLen;
+        float tx = (v.x * rx + v.z * rz) / depth;
+        float ty = (v.x * ux + v.y * uy + v.z * uz) / depth;
+        float r = (float) Math.sqrt(tx * tx + ty * ty);
+        return (float) Math.toDegrees(Math.atan(r));
     }
 
     private float elev(Vector3 cam, Vector3 p) {

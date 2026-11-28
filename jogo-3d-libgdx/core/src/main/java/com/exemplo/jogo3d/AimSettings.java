@@ -13,7 +13,7 @@ import com.badlogic.gdx.math.MathUtils;
  * migrar a tela: 100% de sensibilidade vira 100, 10% de força abdominal vira 20, 90% de resistência vira 180.
  */
 final class AimSettings {
-    static final String PREFS = "aim_settings_v9";   // v9: aim assist na barriga, resistência vertical própria
+    static final String PREFS = "aim_settings_v10";  // v10: atração 90%, resistência 95%; sensibilidades migram do v9
 
     static float general = 1.0f;          // sensibilidade geral
     static float scope2x = 0.6f;          // mira 2x (luneta): multiplica a sensibilidade ao mirar
@@ -23,7 +23,7 @@ final class AimSettings {
     static float smoothing = 0.35f;       // fixo: suavização
     static final float[] category = {1f, 1f, 1f, 1f, 1f, 0.8f};   // fixo: por categoria de arma (ordem do enum)
     static boolean assistOn = true;
-    static float abdAssist = 0.55f;       // 0..1: força com que a mira vai até a BARRIGA ao atirar (55%: puxa também ao subir)
+    static float abdAssist = 0.90f;       // 0..1: força com que a mira vai até a BARRIGA ao atirar (90%: puxa também ao subir)
     static float horizAssist = 0.1f;      // 0..1: força da correção para os lados ao atirar (baixa: sem puxão lateral)
     static float fovPct = 0.4f;           // 0..1: raio do FOV do aim assist (2° a 15°)
     /** Abertura da mira por arma (ordem de Weapons.BY_TYPE): 1 = 100% da abertura padrão. */
@@ -32,7 +32,7 @@ final class AimSettings {
      * Resistência vertical ao atirar: fração do movimento do dedo para cima, acima da barriga, que é devolvida.
      * 90% = subir 10 cm de dedo sobe 1 cm. Não depende da sensibilidade (é fração do movimento já escalado).
      */
-    static float upResist = 0.90f;
+    static float upResist = 0.95f;   // máximo real: o limite fixo de 95% (AimAssist.LIMITE_CONTRA) não deixa passar disso
     /**
      * Sensibilidade X (horizontal) e Y (vertical) só com o botão de atirar pressionado. 100% = sem mudança.
      * Fora do tiro, o arrasto segue a sensibilidade geral normal.
@@ -132,8 +132,12 @@ final class AimSettings {
     static void load() {
         try {
             Preferences p = Gdx.app.getPreferences(PREFS);
+            // Migração: na primeira vez com v10, as sensibilidades e aberturas salvas no v9 são mantidas.
+            // Atração, FOV, assistência horizontal e resistência vertical usam os padrões novos.
+            Preferences antigo = Gdx.app.getPreferences("aim_settings_v9");
             for (int i = 0; i < NAMES.length; i++) {
                 float v = p.getFloat("v" + i, Float.NaN);
+                if (Float.isNaN(v) && !(i == 4 || i == 5 || i == 6 || i == 16)) v = antigo.getFloat("v" + i, Float.NaN);
                 if (!Float.isNaN(v)) set(i, v);
             }
         } catch (Throwable t) {
@@ -153,7 +157,7 @@ final class AimSettings {
 
     static void reset() {
         general = 1f; scope2x = 0.6f; scope4x = 0.35f; assistOn = true;
-        abdAssist = 0.55f; horizAssist = 0.1f; fovPct = 0.4f; upResist = 0.90f; fireX = 1f; fireY = 1f;
+        abdAssist = 0.90f; horizAssist = 0.1f; fovPct = 0.4f; upResist = 0.95f; fireX = 1f; fireY = 1f;
         java.util.Arrays.fill(openPct, 1f);
     }
 }

@@ -1,5 +1,7 @@
 package com.exemplo.jogo3d;
 
+import com.badlogic.gdx.math.Vector3;
+
 /** Tela MIRA E SENSIBILIDADE: conversão dos valores para 0–200, toque, arrasto, liga/desliga, restaurar e voltar. */
 public class AimUiTests {
     static int pass = 0, fail = 0;
@@ -14,11 +16,25 @@ public class AimUiTests {
         AimSettings.reset();
         check("sensibilidade padrão 100% vira 100", AimSettings.toSlider(0) == 100, "" + AimSettings.toSlider(0));
         check("mira 2x 60% vira 60", AimSettings.toSlider(1) == 60, "" + AimSettings.toSlider(1));
-        check("força abdominal padrão 55% vira 110", AimSettings.toSlider(4) == 110, "" + AimSettings.toSlider(4));
+        check("força abdominal padrão 90% vira 180", AimSettings.toSlider(4) == 180, "" + AimSettings.toSlider(4));
         check("assistência horizontal 10% vira 20", AimSettings.toSlider(5) == 20, "" + AimSettings.toSlider(5));
         check("FOV 40% vira 80", AimSettings.toSlider(6) == 80, "" + AimSettings.toSlider(6));
-        check("resistência vertical 90% vira 180", AimSettings.toSlider(16) == 180, "" + AimSettings.toSlider(16));
+        check("resistência vertical padrão 95% vira 190", AimSettings.toSlider(16) == 190, "" + AimSettings.toSlider(16));
         check("abertura AKM 100% vira 100", AimSettings.toSlider(7) == 100, "" + AimSettings.toSlider(7));
+
+        System.out.println("== FOV redondo: mesmo raio na horizontal, na vertical e nas diagonais ==");
+        Vector3 frente = new Vector3(0f, 0f, 1f);
+        float h = (float) Math.toDegrees(Math.atan(0.5)), vDeg = (float) Math.toDegrees(Math.atan(0.5));
+        Vector3 alvoH = new Vector3((float) Math.tan(Math.toRadians(8)), 0f, 1f);
+        Vector3 alvoV = new Vector3(0f, (float) Math.tan(Math.toRadians(8)), 1f);
+        float aH = AimAssist.anguloRedondo(alvoH, frente), aV = AimAssist.anguloRedondo(alvoV, frente);
+        check("alvo a 8° na horizontal e na vertical têm o mesmo raio", Math.abs(aH - aV) < 1e-3f && Math.abs(aH - 8f) < 1e-3f,
+                String.format("%.4f / %.4f", aH, aV));
+        Vector3 alvoD = new Vector3((float) Math.tan(Math.toRadians(5.66)), (float) Math.tan(Math.toRadians(5.66)), 1f);
+        float aD = AimAssist.anguloRedondo(alvoD, frente);
+        check("alvo na diagonal de 8° de raio também tem raio 8° (círculo, não quadrado)", Math.abs(aD - 8f) < 0.05f,
+                String.format("%.4f", aD));
+        check("atrás da câmera fica fora", AimAssist.anguloRedondo(new Vector3(0f, 0f, -1f), frente) > 90f, "");
 
         System.out.println("== Escala inteira: toda barra vai de 0 a 200 ==");
         boolean todas = true;

@@ -50,23 +50,23 @@ final class AimTuning {
     /** Intensidade da atração ao abdômen durante a subida (0 a 1). Experimental. */
     static float atracaoSubida = 1f;
     /** Resistência magnética de base: fração do movimento de subida que volta assim que a mira sai do abdômen. Experimental. */
-    static float resistenciaBase = 0.15f;
+    static float resistenciaBase = 1f;
     /** Resistência magnética: fração adicional do movimento de subida por grau acima do abdômen. Experimental. */
-    static float resistenciaGrau = 0.16f;
+    static float resistenciaGrau = 0.7f;
     /** Velocidade de referência do dedo (°/s): acima dela a resistência usa força cheia (com sensibilidade à velocidade). Experimental. */
     static float resistenciaVelRef = 60f;
     /** Sensibilidade da resistência à velocidade do dedo (0 = não depende da velocidade; 1 = proporcional). Experimental. */
-    static float resistenciaSensVel = 0.3f;
+    static float resistenciaSensVel = 0f;
     /** Variação máxima da correção por quadro (°/quadro): evita mudanças bruscas. Experimental. */
     static float resistenciaRampa = 0.05f;
     /** Amortecimento da correção (1/s): suaviza a leitura do toque e a correção. Experimental. */
     static float amortecimento = 12f;
     /** Velocidade máxima da volta ao abdômen quando o dedo para (°/s). Experimental. */
-    static float retornoVel = 90f;
+    static float retornoVel = 180f;
     /** Tempo parado do dedo até a assistência voltar a puxar para o abdômen (s). Experimental. */
-    static float retornoEsperaSeg = 0.15f;
+    static float retornoEsperaSeg = 0.05f;
     /** Duração da rampa que devolve a força da atração ao abdômen depois de parar (s). Experimental. */
-    static float retornoRampaSeg = 0.6f;
+    static float retornoRampaSeg = 0.2f;
     /** Ganho do tracking sobre o erro (1/s): quão rápido a mira fecha o atraso de um alvo em movimento. Experimental. */
     static float trackingGain = 6f;
 
@@ -88,15 +88,15 @@ final class AimTuning {
         zonaVertical = 0.4f;
         histerese = 0.3f;
         atracaoSubida = 1f;
-        resistenciaBase = 0.15f;
-        resistenciaGrau = 0.16f;
+        resistenciaBase = 1f;
+        resistenciaGrau = 0.7f;
         resistenciaVelRef = 60f;
-        resistenciaSensVel = 0.3f;
+        resistenciaSensVel = 0f;
         resistenciaRampa = 0.05f;
         amortecimento = 12f;
-        retornoVel = 90f;
-        retornoEsperaSeg = 0.15f;
-        retornoRampaSeg = 0.6f;
+        retornoVel = 180f;
+        retornoEsperaSeg = 0.05f;
+        retornoRampaSeg = 0.2f;
         trackingGain = 6f;
     }
 

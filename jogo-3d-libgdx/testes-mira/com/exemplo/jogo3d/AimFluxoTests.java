@@ -209,7 +209,7 @@ public class AimFluxoTests extends ApplicationAdapter {
 
         check("subida com o dedo: a mira nunca reverte o movimento do dedo (sem tremedeira)", sub[2] == 0f,
                 String.format("quadros em que a mira não sobe com o dedo: %.0f; dedo %.2f°, assistência %.2f°", sub[2], sub[0], sub[1]));
-        check("subida com o dedo: a resistência magnética devolve no máximo 90% do arrasto (sempre sobe)", Math.abs(sub[1]) <= 0.90f * Math.abs(sub[0]) + 1e-3f,
+        check("subida com o dedo: a resistência magnética devolve no máximo 95% do arrasto (sempre sobe)", Math.abs(sub[1]) <= 0.95f * Math.abs(sub[0]) + 1e-3f,
                 String.format("dedo %.2f°, assistência %.2f°", sub[0], sub[1]));
 
         System.out.println("\nRESULTADO: " + pass + " ok, " + fail + " falhas");
