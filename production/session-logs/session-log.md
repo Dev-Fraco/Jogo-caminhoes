@@ -18343,3 +18343,72 @@ b402009 docs: registro da sessão (hook de fim de sessão)
 eff0fed feat: lobby com o cenário e o personagem 3D em pé no centro
 ---
 
+## Session End: 20261128_014248
+### Commits
+7be1c25 docs: registro da sessão (hook de fim de sessão)
+afbf582 feat: resistência magnética ao subir e atração ao abdômen durante a partida
+235b150 docs: registro da sessão (hook de fim de sessão)
+a459e63 docs: registro da sessão (hook de fim de sessão)
+61dea5a fix: abdômen continua o ponto principal; o dedo tem prioridade e o retorno é suave
+70be51e docs: registro da sessão (hook de fim de sessão)
+f4fc0c1 fix: aquisição rápida no tiro e subida da mira sem tremedeira
+07210f1 docs: registro da sessão (hook de fim de sessão)
+d4b6dc4 docs: registro da sessão (hook de fim de sessão)
+0f04b11 docs: registro da sessão (hook de fim de sessão)
+ba4fb88 docs: registro da sessão (hook de fim de sessão)
+967aeb6 docs: registro da sessão (hook de fim de sessão)
+b1c1a27 docs: registro da sessão (hook de fim de sessão)
+4bd8bd0 docs: registro da sessão (hook de fim de sessão)
+3fe8dfd docs: registro da sessão (hook de fim de sessão)
+51255c3 docs: registro da sessão (hook de fim de sessão)
+1d19634 docs: registro da sessão (hook de fim de sessão)
+bf81aee docs: registro da sessão (hook de fim de sessão)
+721f97e docs: registro da sessão (hook de fim de sessão)
+c2f3279 docs: registro da sessão (hook de fim de sessão)
+fa662b0 docs: registro da sessão (hook de fim de sessão)
+1c75b28 test: revisão da mira, mudança de direção, borda do cone e controle manual
+0871bb9 docs: registro da sessão (hook de fim de sessão)
+c764614 docs: registro da sessão (hook de fim de sessão)
+dacf823 feat: mira com limite de velocidade, tracking, freio e centro na seleção
+133e27b docs: registro da sessão (hook de fim de sessão)
+7f1f560 docs: registro da sessão (hook de fim de sessão)
+37678cb feat: fase B da mira, parâmetros ligados ao jogo
+bbf2194 docs: registro da sessão (hook de fim de sessão)
+c7b7623 docs: registro da sessão (hook de fim de sessão)
+6c842a5 docs: registro da sessão (hook de fim de sessão)
+5a85b47 feat: fase A da mira, configuração com os parâmetros da Garena
+75f1f7b docs: registro da sessão (hook de fim de sessão)
+b3d1cae docs: registro da sessão (hook de fim de sessão)
+c5b43f1 docs: registro da sessão (hook de fim de sessão)
+d094c67 docs: registro da sessão (hook de fim de sessão)
+d959cfb docs: registro da sessão (hook de fim de sessão)
+56fd543 docs: registro da sessão (hook de fim de sessão)
+aedaf23 docs: registro da sessão (hook de fim de sessão)
+4db2c38 docs: registro da sessão (hook de fim de sessão)
+b1806c8 docs: registro da sessão (hook de fim de sessão)
+86264a0 docs: registro da sessão (hook de fim de sessão)
+4c3a0fa docs: registro da sessão (hook de fim de sessão)
+3d3cf7c docs: registro da sessão (hook de fim de sessão)
+24017ca docs: registro da sessão (hook de fim de sessão)
+7385f08 feat: mira com quatro tracinhos e ponto vermelho no centro
+6b8f9dc docs: registro da sessão (hook de fim de sessão)
+a44c33d docs: registro da sessão (hook de fim de sessão)
+301ae4b feat: câmera mais perto e personagem um pouco maior
+051ac49 docs: registro da sessão (hook de fim de sessão)
+2cb36ac feat: botões do HUD 25% maiores por padrão
+366839f docs: registro da sessão (hook de fim de sessão)
+dca9d75 feat: paredes de proteção somem no começo de cada round da arena
+076adf1 docs: registro da sessão (hook de fim de sessão)
+2748a51 feat: arena sem caixas e sem nomes sobre os inimigos
+81a2a6b docs: registro da sessão (hook de fim de sessão)
+0998ad6 docs: registro da sessão (hook de fim de sessão)
+1bb4f3e fix: tiro e granada do jogador não atingem companheiros na arena
+1719106 docs: registro da sessão (hook de fim de sessão)
+4c577b0 feat: bots da sala maiores e mais largos
+3a0cf77 docs: registro da sessão (hook de fim de sessão)
+b6d5ef7 feat: arma comprada na arena vai para a mão na hora
+78ff748 docs: registro da sessão (hook de fim de sessão)
+f996bd7 fix: parede de proteção na arena e nomes dos inimigos legíveis
+c8e86fd docs: registro da sessão (hook de fim de sessão)
+---
+
