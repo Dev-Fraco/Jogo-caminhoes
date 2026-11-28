@@ -12,7 +12,7 @@ for a in gdx/1.12.1/gdx-1.12.1.jar gdx-backend-headless/1.12.1/gdx-backend-headl
 done
 CP="$LIB/gdx-1.12.1.jar:$LIB/gdx-backend-headless-1.12.1.jar:$LIB/gdx-platform-1.12.1-natives-desktop.jar:$LIB/gdx-jnigen-loader-2.3.1.jar"
 OUT=$(mktemp -d)
-javac -encoding UTF-8 -d "$OUT" -cp "$CP" ../core/src/main/java/com/exemplo/jogo3d/*.java com/exemplo/jogo3d/*.java
+javac -encoding UTF-8 -d "$OUT" -cp "$CP" ../core/src/main/java/com/exemplo/jogo3d/*.java ../servidor/com/exemplo/jogo3d/*.java com/exemplo/jogo3d/*.java
 cd ../assets
 java -Xmx3g -cp "$OUT:$CP" com.exemplo.jogo3d.ModelIOTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.ShootTests
@@ -40,3 +40,4 @@ java -cp "$OUT:$CP" com.exemplo.jogo3d.RodadasTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.BotMiraTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.AimUiTests
 java -cp "$OUT:$CP" com.exemplo.jogo3d.AimAssistTests
+java -cp "$OUT:$CP" com.exemplo.jogo3d.SalaRedeTests
