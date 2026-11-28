@@ -415,6 +415,28 @@ public class AimAssistTests {
         }
 
         // ================= GRUPO 8 — nenhuma troca de alvo durante o tiro =================
+        System.out.println("== Grupo 7b: perto do boneco, o abdômen abaixo da linha da mira também é adquirido ==");
+        {
+            float[] distancias = {1.5f, 2f, 3f};
+            for (float dist : distancias) {
+                AimAssist a = new AimAssist();
+                Alvo al = new Alvo();
+                al.b.set(0f, 0.95f, dist);   // 0,55 m abaixo da linha da mira (altura do peito)
+                List<AimAssist.Candidato> c = new ArrayList<>();
+                c.add(al);
+                AimAssist.Saida s = quadro(a, 1f / 60f, 0f, 0f, 0f, 0f, true, true, c, true, fov, PIVO_FIXO);
+                check(String.format("alvo a %.1f m, abdômen 0,55 m abaixo da mira: adquire", dist), s.snap && s.ativa,
+                        String.format("snap=%b", s.snap));
+            }
+            AimAssist longe = new AimAssist();
+            Alvo al2 = new Alvo();
+            al2.b.set(20f * 0.342f, 0.95f, 20f * 0.94f);                   // 20° para o lado, a 20 m
+            List<AimAssist.Candidato> c2 = new ArrayList<>();
+            c2.add(al2);
+            AimAssist.Saida s2 = quadro(longe, 1f / 60f, 0f, 0f, 0f, 0f, true, true, c2, true, fov, PIVO_FIXO);
+            check("alvo longe fora do FOV continua não adquirido (o raio perto não vale longe)", !s2.snap, "");
+        }
+
         System.out.println("== Grupo 8: um alvo por sequência de tiro ==");
         {
             AimAssist a = new AimAssist();

@@ -178,7 +178,10 @@ final class AimAssist {
             if (dist > alcance) continue;
             v.set(b).sub(pivot);
             float ang = anguloRedondo(v, dir);
-            if (ang > fovGrau) continue;                          // fora do FOV: nunca adquirido
+            // Dentro do FOV angular, OU perto o bastante da linha da mira (perto do boneco o ângulo é grande)
+            float along = v.dot(dir);
+            float perp = (float) Math.sqrt(Math.max(0f, v.len2() - along * along));
+            if (ang > fovGrau && perp > AimTuning.raioAcaoPerto) continue;   // fora do FOV: nunca adquirido
             if (!visaoLivre(visao, cam, b)) continue;             // parede no caminho
             boolean melhorQue = melhor == null
                     || ang < melhorAng - AimTuning.desempateGrau

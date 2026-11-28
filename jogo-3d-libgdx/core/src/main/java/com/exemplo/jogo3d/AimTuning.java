@@ -15,6 +15,12 @@ final class AimTuning {
     static boolean snapHabilitado = true;
     /** Raio do FOV de assistência, em graus, antes do multiplicador da categoria da arma (padrão do projeto). */
     static float fovBaseGrau = 15f;
+    /**
+     * Raio físico (m) em torno da linha da mira aceito para adquirir, além do FOV angular. Perto do boneco, o
+     * abdômen fica muito abaixo da linha da mira e o ângulo passa do FOV mesmo estando a poucos centímetros
+     * do retículo. Este raio cobre esse caso sem alargar o FOV para alvos distantes.
+     */
+    static float raioAcaoPerto = 0.6f;
     /** Diferença de ângulo (graus) abaixo da qual a distância vira critério de desempate. */
     static float desempateGrau = 0.3f;
 
